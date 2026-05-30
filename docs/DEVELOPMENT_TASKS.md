@@ -262,7 +262,7 @@
     - [x] Bind chain custody evidence to the current ownership adapter, production-like guard, durable outbox, worker, health, and boundary-audit implementation SHA-256 snapshot.
 - [x] Add first-pass CORS allowlist, body limits, stricter validation, and protected debug reset route.
 - [x] Add automated prototype reset policy audit for local-debug route access, privacy classification, and authenticated local scripts.
-- [ ] Add full security headers, production config validation, and staging runtime header checks.
+- [x] Add full security headers, production config validation, and staging runtime header checks.
   - [x] Add API Helmet headers and Console response headers.
   - [x] Disable API and Console powered-by headers.
   - [x] Add production-like environment validation for secrets, CORS, demo auth, TTLs, and rate limits.
@@ -284,7 +284,7 @@
   - [x] Add production-like API trust-proxy hop validation before deployed rate-limit evidence is trusted.
   - [x] Add deployed staging runtime evidence proof for API trust-proxy hop configuration.
   - [x] Bind deployed staging runtime evidence to the current API/Console header, trust-proxy, admin-health, WebSocket, and evidence-validator implementation SHA-256 snapshot.
-  - [ ] Re-run and document the same header/config checks in a deployed staging environment.
+  - [x] Re-run and document the same header/config checks in a deployed staging environment.
 - [ ] Resolve or explicitly document dependency audit advisories before external testing.
   - [x] Remove `ethers/ws` from API production dependency path by dynamically loading `ethers` only for the explicit testnet ownership adapter.
   - [x] Document current Next/PostCSS advisory status and force-fix decision in `docs/DEPENDENCY_ADVISORY_LOG.md`.

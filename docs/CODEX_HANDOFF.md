@@ -3393,7 +3393,7 @@ After Staging Admin Health Dry-Run Privy Token Pass on 2026-05-29:
 
 After Staging Runtime Evidence Metadata Pass on 2026-05-29:
 
-- Extended `scripts/security-runtime-staging-check.sh` JSON output with `checkedAt`, `localDryRun`, orderbook target details, and the admin side-effect health status so deployed staging runs can be saved as auditable evidence.
+- Extended `scripts/security-runtime-staging-check.sh` JSON output with `checkedAt`, `localDryRun`, redacted orderbook subscription-target proof, and the admin side-effect health status so deployed staging runs can be saved as auditable evidence.
 - Updated `docs/DEPLOYMENT_ENVIRONMENTS.md` with the deployed staging evidence capture command, including safe `STAGING_ADMIN_ACCESS_TOKEN` handling, expected JSON fields, and the requirement to save output under `outputs/staging-runtime/` before summarizing it in the security review.
 - Verification passed:
   - `npm run security:runtime:staging:dry-run`
@@ -4721,15 +4721,36 @@ The validator now rejects only the missing positive admin side-effect outbox hea
 
 - Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count remains 364/381 tasks, 95.5%; no checkbox was closed because the final deployed staging evidence gate still needs admin-token-backed health evidence.
 
+## After Privy Simulator Admin Staging Evidence on 2026-05-31
+
+- Built and launched `FanPassOps` on the iOS simulator with staging API, Privy app ID, and Privy client ID supplied as Xcode build-setting overrides so public provider identifiers were not committed to source control.
+- Added a DEBUG-only `Copy Privy token` action in FanPass Ops to move a successful Privy email OTP access token to the simulator pasteboard for local evidence collection. The token is not logged, printed, saved in source control, or written into saved evidence.
+- Completed Privy email OTP in the simulator, read the token from the simulator pasteboard without printing it, and called `POST https://fanpass-api-staging.onrender.com/auth/privy/sync`.
+- Promoted the synthetic staging Privy-linked user `staging-admin+privy@fanpass.invalid` to `ADMIN` in Neon through the Neon MCP. Do not use real personal data for staging evidence users.
+- Verified the deployed API sees the synced Privy user as `ADMIN`.
+- Ran and accepted deployed staging runtime evidence:
+
+```bash
+STAGING_API_URL=https://fanpass-api-staging.onrender.com/health \
+STAGING_CONSOLE_URL=https://fanpass-dashboard.vercel.app \
+STAGING_API_TRUST_PROXY_HOPS=1 \
+STAGING_ADMIN_ACCESS_TOKEN="<from simulator pasteboard, not printed>" \
+npm run security:runtime:staging > outputs/staging-runtime/20260530T185440Z-render-vercel-admin.json
+
+npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T185440Z-render-vercel-admin.json
+```
+
+- Result: the evidence validator passed with `adminSideEffectHealth: "admin side-effect outbox health ok"`, real HTTPS Render/Vercel URLs, `localDryRun: false`, `apiRuntime.trustProxyHops: 1`, redacted orderbook subscription-target proof, implementation SHA-256 snapshot proof, deployment credential absence/redaction proof, CI masking-command redaction proof, and no token/private-key/provider/database/deployment credential markers in saved output. `npm run security:evidence-redaction` also passed after regenerating staging evidence without raw demo event or ticket identifiers.
+- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count is 366/381 tasks, 96.1%; the deployed staging runtime/header/config evidence blocker is closed.
+
 ## Next Engineering Tasks
 
 1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.
-2. Continue security hardening before any real-user/public Beta: real Privy dashboard plan/mobile evidence, actual FanPass/FanPass Ops Privy OTP login, FanPass Console Privy React login, production staff invitation/linking validation, iOS PaymentSheet and HTTPS Stripe dashboard evidence, deployed staging verification, and dependency advisories.
+2. Continue security hardening before any real-user/public Beta: real Privy dashboard plan/mobile evidence, production staff invitation/linking validation in staging, FanPass Console Privy React login, iOS PaymentSheet and HTTPS Stripe dashboard evidence, and dependency advisories.
 3. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
 4. Continue Stripe test-mode work with native iOS PaymentSheet confirmation and HTTPS dashboard webhook evidence before any real-money Beta.
 5. Verify actual Privy dashboard plan support for webhooks, mobile SDK, embedded wallets, token verification, custom UI, and MFA/policy controls, then save redacted evidence before making those features hard Beta dependencies.
-6. Provision real staging services and run `npm run security:runtime:staging` against HTTPS API/Console URLs.
-7. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
+6. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
 
 ## Context Strategy
 

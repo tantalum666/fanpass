@@ -342,13 +342,9 @@ function validateCheckedItems(relativePath, evidence) {
     }
   }
   const orderbook = evidence.orderbook ?? {};
-  if (
-    !orderbook.eventId ||
-    !orderbook.ticketTypeId ||
-    !orderbook.allowedOrigin
-  ) {
+  if (orderbook.subscriptionTargetRedacted !== true || !orderbook.allowedOrigin) {
     errors.push(
-      `${relativePath}: orderbook evidence target details are required`,
+      `${relativePath}: orderbook evidence target redaction proof and allowed origin are required`,
     );
   }
   if (

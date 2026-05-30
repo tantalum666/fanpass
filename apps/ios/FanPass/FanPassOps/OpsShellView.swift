@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG
+import UIKit
+#endif
 
 struct OpsShellView: View {
     private let privyAuthProvider: PrivyAuthProviding = FanPassPrivyAuthProvider()
@@ -130,6 +133,15 @@ struct OpsShellView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textFieldStyle(.roundedBorder)
+
+                    Button {
+                        UIPasteboard.general.string = privyAccessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                    } label: {
+                        Label("Copy Privy token", systemImage: "doc.on.doc")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(privyAccessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     #endif
 
                     TextField("Wallet address (optional)", text: $staffWalletAddress)
@@ -402,7 +414,11 @@ struct OpsShellView: View {
             staffWalletAddress = result.walletAddress ?? staffWalletAddress
             accessState = "Privy staff verified."
         } catch {
+            #if DEBUG
+            accessState = "Privy code could not be verified: \(error.localizedDescription)"
+            #else
             accessState = "Privy code could not be verified."
+            #endif
         }
     }
 

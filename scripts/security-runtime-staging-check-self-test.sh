@@ -200,8 +200,7 @@ cat <<JSON
   "consoleUrl": "${STAGING_CONSOLE_URL:-}",
   "localDryRun": false,
   "orderbook": {
-    "eventId": "${ORDERBOOK_EVENT_ID:-evt_weekend_demo}",
-    "ticketTypeId": "${ORDERBOOK_TICKET_TYPE_ID:-tt_cat2_demo}",
+    "subscriptionTargetRedacted": true,
     "allowedOrigin": "${SOCKET_ALLOWED_ORIGIN:-https://console.staging.fanpass.test}"
   },
   "adminSideEffectHealth": "admin side-effect outbox health ok",

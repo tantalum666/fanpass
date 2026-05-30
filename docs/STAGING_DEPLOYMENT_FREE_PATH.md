@@ -1,6 +1,6 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the Vercel Console is live on the free HTTPS hostname. The final deployed staging evidence bundle remains open until a real staging admin bearer token is available for the admin side-effect health check.
+Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, the Vercel Console is live on the free HTTPS hostname, and the deployed staging evidence bundle passes with a real staging Privy admin bearer from the iOS simulator login path.
 
 ## Targets
 
@@ -82,4 +82,4 @@ Save the JSON output under `outputs/staging-runtime/`, then validate it:
 npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json>.json
 ```
 
-The deployed staging gate is not closed until that evidence passes. Current deployed HTTPS runtime output passes API/Console headers, disabled demo sessions, unauthenticated admin-health rejection, unauthenticated Console locked/sign-in rendering, and orderbook WebSocket origin checks, but the evidence validator still rejects the saved output until `STAGING_ADMIN_ACCESS_TOKEN` is supplied and `adminSideEffectHealth` proves `admin side-effect outbox health ok`.
+The deployed staging gate is closed for the Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. The accepted evidence proves API/Console headers, disabled demo sessions, unauthenticated admin-health rejection, authenticated admin side-effect outbox health, unauthenticated Console locked/sign-in rendering, API trust-proxy hop configuration, and orderbook WebSocket origin checks without storing the bearer token in source control or saved evidence.

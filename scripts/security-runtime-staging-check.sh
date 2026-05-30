@@ -291,8 +291,7 @@ console.log(
         trustProxyHops: Number(trustProxyHops),
       },
       orderbook: {
-        eventId: process.env.ORDERBOOK_EVENT_ID,
-        ticketTypeId: process.env.ORDERBOOK_TICKET_TYPE_ID,
+        subscriptionTargetRedacted: true,
         allowedOrigin: process.env.SOCKET_ALLOWED_ORIGIN,
       },
       adminSideEffectHealth: sideEffectHealthStatus,

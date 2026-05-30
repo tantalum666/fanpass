@@ -402,8 +402,7 @@ function createEvidence({
       console: consoleChecks,
     },
     orderbook: {
-      eventId: "evt_staging_fixture",
-      ticketTypeId: "tt_staging_fixture",
+      subscriptionTargetRedacted: true,
       allowedOrigin,
     },
   };

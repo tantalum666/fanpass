@@ -575,7 +575,7 @@ Update after Security Pass 52 on 2026-05-29:
 
 Update after Security Pass 53 on 2026-05-29:
 
-- Extended `npm run security:runtime:staging` JSON output with `checkedAt`, `localDryRun`, orderbook target details, and the admin side-effect health status so real staging runs can be saved as auditable evidence rather than copied as ambiguous console text.
+- Extended `npm run security:runtime:staging` JSON output with `checkedAt`, `localDryRun`, redacted orderbook subscription-target proof, and the admin side-effect health status so real staging runs can be saved as auditable evidence rather than copied as ambiguous console text.
 - Updated `docs/DEPLOYMENT_ENVIRONMENTS.md` with the exact deployed staging evidence capture command, safe `STAGING_ADMIN_ACCESS_TOKEN` handling, expected JSON fields, and the requirement to save output under `outputs/staging-runtime/` before summarizing the result here.
 - `npm run security:runtime:staging:dry-run` passed and now emits the same evidence metadata with `"localDryRun": true`.
 - Remaining status: runtime evidence formatting is ready, but deployed staging still requires real HTTPS URLs, `"localDryRun": false`, a real staging admin token, worker supervision/alerting, real Stripe test-mode validation, and testnet chain validation before real provider side effects are enabled.
@@ -2284,7 +2284,7 @@ Update after Free Render/Vercel HTTPS Staging Runtime Check on 2026-05-31:
 - Fixed the staging runtime checker JSON output so it emits the implementation snapshot and CI secret-masking redaction proof expected by the evidence validator.
 - `npm run security:runtime:staging` passed against the real HTTPS API and Console URLs with `STAGING_API_TRUST_PROXY_HOPS=1`, covering security headers, absent powered-by headers, disabled demo session issuance, unauthenticated admin health rejection, locked/sign-in Console rendering, and orderbook WebSocket allowed/disallowed-origin behavior.
 - Saved deployed runtime output at `outputs/staging-runtime/20260530T180132Z-render-vercel.json`; this file is ignored by git.
-- Remaining status: `npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T180132Z-render-vercel.json` still rejects the evidence because no real `STAGING_ADMIN_ACCESS_TOKEN` was available to prove `admin side-effect outbox health ok`. The deployed staging evidence gate remains open until that admin-token-backed check passes.
+- Follow-up on 2026-05-31: FanPass Ops ran in the iOS simulator with the staging API and Privy app/client configuration, completed Privy email OTP login, and copied the resulting access token through the simulator pasteboard without printing it. The corresponding synthetic staging user was promoted to `ADMIN` in Neon, then `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T185440Z-render-vercel-admin.json` passed against the real Render/Vercel HTTPS deployment with redacted orderbook subscription-target evidence. The deployed staging evidence gate is closed for ASR-011 free-path runtime hardening.
 
 Beta cannot be considered security-ready until all of these are complete:
 
