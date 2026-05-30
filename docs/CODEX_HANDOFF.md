@@ -4693,6 +4693,34 @@ curl -sS https://fanpass-api-staging.onrender.com/health
 - No Render, GitHub, Neon, Privy, or Stripe secrets were written into repo files or deployment docs. The Neon connection string and Privy verification key were entered only into Render environment settings.
 - Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count remains 364/381 tasks, 95.5%; Render API HTTPS is live, but deployed staging evidence remains open until the Vercel Console HTTPS URL exists, Render CORS is updated to the final Console origin, and `npm run security:runtime:staging` plus `npm run security:runtime:staging:evidence` pass.
 
+## After Vercel Console Free Staging Deployment on 2026-05-31
+
+- Deployed FanPass Console to Vercel as project `fanpass-dashboard`.
+- Console origin: `https://fanpass-dashboard.vercel.app`
+- The first Vercel build failed because the dashboard root package did not declare the repo's Node `>=22 <23` engine and Vercel tried Node 24. Added the same `engines.node` constraint to `apps/dashboard/package.json`; the follow-up Vercel deployment became `READY`.
+- Updated Render `FANPASS_CORS_ORIGINS` to `https://fanpass-dashboard.vercel.app` through the Render API and triggered a new API deploy, which reached `live`.
+- Fixed `scripts/security-runtime-staging-check.sh` so its deployed JSON evidence includes the implementation SHA-256 snapshot and CI secret-masking redaction proof required by `npm run security:runtime:staging:evidence`.
+- Verification run against the real HTTPS origins:
+
+```bash
+STAGING_API_URL=https://fanpass-api-staging.onrender.com/health \
+STAGING_CONSOLE_URL=https://fanpass-dashboard.vercel.app \
+STAGING_API_TRUST_PROXY_HOPS=1 \
+npm run security:runtime:staging
+```
+
+- Result: the deployed runtime check passed API/Console headers, absent `x-powered-by`, disabled demo sessions, unauthenticated admin health rejection, unauthenticated Console locked/sign-in state, and orderbook allowed/disallowed-origin checks.
+- Saved output: `outputs/staging-runtime/20260530T180132Z-render-vercel.json` (ignored by git).
+- Evidence validator status:
+
+```bash
+npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T180132Z-render-vercel.json
+```
+
+The validator now rejects only the missing positive admin side-effect outbox health proof because no `STAGING_ADMIN_ACCESS_TOKEN` is available yet. Do not mark the deployed staging evidence task complete until a real staging admin bearer token is provided and the evidence validator passes.
+
+- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count remains 364/381 tasks, 95.5%; no checkbox was closed because the final deployed staging evidence gate still needs admin-token-backed health evidence.
+
 ## Next Engineering Tasks
 
 1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.

@@ -236,52 +236,100 @@ await connectOrderbook(allowedOrigin, true);
 await connectOrderbook("https://disallowed-origin.invalid", false);
 NODE
 
-node <<NODE
-console.log(JSON.stringify({
-  ok: true,
-  checkedAt: new Date().toISOString(),
-  apiUrl: "$API_URL",
-  consoleUrl: "$CONSOLE_URL",
-  localDryRun: "$ALLOW_LOCAL" === "true",
-  deploymentCredentialsAvailable: false,
-  apiRuntime: {
-    trustProxyHops: Number("$API_TRUST_PROXY_HOPS")
-  },
-  orderbook: {
-    eventId: "$ORDERBOOK_EVENT_ID",
-    ticketTypeId: "$ORDERBOOK_TICKET_TYPE_ID",
-    allowedOrigin: "$SOCKET_ALLOWED_ORIGIN"
-  },
-  adminSideEffectHealth: "$side_effect_health_status",
-  redaction: {
-    deploymentCredentialsRedacted: true
-  },
-  checked: {
-    api: [
-      "x-content-type-options",
-      "x-frame-options",
-      "referrer-policy",
-      "cross-origin-opener-policy",
-      "strict-transport-security",
-      "x-powered-by absent",
-      "demo-session non-2xx",
-      "admin side-effect health unauthenticated non-2xx",
-      "admin side-effect health: $side_effect_health_status",
-      "trust proxy hops configured: $API_TRUST_PROXY_HOPS",
-      "orderbook websocket allowed origin",
-      "orderbook websocket disallowed origin rejected"
-    ],
-    console: [
-      "x-content-type-options",
-      "x-frame-options",
-      "referrer-policy",
-      "cross-origin-opener-policy",
-      "strict-transport-security",
-      "permissions-policy",
-      "content-security-policy",
-      "x-powered-by absent",
-      "locked-or-sign-in unauthenticated state"
-    ]
-  }
-}, null, 2));
+API_URL="$API_URL" \
+CONSOLE_URL="$CONSOLE_URL" \
+ALLOW_LOCAL="$ALLOW_LOCAL" \
+API_TRUST_PROXY_HOPS="$API_TRUST_PROXY_HOPS" \
+ORDERBOOK_EVENT_ID="$ORDERBOOK_EVENT_ID" \
+ORDERBOOK_TICKET_TYPE_ID="$ORDERBOOK_TICKET_TYPE_ID" \
+SOCKET_ALLOWED_ORIGIN="$SOCKET_ALLOWED_ORIGIN" \
+SIDE_EFFECT_HEALTH_STATUS="$side_effect_health_status" \
+node <<'NODE'
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
+const implementationSnapshotFiles = [
+  "apps/api/src/main.ts",
+  "apps/api/src/config/security-config.ts",
+  "apps/api/.env.staging.example",
+  "apps/api/src/common/fanpass-socket-io.adapter.ts",
+  "apps/api/src/modules/alpha/alpha.controller.ts",
+  "apps/api/src/modules/side-effects/side-effect-health.service.ts",
+  "apps/dashboard/next.config.ts",
+  "scripts/security-runtime-staging-check.sh",
+  "scripts/staging-runtime-evidence-audit.js",
+  "scripts/security-runtime-staging-local-dry-run.sh",
+  "scripts/security-header-policy-audit.js",
+];
+
+function sha256File(file) {
+  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+const rootDir = process.cwd();
+const trustProxyHops = process.env.API_TRUST_PROXY_HOPS;
+const sideEffectHealthStatus = process.env.SIDE_EFFECT_HEALTH_STATUS;
+
+console.log(
+  JSON.stringify(
+    {
+      ok: true,
+      checkedAt: new Date().toISOString(),
+      apiUrl: process.env.API_URL,
+      consoleUrl: process.env.CONSOLE_URL,
+      localDryRun: process.env.ALLOW_LOCAL === "true",
+      deploymentCredentialsAvailable: false,
+      implementationSnapshot: {
+        source: "staging-runtime-security-boundaries",
+        files: implementationSnapshotFiles.map((file) => ({
+          file,
+          sha256: sha256File(path.join(rootDir, file)),
+        })),
+      },
+      apiRuntime: {
+        trustProxyHops: Number(trustProxyHops),
+      },
+      orderbook: {
+        eventId: process.env.ORDERBOOK_EVENT_ID,
+        ticketTypeId: process.env.ORDERBOOK_TICKET_TYPE_ID,
+        allowedOrigin: process.env.SOCKET_ALLOWED_ORIGIN,
+      },
+      adminSideEffectHealth: sideEffectHealthStatus,
+      redaction: {
+        deploymentCredentialsRedacted: true,
+        ciSecretMaskingCommandsRedacted: true,
+      },
+      checked: {
+        api: [
+          "x-content-type-options",
+          "x-frame-options",
+          "referrer-policy",
+          "cross-origin-opener-policy",
+          "strict-transport-security",
+          "x-powered-by absent",
+          "demo-session non-2xx",
+          "admin side-effect health unauthenticated non-2xx",
+          `admin side-effect health: ${sideEffectHealthStatus}`,
+          `trust proxy hops configured: ${trustProxyHops}`,
+          "orderbook websocket allowed origin",
+          "orderbook websocket disallowed origin rejected",
+        ],
+        console: [
+          "x-content-type-options",
+          "x-frame-options",
+          "referrer-policy",
+          "cross-origin-opener-policy",
+          "strict-transport-security",
+          "permissions-policy",
+          "content-security-policy",
+          "x-powered-by absent",
+          "locked-or-sign-in unauthenticated state",
+        ],
+      },
+    },
+    null,
+    2,
+  ),
+);
 NODE

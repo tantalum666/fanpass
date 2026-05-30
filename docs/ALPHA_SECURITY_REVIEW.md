@@ -2277,6 +2277,15 @@ Update after Privy Dev App Dashboard Evidence Capture on 2026-05-30:
 - Verification passed for `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260530.json`, `npm run security:privy-mobile-app-config:evidence -- outputs/privy-mobile-app-config/privy-mobile-20260530.json`, and `npm run security:evidence-redaction -- outputs/privy-plan outputs/privy-mobile-app-config`.
 - Remaining status: this closes the saved Dev app dashboard/mobile config evidence gap for the current local Beta foundation, but public/TestFlight Beta still needs real FanPass/FanPass Ops OTP execution on signed/staging-style builds, Console React SDK login or accepted isolation integration, production tenant/staff staging evidence, deployed HTTPS staging evidence, and the remaining Stripe/iOS/Wallet/scanner/chain/CI/dependency blockers.
 
+Update after Free Render/Vercel HTTPS Staging Runtime Check on 2026-05-31:
+
+- Render API is live at `https://fanpass-api-staging.onrender.com`, Vercel Console is live at `https://fanpass-dashboard.vercel.app`, and Render CORS is allowlisted to the Vercel Console origin.
+- Fixed the Vercel dashboard package Node engine pin so the Vercel build uses Node 22 instead of Node 24.
+- Fixed the staging runtime checker JSON output so it emits the implementation snapshot and CI secret-masking redaction proof expected by the evidence validator.
+- `npm run security:runtime:staging` passed against the real HTTPS API and Console URLs with `STAGING_API_TRUST_PROXY_HOPS=1`, covering security headers, absent powered-by headers, disabled demo session issuance, unauthenticated admin health rejection, locked/sign-in Console rendering, and orderbook WebSocket allowed/disallowed-origin behavior.
+- Saved deployed runtime output at `outputs/staging-runtime/20260530T180132Z-render-vercel.json`; this file is ignored by git.
+- Remaining status: `npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T180132Z-render-vercel.json` still rejects the evidence because no real `STAGING_ADMIN_ACCESS_TOKEN` was available to prove `admin side-effect outbox health ok`. The deployed staging evidence gate remains open until that admin-token-backed check passes.
+
 Beta cannot be considered security-ready until all of these are complete:
 
 1. Real product authentication UX and session validation are implemented across all surfaces.

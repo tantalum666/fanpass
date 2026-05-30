@@ -125,8 +125,9 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
 - Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31.
-- No deployed Vercel Console URL exists yet.
-- Render `FANPASS_CORS_ORIGINS` must be updated to the final Vercel Console origin after Vercel deployment.
+- Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`; the first Vercel build failed on Node 24, then passed after `apps/dashboard/package.json` pinned Node `>=22 <23`.
+- Render `FANPASS_CORS_ORIGINS` is updated to `https://fanpass-dashboard.vercel.app` and the API was redeployed after the change.
+- `npm run security:runtime:staging` passed against the real Render/Vercel HTTPS URLs without a staging admin token; the saved evidence is not accepted yet because the positive admin side-effect outbox health check still requires `STAGING_ADMIN_ACCESS_TOKEN`.
 - Stripe test-mode keys and signed webhooks have not been validated.
 - Privy product login is not integrated into FanPass, FanPass Ops, or Console UI.
 - TestFlight/App Store distribution is not planned yet.

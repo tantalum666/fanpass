@@ -1,6 +1,6 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned and the Render API is live on the free HTTPS hostname. Vercel Console deployment and the final deployed staging evidence bundle remain open.
+Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the Vercel Console is live on the free HTTPS hostname. The final deployed staging evidence bundle remains open until a real staging admin bearer token is available for the admin side-effect health check.
 
 ## Targets
 
@@ -32,15 +32,23 @@ Use `render.yaml` as the reproducible configuration baseline. Keep these values 
 - future `STRIPE_SECRET_KEY`
 - future `STRIPE_WEBHOOK_SECRET`
 
-`FANPASS_CORS_ORIGINS` is temporarily pointed at the planned Vercel staging origin. After the real Vercel Console URL exists, update Render `FANPASS_CORS_ORIGINS` to that exact origin and redeploy the API. It must be an origin only, for example:
+`FANPASS_CORS_ORIGINS` is set to the current Vercel Console origin and the API was redeployed after the update:
 
 ```text
-https://fanpass-console-staging.vercel.app
+https://fanpass-dashboard.vercel.app
 ```
 
 Do not use `localhost`, wildcard origins, production credentials, real personal data, or live Stripe mode.
 
 ## Console on Vercel
+
+Current service:
+
+```text
+https://fanpass-dashboard.vercel.app
+```
+
+The Vercel project is `fanpass-dashboard`, rooted at `apps/dashboard`, and the dashboard package pins Node `>=22 <23` so Vercel does not build it with Node 24.
 
 Create the Vercel project from the same repository with root directory:
 
@@ -52,12 +60,10 @@ Set:
 
 ```text
 FANPASS_ENV=staging
-FANPASS_API_BASE_URL=https://<render-api-host>
-NEXT_PUBLIC_API_BASE_URL=https://<render-api-host>
-FANPASS_CONSOLE_ORIGINS=https://<vercel-console-host>
+FANPASS_API_BASE_URL=https://fanpass-api-staging.onrender.com
+NEXT_PUBLIC_API_BASE_URL=https://fanpass-api-staging.onrender.com
+FANPASS_CONSOLE_ORIGINS=https://fanpass-dashboard.vercel.app
 ```
-
-After the Console URL exists, update Render `FANPASS_CORS_ORIGINS` to the same Vercel origin and redeploy the API.
 
 ## Validation
 
@@ -66,7 +72,7 @@ Run the deployed runtime check without printing tokens:
 ```bash
 STAGING_API_URL=https://<render-api-host>/health \
 STAGING_CONSOLE_URL=https://<vercel-console-host>/ \
-FANPASS_TRUST_PROXY_HOPS=1 \
+STAGING_API_TRUST_PROXY_HOPS=1 \
 npm run security:runtime:staging
 ```
 
@@ -76,4 +82,4 @@ Save the JSON output under `outputs/staging-runtime/`, then validate it:
 npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json>.json
 ```
 
-The deployed staging gate is not closed until that evidence passes.
+The deployed staging gate is not closed until that evidence passes. Current deployed HTTPS runtime output passes API/Console headers, disabled demo sessions, unauthenticated admin-health rejection, unauthenticated Console locked/sign-in rendering, and orderbook WebSocket origin checks, but the evidence validator still rejects the saved output until `STAGING_ADMIN_ACCESS_TOKEN` is supplied and `adminSideEffectHealth` proves `admin side-effect outbox health ok`.
