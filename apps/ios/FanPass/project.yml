@@ -1,0 +1,97 @@
+name: FanPass
+options:
+  bundleIdPrefix: com.fanpass
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  Stripe:
+    url: https://github.com/stripe/stripe-ios-spm
+    from: 25.16.0
+  SocketIO:
+    url: https://github.com/socketio/socket.io-client-swift
+    from: 16.1.1
+  Privy:
+    url: https://github.com/privy-io/privy-ios
+    from: 2.12.0
+configs:
+  Debug: debug
+  Staging: debug
+  Beta: release
+  Release: release
+targets:
+  FanPass:
+    type: application
+    platform: iOS
+    sources:
+      - path: FanPass
+        excludes:
+          - Features/Scanner
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app
+      DEVELOPMENT_TEAM: $(FANPASS_APPLE_TEAM_ID)
+      CODE_SIGN_STYLE: Manual
+      PROVISIONING_PROFILE_SPECIFIER: $(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)
+    configFiles:
+      Debug: Config/Local.xcconfig
+      Staging: Config/Staging.xcconfig
+      Beta: Config/Beta.xcconfig
+      Release: Config/Production.xcconfig
+    dependencies:
+      - package: Stripe
+        product: StripePaymentSheet
+      - package: SocketIO
+        product: SocketIO
+      - package: Privy
+        product: Privy
+    info:
+      path: FanPass/Generated/Info.plist
+      properties:
+        CFBundleDisplayName: FanPass
+        FanPassAPIBaseURL: $(FANPASS_API_BASE_URL)
+        FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)
+        FanPassPrivyAppClientID: $(FANPASS_PRIVY_APP_CLIENT_ID)
+        FanPassStripePublishableKey: $(FANPASS_STRIPE_PUBLISHABLE_KEY)
+        UILaunchScreen: {}
+        CFBundleURLTypes:
+          - CFBundleURLName: com.fanpass.app
+            CFBundleURLSchemes:
+              - fanpass-payments
+  FanPassOps:
+    type: application
+    platform: iOS
+    sources:
+      - FanPassOps
+      - FanPass/Models
+      - path: FanPass/Services
+        excludes:
+          - FanPassOrderbookRealtimeClient.swift
+      - FanPass/Shared
+      - FanPass/Features/Scanner
+    dependencies:
+      - package: Privy
+        product: Privy
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.ops
+      DEVELOPMENT_TEAM: $(FANPASS_APPLE_TEAM_ID)
+      CODE_SIGN_STYLE: Manual
+      PROVISIONING_PROFILE_SPECIFIER: $(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)
+      CODE_SIGN_ENTITLEMENTS: FanPassOps/FanPassOps.entitlements
+    configFiles:
+      Debug: Config/Local.xcconfig
+      Staging: Config/Staging.xcconfig
+      Beta: Config/Beta.xcconfig
+      Release: Config/Production.xcconfig
+    info:
+      path: FanPassOps/Generated/Info.plist
+      properties:
+        CFBundleDisplayName: FanPass Ops
+        FanPassAPIBaseURL: $(FANPASS_API_BASE_URL)
+        FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)
+        FanPassPrivyAppClientID: $(FANPASS_PRIVY_APP_CLIENT_ID)
+        UILaunchScreen: {}
+        NFCReaderUsageDescription: FanPass Ops uses NFC to scan supported venue tags and ticket wristbands.
+        NSCameraUsageDescription: FanPass Ops uses the camera to scan ticket QR codes at venue entry.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.fanpass.ops
+            CFBundleURLSchemes:
+              - fanpass-ops

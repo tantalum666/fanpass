@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: fanpass-api-staging
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run prisma:push -w apps/api && npm run build -w apps/api
+    startCommand: npm run start -w apps/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: NODE_ENV
+        value: production
+      - key: FANPASS_ENV
+        value: staging
+      - key: FANPASS_DATA_SOURCE
+        value: prisma
+      - key: FANPASS_ENABLE_PRISMA_CONNECT
+        value: "true"
+      - key: FANPASS_ENABLE_DEMO_AUTH
+        value: "false"
+      - key: FANPASS_ENABLE_PAYMENTS
+        value: "false"
+      - key: FANPASS_REQUIRE_PAYMENT_AUTHORIZATION
+        value: "false"
+      - key: FANPASS_ASYNC_OWNERSHIP_SETTLEMENT
+        value: "true"
+      - key: OWNERSHIP_ADAPTER
+        value: mock
+      - key: FANPASS_TRUST_PROXY_HOPS
+        value: "1"
+      - key: SESSION_TTL_SECONDS
+        value: "28800"
+      - key: QR_TTL_SECONDS
+        value: "300"
+      - key: RATE_LIMIT_GENERAL_PER_MINUTE
+        value: "600"
+      - key: RATE_LIMIT_AUTH_PER_MINUTE
+        value: "30"
+      - key: RATE_LIMIT_VERIFY_PER_MINUTE
+        value: "120"
+      - key: RATE_LIMIT_PRIVY_PER_MINUTE
+        value: "12"
+      - key: RATE_LIMIT_STAFF_INVITE_PER_MINUTE
+        value: "6"
+      - key: RATE_LIMIT_STAFF_ASSIGNMENT_PER_MINUTE
+        value: "30"
+      - key: FANPASS_SIDE_EFFECT_LOCK_TIMEOUT_SECONDS
+        value: "300"
+      - key: SIDE_EFFECT_HEALTH_PROCESSING_STALE_SECONDS
+        value: "300"
+      - key: SIDE_EFFECT_HEALTH_PENDING_STALE_SECONDS
+        value: "900"
+      - key: FANPASS_CORS_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: QR_SIGNING_SECRET
+        generateValue: true
+      - key: SESSION_SIGNING_SECRET
+        generateValue: true
+      - key: PRIVY_APP_ID
+        sync: false
+      - key: PRIVY_VERIFICATION_KEY
+        sync: false

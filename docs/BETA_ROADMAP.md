@@ -1,0 +1,164 @@
+# FanPass Beta Roadmap
+
+## Product Principle
+
+FanPass is not a speculative ticket exchange. It is a verified ticketing infrastructure product for organizers that brings primary sale, controlled resale, fan access, and venue verification into one auditable workflow.
+
+## Product Surface Decision
+
+FanPass will use separate product surfaces instead of merging all roles into one app:
+
+1. `FanPass` - consumer iOS app for fans.
+2. `FanPass Ops` - independent iOS app for gate staff and onsite operations.
+3. `FanPass Console` - web dashboard for organizers, admins, reporting, review, and configuration.
+
+This matches the operating model of serious ticketing platforms: fan flows, onsite entry tools, and organizer/admin workflows have different users, security needs, environments, and UI density. The previous `fanpass://staff/scanner` flow was a Technical Prototype bridge only and has been removed from the fan app product path.
+
+## Version 0: Technical Prototype
+
+Goal: prove the smallest working ticket lifecycle.
+
+Scope:
+
+- Create organizer, event, ticket type, and ticket inventory.
+- Let a fan claim or purchase a ticket through a mock checkout.
+- Mint or simulate ticket token ownership.
+- Show ticket in a mobile-oriented wallet UI.
+- Generate short-lived QR payloads.
+- Let a role-separated gate staff scanner workflow redeem a ticket once.
+- Reject duplicate redemption.
+
+Exit criteria:
+
+- One local command starts the API.
+- Console/dashboard can create a demo event.
+- API can issue a ticket and redeem it.
+- Contract tests prove mint, transfer lock, and redemption registry basics.
+- iOS source has the matching fan screens, scanner prototype, and service contracts.
+- A runbook documents the reproducible local demo.
+
+## Version 1: Alpha
+
+Goal: produce a complete FYP-quality demo with realistic modules.
+
+Status on 2026-05-27: Alpha implementation and close-out verification are complete for the local demo baseline. Remaining Alpha work is demo-script packaging, product polish, and any optional recording assets before starting Beta foundations.
+
+Detailed Alpha plan:
+
+`docs/ALPHA_PLAN.md`
+
+Scope:
+
+- Native SwiftUI `FanPass` app screens for auth, event discovery, ticket wallet, marketplace, fan access, and profile.
+- Separate SwiftUI `FanPass Ops` app target for gate redemption, event/gate selection, scanner status, and onsite exception states. The first target is now implemented in the prototype codebase.
+- `FanPass Console` web dashboard for event and ticket-type management.
+- PostgreSQL-compatible Prisma data layer with deterministic seed/reset flow.
+- Testnet-ready Solidity ownership adapter, with local mock ownership kept for reproducible demos.
+- One-ticket orderbook with price-time priority.
+- Fan task submission, review, and score calculation.
+- Dynamic QR with backend signature and nonce.
+- Basic admin review, redemption history, and audit log.
+
+Exit criteria:
+
+- End-to-end flow works with seeded data.
+- Orderbook accepts buy and sell orders and matches one-ticket trades.
+- Ticket status transitions are auditable.
+- `FanPass Ops` marks tickets as redeemed and prevents replay.
+- `FanPass` default navigation has no staff or organizer controls.
+- The temporary fan-app scanner bridge is no longer needed for the primary demo path.
+- Demo can be recorded without manual database editing.
+
+## Version 2: Beta
+
+Goal: make the prototype realistic enough for a small closed test.
+
+Security gate:
+
+Beta cannot begin with real users or real personal data until the critical and high findings in `docs/ALPHA_SECURITY_REVIEW.md` are fixed or explicitly risk-accepted. Authentication, authorization, privacy scoping, secret handling, QR authority, settlement idempotency, CORS, and dependency patching are release blockers.
+
+Scope:
+
+- Privy embedded wallet flow behind FanPass app sessions.
+- Stripe test mode PaymentIntents and webhook handling.
+- WebSocket orderbook updates.
+- Resale caps, transfer limits, and basic risk checks.
+- Core NFC tag-reading prototype in `FanPass Ops`.
+- Apple Wallet pass barcode prototype.
+- Role-based access for fan, organizer, gate staff, and admin.
+- Deployment-ready environment configuration.
+- Automated tests for matching, scoring, verification, and contracts.
+
+Exit criteria:
+
+- A non-technical tester can complete the happy path.
+- A gate staff tester can use `FanPass Ops` to redeem tickets quickly and see clear failure states.
+- An organizer tester can use `FanPass Console` without touching mobile staff tools.
+- Payment and ticket ownership state stay consistent under expected failures.
+- Durable payment/ownership workers can recover stale processing locks after a crash or restart.
+- The Beta local start script must keep passing its fixture-backed self-test so inherited Stripe secrets are scrubbed by default, Stripe forwarding requires explicit opt-in, and async ownership/payment-authorization local flags cannot silently drift before local demos or recordings.
+- The Beta local verification script must keep passing its fixture-backed self-test so async ownership finalization, local payment capture, admin-only side-effect outbox health, DB reset skip behavior, and health-response redaction checks cannot silently drift before live local verification is trusted.
+- Local and staging gates can prove through an admin-only API boundary that the side-effect outbox has no dead, failed, or stale runnable jobs after settlement verification.
+- The local Beta verifier exercises that admin-only health boundary after the live API/worker completes async ownership finalization and payment capture; deployed staging must supply a real admin bearer token to run the same check.
+- The staging dry-run proves the same admin-only health path locally with a Prisma-backed outbox and an ephemeral Privy-like admin bearer, but it is not a substitute for deployed HTTPS staging evidence.
+- Deployed staging runtime evidence must be saved as JSON with real HTTPS URLs, `"localDryRun": false`, API and Console `strict-transport-security` proof, Console `cross-origin-opener-policy` proof, `apiRuntime.trustProxyHops` bounded to the documented 1-3 hop deployment value with a matching `trust proxy hops configured: <n>` checked item, healthy admin side-effect outbox status, the current API/Console header, trust-proxy, admin-health, WebSocket, and evidence-validator implementation SHA-256 snapshot, `"deploymentCredentialsAvailable": false`, `"redaction.deploymentCredentialsRedacted": true`, `"redaction.ciSecretMaskingCommandsRedacted": true`, and no provider keys, deployment/cloud credentials, CI secret masking command literals, database URLs, bearer tokens, JWTs, private keys, or admin-token assignments before the staging gate is closed.
+- Saved deployed staging evidence must pass `npm run security:runtime:staging:evidence -- <file>` before it is accepted as Beta gate evidence.
+- The staging runtime checker must keep passing its fixture-backed self-test inside `npm run beta:foundation:verify` so HTTPS, demo-auth blocking, unauthenticated admin health rejection, locked Console rendering, payload redaction, orderbook origin, and header checks cannot silently drift before real staging evidence is captured.
+- The staging evidence validator must keep passing its local self-test inside `npm run beta:foundation:verify` so dry-run rejection, HTTPS requirements, admin health evidence, stale implementation snapshot rejection, provider-key/database URL redaction, deployment/cloud credential redaction, CI secret masking command redaction, and secret-marker checks cannot silently drift.
+- The local runtime security checker must keep passing its fixture-backed self-test inside `npm run beta:foundation:verify` so API, Console, and Privy auth header checks cannot silently stop detecting missing security headers, missing Console cross-origin opener policy, or powered-by disclosure.
+- The security header policy audit must keep passing inside `npm run beta:foundation:verify` so API Helmet, production-like strict transport security, production-like API trust-proxy hop validation, staging trust-proxy evidence proof, Console cross-origin opener policy, Console CSP, powered-by removal, local runtime checks, staging runtime checks, and staging runtime evidence gates remain connected before public deployment decisions.
+- The side-effect worker saga verifier must keep passing its fixture-backed self-test inside `npm run beta:foundation:verify` so stale lock recovery setup, two worker passes, ownership transfer/finalization, ticket transfer, and order settlement checks cannot silently drift before the live Prisma worker verifier runs.
+- The settlement retry idempotency audit must keep passing inside `npm run beta:foundation:verify` so ownership transfer/finalization retries and payment capture/cancel/refund retries remain bound to deterministic durable outbox idempotency keys.
+- The side-effect outbox health gate must keep passing its focused self-test inside `npm run beta:foundation:verify` so stale processing locks, stale runnable jobs, terminal failures, and payload redaction semantics cannot silently drift before the live outbox health check runs.
+- The API route role matrix audit must keep passing its fixture-backed self-test inside `npm run beta:foundation:verify` so public/guarded route coverage, role guard presence, public/private classifications, unexpected handlers, and missing handlers cannot silently drift before the real controller matrix runs.
+- The API/Console response privacy audit must keep passing its local self-test inside `npm run beta:foundation:verify` so route/classification drift, stale matrix rows, public/private mismatches, provider-ingress drift, and one-time secret redaction bypasses cannot silently drift.
+- The payment response redaction audit must keep passing inside `npm run beta:foundation:verify` so only authenticated payer checkout intent responses may expose Stripe client secrets while admin payment operations, webhook responses, side-effect payloads, and Alpha operations snapshots remain redacted.
+- The Console route contract audit must keep passing its local self-test inside `npm run beta:foundation:verify` so Privy session bridge, no-storage locked Console login UI, HttpOnly cookie, mutation origin checks, demo-auth blocking, bearer forwarding, invite proxy redaction, and assignment id encoding regressions cannot silently drift.
+- The provider/lifecycle boundary audit must keep passing its expanded local self-test inside `npm run beta:foundation:verify` so Stripe/Privy SDK placement, Privy verifier isolation, blocked Privy React SDK imports and dependency manifests before isolation evidence, Stripe/Socket.IO source, package, and lockfile placement, production-like testnet ownership blocking, async ownership finalization, payment side-effect idempotency, and stale outbox lock recovery cannot silently drift.
+- The chain operator key boundary audit must keep passing inside `npm run beta:foundation:verify` so testnet ownership signing remains isolated behind `OwnershipService`, `ethers` stays dynamically loaded only for explicit testnet use, local/staging examples do not commit operator private key material, local Beta startup stays on mock ownership, and the vault/KMS or delegated signer plus multisig/timelock blocker remains explicit before any pilot chain enablement.
+- The chain custody evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved real-chain evidence must prove vault/KMS or delegated signer custody, no raw app private key access, multisig ownership, timelock/admin delay, durable outbox-only chain calls, healthy residual outbox state, rotation/incident runbooks, the current ownership/outbox implementation SHA-256 snapshot, no provider-secret, RPC URL, deployment/cloud credential, CI secret masking command literal, Stripe publishable-key, or database URL leakage, plus deployment credential and CI masking-command redaction proof, before ASR-014 or pilot chain blockers are closed.
+- The Engineering Quality Gate audit must keep passing inside `npm run beta:foundation:verify` so provider SDK adapter isolation, domain lifecycle/provider separation, provider-boundary verifier wiring, and maintainability documentation cannot silently drift after those gates are marked complete.
+- The iOS distribution boundary audit must keep passing inside `npm run beta:foundation:verify` so release API configs stay HTTPS-only and secret-free, the FanPass target has no Camera/NFC permissions, FanPass Ops owns Camera/NFC capability, placeholder Apple signing settings stay variable-only in source, checked-in iOS configs stay Stripe key-free, public Privy app/client ID slots keep the Privy public-config secret guard, the current Beta PaymentSheet path keeps a test publishable-key runtime guard, debug-gated payload copy/paste helpers stay out of external scanner builds, and Apple Wallet stays a signed `.pkpass` blocker until real pass signing exists. This gate supports but does not replace real HTTPS staging URLs, signing, TestFlight, or real-device NFC validation.
+- The iOS staging/TestFlight build evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved iOS build evidence must prove both apps were signed, installed on a physical device or distributed through TestFlight, configured with real HTTPS staging/beta API URLs, stripped of debug payload helpers, kept role-separated, bound to the current iOS distribution/config implementation SHA-256 snapshot, and redacted of signing material, device identifiers, tokens, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, and real personal data before iOS staging/beta API URL blockers are closed.
+- The iOS physical-device QA checklist audit must keep passing inside `npm run beta:foundation:verify` so real-device QA stays tied to signed builds, real HTTPS staging/beta API URLs, Stripe test mode, Privy test apps, FanPass/FanPass Ops role separation, no debug fallback proof, no secrets or real personal data, and the existing saved-evidence validators before external tester evidence is trusted.
+- The Apple Wallet signed-pass evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved `.pkpass` evidence must prove Apple pass signing, manifest/signature validation, physical-device add-to-Wallet flow, FanPass Ops scan compatibility, the current ticket wallet/QR payload/API signing/scanner compatibility/prototype-boundary implementation SHA-256 snapshot, no private-key/certificate leakage, no provider-secret, deployment/cloud credential, Stripe publishable-key, or database URL leakage, deployment credential absence/redaction proof, and no real personal/payment data before the signed Wallet blocker is closed.
+- The FanPass Ops device scanner evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved physical-device QR/NFC evidence must prove HTTPS API configuration, real iPhone camera QR scanning, physical NFC NDEF tag reading, duplicate replay rejection, backend gate assignment enforcement, scanner identity derived from verified auth, no debug paste fallback, the current QR/NFC scanner/API/auth/NFC fixture implementation SHA-256 snapshot, no leaked tokens, provider secrets, deployment/cloud credentials, Stripe publishable keys, database URLs, or private secrets, plus deployment credential absence/redaction proof before physical scanner blockers are closed.
+- The NFC NDEF fixture format audit must keep passing inside `npm run beta:foundation:verify` so supported physical tag payload rules remain FanPass Ops-only, QR-equivalent, backend-authoritative, limited to NDEF Text/URI records, free of bearer tokens, Privy/Stripe secrets, raw nonces, raw signed payload fixtures, real identifiers, and tied to physical-device evidence rather than simulator or paste fallback proof.
+- The staff invite policy audit must keep passing inside `npm run beta:foundation:verify` so one-time staff invite acceptance stays Privy-token verified, atomically pending-only, active gate assignment scoped, rate-limited, and redacted through Console/Ops boundaries. FanPass Ops must keep the release path on the Privy Swift SDK email OTP token result; any manual Privy access-token entry remains debug-only.
+- The staff tenant staging evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved staging tenant/staff evidence must prove HTTPS staging URLs, production-like config, verified Privy sessions, organizer isolation, one-time invite behavior, Ops gate assignment scoping, no demo auth, the current staff invite/Console/Ops/gate implementation SHA-256 snapshot, and no identity, token, provider-key, deployment/cloud credential, CI secret masking command literal, Stripe publishable-key, or database URL leakage before production tenant/staff blockers are closed.
+- The Privy webhook optionality audit must keep passing inside `npm run beta:foundation:verify` so Privy webhook routes/secrets remain absent until actual plan support is verified, while backend access-token sync remains the low-cost auth boundary.
+- The Privy local config check self-test must keep passing inside `npm run beta:foundation:verify` so the real local setup path continues requiring an ignored API env file, a PEM public verification key, outside-source-control iOS app id and app client id injection, iOS/API app id matching, blank checked-in iOS placeholders, and both native bundle ids before real OTP login testing.
+- The provider-boundary audit now locks the iOS Privy Swift SDK to the shared `FanPassPrivyAuthProvider` only, with FanPass and FanPass Ops linked through XcodeGen/SPM. This supports mobile email OTP access-token sync but does not close real Privy dashboard evidence, Console React SDK, or production tenant/staff staging evidence.
+- The Privy plan evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved dashboard evidence must prove the selected plan status for mobile SDK use, embedded wallets, backend token verification, webhooks, custom auth UI, and MFA/policy controls, the current Privy auth/webhook optionality/plan-policy implementation SHA-256 snapshot, no stale policy proof, no secrets, no provider-key/database URL leakage, no deployment/cloud credential leakage, no CI secret masking command literal leakage, no Stripe publishable-key leakage, no real-user data, plus deployment credential and CI masking-command redaction proof, before Privy plan blockers are closed.
+- The Privy mobile app config evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved native app config evidence must prove FanPass and FanPass Ops public app/client ID setup, placeholder-only checked-in configs, outside-source-control value injection, the current iOS Privy auth/config implementation SHA-256 snapshot, provider/iOS boundary checks, Privy public-config secret guard coverage, optional webhooks, no Privy secret, provider-secret, token, deployment/cloud credential, CI secret masking command literal, Stripe publishable-key, or database URL leakage, and deployment credential plus CI masking-command redaction proof before real iOS Privy config blockers are closed.
+- The Privy Console React SDK isolation validator self-test and provider-boundary audit must keep passing inside `npm run beta:foundation:verify` so future `@privy-io/react-auth` integration must prove either clean direct production-audit impact or an isolated auth workspace/runtime boundary, use the existing HttpOnly Console session bridge, prove the current Console session/dependency boundary SHA-256 snapshot, avoid token/secret leakage, no provider-key, deployment/cloud credential, Stripe publishable-key, or database URL leakage, prove deployment credential absence/redaction, and intentionally update the blocked-provider source and dependency-manifest rules before the Console SDK blocker is closed.
+- The Privy evidence draft helper self-test must keep passing inside `npm run beta:foundation:verify` so `npm run privy:evidence:draft -- plan|mobile|console` continues producing non-passing, secret-free draft evidence with current SHA-256 snapshots before real dashboard, mobile config, or Console SDK evidence is filled and validated.
+- The Stripe test-mode evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved real Stripe evidence must prove test mode, no local mock provider, the current Stripe API/iOS implementation SHA-256 snapshot, no secret, publishable-key, provider-secret, deployment/cloud credential, CI secret masking command literal, or database URL leakage, deployment credential and CI masking-command redaction proof, FanPass iOS native PaymentSheet presentation with a backend-issued client secret, FanPass Ops checkout absence, signed raw-body webhooks, duplicate replay idempotency, capture, cancellation, refund, reconciliation, retry idempotency, and healthy residual outbox state before Stripe Beta blockers are closed.
+- The Stripe dashboard evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved dashboard feasibility evidence must prove test-mode dashboard review, test-mode PaymentIntent availability, manual-capture support for `POST /payments/intents`, an HTTPS `POST /payments/webhook` endpoint with signed raw-body verification, required PaymentIntent events, the current Stripe payment/webhook policy SHA-256 snapshot, no live-mode proof, no stale policy proof, no secret/publishable-key/webhook-secret/client-secret leakage, no provider-key/database URL leakage, no deployment/cloud credential leakage, no CI secret masking command literal leakage, no real-user data, and deployment credential plus CI masking-command redaction proof before Stripe dashboard feasibility blockers are closed.
+- The dependency advisory state check must keep passing its local self-test inside `npm run beta:foundation:verify` so undocumented production advisories, severity drift, changed forced-fix paths, newly available safe Next/PostCSS patch paths, and missing external-testing gate markers cannot silently drift.
+- The dependency risk evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future unresolved-advisory external testing decisions must prove Node 22 production-audit evidence, the current workspace package-manifest and lockfile SHA-256 snapshot, the current dependency advisory/risk policy SHA-256 snapshot, exactly the known moderate Next/PostCSS advisories, no safe patched path, bounded closed-beta-only owner risk acceptance, mitigation coverage, deployment credential absence/redaction proof, no provider-secret, deployment/cloud credential, CI secret masking command literal, Stripe publishable-key, or database URL leakage, and secret-free redaction before the dependency blocker is treated as risk-accepted.
+- The full dependency tooling audit gate must keep passing inside `npm run beta:foundation:verify` so current high dev/tooling advisories remain confined to known Hardhat/contract-toolchain transitive dependencies and cannot drift into app runtime, direct workspace dependencies, unexpected high packages, or critical findings.
+- The Node runtime policy audit must keep passing its local self-test inside `npm run beta:foundation:verify` so Node 22 LTS pins, `.npmrc` `engine-strict`, the `scripts/with-node-22.sh` helper, package engine ranges, lockfile drift, and Hardhat contract/security tooling guidance cannot silently drift before dependency or contract evidence is trusted.
+- The CI Node 22 Beta foundation workflow audit, `npm run security:ci-node22-workflow`, must keep passing inside `npm run beta:foundation:verify` so GitHub Actions continues using `.nvmrc`, local Postgres, strict Node runtime checks, `npm ci`, no provider secrets, and the full composite verifier before CI evidence is trusted.
+- The hosted CI evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved GitHub Actions evidence must prove a successful hosted `FanPass Beta Foundation` run from the current `.github/workflows/beta-foundation.yml` path and SHA-256, on Node 22 from `.nvmrc`, `npm ci`, `postgres:16-alpine`, strict runtime mode, the full Beta foundation verifier, dependency advisory gate, side-effect health gate, current API unit-test counts, and a current hosted CI verifier policy SHA-256 snapshot covering the workflow, Node/npm policy, package manifest and lockfile, composite verifier, CI workflow audit, evidence validator/self-test, and evidence contract document. Evidence must include no provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, bearer tokens, or private keys before hosted CI evidence is trusted.
+- The saved evidence redaction audit must keep passing inside `npm run beta:foundation:verify` so generated files under `outputs/` cannot silently retain Stripe secret keys, Stripe publishable keys, app session/client/webhook secret assignments or fields, quoted secret assignments, quoted prefixed app secret assignments, snake_case secret assignments, npm registry auth tokens, source-control access token literals, chat/notification webhook URLs, CI secret masking command literals, observability service credential assignments, Apple/App Store automation credential assignments, generic token/API-key assignments, generic token/cookie JSON fields, secret-bearing snake_case JSON fields, secret-bearing YAML/colon fields, environment-style secret YAML/colon fields, environment name/value YAML or JSON secret fields, secret-bearing HTTP header JSON fields, secret-bearing URL query or fragment parameters, cloud storage signed URL credential parameters, Kubernetes kubeconfig credential literals, encoded deployment private key credential literals, provider secrets/API keys, provider API-key JSON fields, provider RPC URLs, chain provider API-key assignments, deployment/cloud credential assignments, lowercase deployment/cloud credential assignments, IaC sensitive output values, fields, JSON environment-map fields, or raw cloud credential literals, Azure storage credential literals, Docker/OCI registry credential literals, or encoded Docker/OCI registry credential literals, Apple signing material, provisioning profile markers, device identifier assignments, raw email addresses, raw wallet addresses, QR signing secrets, staff invite tokens, raw QR nonces, raw signed payloads, raw FanPass identity fields, raw ticket/event identifier fields, bearer tokens, Basic auth headers, sensitive cookie headers, secret-bearing HTTP headers, JWTs, database URLs, raw `postgres://`/`postgresql://` URLs, credentialed service URLs, private-key/certificate blocks, or staging/admin access-token assignments after local capture, staging runtime, CI, Stripe, Privy, iOS, scanner, Wallet, or chain evidence work.
+- The prototype shortcut register audit must keep passing its local self-test inside `npm run beta:foundation:verify` so local shortcuts cannot lose required risk, replacement path, release gate, or evidence coverage before external Beta decisions.
+- The prototype reset policy audit must keep passing inside `npm run beta:foundation:verify` so the local reset endpoint remains organizer/admin guarded, classified as `LOCAL_DEBUG`, registered as a shortcut, and called by local scripts only with a seeded organizer bearer.
+- Alpha walkthrough recordings must follow `docs/ALPHA_DEMO_SCRIPT.md`, and that script must pass `npm run alpha:demo-script:audit` before recording so local-only scope, product boundaries, verification commands, and remaining Beta blockers stay explicit.
+- The Alpha demo script audit must keep passing its local self-test inside `npm run beta:foundation:verify` so recording preparation cannot silently lose local-only scope, product surface, verification command, blocker, checklist, or no-secret guardrails.
+- The Alpha walkthrough evidence audit must keep passing inside `npm run beta:foundation:verify` so the still-open recording task cannot be closed without a local-only artifact contract, all seven scenes, required verification commands, no-secret constraints, and an artifact path under `outputs/alpha-walkthrough/`.
+- The Alpha walkthrough recording evidence validator self-test must keep passing inside `npm run beta:foundation:verify` so future saved human-reviewed recording evidence must prove a real recording artifact under `outputs/alpha-walkthrough/`, all seven scenes, required verification commands, local-only visual-review claims, the current Alpha walkthrough recording policy SHA-256 snapshot, no provider secrets, no identity or QR payload leakage, and redaction before the recording task can close.
+- The Alpha walkthrough capture self-test must keep passing inside `npm run beta:foundation:verify` so the local capture command keeps running the script audit, evidence audit, Beta foundation verifier, local Beta start/verify/stop, and Console screenshot capture before any local recording bundle is trusted.
+- A reviewed local capture bundle now exists at `outputs/alpha-walkthrough/20260529T182908Z/`; it is supporting evidence only, and the human-reviewed walkthrough recording remains open until an actual recording artifact is added.
+- Project can be deployed to a test backend and installed on a test iPhone once Apple/Xcode credentials are available.
+
+## Out of Scope Until Pilot MVP
+
+- App Store release.
+- Production Stripe Connect onboarding.
+- Real KYC/KYB.
+- Real event inventory integrations.
+- Venue turnstile hardware integration.
+- Unrestricted iPhone NFC card emulation.
+- Large-sale queueing and anti-bot at concert scale.
+- Legal approval for real secondary-market operation.

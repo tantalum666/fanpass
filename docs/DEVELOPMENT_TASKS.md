@@ -1,0 +1,413 @@
+# Development Tasks
+
+## Technical Prototype
+
+- [x] Create monorepo structure.
+- [x] Scaffold shared domain types.
+- [x] Scaffold NestJS API.
+- [x] Add Prisma schema for users, events, tickets, orders, fan tasks, verification, audit logs.
+- [x] Implement seed data.
+- [x] Implement event and ticket-type endpoints.
+- [x] Implement mock ticket issuance.
+- [x] Implement signed QR generation and redemption.
+- [x] Scaffold organizer dashboard, now positioned as `FanPass Console`.
+- [x] Scaffold Solidity contracts.
+- [x] Scaffold SwiftUI iOS source layout.
+- [x] Verify sell order -> buy order -> trade -> QR -> redemption flow.
+- [x] Install/configure Xcode 26.5 and iOS 26.5 Simulator runtime.
+- [x] Build, install, and launch the iOS SwiftUI shell in simulator.
+- [x] Add prototype fan registration/sign-in API.
+- [x] Add iOS auth gate and fan profile tab.
+- [x] Remove gate scanner from default C-side fan tabs.
+- [x] Change fan app entry to guest-browsable home instead of launch-time login.
+- [x] Present auth only when account actions require it.
+- [x] Replace default SwiftUI list UI with a more polished ticketing-app shell.
+- [x] Define FanPass brand VI v0.2 before further UI expansion.
+- [x] Create Figma brand VI board.
+- [x] Add shared brand tokens for app/dashboard reuse.
+- [x] Add real iOS wallet QR image generation from signed backend payloads.
+- [x] Add role-separated staff scanner deep link outside default fan tabs.
+- [x] Add AVFoundation QR camera scanner path for staff workflow.
+- [x] Verify iOS wallet QR -> staff scanner redeem -> duplicate rejection flow.
+- [x] Decide long-term product split: FanPass, FanPass Ops, FanPass Console.
+- [x] Add prototype start/stop/verify scripts.
+- [x] Add in-memory prototype reset endpoint.
+- [x] Add runbook for reproducible prototype demo.
+- [x] Add Console forms for creating events and ticket types.
+- [x] Remove fan-app staff scanner deep link from the product path.
+
+## Alpha
+
+- [x] Create Alpha foundation plan in `docs/ALPHA_PLAN.md`.
+- [x] Create separate `FanPass Ops` iOS target and bundle id.
+- [x] Add staff scanner flow inside `FanPass Ops`.
+- [x] Add FanPass Ops launch, event selection, gate selection, and scanner status screens.
+- [x] Keep `FanPass` C-side navigation free of staff and organizer controls.
+- [x] Remove temporary `fanpass://staff/scanner` bridge after Ops covers all demo scanner needs.
+- [x] Decode backend redemption responses correctly in iOS.
+
+### Alpha 0 - Data Foundation
+
+- [x] Align Prisma schema with Alpha lifecycle states.
+- [x] Add Prisma client wiring to the NestJS API.
+- [x] Add automatic Prisma Client generation before API dev/build.
+- [x] Clean stale API `dist` output before dev/build so Nest does not launch old compiled entrypoints.
+- [x] Extract orderbook matching into `OrderbookService`.
+- [x] Add controller-to-service boundaries for events, tickets, fan access, verification, and audit.
+- [x] Centralize deterministic demo seed data for memory and Prisma paths.
+- [x] Add Prisma-backed Alpha seed/reset script.
+- [x] Add Alpha persistence status endpoint.
+- [x] Add feature-flagged Prisma paths behind events, tickets, fan access, and audit services.
+- [x] Add HTTP verification for Prisma-backed events, tickets, fan access, score, and audit paths.
+- [x] Add feature-flagged Prisma paths behind orderbook and verification lifecycle services.
+- [x] Add HTTP verification for Prisma-backed order match, QR redemption, duplicate rejection, trade, check-in, and audit paths.
+- [x] Keep Technical Prototype endpoints working while Alpha persistence is introduced.
+- [x] Add deterministic Alpha seed/reset flow.
+- [x] Add shared role/session contract for fan, organizer, gate staff, and admin.
+- [x] Add audit log writes for ticket, order, redemption, and fan task state changes.
+- [x] Add backend tests for ticket lifecycle rules.
+- [x] Add backend tests for one-ticket orderbook price-time priority.
+- [x] Add backend tests for redemption nonce replay rejection.
+- [x] Add backend tests for fan access auto-approval and event-scoped scoring.
+- [x] Add Alpha persistence runbook.
+
+### Alpha 1 - FanPass Console
+
+- [x] Rename/dashboard-position organizer web app as `FanPass Console`.
+- [x] Persist Console event and ticket-type management through the Alpha data layer.
+- [x] Add ticket inventory table with owner, status, transferability, and redemption state.
+- [x] Add orderbook, recent trade, and price history views.
+- [x] Add fan task submission review screens.
+- [x] Add audit log view.
+- [x] Add role-aware Console navigation for organizer/admin workflows.
+
+### Alpha 2 - FanPass Consumer App
+
+- [x] Apply FanPass VI v0.2 consistently across all iOS FanPass screens.
+- [x] Complete event detail screen with ticket types, availability, resale cap, and transfer rules.
+- [x] Add complete ticket wallet UI with lifecycle state, entry code, and ownership history.
+- [x] Add private-action auth gates for buy, list, task submission, wallet, and profile actions.
+- [x] Add one-ticket buy/list/cancel marketplace flows.
+- [x] Add fan task submission and score status.
+- [x] Add price chart and fan-readable orderbook analytics.
+- [x] Add UI/product smoke checks proving no staff/admin controls appear in FanPass.
+
+### Alpha 3 - FanPass Ops
+
+- [x] Record accepted and duplicate check-ins in the current demo store.
+- [x] Persist check-in/redemption state through the Prisma-backed Alpha data layer.
+- [x] Improve scanner reset speed after accepted/rejected scans.
+- [x] Show explicit failure reasons for duplicate, expired, invalid, cancelled, and not-active tickets.
+- [x] Add check-in count by event/gate.
+- [x] Add UI/product smoke checks proving scanner flows exist only in FanPass Ops.
+
+### Alpha 4 - Ownership Adapter And Demo Packaging
+
+- [x] Add `MockOwnershipAdapter` and `TestnetOwnershipAdapter` boundary.
+- [x] Replace mock issuance path with ownership service calls.
+- [x] Wire testnet contract calls behind config without making local demo dependent on testnet.
+- [x] Add Alpha runbook for persistent demo setup and reset.
+- [x] Capture Alpha demo screenshots/video references after visible flows stabilize.
+- [x] Run Alpha close-out verification across workspace, API, contracts, Prisma flow, prototype flow, Console smoke, and both iOS schemes.
+
+## Beta
+
+- [x] Freeze Alpha demo script for the local walkthrough.
+- [x] Add a repeatable audit for the frozen Alpha demo script.
+- [x] Add self-test coverage for Alpha demo script audit acceptance and rejection semantics.
+- [x] Add repeatable Alpha walkthrough recording evidence gate before closing the local walkthrough task.
+- [x] Add repeatable Alpha walkthrough capture automation and self-test for local artifact bundles.
+- [x] Capture and review a local Alpha walkthrough evidence bundle with the repeatable capture command.
+- [x] Add saved Alpha walkthrough recording review evidence validator before closing the human-reviewed recording task.
+- [x] Add saved evidence redaction audit for generated output artifacts before trusting local or staging evidence bundles.
+- [x] Add Stripe publishable-key coverage to the saved evidence redaction audit.
+- [x] Add provider-secret and raw database URL coverage to the saved evidence redaction audit.
+- [x] Add provider RPC URL and chain API-key coverage to the saved evidence redaction audit.
+- [x] Add Apple signing, provisioning profile, and device identifier coverage to the saved evidence redaction audit.
+- [x] Add raw email and wallet address coverage to the saved evidence redaction audit.
+- [x] Add QR signing secret, staff invite token, nonce, and signed-payload coverage to the saved evidence redaction audit.
+- [x] Add raw FanPass identity and ticket/event identifier field coverage to the saved evidence redaction audit.
+- [x] Add app session/client/webhook secret assignment coverage to the saved evidence redaction audit.
+- [x] Add app session/client/webhook secret field coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing URL query parameter coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing URL fragment parameter coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing snake_case JSON field coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing YAML/colon field coverage to the saved evidence redaction audit.
+- [x] Add environment-style secret YAML/colon field coverage to the saved evidence redaction audit.
+- [x] Add environment name/value YAML secret field coverage to the saved evidence redaction audit.
+- [x] Add environment name/value JSON secret field coverage to the saved evidence redaction audit.
+- [x] Add provider API-key JSON field coverage to the saved evidence redaction audit.
+- [x] Add credentialed service URL coverage to the saved evidence redaction audit.
+- [x] Add Basic auth and sensitive cookie header coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing HTTP header coverage to the saved evidence redaction audit.
+- [x] Add generic token and API-key assignment coverage to the saved evidence redaction audit.
+- [x] Add quoted secret assignment coverage to the saved evidence redaction audit.
+- [x] Add quoted prefixed app secret assignment coverage to the saved evidence redaction audit.
+- [x] Add snake_case secret assignment coverage to the saved evidence redaction audit.
+- [x] Add npm registry auth token coverage to the saved evidence redaction audit.
+- [x] Add source-control access token literal coverage to the saved evidence redaction audit.
+- [x] Add chat and notification webhook URL coverage to the saved evidence redaction audit.
+- [x] Add CI secret masking command literal coverage to the saved evidence redaction audit.
+- [x] Add observability service credential assignment coverage to the saved evidence redaction audit.
+- [x] Add Apple and App Store automation credential assignment coverage to the saved evidence redaction audit.
+- [x] Add generic token and cookie JSON field coverage to the saved evidence redaction audit.
+- [x] Add secret-bearing HTTP header JSON field coverage to the saved evidence redaction audit.
+- [x] Add deployment and cloud credential assignment coverage to the saved evidence redaction audit.
+- [x] Add lowercase deployment and cloud credential assignment coverage to the saved evidence redaction audit.
+- [x] Add IaC sensitive output coverage to the saved evidence redaction audit.
+- [x] Add deployment and cloud credential JSON field coverage to the saved evidence redaction audit.
+- [x] Add deployment and cloud credential JSON environment-map field coverage to the saved evidence redaction audit.
+- [x] Add raw cloud credential literal coverage to the saved evidence redaction audit.
+- [x] Add Azure storage credential literal coverage to the saved evidence redaction audit.
+- [x] Add cloud storage signed URL credential parameter coverage to the saved evidence redaction audit.
+- [x] Add encoded deployment private key credential coverage to the saved evidence redaction audit.
+- [x] Add Kubernetes kubeconfig credential coverage to the saved evidence redaction audit.
+- [x] Add Docker and OCI registry credential literal coverage to the saved evidence redaction audit.
+- [x] Add encoded Docker and OCI registry credential coverage to the saved evidence redaction audit.
+- [x] Add provider-key and database URL leakage coverage to the staging runtime evidence validator.
+- [x] Add deployment/cloud credential leakage coverage to the staging runtime evidence validator.
+- [x] Add CI secret masking command literal leakage coverage to the staging runtime evidence validator.
+- [x] Add Stripe publishable-key leakage coverage to the iOS staging/TestFlight build evidence validator.
+- [x] Add deployment/cloud credential leakage coverage to the iOS staging/TestFlight build evidence validator.
+- [x] Add CI secret masking command literal leakage coverage to the iOS staging/TestFlight build evidence validator.
+- [ ] Record an Alpha walkthrough using the frozen local script.
+- [ ] Verify provider plan feasibility before locking Beta architecture.
+  - [x] Document current Stripe/Privy low-cost plan findings in `docs/PROVIDER_COST_FEASIBILITY.md`.
+  - [x] Add Privy dashboard plan evidence validator and self-test with `npm run security:privy-plan:evidence`.
+  - [x] Add provider-key, Stripe publishable-key, and database URL leakage coverage to the Privy dashboard plan evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the Privy dashboard plan evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the Privy dashboard plan evidence validator.
+  - [x] Bind Privy dashboard plan evidence to the current Privy auth, webhook optionality, and plan-policy implementation SHA-256 snapshot.
+  - Evidence collection aid: `npm run privy:evidence:draft -- plan|mobile|console --out <draft-json>` generates non-passing draft evidence with current SHA-256 snapshots; completed files still require real dashboard/build/dependency facts and the matching validator.
+  - [x] Add Stripe dashboard feasibility evidence validator for test-mode PaymentIntent and webhook setup proof.
+  - [x] Add CI secret masking command literal leakage coverage to the Stripe dashboard evidence validator.
+  - [ ] Confirm in the actual Stripe dashboard that test-mode PaymentIntents and webhook endpoints work with FanPass routes.
+  - [ ] Confirm in the actual Privy dashboard whether Developer Free/Core supports webhooks, mobile SDK use, embedded wallets, backend token verification, custom UI, and MFA/policy controls.
+  - [x] Keep Privy webhooks optional until plan support is verified.
+- [x] Add repeatable Beta local Prisma start/stop/verify scripts for API, Console, and side-effect worker.
+- [x] Add self-test coverage for Beta local start secret-scrubbing and local provider flag semantics.
+- [x] Add self-test coverage for Beta local verification async settlement, payment capture, admin health, and redaction semantics.
+- [ ] Fix Alpha security blockers before any public or real-user Beta.
+- [x] Add local signed API sessions for Alpha security hardening.
+- [x] Add first-pass NestJS role/ownership guards for fan, organizer, gate staff, and admin endpoints.
+- [x] Add self-test coverage for API route role matrix audit acceptance and rejection semantics.
+- [x] Add automated provider-boundary regression audit for Stripe, Privy, chain, realtime, NFC, and scanner integrations.
+- [x] Add automated API DTO/idempotency contract audit for mutating auth, order, payment, settlement, and scanner route boundaries.
+- [x] Add self-test coverage for API contract audit acceptance and rejection semantics.
+- [x] Add bounded field-level DTO validation and contract-audit coverage for public/mutating API request bodies.
+- [x] Add bounded route-parameter validation pipes, malformed-input tests, and contract-audit coverage for API controller params/query boundaries.
+- [x] Add API response privacy classification matrix and drift audit before Beta.
+- [x] Add self-test coverage for API/Console response privacy audit acceptance and rejection semantics.
+- [x] Add payment response redaction audit for client-secret and admin operation boundaries.
+- [x] Add Console route-handler response privacy classification and one-time-secret drift audit before Beta.
+- [x] Redact Console gate staff invite creation/rotation route responses through a narrow response adapter.
+- [x] Add automated Console route contract audit for session cookie and one-time staff invite proxy boundaries.
+- [x] Add automated Console server auth helper audit for production-like demo-auth blocking, token precedence, bearer forwarding, and no-store proxy requests.
+- [x] Add Console mutation origin guard for cookie-backed session and staff invite proxy routes.
+- [x] Add self-test coverage for Console route contract audit acceptance and rejection semantics.
+- [x] Add self-test coverage for provider/lifecycle boundary audit acceptance and rejection semantics.
+- [x] Expand provider/lifecycle boundary audit self-test coverage for Privy verifier isolation, testnet ownership guard, async ownership saga, and stale outbox lock recovery semantics.
+- [x] Add prototype shortcut risk register and automated coverage check before treating local shortcuts as Beta foundation.
+- [x] Add self-test coverage for prototype shortcut register audit acceptance and rejection semantics.
+- [x] Add composite Beta foundation local gate verifier for API contracts, API response privacy, Console routes, provider/lifecycle boundaries, shortcut register, typecheck, and API tests.
+- [x] Add FanPass Console typecheck to the composite Beta foundation local verifier.
+- [x] Add side-effect worker saga verification to the composite Beta foundation local verifier.
+- [x] Add ticket issuance/redemption ownership side-effect boundary and lock ticket/verification lifecycle imports.
+- [x] Add backend Privy access-token verification and remove email-only/demo session issuance from production-like builds.
+- [x] Extract backend Privy JWT verification into a narrow verifier service and lock the boundary in provider audits.
+- [ ] Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console.
+  - FanPass Ops now uses the Privy Swift SDK email OTP result for staff invite linking in the release path; manual Privy access-token entry remains debug-only and is enforced by `npm run security:staff-invite-policy`.
+- [x] Lock FanPass Console data access behind organizer/admin bearer auth and redact personal data by default.
+- [x] Add event-scoped organizer access rules for Console operations.
+- [x] Harden QR generation/redeem authority for Alpha sessions and scanner role checks.
+- [x] Harden QR signing secret config, nonce uniqueness constraints, and gate assignment checks.
+  - [x] Fail fast in production-like runtimes when QR signing or Privy verification config is missing or unsafe.
+  - [x] Add Prisma accepted nonce uniqueness for accepted check-ins.
+  - [x] Add event/gate assignment checks for gate staff.
+- [ ] Harden order settlement with idempotency, database constraints, and safe chain-call settlement states.
+  - [x] Add unique Prisma trade constraints for one settled trade per buy order and sell order.
+  - [x] Atomically claim OPEN buy/sell orders and the listed ticket before ownership transfer in Prisma settlement.
+  - [x] Mark matched orders as `REJECTED` and restore the ticket if the ownership adapter transfer fails.
+  - [x] Add external idempotency keys for order creation and client retries.
+  - [x] Add idempotency keys for payment authorization requests.
+  - [x] Extract order settlement ownership/payment side-effect dispatch behind a narrow settlement side-effect service and lock the `OrderbookService` import boundary.
+  - [x] Add settlement retry idempotency around payment capture, refund, and ownership retries.
+    - [x] Add a payment-authorization settlement gate behind `FANPASS_REQUIRE_PAYMENT_AUTHORIZATION`.
+    - [x] Enqueue an idempotent `ORDER_MATCH_AFTER_PAYMENT_AUTH` side-effect job when webhook state reaches `AUTHORIZED`.
+    - [x] Add worker dispatch and Alpha Prisma verification for payment-authorized order matching.
+    - [x] Add Stripe capture, refund, cancellation, and reconciliation side-effect handlers.
+    - [x] Thread durable outbox job idempotency keys through payment capture, cancellation, and refund provider calls.
+    - [x] Verify capture/refund/reconciliation against real Stripe test-mode keys and signed webhooks.
+  - [ ] Move real chain calls to a durable outbox/saga before any production wallet or payment flow.
+    - [x] Add Prisma `side_effect_outbox` persistence for ownership transfer side effects.
+    - [x] Record ownership transfer side-effect jobs during Prisma order settlement and mark local mock completion.
+    - [x] Expose side-effect job status in Alpha operations for Console visibility.
+    - [x] Add a real worker/retry loop before enabling testnet or production chain/payment side effects.
+    - [x] Add repeatable worker verification for claim/process/complete behavior.
+    - [x] Add self-test coverage for side-effect worker verifier stale recovery and async ownership finalization semantics.
+    - [x] Add payment-specific outbox handlers after Stripe test mode is introduced.
+    - [x] Block production-like `OWNERSHIP_ADAPTER=testnet` startup/runtime usage until real chain ownership settlement runs only through the durable async saga.
+    - [x] Add automated chain operator key boundary audit for production-like testnet blocking, dynamic signer adapter loading, placeholder-only key examples, and KMS/multisig blocker documentation.
+    - [x] Add two-step ownership transfer/finalization worker jobs so settlement finalization can retry without re-running the ownership provider transfer.
+    - [x] Run the local Beta Prisma environment on async ownership settlement and verify API order flow through ownership transfer, settlement finalization, and payment capture.
+    - [x] Add stale `PROCESSING` side-effect lock recovery so crashed worker jobs can retry through the durable outbox.
+    - [x] Add a repeatable side-effect outbox health gate for dead, stale processing, and stale runnable jobs.
+    - [x] Add focused self-test coverage for side-effect outbox health status, stale retrying jobs, terminal failed/dead jobs, and payload redaction.
+    - [x] Expose side-effect outbox health through an admin-only API boundary for future staging monitoring.
+    - [x] Verify admin-only side-effect outbox health through the live local Beta API boundary and optional staging runtime token check.
+    - [x] Add chain custody evidence validator and self-test for vault/KMS or delegated signer, multisig/timelock, durable outbox, runbook, and redaction proof before real chain blockers are closed.
+    - [x] Add provider-secret, Stripe publishable-key, RPC URL, and database URL leakage coverage to the chain custody evidence validator.
+    - [x] Add deployment/cloud credential leakage coverage to the chain custody evidence validator.
+    - [x] Add CI secret masking command literal leakage coverage to the chain custody evidence validator.
+    - [x] Bind chain custody evidence to the current ownership adapter, production-like guard, durable outbox, worker, health, and boundary-audit implementation SHA-256 snapshot.
+- [x] Add first-pass CORS allowlist, body limits, stricter validation, and protected debug reset route.
+- [x] Add automated prototype reset policy audit for local-debug route access, privacy classification, and authenticated local scripts.
+- [ ] Add full security headers, production config validation, and staging runtime header checks.
+  - [x] Add API Helmet headers and Console response headers.
+  - [x] Disable API and Console powered-by headers.
+  - [x] Add production-like environment validation for secrets, CORS, demo auth, TTLs, and rate limits.
+  - [x] Add first-pass API rate limiting for general, auth, and verification traffic.
+  - [x] Add dedicated rate limits for Privy sync, staff invite acceptance, and staff assignment management routes.
+  - [x] Add repeatable local runtime check for API/Console security headers and absent powered-by headers.
+  - [x] Add self-test coverage for local runtime security header checker acceptance and rejection semantics.
+  - [x] Add staging runtime WebSocket/CORS dry-run coverage for the orderbook feed.
+  - [x] Add optional staging runtime coverage for admin-only side-effect outbox health when an admin bearer token is supplied.
+  - [x] Exercise admin-only side-effect outbox health in staging dry-run with an ephemeral local Privy-like admin bearer token.
+  - [x] Add staging runtime JSON evidence metadata and deployed-staging evidence capture instructions.
+  - [x] Add self-test coverage for staging runtime security checker acceptance and rejection semantics.
+  - [x] Add a staging runtime evidence validator that rejects local dry-run output by default.
+  - [x] Add validator self-test coverage for deployed staging runtime evidence acceptance/rejection.
+  - [x] Add validator self-test coverage for provider-key and database URL leakage in staging runtime evidence.
+  - [x] Add static security header policy audit for API Helmet, Console CSP, runtime checks, and staging evidence gates.
+  - [x] Add FanPass Console cross-origin opener policy coverage to static, local runtime, staging runtime, and staging evidence header gates.
+  - [x] Add production-like Strict Transport Security coverage to API, Console, staging runtime, and staging evidence header gates.
+  - [x] Add production-like API trust-proxy hop validation before deployed rate-limit evidence is trusted.
+  - [x] Add deployed staging runtime evidence proof for API trust-proxy hop configuration.
+  - [x] Bind deployed staging runtime evidence to the current API/Console header, trust-proxy, admin-health, WebSocket, and evidence-validator implementation SHA-256 snapshot.
+  - [ ] Re-run and document the same header/config checks in a deployed staging environment.
+- [ ] Resolve or explicitly document dependency audit advisories before external testing.
+  - [x] Remove `ethers/ws` from API production dependency path by dynamically loading `ethers` only for the explicit testnet ownership adapter.
+  - [x] Document current Next/PostCSS advisory status and force-fix decision in `docs/DEPENDENCY_ADVISORY_LOG.md`.
+  - [x] Add repeatable production/full audit scripts and document failed safe PostCSS override attempts.
+  - [x] Re-check Next/PostCSS advisory before external testing; do not force-downgrade Next to satisfy audit.
+  - [x] Add self-test coverage for dependency advisory gate acceptance, drift rejection, and safe-upgrade detection semantics.
+  - [x] Pin Node 22 LTS for Hardhat/security tooling and add an automated runtime policy audit.
+  - [x] Add a Node 22 helper and rerun contract, dependency, and Beta foundation evidence under Node 22.
+  - [x] Add CI Node 22 Beta foundation workflow and static workflow audit with `npm run security:ci-node22-workflow`.
+  - [x] Add hosted GitHub Actions evidence validator and self-test for successful Node 22 Beta foundation runs before hosted CI evidence is trusted.
+  - [x] Add publishable-key and database URL leakage coverage to the hosted CI evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the hosted CI evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the hosted CI evidence validator.
+  - [x] Align hosted CI evidence validator with the current API unit test-count proof.
+  - [x] Bind hosted CI evidence to the current Beta foundation workflow path and SHA-256 proof.
+  - [x] Bind hosted CI evidence to the current Beta verifier, Node/npm policy, package lockfile, and CI evidence contract SHA-256 snapshot.
+  - [x] Add developer-shell npm `engine-strict` enforcement for the Node 22 runtime policy.
+  - [x] Add dependency risk acceptance evidence validator and self-test before any unresolved-advisory external testing decision.
+  - [x] Add Stripe publishable-key leakage coverage to the dependency risk evidence validator.
+  - [x] Add provider-secret and database URL leakage coverage to the dependency risk evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the dependency risk evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the dependency risk evidence validator.
+  - [x] Bind dependency risk evidence to the current workspace dependency manifest and lockfile SHA-256 snapshot.
+  - [x] Bind dependency risk evidence to the current advisory gate, risk validator, tooling audit, and dependency policy docs SHA-256 snapshot.
+  - [x] Add full dependency tooling audit gate for Hardhat/contract-toolchain high-advisory containment.
+- [ ] Complete end-to-end Privy product integration.
+  - [x] Design and implement the backend Privy sync boundary so access-token verification is sufficient without Privy webhooks.
+  - [x] Prevent first-time Privy users from claiming existing FanPass accounts by email.
+  - [x] Preserve pre-linked FanPass roles through `privyId` instead of trusting client-provided roles.
+  - [x] Add iOS API client method for Privy token sync without embedding Privy SDK calls into domain logic.
+  - [x] Add Console route handler that exchanges a verified Privy token for a HttpOnly Console session cookie.
+  - [x] Add token-based staff invite acceptance boundary for Privy-linked Gate Staff accounts.
+  - [x] Add automated production staff invitation/linking policy audit for one-time staff invite, active gate assignment, and Console/Ops proxy boundaries.
+  - [x] Add FanPass Ops staff invite acceptance API client boundary and internal linking panel.
+  - [x] Show the one-time staff invite token in FanPass Console after organizer-scoped assignment creation without persisting it in the UI or URL.
+  - [x] Add Console invite rotation for active unlinked gate staff assignments and invalidate superseded tokens.
+  - [x] Keep backend Privy ES256 signature and claim verification isolated in `PrivyTokenService`.
+  - [x] Add staging tenant/staff policy evidence validator and self-test for organizer isolation, Privy-backed staff invite acceptance, Ops gate scoping, and redaction before production staff blockers are closed.
+  - [x] Add provider-key, Stripe publishable-key, and database URL leakage coverage to the staff tenant staging evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the staff tenant staging evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the staff tenant staging evidence validator.
+  - [x] Bind staff tenant staging evidence to the current staff invite, Console proxy, Ops linking, and gate policy implementation SHA-256 snapshot.
+  - [x] Integrate Privy Swift SDK into FanPass and FanPass Ops auth UI.
+  - [x] Add Privy mobile app configuration evidence validator before real iOS app/client IDs are trusted.
+  - Local OTP preflight: `npm run security:privy-local-config` requires `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` from the shell, matching the API Privy app id while keeping checked-in iOS configs blank.
+  - [x] Add Stripe publishable-key leakage coverage to the Privy mobile app config evidence validator.
+  - [x] Add provider-secret and database URL leakage coverage to the Privy mobile app config evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the Privy mobile app config evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the Privy mobile app config evidence validator.
+  - [x] Bind Privy mobile app config evidence to the current iOS auth/config implementation SHA-256 snapshot.
+  - Saved redacted Privy dashboard/mobile config evidence from the current Dev app screenshots at `outputs/privy-plan/privy-plan-20260530.json` and `outputs/privy-mobile-app-config/privy-mobile-20260530.json`; both pass their validators. Webhooks and MFA/policy controls remain `plan-gated`, and this does not close Console SDK login, signed-device OTP login, or staging staff evidence.
+  - [x] Add Privy public-config secret guard to the iOS distribution boundary audit.
+  - [x] Add Privy Console React SDK dependency isolation evidence validator before SDK login can be integrated.
+  - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the Privy Console React SDK isolation evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the Privy Console React SDK isolation evidence validator.
+  - [x] Bind Privy Console React SDK isolation evidence to the current Console session/dependency boundary SHA-256 snapshot.
+  - [x] Add no-storage FanPass Console Privy session bridge UI before React SDK integration.
+  - [x] Add provider-boundary guard that blocks Privy React SDK imports until isolation evidence passes.
+  - [x] Add dependency-manifest guard that blocks Privy React SDK install drift until isolation evidence passes.
+  - [x] Add provider dependency-placement guard that locks Stripe and Socket.IO package drift to approved API/Console boundaries.
+  - [x] Add provider lockfile-placement guard that rejects Stripe and Socket.IO workspace package-lock drift.
+  - [ ] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
+  - [ ] Add Privy webhook sync only after confirming the selected plan supports it.
+- [ ] Integrate Stripe test mode PaymentIntents and webhooks.
+  - [x] Add API `POST /payments/intents` with `Idempotency-Key` enforcement.
+  - [x] Add Stripe SDK boundary with manual-capture PaymentIntent creation and local mock fallback outside production-like runtimes.
+  - [x] Add raw-body `POST /payments/webhook` with signature verification when Stripe secrets are configured.
+  - [x] Persist Stripe webhook event ids and ignore duplicate webhook replays.
+  - [x] Add Stripe test-mode evidence validator and self-test with `npm run security:stripe-testmode:evidence`.
+  - [x] Add Stripe iOS PaymentSheet saved-evidence requirements for backend client-secret and test publishable-key validation.
+  - [x] Add provider-secret and database URL leakage coverage to the Stripe test-mode evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the Stripe test-mode evidence validator.
+  - [x] Add CI secret masking command literal leakage coverage to the Stripe test-mode evidence validator.
+  - [x] Bind Stripe test-mode evidence to the current API and iOS payment implementation SHA-256 snapshot.
+  - [x] Persist payment records in Prisma and expose redacted payment status in Alpha operations.
+  - [x] Add `PAYMENT_INTENT_CREATE` side-effect worker dispatch and verification coverage.
+  - [x] Fail production-like startup when `FANPASS_ENABLE_PAYMENTS=true` but Stripe secrets are missing.
+  - [ ] Add client-side Stripe Payment Element or Checkout integration.
+    - [x] Add FanPass iOS PaymentIntent preparation boundary and checkout state UI.
+    - [x] Add Stripe iOS SDK PaymentSheet package, publishable-key configuration, payment return URL, and native presenter boundary.
+    - [ ] Validate PaymentSheet with real Stripe test publishable key, API secret key, PaymentIntent client secret, and signed webhook flow.
+  - [x] Add capture/refund/reconciliation flows before real-money Beta.
+    - [x] Add local/mock worker handlers for payment capture, authorization cancellation, refund, and reconciliation.
+    - [x] Enqueue payment capture after a settled Prisma trade.
+    - [x] Add admin-protected, idempotent payment operation triggers for authorization cancellation, refund, and reconciliation.
+    - [x] Verify cancellation, refund, and reconciliation with real Stripe test-mode keys and signed webhooks.
+- [x] Add WebSocket orderbook updates.
+  - [x] Wire FanPass Console market panel to the realtime orderbook feed.
+  - [x] Wire FanPass iOS market screen to the realtime orderbook feed.
+- [x] Add Core NFC scanner prototype.
+  - [x] Add physical FanPass Ops QR/NFC scanner evidence validator and self-test with `npm run security:ops-scanner:device-evidence`.
+  - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the physical FanPass Ops scanner evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the physical FanPass Ops scanner evidence validator.
+  - [x] Bind physical FanPass Ops scanner evidence to the current QR/NFC scanner, API redemption, auth, and fixture implementation SHA-256 snapshot.
+  - [x] Add NFC NDEF tag fixture format document and audit for supported physical-tag payloads.
+- [x] Add Apple Wallet pass barcode prototype.
+  - [x] Add signed Apple Wallet `.pkpass` evidence validator and self-test with `npm run security:apple-wallet:evidence`.
+  - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the signed Apple Wallet evidence validator.
+  - [x] Add deployment/cloud credential leakage coverage to the signed Apple Wallet evidence validator.
+  - [x] Bind signed Apple Wallet pass evidence to the current ticket wallet, QR payload, API signing, scanner compatibility, and prototype-boundary implementation SHA-256 snapshot.
+- [x] Add role-based access coverage.
+  - [x] Scope organizer ticket inventory reads and ticket issuance to organizer-owned events.
+  - [x] Add automated route-coverage audit for every controller method.
+  - [x] Add explicit route role-matrix regression coverage for public, fan, organizer, gate staff, and admin APIs.
+  - [x] Add Console-managed gate staff assignment creation and revocation for organizer-scoped events.
+  - [x] Add a dedicated route-role matrix gate to the Beta foundation verifier.
+- [x] Add deployment scripts and environment docs.
+- [x] Add App Store/TestFlight distribution plan for FanPass and FanPass Ops as separate apps.
+  - [x] Add iOS build configurations and xcconfig files for local, staging, beta, and production API URLs.
+  - [x] Add automated iOS distribution boundary audit for release configs, app capabilities, and Apple Wallet prototype limits.
+  - [x] Debug-gate iOS payload copy/paste helpers and lock the boundary in the iOS distribution audit before external TestFlight decisions.
+  - [x] Add iOS staging/TestFlight build evidence validator and self-test for signed builds, real HTTPS API URLs, debug helper removal, app separation, and redaction.
+  - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the iOS staging/TestFlight build evidence validator.
+  - [x] Bind iOS staging/TestFlight build evidence to the current iOS distribution/config implementation SHA-256 snapshot.
+  - [x] Add physical-device QA checklist and audit for FanPass and FanPass Ops before external tester evidence is trusted.
+  - [x] Add placeholder Apple signing settings to `project.yml` without committing team IDs, provisioning profile names, certificates, or private keys.
+  - [x] Add Stripe test publishable-key runtime guard to the iOS distribution boundary audit.
+
+## Engineering Quality Gates
+
+- [x] Keep provider integrations behind small service/adapter boundaries instead of scattering Stripe, Privy, chain, NFC, or QR code across controllers and UI.
+- [x] Keep domain lifecycle state machines separate from external provider SDK calls.
+- [x] Require typed DTOs/contracts, validation, and tests for new payment, auth, settlement, ownership, and scanner flows.
+- [x] Keep API response privacy classifications documented and regression-checked before treating routes as Beta foundation.
+- [x] Keep Console one-time secret route responses behind a redacting adapter before treating staff invite flows as Beta foundation.
+- [x] Document any prototype shortcut with risk, owner, and replacement path before treating it as Beta foundation.

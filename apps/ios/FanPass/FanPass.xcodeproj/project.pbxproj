@@ -1,0 +1,914 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02BBAA3CB7E0971E714835E8 /* FanPassEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */; };
+		0504E3D02449F19E7D865691 /* PrivyAuthProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E7B551145D9DBE770379CEB /* PrivyAuthProvider.swift */; };
+		0524F542ECACC2B02380040B /* FanPassPaymentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */; };
+		07C436C43F73E3DF751D72C0 /* StripePaymentSheetPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A28E6926B4231BE022643B /* StripePaymentSheetPresenter.swift */; };
+		0CBE46ECDE9AA1CD31DDEED3 /* Privy in Frameworks */ = {isa = PBXBuildFile; productRef = 6BAF87DAA0066DF92DCF58F6 /* Privy */; };
+		0CBFE1E2AFB9E3005FD274DE /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C75C9585B60FA1228CDC8F /* AppState.swift */; };
+		25E6A12B7EB542968FBBCBF5 /* FanPassPaymentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */; };
+		38F1BB23D054D2E88A0F521B /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 54B68793CCFC1C3CEFEF8795 /* SocketIO */; };
+		3B08B941F64FC5E1E6F01F48 /* FanPassOpsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE1B1902A90E955DB3E0A7A /* FanPassOpsApp.swift */; };
+		3C042E0585192FC94D10D028 /* TicketWalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A471AC4742468AA306A84A49 /* TicketWalletView.swift */; };
+		4847300CA98AA06856BF674C /* FanPassModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1972829657466F67AFCE106E /* FanPassModels.swift */; };
+		4E85BA855EEA6F9219CAD86E /* FanPassOrderbookRealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3E0E0F7365B9F630D852AB /* FanPassOrderbookRealtimeClient.swift */; };
+		4F7DF89EF647921AE677F16F /* NFCPayloadScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E75BD9EAA29AC23F69520F /* NFCPayloadScanner.swift */; };
+		5279E59E97EE0B980D6CA846 /* ScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F362E1E7296EFE1C041750 /* ScannerView.swift */; };
+		550DB067F0DF066E7F2FA7F7 /* FanPassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102C7E3417000CD0FD5038A5 /* FanPassApp.swift */; };
+		5B7D01AE542F5148C8A37757 /* FanPassModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1972829657466F67AFCE106E /* FanPassModels.swift */; };
+		5C5DEAF8B40CC1771394E18D /* FanAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8951AE74B4903A2C35CBD177 /* FanAccessView.swift */; };
+		5EF6320188D13C35B9E24DF1 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926781E0B80DCB6B5BE9DF01 /* AppShellView.swift */; };
+		6012A5A83F0702593A1BEA57 /* FanPassEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */; };
+		65C335331B3DD2B77AEDA2AF /* FanPassUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */; };
+		69B25D01E0CCA8E93C97D818 /* MarketplaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA64168A5E086612052AB15A /* MarketplaceView.swift */; };
+		764220A73556BC4AA137C201 /* OpsShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D29232676FE26E432EEB0B5 /* OpsShellView.swift */; };
+		9748D1B273D22AE7B78024FE /* FanPassAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */; };
+		9CD6F748BD075AB0E2756201 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37423DB6D94B8DCF2A3469FF /* ProfileView.swift */; };
+		C069BB47D3EF5E65A6C8A9E1 /* Privy in Frameworks */ = {isa = PBXBuildFile; productRef = DCE64064F89C3CF02DA2E285 /* Privy */; };
+		C28F19DA69439C2F07450A5C /* FanPassAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */; };
+		C32220E93578C4B47E5D47A2 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = D1F1607EC3317D06D17CB777 /* StripePaymentSheet */; };
+		D94C9E46E52CC060C1E947E3 /* QRCodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C816149998EF60BC83394F /* QRCodeScannerView.swift */; };
+		DD3DD063962F0122DDC59F44 /* EventListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D01CB42690F2E24F493430 /* EventListView.swift */; };
+		E7DC9944213BFA239008643A /* PrivyAuthProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E7B551145D9DBE770379CEB /* PrivyAuthProvider.swift */; };
+		F2B26350700886792237B23A /* FanPassUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */; };
+		FD55947FCDD47DEB223F2BFD /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927387B845A9D7BAD61BB9B6 /* AuthView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		102C7E3417000CD0FD5038A5 /* FanPassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassApp.swift; sourceTree = "<group>"; };
+		1316A59F2869C4B507FE5D72 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
+		14F362E1E7296EFE1C041750 /* ScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerView.swift; sourceTree = "<group>"; };
+		159045E5FB505823B92FBF01 /* FanPassOps.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FanPassOps.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1972829657466F67AFCE106E /* FanPassModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassModels.swift; sourceTree = "<group>"; };
+		1B3E0E0F7365B9F630D852AB /* FanPassOrderbookRealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassOrderbookRealtimeClient.swift; sourceTree = "<group>"; };
+		20283CCA7C9F64E365997CBA /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
+		34A28E6926B4231BE022643B /* StripePaymentSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripePaymentSheetPresenter.swift; sourceTree = "<group>"; };
+		37423DB6D94B8DCF2A3469FF /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		3A5F2E2D2109B1FB556F4E01 /* FanPassOps.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FanPassOps.entitlements; sourceTree = "<group>"; };
+		44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassAPIClient.swift; sourceTree = "<group>"; };
+		45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassEnvironment.swift; sourceTree = "<group>"; };
+		539C03177CDD4FF9E415A6E6 /* FanPass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FanPass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		63C816149998EF60BC83394F /* QRCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScannerView.swift; sourceTree = "<group>"; };
+		6E7B551145D9DBE770379CEB /* PrivyAuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivyAuthProvider.swift; sourceTree = "<group>"; };
+		78C75C9585B60FA1228CDC8F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		8951AE74B4903A2C35CBD177 /* FanAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanAccessView.swift; sourceTree = "<group>"; };
+		8D29232676FE26E432EEB0B5 /* OpsShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpsShellView.swift; sourceTree = "<group>"; };
+		926781E0B80DCB6B5BE9DF01 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
+		927387B845A9D7BAD61BB9B6 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		9C6CEACECCF78BA45548A988 /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Production.xcconfig; sourceTree = "<group>"; };
+		A157809379FEE40FE9B6D23F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A471AC4742468AA306A84A49 /* TicketWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketWalletView.swift; sourceTree = "<group>"; };
+		AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
+		C9F412F0EA068951F45FD646 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		DDE1B1902A90E955DB3E0A7A /* FanPassOpsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassOpsApp.swift; sourceTree = "<group>"; };
+		E6E75BD9EAA29AC23F69520F /* NFCPayloadScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCPayloadScanner.swift; sourceTree = "<group>"; };
+		E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassUI.swift; sourceTree = "<group>"; };
+		EA64168A5E086612052AB15A /* MarketplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceView.swift; sourceTree = "<group>"; };
+		EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassPaymentCoordinator.swift; sourceTree = "<group>"; };
+		F7D01CB42690F2E24F493430 /* EventListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventListView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		48E3BDA79240A44A5AB23957 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C32220E93578C4B47E5D47A2 /* StripePaymentSheet in Frameworks */,
+				38F1BB23D054D2E88A0F521B /* SocketIO in Frameworks */,
+				0CBE46ECDE9AA1CD31DDEED3 /* Privy in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6535E31D7B67ABAA55E21D0D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C069BB47D3EF5E65A6C8A9E1 /* Privy in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		071D5070B191516DFDADAF70 /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				A157809379FEE40FE9B6D23F /* Info.plist */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		257EFD129828D13A3427D00E /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				C9F412F0EA068951F45FD646 /* Info.plist */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		3FD8C719F8F751EAEF4B3BE1 /* FanPass */ = {
+			isa = PBXGroup;
+			children = (
+				C1D9BA6679BECD125325B56D /* App */,
+				DFCD2452946A196831F484C7 /* Features */,
+				071D5070B191516DFDADAF70 /* Generated */,
+				7A5566FB8395FBADBBB9779A /* Models */,
+				52089C8109C9090FD6D0D946 /* Services */,
+				6956CC26E8A7663DEF1D9873 /* Shared */,
+			);
+			path = FanPass;
+			sourceTree = "<group>";
+		};
+		52089C8109C9090FD6D0D946 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */,
+				1B3E0E0F7365B9F630D852AB /* FanPassOrderbookRealtimeClient.swift */,
+				EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */,
+				6E7B551145D9DBE770379CEB /* PrivyAuthProvider.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		670A4631B08FD66CEA11998A /* Payments */ = {
+			isa = PBXGroup;
+			children = (
+				34A28E6926B4231BE022643B /* StripePaymentSheetPresenter.swift */,
+			);
+			path = Payments;
+			sourceTree = "<group>";
+		};
+		6956CC26E8A7663DEF1D9873 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */,
+				E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		69AA8A8D3254FCEB3A5173F6 /* FanPassOps */ = {
+			isa = PBXGroup;
+			children = (
+				3A5F2E2D2109B1FB556F4E01 /* FanPassOps.entitlements */,
+				DDE1B1902A90E955DB3E0A7A /* FanPassOpsApp.swift */,
+				8D29232676FE26E432EEB0B5 /* OpsShellView.swift */,
+				257EFD129828D13A3427D00E /* Generated */,
+			);
+			path = FanPassOps;
+			sourceTree = "<group>";
+		};
+		6B1E0FAA3A6FA8926B17E3AD /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				927387B845A9D7BAD61BB9B6 /* AuthView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		6C8770C40B8CCB26727B5DCF /* FanAccess */ = {
+			isa = PBXGroup;
+			children = (
+				8951AE74B4903A2C35CBD177 /* FanAccessView.swift */,
+			);
+			path = FanAccess;
+			sourceTree = "<group>";
+		};
+		7A5566FB8395FBADBBB9779A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1972829657466F67AFCE106E /* FanPassModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		7DA60B27B4BC5E48898652E1 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				37423DB6D94B8DCF2A3469FF /* ProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		8FE25C8AA95ED4C9FAE1446A /* Marketplace */ = {
+			isa = PBXGroup;
+			children = (
+				EA64168A5E086612052AB15A /* MarketplaceView.swift */,
+			);
+			path = Marketplace;
+			sourceTree = "<group>";
+		};
+		9FFB877E7C0D5F2F1269C376 /* Scanner */ = {
+			isa = PBXGroup;
+			children = (
+				E6E75BD9EAA29AC23F69520F /* NFCPayloadScanner.swift */,
+				63C816149998EF60BC83394F /* QRCodeScannerView.swift */,
+				14F362E1E7296EFE1C041750 /* ScannerView.swift */,
+			);
+			name = Scanner;
+			path = FanPass/Features/Scanner;
+			sourceTree = "<group>";
+		};
+		AE2AC82FD2123E9C4D1E13A9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				539C03177CDD4FF9E415A6E6 /* FanPass.app */,
+				159045E5FB505823B92FBF01 /* FanPassOps.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B8748B27DD3CEE9991B71E4B /* Tickets */ = {
+			isa = PBXGroup;
+			children = (
+				A471AC4742468AA306A84A49 /* TicketWalletView.swift */,
+			);
+			path = Tickets;
+			sourceTree = "<group>";
+		};
+		C1D9BA6679BECD125325B56D /* App */ = {
+			isa = PBXGroup;
+			children = (
+				926781E0B80DCB6B5BE9DF01 /* AppShellView.swift */,
+				78C75C9585B60FA1228CDC8F /* AppState.swift */,
+				102C7E3417000CD0FD5038A5 /* FanPassApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DFCD2452946A196831F484C7 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				6B1E0FAA3A6FA8926B17E3AD /* Auth */,
+				E1E4203A8C967639D90101F1 /* Events */,
+				6C8770C40B8CCB26727B5DCF /* FanAccess */,
+				8FE25C8AA95ED4C9FAE1446A /* Marketplace */,
+				670A4631B08FD66CEA11998A /* Payments */,
+				7DA60B27B4BC5E48898652E1 /* Profile */,
+				B8748B27DD3CEE9991B71E4B /* Tickets */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		E1E4203A8C967639D90101F1 /* Events */ = {
+			isa = PBXGroup;
+			children = (
+				F7D01CB42690F2E24F493430 /* EventListView.swift */,
+			);
+			path = Events;
+			sourceTree = "<group>";
+		};
+		E76E543E47317C3775155AC1 = {
+			isa = PBXGroup;
+			children = (
+				FF21B0E8379A1C5E8CAE3BA4 /* Config */,
+				3FD8C719F8F751EAEF4B3BE1 /* FanPass */,
+				69AA8A8D3254FCEB3A5173F6 /* FanPassOps */,
+				9FFB877E7C0D5F2F1269C376 /* Scanner */,
+				AE2AC82FD2123E9C4D1E13A9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FF21B0E8379A1C5E8CAE3BA4 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */,
+				20283CCA7C9F64E365997CBA /* Local.xcconfig */,
+				9C6CEACECCF78BA45548A988 /* Production.xcconfig */,
+				1316A59F2869C4B507FE5D72 /* Staging.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		345B967D8CB66448FED74826 /* FanPassOps */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E3F3373713C6CAFF357D9DCD /* Build configuration list for PBXNativeTarget "FanPassOps" */;
+			buildPhases = (
+				057A43CEF0B7C42EC34CEE18 /* Sources */,
+				6535E31D7B67ABAA55E21D0D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FanPassOps;
+			packageProductDependencies = (
+				DCE64064F89C3CF02DA2E285 /* Privy */,
+			);
+			productName = FanPassOps;
+			productReference = 159045E5FB505823B92FBF01 /* FanPassOps.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6468B305EED0BA28D2469974 /* FanPass */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2E8C57F69258C3D856ADB5A /* Build configuration list for PBXNativeTarget "FanPass" */;
+			buildPhases = (
+				D0CCE8614F70AEAA313B9744 /* Sources */,
+				48E3BDA79240A44A5AB23957 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FanPass;
+			packageProductDependencies = (
+				D1F1607EC3317D06D17CB777 /* StripePaymentSheet */,
+				54B68793CCFC1C3CEFEF8795 /* SocketIO */,
+				6BAF87DAA0066DF92DCF58F6 /* Privy */,
+			);
+			productName = FanPass;
+			productReference = 539C03177CDD4FF9E415A6E6 /* FanPass.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1DB809E7FB42912D9EEE9227 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					345B967D8CB66448FED74826 = {
+						DevelopmentTeam = "$(FANPASS_APPLE_TEAM_ID)";
+						ProvisioningStyle = Manual;
+					};
+					6468B305EED0BA28D2469974 = {
+						DevelopmentTeam = "$(FANPASS_APPLE_TEAM_ID)";
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 5E981ACB0CA70CBB9A2AF2A7 /* Build configuration list for PBXProject "FanPass" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E76E543E47317C3775155AC1;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CDB43EF10B72DD9B4E8DDA61 /* XCRemoteSwiftPackageReference "privy-ios" */,
+				5D3C4A5DBBABFD67C71557F8 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
+				97FBF539F656BAE63A2263C9 /* XCRemoteSwiftPackageReference "stripe-ios-spm" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AE2AC82FD2123E9C4D1E13A9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6468B305EED0BA28D2469974 /* FanPass */,
+				345B967D8CB66448FED74826 /* FanPassOps */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		057A43CEF0B7C42EC34CEE18 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C28F19DA69439C2F07450A5C /* FanPassAPIClient.swift in Sources */,
+				02BBAA3CB7E0971E714835E8 /* FanPassEnvironment.swift in Sources */,
+				4847300CA98AA06856BF674C /* FanPassModels.swift in Sources */,
+				3B08B941F64FC5E1E6F01F48 /* FanPassOpsApp.swift in Sources */,
+				25E6A12B7EB542968FBBCBF5 /* FanPassPaymentCoordinator.swift in Sources */,
+				65C335331B3DD2B77AEDA2AF /* FanPassUI.swift in Sources */,
+				4F7DF89EF647921AE677F16F /* NFCPayloadScanner.swift in Sources */,
+				764220A73556BC4AA137C201 /* OpsShellView.swift in Sources */,
+				E7DC9944213BFA239008643A /* PrivyAuthProvider.swift in Sources */,
+				D94C9E46E52CC060C1E947E3 /* QRCodeScannerView.swift in Sources */,
+				5279E59E97EE0B980D6CA846 /* ScannerView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0CCE8614F70AEAA313B9744 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5EF6320188D13C35B9E24DF1 /* AppShellView.swift in Sources */,
+				0CBFE1E2AFB9E3005FD274DE /* AppState.swift in Sources */,
+				FD55947FCDD47DEB223F2BFD /* AuthView.swift in Sources */,
+				DD3DD063962F0122DDC59F44 /* EventListView.swift in Sources */,
+				5C5DEAF8B40CC1771394E18D /* FanAccessView.swift in Sources */,
+				9748D1B273D22AE7B78024FE /* FanPassAPIClient.swift in Sources */,
+				550DB067F0DF066E7F2FA7F7 /* FanPassApp.swift in Sources */,
+				6012A5A83F0702593A1BEA57 /* FanPassEnvironment.swift in Sources */,
+				5B7D01AE542F5148C8A37757 /* FanPassModels.swift in Sources */,
+				4E85BA855EEA6F9219CAD86E /* FanPassOrderbookRealtimeClient.swift in Sources */,
+				0524F542ECACC2B02380040B /* FanPassPaymentCoordinator.swift in Sources */,
+				F2B26350700886792237B23A /* FanPassUI.swift in Sources */,
+				69B25D01E0CCA8E93C97D818 /* MarketplaceView.swift in Sources */,
+				0504E3D02449F19E7D865691 /* PrivyAuthProvider.swift in Sources */,
+				9CD6F748BD075AB0E2756201 /* ProfileView.swift in Sources */,
+				07C436C43F73E3DF751D72C0 /* StripePaymentSheetPresenter.swift in Sources */,
+				3C042E0585192FC94D10D028 /* TicketWalletView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		291E30415B4917D457F24C94 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 20283CCA7C9F64E365997CBA /* Local.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPass/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3E867BC64AADB185F08E09FF /* Beta */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+		47B4D1A4E6F392F0875B9A84 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 20283CCA7C9F64E365997CBA /* Local.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5ACB83C27F55A87E5973876D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		6B6C1CC2FBC21C56B2A468E2 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1316A59F2869C4B507FE5D72 /* Staging.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPass/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Staging;
+		};
+		76F559444514F31FCC3775A3 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Staging;
+		};
+		8A2A374D838117AC0354A6CE /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1316A59F2869C4B507FE5D72 /* Staging.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Staging;
+		};
+		A04B53C8E99A33E26C36563D /* Beta */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPass/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+		CA13E1F98A392FED56121BFB /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Beta;
+		};
+		D5D386F8AE4545ED095B1973 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E90B94EA781F1EC5F154B0AF /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9C6CEACECCF78BA45548A988 /* Production.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPass/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E96F2AD94F6F8EE7C7C99AB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9C6CEACECCF78BA45548A988 /* Production.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
+				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E981ACB0CA70CBB9A2AF2A7 /* Build configuration list for PBXProject "FanPass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CA13E1F98A392FED56121BFB /* Beta */,
+				5ACB83C27F55A87E5973876D /* Debug */,
+				D5D386F8AE4545ED095B1973 /* Release */,
+				76F559444514F31FCC3775A3 /* Staging */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Beta;
+		};
+		C2E8C57F69258C3D856ADB5A /* Build configuration list for PBXNativeTarget "FanPass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A04B53C8E99A33E26C36563D /* Beta */,
+				291E30415B4917D457F24C94 /* Debug */,
+				E90B94EA781F1EC5F154B0AF /* Release */,
+				6B6C1CC2FBC21C56B2A468E2 /* Staging */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Beta;
+		};
+		E3F3373713C6CAFF357D9DCD /* Build configuration list for PBXNativeTarget "FanPassOps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E867BC64AADB185F08E09FF /* Beta */,
+				47B4D1A4E6F392F0875B9A84 /* Debug */,
+				E96F2AD94F6F8EE7C7C99AB8 /* Release */,
+				8A2A374D838117AC0354A6CE /* Staging */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Beta;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5D3C4A5DBBABFD67C71557F8 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 16.1.1;
+			};
+		};
+		97FBF539F656BAE63A2263C9 /* XCRemoteSwiftPackageReference "stripe-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stripe/stripe-ios-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 25.16.0;
+			};
+		};
+		CDB43EF10B72DD9B4E8DDA61 /* XCRemoteSwiftPackageReference "privy-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/privy-io/privy-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.12.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		54B68793CCFC1C3CEFEF8795 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5D3C4A5DBBABFD67C71557F8 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */;
+			productName = SocketIO;
+		};
+		6BAF87DAA0066DF92DCF58F6 /* Privy */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CDB43EF10B72DD9B4E8DDA61 /* XCRemoteSwiftPackageReference "privy-ios" */;
+			productName = Privy;
+		};
+		D1F1607EC3317D06D17CB777 /* StripePaymentSheet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 97FBF539F656BAE63A2263C9 /* XCRemoteSwiftPackageReference "stripe-ios-spm" */;
+			productName = StripePaymentSheet;
+		};
+		DCE64064F89C3CF02DA2E285 /* Privy */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CDB43EF10B72DD9B4E8DDA61 /* XCRemoteSwiftPackageReference "privy-ios" */;
+			productName = Privy;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 1DB809E7FB42912D9EEE9227 /* Project object */;
+}
