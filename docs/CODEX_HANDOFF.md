@@ -4673,6 +4673,26 @@ scripts/with-node-22.sh npm run build -w apps/dashboard
 - Current limitation: this Codex session exposes Neon and Vercel tools, but no Render deployment tool, no Render CLI, no Render API token, and no Git remote for this checkout. Render API project creation and Vercel project creation still need an external project/repo connection step before deployed HTTPS URLs exist.
 - Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count remains 364/381 tasks, 95.5%; deployed staging evidence is still open until real HTTPS API/Console URLs pass `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence`.
 
+## After Render API Free Staging Deployment on 2026-05-31
+
+- Pushed the local repository to `https://github.com/tantalum666/fanpass` from the initial commit `f20becf`; `.env`, `outputs/`, build output, and dependency directories remain ignored.
+- Connected Render to the GitHub repository through the `FanPass` Render workspace and deployed the API as the free Node web service `fanpass-api-staging`.
+- Render service details:
+  - Service ID: `srv-d8dh521o3t8c73eidcv0`
+  - API origin: `https://fanpass-api-staging.onrender.com`
+  - Branch: `main`
+  - Plan/runtime: Render free Node service
+- Fixed the reproducible Render build command in `render.yaml` to use `npm ci --include=dev` so the Nest CLI is available during Render builds.
+- Verified the deployed API health endpoint:
+
+```bash
+curl -sS https://fanpass-api-staging.onrender.com/health
+# {"ok":true,"service":"fanpass-api","target":"technical-prototype"}
+```
+
+- No Render, GitHub, Neon, Privy, or Stripe secrets were written into repo files or deployment docs. The Neon connection string and Privy verification key were entered only into Render environment settings.
+- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count remains 364/381 tasks, 95.5%; Render API HTTPS is live, but deployed staging evidence remains open until the Vercel Console HTTPS URL exists, Render CORS is updated to the final Console origin, and `npm run security:runtime:staging` plus `npm run security:runtime:staging:evidence` pass.
+
 ## Next Engineering Tasks
 
 1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.

@@ -115,7 +115,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 1. Provision managed Postgres for staging. The current Neon project is `fanpass-staging`; do not commit or print its connection string.
 2. Configure API environment from `apps/api/.env.staging.example`.
 3. Run Prisma schema push/migration for staging only after confirming the database is not production.
-4. Deploy API and verify `/health`.
+4. Deploy API and verify `/health`. Current API origin: `https://fanpass-api-staging.onrender.com`.
 5. Configure Console environment from `apps/dashboard/.env.staging.example`.
 6. Deploy Console and verify unauthenticated locked/sign-in state.
 7. Run `npm run security:runtime:staging` with real HTTPS URLs.
@@ -124,8 +124,9 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 ## Current Open Items
 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
-- No deployed Render API URL exists yet.
+- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31.
 - No deployed Vercel Console URL exists yet.
+- Render `FANPASS_CORS_ORIGINS` must be updated to the final Vercel Console origin after Vercel deployment.
 - Stripe test-mode keys and signed webhooks have not been validated.
 - Privy product login is not integrated into FanPass, FanPass Ops, or Console UI.
 - TestFlight/App Store distribution is not planned yet.

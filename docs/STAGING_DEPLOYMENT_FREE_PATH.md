@@ -1,16 +1,29 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned; Render API and Vercel Console still need external project creation because Render tooling is not exposed in this Codex session and this checkout has no Git remote configured.
+Status: Neon staging database is provisioned and the Render API is live on the free HTTPS hostname. Vercel Console deployment and the final deployed staging evidence bundle remain open.
 
 ## Targets
 
 - Database: Neon Postgres project `fanpass-staging`.
-- API: Render free web service from `render.yaml`.
+- API: Render free web service `fanpass-api-staging`.
 - Console: Vercel Next.js project rooted at `apps/dashboard`.
 
 ## API on Render
 
-Use `render.yaml` as the blueprint. Keep these values secret in Render environment settings:
+Current service:
+
+```text
+https://fanpass-api-staging.onrender.com
+```
+
+Health check verified on 2026-05-31:
+
+```text
+GET https://fanpass-api-staging.onrender.com/health -> 200
+{"ok":true,"service":"fanpass-api","target":"technical-prototype"}
+```
+
+Use `render.yaml` as the reproducible configuration baseline. Keep these values secret in Render environment settings:
 
 - `DATABASE_URL`
 - `QR_SIGNING_SECRET`
@@ -19,7 +32,7 @@ Use `render.yaml` as the blueprint. Keep these values secret in Render environme
 - future `STRIPE_SECRET_KEY`
 - future `STRIPE_WEBHOOK_SECRET`
 
-Set `FANPASS_CORS_ORIGINS` after the Vercel Console URL exists. It must be an origin only, for example:
+`FANPASS_CORS_ORIGINS` is temporarily pointed at the planned Vercel staging origin. After the real Vercel Console URL exists, update Render `FANPASS_CORS_ORIGINS` to that exact origin and redeploy the API. It must be an origin only, for example:
 
 ```text
 https://fanpass-console-staging.vercel.app
