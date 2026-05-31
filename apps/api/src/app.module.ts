@@ -19,6 +19,7 @@ import { OwnershipService } from "./modules/ownership/ownership.service";
 import { PaymentsController } from "./modules/payments/payments.controller";
 import { PaymentsService } from "./modules/payments/payments.service";
 import { SideEffectOutboxService } from "./modules/side-effects/side-effect-outbox.service";
+import { SideEffectWorkerSchedulerService } from "./modules/side-effects/side-effect-worker-scheduler.service";
 import { SideEffectWorkerService } from "./modules/side-effects/side-effect-worker.service";
 import { SideEffectHealthService } from "./modules/side-effects/side-effect-health.service";
 import { SettlementSideEffectsService } from "./modules/side-effects/settlement-side-effects.service";
@@ -63,6 +64,7 @@ import { validateEnvironment } from "./config/security-config";
     PaymentsService,
     SideEffectOutboxService,
     SideEffectWorkerService,
+    SideEffectWorkerSchedulerService,
     SideEffectHealthService,
     SettlementSideEffectsService,
     TicketOwnershipSideEffectsService,
