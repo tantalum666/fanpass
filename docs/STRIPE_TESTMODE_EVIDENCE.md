@@ -2,6 +2,8 @@
 
 This contract defines the saved evidence required before FanPass can mark real Stripe test-mode PaymentIntent, iOS PaymentSheet, signed-webhook, capture, cancellation, refund, or reconciliation work complete. It must not contain real personal data, live-mode keys, secret keys, webhook secrets, publishable keys, bearer tokens, PaymentIntent client secrets, provider secrets, deployment/cloud credentials, CI secret masking command literals, database URLs, or production credentials.
 
+Current status on 2026-05-31: FanPass iOS simulator successfully exercised native Stripe PaymentSheet authorization with a Stripe test card against the Render staging API, and signed dashboard webhook delivery updated the backend payment state. This contract remains an open release gate until a saved redacted evidence file also proves capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state.
+
 Run the validator on saved evidence:
 
 ```bash

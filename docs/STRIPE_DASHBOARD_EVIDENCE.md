@@ -2,6 +2,8 @@
 
 This contract defines the saved evidence required before FanPass can mark Stripe dashboard feasibility complete for test-mode PaymentIntents and webhook endpoint setup. It must not contain real personal data, live-mode keys, secret keys, webhook secrets, publishable keys, PaymentIntent client secrets, provider secrets, deployment/cloud credentials, CI secret masking command literals, database URLs, or production credentials.
 
+Current status on 2026-05-31: the actual Stripe dashboard test-mode webhook endpoint was created for the Render staging API and used for iOS PaymentSheet authorization testing. Keep future saved evidence redacted; this dashboard feasibility gate is separate from the full Stripe test-mode evidence gate for capture, cancellation, refund, reconciliation, replay, and outbox health.
+
 Run the validator on saved evidence:
 
 ```bash

@@ -128,6 +128,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 - Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`; the first Vercel build failed on Node 24, then passed after `apps/dashboard/package.json` pinned Node `>=22 <23`.
 - Render `FANPASS_CORS_ORIGINS` is updated to `https://fanpass-dashboard.vercel.app` and the API was redeployed after the change.
 - `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence` passed against the real Render/Vercel HTTPS URLs with a real staging Privy admin bearer copied from the FanPass Ops simulator. The saved evidence proves the positive admin side-effect outbox health check without storing the bearer token.
-- Stripe test-mode keys and signed webhooks have not been validated.
-- Privy product login is not integrated into FanPass, FanPass Ops, or Console UI.
+- Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been validated against the Render staging API, but full saved Stripe evidence is still open until capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state pass `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
+- Render side-effect worker scheduler is enabled in staging through Render environment settings: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, and `SIDE_EFFECT_WORKER_LIMIT=10`. Confirm from Render logs or Neon SQL that the latest Stripe-authorized order outbox work drained before closing Stripe operations evidence.
+- Privy product login works in simulator paths used for evidence collection; FanPass Console React SDK login is not integrated.
 - TestFlight/App Store distribution is not planned yet.

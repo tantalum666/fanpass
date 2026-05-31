@@ -12,6 +12,8 @@ The repo is structured as a monorepo:
 - `apps/ios/FanPass/FanPassOps` - separate staff/onsite iOS target for gate scanning and NFC workflows.
 - `docs` - product roadmap, architecture, and delivery notes.
 
+For continuation context, start with `docs/CODEX_HANDOFF.md`; for a fresh Codex window, use `docs/NEW_CHAT_PROMPT.md`. The presentation/report text is mirrored in `docs/FANPASS_REPORT.md`.
+
 ## Product Surfaces
 
 - `FanPass` - consumer app for event discovery, buying, wallet, resale, fan access, and profile.

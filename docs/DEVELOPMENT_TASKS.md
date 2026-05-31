@@ -181,7 +181,7 @@
   - Evidence collection aid: `npm run privy:evidence:draft -- plan|mobile|console --out <draft-json>` generates non-passing draft evidence with current SHA-256 snapshots; completed files still require real dashboard/build/dependency facts and the matching validator.
   - [x] Add Stripe dashboard feasibility evidence validator for test-mode PaymentIntent and webhook setup proof.
   - [x] Add CI secret masking command literal leakage coverage to the Stripe dashboard evidence validator.
-  - [ ] Confirm in the actual Stripe dashboard that test-mode PaymentIntents and webhook endpoints work with FanPass routes.
+  - [x] Confirm in the actual Stripe dashboard that test-mode PaymentIntents and webhook endpoints work with FanPass routes.
   - [ ] Confirm in the actual Privy dashboard whether Developer Free/Core supports webhooks, mobile SDK use, embedded wallets, backend token verification, custom UI, and MFA/policy controls.
   - [x] Keep Privy webhooks optional until plan support is verified.
 - [x] Add repeatable Beta local Prisma start/stop/verify scripts for API, Console, and side-effect worker.
@@ -365,12 +365,13 @@
   - [ ] Add client-side Stripe Payment Element or Checkout integration.
     - [x] Add FanPass iOS PaymentIntent preparation boundary and checkout state UI.
     - [x] Add Stripe iOS SDK PaymentSheet package, publishable-key configuration, payment return URL, and native presenter boundary.
-    - [ ] Validate PaymentSheet with real Stripe test publishable key, API secret key, PaymentIntent client secret, and signed webhook flow.
+    - [x] Validate PaymentSheet with real Stripe test publishable key, API secret key, PaymentIntent client secret, and signed webhook flow.
   - [x] Add capture/refund/reconciliation flows before real-money Beta.
     - [x] Add local/mock worker handlers for payment capture, authorization cancellation, refund, and reconciliation.
     - [x] Enqueue payment capture after a settled Prisma trade.
     - [x] Add admin-protected, idempotent payment operation triggers for authorization cancellation, refund, and reconciliation.
     - [x] Verify cancellation, refund, and reconciliation with real Stripe test-mode keys and signed webhooks.
+  - Status note on 2026-05-31: dashboard webhook setup and native iOS PaymentSheet authorization have been validated against Render staging. The full Stripe release gate still requires saved redacted evidence for capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state.
 - [x] Add WebSocket orderbook updates.
   - [x] Wire FanPass Console market panel to the realtime orderbook feed.
   - [x] Wire FanPass iOS market screen to the realtime orderbook feed.

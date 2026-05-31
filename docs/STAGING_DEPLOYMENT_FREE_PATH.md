@@ -40,6 +40,14 @@ https://fanpass-dashboard.vercel.app
 
 Do not use `localhost`, wildcard origins, production credentials, real personal data, or live Stripe mode.
 
+The current staging API also runs the production-like side-effect worker scheduler from the API process. These values are configured in Render environment settings, not source control:
+
+```text
+FANPASS_SIDE_EFFECT_WORKER_ENABLED=true
+FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000
+SIDE_EFFECT_WORKER_LIMIT=10
+```
+
 ## Console on Vercel
 
 Current service:
@@ -83,3 +91,5 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json
 ```
 
 The deployed staging gate is closed for the Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. The accepted evidence proves API/Console headers, disabled demo sessions, unauthenticated admin-health rejection, authenticated admin side-effect outbox health, unauthenticated Console locked/sign-in rendering, API trust-proxy hop configuration, and orderbook WebSocket origin checks without storing the bearer token in source control or saved evidence.
+
+Stripe-specific staging status on 2026-05-31: dashboard test-mode webhook setup and native iOS PaymentSheet authorization were exercised against this Render API. Before closing the Stripe release gate, save and validate full test-mode evidence for capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.

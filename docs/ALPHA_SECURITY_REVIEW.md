@@ -2232,7 +2232,7 @@ Update after Stripe Backend Test-Mode Verification on 2026-05-30:
 - Exercised manual PaymentIntent authorization, payment-authorized order matching, worker capture, admin refund, admin authorization cancellation, reconciliation, and side-effect outbox health using local-only demo records.
 - Fixed the Stripe SDK import path used by the current NestJS/ts-node runtime so real Stripe provider construction works outside the mock adapter path.
 - The verification did not include real personal data, production credentials, live-mode Stripe calls, or checked-in secret material.
-- Remaining status: backend capture/refund/cancellation/reconciliation risk is reduced, but the Stripe release blocker remains open until native FanPass iOS PaymentSheet evidence and HTTPS Stripe Dashboard webhook endpoint evidence are saved without secrets and pass the dedicated validators. Rotate the exposed test secret before collecting clean release evidence.
+- Remaining status: backend capture/refund/cancellation/reconciliation risk is reduced. Since then, FanPass iOS simulator testing has successfully presented native Stripe PaymentSheet with a real Stripe test publishable key, backend-issued PaymentIntent client secret, and signed dashboard webhook delivery to the Render staging API. The latest observed test PaymentIntent reached manual-capture authorization state (`requires_capture`, capturable amount present, `livemode=false`) and the backend persisted the payment as authorized. The Stripe release blocker remains open until full redacted test-mode evidence proves capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state, then passes `npm run security:stripe-testmode:evidence -- <saved-json-output>`. Rotate the exposed test secret before collecting clean release evidence.
 
 Update after Privy Local Config Check Gate on 2026-05-30:
 
@@ -2296,7 +2296,7 @@ Beta cannot be considered security-ready until all of these are complete:
 6. QR signing secret is mandatory outside local development.
 7. Data responses are privacy-scoped and redacted by default.
 8. Order settlement and redemption are idempotent and concurrency-safe.
-9. Payment authorization, capture, refund, and webhook reconciliation are idempotent and verified with Stripe test mode before real money is used; backend CLI verification exists, but native PaymentSheet and HTTPS dashboard evidence are still required before public Beta.
+9. Payment authorization, capture, refund, and webhook reconciliation are idempotent and verified with Stripe test mode before real money is used; backend CLI verification and native iOS PaymentSheet authorization through the HTTPS dashboard webhook path now exist, but full saved evidence for capture/cancel/refund/reconciliation/replay/outbox health is still required before public Beta.
 10. Provider plan assumptions are verified in the actual Stripe/Privy dashboards before features become Beta blockers.
 11. Production dependencies are patched or explicitly risk-accepted.
 12. Security headers are configured and verified at runtime.

@@ -50,10 +50,9 @@ Open Stripe checks before real-money Beta:
 
 - Confirm Hong Kong account availability, supported payment methods, settlement currency, payout schedule, and platform/marketplace obligations.
 - Confirm whether FanPass needs Stripe Connect for organizer payouts; if yes, pricing and compliance scope changes.
-- Test real Stripe test-mode webhooks with dashboard/CLI, not only local mock payloads.
-- Validate Stripe iOS PaymentSheet with a real test publishable key, backend test secret key, backend-issued PaymentIntent client secret, and signed webhook delivery, then save redacted evidence that passes `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
-- Verify the persisted webhook event id/replay behavior against signed Stripe test-mode webhooks.
-- Test capture, refund, cancellation, and reconciliation workers with real Stripe test-mode keys before any real-money flow.
+- Real Stripe test-mode dashboard webhook delivery and native iOS PaymentSheet authorization have been exercised against the Render staging API. Keep the task open until the full redacted evidence file proves the required post-authorization operations and passes `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
+- Verify the persisted webhook event id/replay behavior against signed Stripe test-mode webhooks, including duplicate dashboard/CLI replay.
+- Test capture, refund, cancellation, and reconciliation workers with real Stripe test-mode keys before any real-money flow, and confirm the Render side-effect worker scheduler drains the residual outbox.
 - Confirm the admin operation endpoints behave correctly with real Stripe test-mode PaymentIntent states, including duplicate admin retries with the same `Idempotency-Key`.
 
 ## Privy
