@@ -41,7 +41,7 @@ Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklis
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 374/382 tasks, 97.9% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
+- Beta foundation/security hardening: 377/382 tasks, 98.7% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
 
 ## Latest New-Chat Snapshot on 2026-06-03
 
@@ -49,7 +49,7 @@ Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `374/382`, `97.9%`.
+Current checklist count: `377/382`, `98.7%`.
 
 Latest deployed staging state:
 
@@ -71,6 +71,7 @@ Latest provider status:
 - Hosted GitHub Actions evidence is now refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` for a successful PR run of `FanPass Beta Foundation` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` after the isolated Console Privy SDK login change. The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, `postgres:16-alpine`, and `npm run beta:foundation:verify`; validation passed with `scripts/with-node-22.sh npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `scripts/with-node-22.sh npm run security:evidence-redaction`.
 - Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
 - FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root production audit remains limited to the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime records 25 moderate advisories and must stay isolated.
+- Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, dependency-risk, Wallet, scanner, or chain custody evidence blockers.
 - FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
 

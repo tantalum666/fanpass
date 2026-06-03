@@ -215,8 +215,9 @@
 - [x] Add ticket issuance/redemption ownership side-effect boundary and lock ticket/verification lifecycle imports.
 - [x] Add backend Privy access-token verification and remove email-only/demo session issuance from production-like builds.
 - [x] Extract backend Privy JWT verification into a narrow verifier service and lock the boundary in provider audits.
-- [ ] Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console.
+- [x] Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console.
   - FanPass Ops now uses the Privy Swift SDK email OTP result for staff invite linking in the release path; manual Privy access-token entry remains debug-only and is enforced by `npm run security:staff-invite-policy`.
+  - FanPass uses the shared Privy Swift SDK email OTP provider and backend token-sync boundary, FanPass Ops uses the same provider for staff invite linking, and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime. This closes the SDK-login implementation task; signed-device OTP, mobile config, and production tenant/staff evidence remain separate release blockers.
 - [x] Lock FanPass Console data access behind organizer/admin bearer auth and redact personal data by default.
 - [x] Add event-scoped organizer access rules for Console operations.
 - [x] Harden QR generation/redeem authority for Alpha sessions and scanner role checks.
@@ -350,7 +351,7 @@
   - [x] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
   - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The root production audit path remains limited to the known 2 moderate Next/PostCSS advisories; the isolated SDK runtime audit still reports 25 moderate advisories and must stay outside root workspaces.
   - [ ] Add Privy webhook sync only after confirming the selected plan supports it.
-- [ ] Integrate Stripe test mode PaymentIntents and webhooks.
+- [x] Integrate Stripe test mode PaymentIntents and webhooks.
   - [x] Add API `POST /payments/intents` with `Idempotency-Key` enforcement.
   - [x] Add Stripe SDK boundary with manual-capture PaymentIntent creation and local mock fallback outside production-like runtimes.
   - [x] Add raw-body `POST /payments/webhook` with signature verification when Stripe secrets are configured.
@@ -364,10 +365,11 @@
   - [x] Persist payment records in Prisma and expose redacted payment status in Alpha operations.
   - [x] Add `PAYMENT_INTENT_CREATE` side-effect worker dispatch and verification coverage.
   - [x] Fail production-like startup when `FANPASS_ENABLE_PAYMENTS=true` but Stripe secrets are missing.
-  - [ ] Add client-side Stripe Payment Element or Checkout integration.
+  - [x] Add client-side Stripe PaymentSheet checkout integration.
     - [x] Add FanPass iOS PaymentIntent preparation boundary and checkout state UI.
     - [x] Add Stripe iOS SDK PaymentSheet package, publishable-key configuration, payment return URL, and native presenter boundary.
     - [x] Validate PaymentSheet with real Stripe test publishable key, API secret key, PaymentIntent client secret, and signed webhook flow.
+    - Native iOS `PaymentSheet` is the client checkout surface for the current FanPass consumer product; no web Payment Element or Checkout surface is required for the role-separated Beta foundation.
   - [x] Add capture/refund/reconciliation flows before real-money Beta.
     - [x] Add local/mock worker handlers for payment capture, authorization cancellation, refund, and reconciliation.
     - [x] Enqueue payment capture after a settled Prisma trade.

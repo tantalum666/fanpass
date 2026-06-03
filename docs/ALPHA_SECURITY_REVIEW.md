@@ -172,6 +172,13 @@ Update after Isolated Console Privy React SDK Login on 2026-06-03:
 - Saved passing evidence at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`; root production audit remains at the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime audit records 25 moderate advisories and must stay isolated.
 - Remaining status: this closes the Console React SDK login/isolation blocker for the local Beta foundation. External Beta still requires production tenant/staff staging evidence, dependency advisory closure or risk acceptance, saved iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, chain custody evidence, and the human-reviewed walkthrough recording.
 
+Update after non-human SDK/payment checklist closure on 2026-06-03:
+
+- Closed the `Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console` checklist item after validating that FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime.
+- Closed the Stripe test-mode PaymentIntent/webhook implementation parent and client checkout subtask because the current consumer product uses native iOS Stripe `PaymentSheet` as its client checkout surface, with saved Render staging evidence for PaymentIntent authorization, signed webhooks, capture, authorization cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.
+- Verification passed for `npm run security:provider-boundaries`, `npm run security:console-routes`, `npm run security:staff-invite-policy`, `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, and `npm run security:privy-console-react-sdk:isolation -- outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`.
+- Remaining status: this closes only local/non-human implementation checklist items. External Beta still requires the human-reviewed walkthrough recording, production tenant/staff staging evidence, dependency advisory closure or owner risk acceptance, saved real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
+
 Update after Security Pass 15 on 2026-05-28:
 
 - Added payment-aware order settlement gating behind `FANPASS_REQUIRE_PAYMENT_AUTHORIZATION`.
