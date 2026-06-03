@@ -2,7 +2,7 @@
 
 This contract defines the saved evidence required before FanPass can mark real Stripe test-mode PaymentIntent, iOS PaymentSheet, signed-webhook, capture, cancellation, refund, or reconciliation work complete. It must not contain real personal data, live-mode keys, secret keys, webhook secrets, publishable keys, bearer tokens, PaymentIntent client secrets, provider secrets, deployment/cloud credentials, CI secret masking command literals, database URLs, or production credentials.
 
-Current status on 2026-05-31: FanPass iOS simulator successfully exercised native Stripe PaymentSheet authorization with a Stripe test card against the Render staging API, and signed dashboard webhook delivery updated the backend payment state. This contract remains an open release gate until a saved redacted evidence file also proves capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state.
+Current status on 2026-06-03: FanPass iOS simulator successfully exercised native Stripe PaymentSheet authorization with a Stripe test card against the Render staging API, signed dashboard webhook delivery updated backend payment state, and saved redacted release evidence now proves Stripe test-mode capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state. The saved evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`; it passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and repository evidence redaction. Render free-tier one-off jobs still cannot be used as a fallback, but Neon staging and admin health proof confirmed the worker-drained outbox state.
 
 Run the validator on saved evidence:
 
@@ -45,7 +45,7 @@ The saved JSON may be embedded in command output, but it must include one JSON o
       },
       {
         "file": "apps/api/src/modules/payments/payments.service.ts",
-        "sha256": "decbaa980430c2ab7291a07fc2aba3b8656d1327b666fa99a7ad830f8e601fab"
+        "sha256": "39b56d44abfdda2403b2e5a1389bcb3ee406c11eca7409a56d4309100540b10c"
       },
       {
         "file": "apps/api/src/modules/side-effects/settlement-side-effects.service.ts",

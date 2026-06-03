@@ -33,46 +33,53 @@ Every progress report to the user must include:
 - Current overall completion percentage for the active version.
 - Remaining major blockers before the next version or real-user testing.
 
+## Tool And Plugin Authorization
+
+The user has explicitly authorized Codex to use available plugins and app tools as needed for FanPass work, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool or plugin set for the task, and keep using project safety rules: do not expose secrets, do not use production credentials or live Stripe mode, do not use real personal data, do not commit keys/tokens/evidence with secrets, and do not run destructive git commands.
+
 Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-05-31:
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 368/381 tasks, 96.6% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, full Stripe test-mode saved evidence for capture/cancel/refund/reconciliation/idempotency/outbox health, FanPass Console Privy React SDK login, production tenant/staff policy evidence, hosted CI evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
+- Beta foundation/security hardening: 370/381 tasks, 97.1% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, FanPass Console Privy React SDK login, production tenant/staff policy evidence, hosted CI evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
 
-## Latest New-Chat Snapshot on 2026-05-31
+## Latest New-Chat Snapshot on 2026-06-03
 
 Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `368/381`, `96.6%`.
+Current checklist count: `370/381`, `97.1%`.
 
 Latest deployed staging state:
 
 - API: `https://fanpass-api-staging.onrender.com`
 - Console: `https://fanpass-dashboard.vercel.app`
 - GitHub repo: `https://github.com/tantalum666/fanpass`
-- Latest deployed API commit verified in Render: `75b4e68bc7835bc2d4532259a3cecac2ab8e99da` (`Run side-effect worker from API when enabled`).
-- Render API health returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}`.
+- Latest deployed API commit verified in Render on 2026-06-03: `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d` (`Use Word report for FanPass handoff`). The worker implementation was introduced in the earlier deployed commit `75b4e68bc7835bc2d4532259a3cecac2ab8e99da`; `07d4cb6` only changed `README.md` and `docs/FANPASS_REPORT.md`.
+- Render API health returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}` after free-plan cold start on 2026-06-03.
 - Render worker scheduler env was set through the dashboard/API, not committed: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, `SIDE_EFFECT_WORKER_LIMIT=10`.
+- Render logs on 2026-06-03 showed the side-effect worker scheduler enabled at 15000 ms on the live service and one prior processing line after the worker deployment: `processed=1 completed=1 retried=0 dead=0 recovered=0`. A Render one-off job attempt to run `npm run side-effects:health -w @fanpass/api` could not be used because Render free-tier services do not support jobs.
 
 Latest provider status:
 
-- Stripe dashboard test-mode endpoint was created for the deployed Render API route and the dashboard feasibility evidence validator passed earlier.
+- Stripe dashboard test-mode endpoint was created for the deployed Render API route. The saved dashboard evidence snapshot was refreshed on 2026-06-03 after documentation SHA drift and now passes `npm run security:stripe-dashboard:evidence -- outputs/stripe-dashboard/20260530T192215Z-dashboard-review.json`.
 - Native iOS Stripe PaymentSheet was exercised in the simulator with a Stripe test card. The latest test PaymentIntent reached manual-capture authorization state (`requires_capture`, `amount_capturable=128800`, `livemode=false`) and the backend persisted the payment as `AUTHORIZED` after a signed Stripe webhook.
-- Full Stripe release evidence is still open until capture, cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual outbox state are saved in a redacted evidence file that passes `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
+- Full Stripe release evidence is now saved and validator-clean at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` after exercising Stripe test-mode capture, admin reconciliation, admin refund, authorization cancellation, duplicate webhook replay/idempotency, and healthy residual outbox state against the Render staging API. Neon staging proof after worker drain showed `PAYMENT_CANCEL_AUTHORIZATION`, `PAYMENT_RECONCILE`, `PAYMENT_REFUND`, three `PAYMENT_INTENT_CREATE`, and two `ORDER_MATCH_AFTER_PAYMENT_AUTH` jobs all `COMPLETED`, with no side-effect failures; payment rows included one `CANCELLED`, one `REFUNDED`, and one residual `NOT_CAPTURED` test record. Validation passed with `scripts/with-node-22.sh npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and `scripts/with-node-22.sh npm run security:evidence-redaction`.
+- The full local Beta foundation gate was re-run after the Stripe evidence/documentation updates and passed with `scripts/with-node-22.sh npm run beta:foundation:verify`, including API and Console typechecks plus 12 API test suites / 59 tests.
+- Follow-up on 2026-06-03: the remaining order-settlement parent tasks were closed after confirming the durable outbox/saga engineering subitems are complete and the local gates still pass: `npm run security:settlement-retry-idempotency`, `npm run side-effects:verify:self-test`, and `npm run side-effects:health:self-test`. The full `scripts/with-node-22.sh npm run beta:foundation:verify` gate was re-run afterward and passed, including side-effect live verification, side-effect health, API and Console typechecks, plus 12 API test suites / 59 tests. This does not close the separate chain custody blocker, which still requires saved vault/KMS or delegated signer plus multisig/timelock evidence.
 - Privy Dev app dashboard and mobile config evidence exists and passed validators. FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but Console React SDK login and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
 
 Local working tree warning:
 
 - There are uncommitted DEBUG-only iOS helper changes in `apps/ios/FanPass/FanPass/App/AppState.swift` and `apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift`. They were used for simulator token copy/paste testing and should be reviewed before commit, reverted only with explicit user approval, or folded into a deliberate DEBUG-only evidence helper change.
-- Treat all provider tokens or keys pasted in chat as exposed. Rotate the Stripe test secret, GitHub PAT, Render API token, and any Privy secret material before collecting final release evidence.
+- Treat all provider tokens or keys pasted in chat as exposed. Rotate the Stripe test secret, GitHub PAT, Render API token, Privy access tokens, and any Privy secret material before sharing evidence outside the local workspace or using the environment for another release decision.
 
 Fast resume prompt:
 
 - Read `docs/NEW_CHAT_PROMPT.md` and the core docs listed below.
-- Start by checking `git status --short --branch`, then confirm Render/Vercel health and whether the side-effect worker cleared any pending `ORDER_MATCH_AFTER_PAYMENT_AUTH` outbox job.
+- Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are FanPass Console Privy React SDK login/isolation, production tenant/staff staging evidence, hosted CI evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence.
 
 ## Repository
 
@@ -618,7 +625,7 @@ Important paths:
     - `scripts/with-node-22.sh npm run beta:foundation:verify`
 
 - After Hosted CI Test Count Evidence Alignment on 2026-05-30:
-  - Updated `npm run security:ci-hosted:evidence` so future hosted GitHub Actions evidence must prove the current API unit-test result: 11 suites / 57 tests.
+  - Updated `npm run security:ci-hosted:evidence` so future hosted GitHub Actions evidence must prove the current API unit-test result: 12 suites / 59 tests.
   - Updated fixture-backed `npm run security:ci-hosted:evidence:self-test` coverage to reject stale API test-count evidence.
   - Updated `docs/CI_HOSTED_EVIDENCE.md` and the QA, roadmap, provider-cost, task, and security-review docs so the hosted CI evidence contract matches the current `npm run beta:foundation:verify` API unit-test output.
   - Marked `Align hosted CI evidence validator with the current API unit test-count proof` complete.
@@ -4784,18 +4791,16 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - FanPass iOS simulator successfully used the native Stripe PaymentSheet path with a Stripe test card, a backend-issued PaymentIntent client secret, and test-mode publishable-key configuration injected outside source control.
 - The latest observed Stripe test PaymentIntent was in manual-capture authorization state (`requires_capture`, capturable amount present, `livemode=false`), and the backend persisted the payment as `AUTHORIZED` after signed webhook delivery.
 - Render API commit `75b4e68bc7835bc2d4532259a3cecac2ab8e99da` is live with the API-hosted side-effect worker scheduler enabled through Render environment settings, not committed secrets.
-- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count is 368/381 tasks, 96.6%.
-- Remaining Stripe status: the dashboard and native authorization portions are complete, but the full Stripe release blocker remains open until capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual outbox state are saved in redacted evidence and pass `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
+- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count is 370/381 tasks, 97.1%.
+- Follow-up on 2026-06-03: Stripe test-mode capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual outbox state were exercised against Render staging and saved at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`. The saved evidence passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and repository evidence redaction.
 - Operational note: the Neon MCP tools were intermittently unavailable in the previous thread. If available, query the staging outbox/payment state without printing secrets or real user data; otherwise use Render logs to confirm worker processing.
 
 ## Next Engineering Tasks
 
-1. Confirm the deployed side-effect worker scheduler processed the latest Stripe-authorized order outbox work. Prefer Render logs first; if Neon MCP tools are available again, query the outbox and payment rows without printing credentials or user data.
-2. Complete full Stripe test-mode saved evidence: capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state, then run `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
-3. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.
-4. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, FanPass Console Privy React login, iOS/TestFlight staging build evidence, hosted CI evidence, and dependency advisories.
-5. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
-6. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
+1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.
+2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, FanPass Console Privy React login, iOS/TestFlight staging build evidence, hosted CI evidence, dependency advisory closure or risk acceptance, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
+3. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
+4. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
 
 ## Context Strategy
 

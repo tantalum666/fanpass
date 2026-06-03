@@ -19,8 +19,8 @@ const cases = [
       replaceFixtureText(
         fixtureRoot,
         "apps/api/src/modules/auth/auth.service.ts",
-        "const accepted = await prisma.$transaction(async (tx) =>",
-        "const accepted = await Promise.resolve(async (tx) =>",
+        "const accepted = await prisma.$transaction(async (tx: Prisma.TransactionClient) =>",
+        "const accepted = await Promise.resolve(async (tx: Prisma.TransactionClient) =>",
       ),
   },
   {
@@ -264,7 +264,7 @@ export class AuthService {
   async acceptStaffInvite(token, input) {
     throw new BadRequestException("Staff invites require Prisma storage");
     this.privyTokens.verifyAccessToken(token);
-    const accepted = await prisma.$transaction(async (tx) => {
+    const accepted = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const invite = await tx.staffInvite.findUnique({ where: { tokenHash: this.hashStaffInviteToken(inviteToken) } });
       if (!invite || invite.status !== "PENDING") throw new UnauthorizedException("Staff invite is invalid");
       const now = new Date();

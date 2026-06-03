@@ -9,8 +9,8 @@ const expectedWorkflowPath = ".github/workflows/beta-foundation.yml";
 const expectedWorkflowSha256 = sha256File(
   path.join(rootDir, expectedWorkflowPath),
 );
-const expectedApiTestSuites = 11;
-const expectedApiTests = 57;
+const expectedApiTestSuites = 12;
+const expectedApiTests = 59;
 const verifierSnapshotFiles = [
   ".github/workflows/beta-foundation.yml",
   ".nvmrc",

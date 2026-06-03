@@ -26,30 +26,31 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 368/381 tasks, 96.6%.
+Current checklist: 370/381 tasks, 97.1%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
 - Console: https://fanpass-dashboard.vercel.app
 - GitHub repo: https://github.com/tantalum666/fanpass
-- Latest Render API deployed commit: 75b4e68bc7835bc2d4532259a3cecac2ab8e99da
+- Latest Render API deployed commit verified on 2026-06-03: 07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d; worker scheduler code was introduced in 75b4e68bc7835bc2d4532259a3cecac2ab8e99da.
 
 Important provider status:
 - Render/Vercel HTTPS staging runtime evidence has passed.
 - Privy Dev app dashboard/mobile config evidence has passed; simulator OTP paths were used for staging/admin evidence.
 - Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been exercised successfully against the Render staging API.
-- Full Stripe evidence remains open until capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state are saved and pass `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
+- Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
+- Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.
 - Render side-effect worker scheduler is enabled in env: FANPASS_SIDE_EFFECT_WORKER_ENABLED=true, FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000, SIDE_EFFECT_WORKER_LIMIT=10.
-- Confirm from Render logs or Neon SQL that the latest Stripe-authorized order outbox job drained before closing Stripe operations evidence.
 
 Safety rules:
 - Do not use real personal data, production credentials, live Stripe mode, production Privy secrets, or destructive git commands.
 - Treat all provider tokens/keys pasted in the old chat as exposed. Do not repeat them. Recommend rotation before final evidence.
 - Keep provider integrations behind narrow adapters/services.
 - Do not commit `.env`, tokens, keys, screenshots with secrets, or output evidence containing secrets.
+- The user has authorized Codex to use available plugins and app tools as needed, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool set and keep all safety rules above.
 
 Highest-value next task:
-Finish Stripe test-mode release evidence from the current staging deployment. First verify Render worker/outbox status, then collect redacted capture/cancel/refund/reconciliation/replay evidence, run the relevant validators, update docs, and report stage, completed work, checklist percentage, and remaining blockers.
+Choose the next remaining Beta foundation blocker, likely FanPass Console Privy React SDK login/isolation, production tenant/staff staging evidence, hosted CI evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
 ```
 
 If the new chat is only for status/reporting, ask it to summarize `docs/CODEX_HANDOFF.md` and list the open blockers from `docs/DEVELOPMENT_TASKS.md` without changing files.

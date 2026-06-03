@@ -115,7 +115,6 @@ function validateAcceptStaffInviteBoundary() {
   for (const marker of [
     "this.privyTokens.verifyAccessToken(token)",
     'throw new BadRequestException("Staff invites require Prisma storage")',
-    "const accepted = await prisma.$transaction(async (tx) =>",
     "tokenHash: this.hashStaffInviteToken(inviteToken)",
     'invite.status !== "PENDING"',
     'status: "EXPIRED"',
@@ -139,6 +138,15 @@ function validateAcceptStaffInviteBoundary() {
     if (!service.includes(marker)) {
       errors.push(`AuthService staff invite policy missing marker: ${marker}`);
     }
+  }
+  if (
+    !/const accepted = await prisma\.\$transaction\(\s*async \(tx(?::\s*Prisma\.TransactionClient)?\) =>/.test(
+      service,
+    )
+  ) {
+    errors.push(
+      "AuthService staff invite policy missing marker: Prisma transaction around invite acceptance",
+    );
   }
 }
 

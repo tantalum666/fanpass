@@ -224,7 +224,7 @@
   - [x] Fail fast in production-like runtimes when QR signing or Privy verification config is missing or unsafe.
   - [x] Add Prisma accepted nonce uniqueness for accepted check-ins.
   - [x] Add event/gate assignment checks for gate staff.
-- [ ] Harden order settlement with idempotency, database constraints, and safe chain-call settlement states.
+- [x] Harden order settlement with idempotency, database constraints, and safe chain-call settlement states.
   - [x] Add unique Prisma trade constraints for one settled trade per buy order and sell order.
   - [x] Atomically claim OPEN buy/sell orders and the listed ticket before ownership transfer in Prisma settlement.
   - [x] Mark matched orders as `REJECTED` and restore the ticket if the ownership adapter transfer fails.
@@ -238,7 +238,7 @@
     - [x] Add Stripe capture, refund, cancellation, and reconciliation side-effect handlers.
     - [x] Thread durable outbox job idempotency keys through payment capture, cancellation, and refund provider calls.
     - [x] Verify capture/refund/reconciliation against real Stripe test-mode keys and signed webhooks.
-  - [ ] Move real chain calls to a durable outbox/saga before any production wallet or payment flow.
+  - [x] Move real chain calls to a durable outbox/saga before any production wallet or payment flow.
     - [x] Add Prisma `side_effect_outbox` persistence for ownership transfer side effects.
     - [x] Record ownership transfer side-effect jobs during Prisma order settlement and mark local mock completion.
     - [x] Expose side-effect job status in Alpha operations for Console visibility.
@@ -371,7 +371,7 @@
     - [x] Enqueue payment capture after a settled Prisma trade.
     - [x] Add admin-protected, idempotent payment operation triggers for authorization cancellation, refund, and reconciliation.
     - [x] Verify cancellation, refund, and reconciliation with real Stripe test-mode keys and signed webhooks.
-  - Status note on 2026-05-31: dashboard webhook setup and native iOS PaymentSheet authorization have been validated against Render staging. The full Stripe release gate still requires saved redacted evidence for capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state.
+  - Status note on 2026-06-03: dashboard webhook setup, native iOS PaymentSheet authorization, capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against Render staging. The saved redacted evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passes `npm run security:stripe-testmode:evidence`.
 - [x] Add WebSocket orderbook updates.
   - [x] Wire FanPass Console market panel to the realtime orderbook feed.
   - [x] Wire FanPass iOS market screen to the realtime orderbook feed.

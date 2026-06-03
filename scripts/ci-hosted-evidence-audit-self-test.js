@@ -180,8 +180,8 @@ try {
       "steps.betaFoundationVerifySucceeded must be true",
       "steps.dependencyAdvisoryGateRan must be true",
       "steps.apiUnitTestsPassed must be true",
-      "steps.apiTestSuites must be 11",
-      "steps.apiTests must be 57",
+      "steps.apiTestSuites must be 12",
+      "steps.apiTests must be 59",
     ],
   );
 
@@ -338,8 +338,8 @@ function createEvidence(overrides = {}) {
         dependencyAdvisoryGateRan: true,
         apiUnitTestsPassed: true,
         sideEffectHealthPassed: true,
-        apiTestSuites: 11,
-        apiTests: 57,
+        apiTestSuites: 12,
+        apiTests: 59,
       },
       redaction: {
         providerSecretsRedacted: true,

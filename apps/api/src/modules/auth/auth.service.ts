@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Prisma } from "@prisma/client";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { DemoStore } from "../../common/demo-store";
 import { UserRecord } from "../../common/domain";
@@ -140,98 +141,100 @@ export class AuthService {
     }
 
     const walletAddress = this.normalizeWalletAddress(input.walletAddress);
-    const accepted = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const invite = await tx.staffInvite.findUnique({
-        where: {
-          tokenHash: this.hashStaffInviteToken(inviteToken),
-        },
-      });
-      if (!invite || invite.status !== "PENDING") {
-        throw new UnauthorizedException("Staff invite is invalid");
-      }
-      if (invite.expiresAt <= now) {
-        await tx.staffInvite.update({
+    const accepted = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const now = new Date();
+        const invite = await tx.staffInvite.findUnique({
           where: {
-            id: invite.id,
-          },
-          data: {
-            status: "EXPIRED",
+            tokenHash: this.hashStaffInviteToken(inviteToken),
           },
         });
-        throw new UnauthorizedException("Staff invite has expired");
-      }
-      const assignment = await tx.gateAssignment.findUnique({
-        where: {
-          id: invite.gateAssignmentId,
-        },
-      });
-      if (!assignment?.active) {
-        await tx.staffInvite.updateMany({
+        if (!invite || invite.status !== "PENDING") {
+          throw new UnauthorizedException("Staff invite is invalid");
+        }
+        if (invite.expiresAt <= now) {
+          await tx.staffInvite.update({
+            where: {
+              id: invite.id,
+            },
+            data: {
+              status: "EXPIRED",
+            },
+          });
+          throw new UnauthorizedException("Staff invite has expired");
+        }
+        const assignment = await tx.gateAssignment.findUnique({
+          where: {
+            id: invite.gateAssignmentId,
+          },
+        });
+        if (!assignment?.active) {
+          await tx.staffInvite.updateMany({
+            where: {
+              id: invite.id,
+              status: "PENDING",
+            },
+            data: {
+              status: "REVOKED",
+            },
+          });
+          throw new UnauthorizedException("Staff invite is no longer active");
+        }
+
+        const alreadyLinked = await tx.user.findUnique({
+          where: {
+            privyId,
+          },
+        });
+        if (alreadyLinked && alreadyLinked.id !== invite.staffUserId) {
+          throw new BadRequestException(
+            "Privy account is already linked to another FanPass user",
+          );
+        }
+
+        const staff = await tx.user.findUnique({
+          where: {
+            id: invite.staffUserId,
+          },
+        });
+        if (!staff || staff.role !== "GATE_STAFF") {
+          throw new BadRequestException("Staff invite target is not valid");
+        }
+        if (staff.privyId && staff.privyId !== privyId) {
+          throw new BadRequestException(
+            "Staff invite is already linked to another Privy user",
+          );
+        }
+
+        const claimedInvite = await tx.staffInvite.updateMany({
           where: {
             id: invite.id,
             status: "PENDING",
+            acceptedAt: null,
+            acceptedPrivyId: null,
           },
           data: {
-            status: "REVOKED",
+            status: "ACCEPTED",
+            acceptedAt: now,
+            acceptedPrivyId: privyId,
           },
         });
-        throw new UnauthorizedException("Staff invite is no longer active");
-      }
+        if (claimedInvite.count !== 1) {
+          throw new UnauthorizedException("Staff invite is invalid");
+        }
 
-      const alreadyLinked = await tx.user.findUnique({
-        where: {
-          privyId,
-        },
-      });
-      if (alreadyLinked && alreadyLinked.id !== invite.staffUserId) {
-        throw new BadRequestException(
-          "Privy account is already linked to another FanPass user",
-        );
-      }
-
-      const staff = await tx.user.findUnique({
-        where: {
-          id: invite.staffUserId,
-        },
-      });
-      if (!staff || staff.role !== "GATE_STAFF") {
-        throw new BadRequestException("Staff invite target is not valid");
-      }
-      if (staff.privyId && staff.privyId !== privyId) {
-        throw new BadRequestException(
-          "Staff invite is already linked to another Privy user",
-        );
-      }
-
-      const claimedInvite = await tx.staffInvite.updateMany({
-        where: {
-          id: invite.id,
-          status: "PENDING",
-          acceptedAt: null,
-          acceptedPrivyId: null,
-        },
-        data: {
-          status: "ACCEPTED",
-          acceptedAt: now,
-          acceptedPrivyId: privyId,
-        },
-      });
-      if (claimedInvite.count !== 1) {
-        throw new UnauthorizedException("Staff invite is invalid");
-      }
-
-      const user = await tx.user.update({
-        where: {
-          id: staff.id,
-        },
-        data: {
-          privyId,
-          walletAddress: walletAddress ?? staff.walletAddress,
-        },
-      });
-      return user;
-    });
+        const user = await tx.user.update({
+          where: {
+            id: staff.id,
+          },
+          data: {
+            privyId,
+            walletAddress: walletAddress ?? staff.walletAddress,
+          },
+        });
+        return user;
+      },
+    );
 
     return {
       userId: accepted.id,

@@ -24,7 +24,7 @@ This document defines the minimum environment separation before FanPass is expos
 - API and Console must not expose `x-powered-by`.
 - API and Console must return baseline security headers.
 - The Socket.IO `/orderbook` feed must accept only the configured Console/app origins and must not expose private payment, QR, scanner, Privy, or user email fields.
-- Payments remain disabled until Stripe test-mode PaymentIntents, signed webhooks, capture, refund, cancellation, and reconciliation are validated end to end.
+- Payments remain disabled for real-money use until all non-Stripe Beta blockers are closed and a deliberate release decision is made. Stripe test-mode PaymentIntents, signed webhooks, capture, refund, cancellation, reconciliation, replay/idempotency, and worker-drained outbox evidence were validated against Render staging on 2026-06-03.
 - Privy webhooks remain optional until plan support is verified.
 
 ## Environment Templates
@@ -124,11 +124,13 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 ## Current Open Items
 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
-- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31.
+- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31 and again on 2026-06-03 after a free-plan cold start.
+- Render reported the live deploy as `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d` (`Use Word report for FanPass handoff`) on 2026-06-03. The worker scheduler code remains from the earlier deployed `75b4e68bc7835bc2d4532259a3cecac2ab8e99da` commit.
 - Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`; the first Vercel build failed on Node 24, then passed after `apps/dashboard/package.json` pinned Node `>=22 <23`.
 - Render `FANPASS_CORS_ORIGINS` is updated to `https://fanpass-dashboard.vercel.app` and the API was redeployed after the change.
 - `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence` passed against the real Render/Vercel HTTPS URLs with a real staging Privy admin bearer copied from the FanPass Ops simulator. The saved evidence proves the positive admin side-effect outbox health check without storing the bearer token.
-- Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been validated against the Render staging API, but full saved Stripe evidence is still open until capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state pass `npm run security:stripe-testmode:evidence -- <saved-json-output>`.
-- Render side-effect worker scheduler is enabled in staging through Render environment settings: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, and `SIDE_EFFECT_WORKER_LIMIT=10`. Confirm from Render logs or Neon SQL that the latest Stripe-authorized order outbox work drained before closing Stripe operations evidence.
+- Stripe dashboard test-mode webhook setup, native iOS PaymentSheet authorization, capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against the Render staging API. The saved evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`.
+- Render side-effect worker scheduler is enabled in staging through Render environment settings: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, and `SIDE_EFFECT_WORKER_LIMIT=10`. Render logs reviewed on 2026-06-03 showed the scheduler enabled at 15000 ms and a prior worker run with `processed=1 completed=1 retried=0 dead=0 recovered=0`. This log proof does not replace the final admin outbox-health API or Neon SQL proof for the latest Stripe operation sequence.
+- Render one-off jobs cannot currently be used as the free-plan outbox-health fallback; the Render API rejected a one-off `side-effects:health` job on 2026-06-03 because free-tier plans are not supported for jobs.
 - Privy product login works in simulator paths used for evidence collection; FanPass Console React SDK login is not integrated.
 - TestFlight/App Store distribution is not planned yet.

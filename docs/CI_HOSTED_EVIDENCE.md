@@ -96,8 +96,8 @@ Required JSON shape:
     "dependencyAdvisoryGateRan": true,
     "apiUnitTestsPassed": true,
     "sideEffectHealthPassed": true,
-    "apiTestSuites": 11,
-    "apiTests": 57
+    "apiTestSuites": 12,
+    "apiTests": 59
   },
   "redaction": {
     "providerSecretsRedacted": true,
@@ -120,5 +120,5 @@ Release rule:
 - The run must prove it used `.github/workflows/beta-foundation.yml` at the current workflow SHA-256, so stale or renamed workflow evidence cannot close the hosted CI blocker after workflow changes.
 - The job must use Node 22 from `.nvmrc`, `npm ci`, strict Node runtime mode, and a healthy `postgres:16-alpine` service.
 - The evidence must include `verifierSnapshot.source: "hosted-ci-beta-foundation-verifier-policy"` with current SHA-256 entries for the workflow, `.nvmrc`, `.npmrc`, root package manifest and lockfile, composite Beta verifier, CI workflow audit, hosted CI evidence validator/self-test, and this evidence contract document. Regenerate hosted CI evidence after any of those files changes.
-- The run must execute `npm run beta:foundation:verify`, including the dependency advisory gate, side-effect health gate, and the current API unit-test proof of 11 suites / 57 tests.
+- The run must execute `npm run beta:foundation:verify`, including the dependency advisory gate, side-effect health gate, and the current API unit-test proof of 12 suites / 59 tests.
 - Hosted CI evidence must not depend on provider secrets, deployment/cloud credentials, CI masking command captures with literal values, or production credentials.

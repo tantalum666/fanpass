@@ -1839,7 +1839,7 @@ Update after Security Pass 165 on 2026-05-30:
 
 Update after Security Pass 166 on 2026-05-30:
 
-- Updated `npm run security:ci-hosted:evidence` so future saved hosted GitHub Actions evidence must prove the current API unit-test output: 11 suites / 57 tests.
+- Updated `npm run security:ci-hosted:evidence` so future saved hosted GitHub Actions evidence must prove the current API unit-test output: 12 suites / 59 tests.
 - Updated fixture-backed `npm run security:ci-hosted:evidence:self-test` coverage to reject stale API test-count evidence while still requiring the full Beta foundation verifier, dependency advisory gate, side-effect health gate, Node 22, `npm ci`, hosted GitHub Actions metadata, and secret-free logs.
 - Updated `docs/CI_HOSTED_EVIDENCE.md`, task, QA, roadmap, provider-cost, and handoff docs so the hosted CI evidence contract matches the current verifier output.
 - Remaining status: this keeps hosted CI evidence acceptance aligned with the current local suite, but it does not create real hosted CI evidence. External Beta still requires a successful hosted GitHub Actions run saved as evidence, plus real deployed HTTPS staging evidence, real Privy dashboard/app evidence, Console Privy SDK login, real Stripe test-mode evidence, dependency advisory closure or risk acceptance, saved iOS staging/TestFlight evidence, physical scanner evidence, signed Wallet evidence, and chain custody evidence.
@@ -2232,7 +2232,7 @@ Update after Stripe Backend Test-Mode Verification on 2026-05-30:
 - Exercised manual PaymentIntent authorization, payment-authorized order matching, worker capture, admin refund, admin authorization cancellation, reconciliation, and side-effect outbox health using local-only demo records.
 - Fixed the Stripe SDK import path used by the current NestJS/ts-node runtime so real Stripe provider construction works outside the mock adapter path.
 - The verification did not include real personal data, production credentials, live-mode Stripe calls, or checked-in secret material.
-- Remaining status: backend capture/refund/cancellation/reconciliation risk is reduced. Since then, FanPass iOS simulator testing has successfully presented native Stripe PaymentSheet with a real Stripe test publishable key, backend-issued PaymentIntent client secret, and signed dashboard webhook delivery to the Render staging API. The latest observed test PaymentIntent reached manual-capture authorization state (`requires_capture`, capturable amount present, `livemode=false`) and the backend persisted the payment as authorized. The Stripe release blocker remains open until full redacted test-mode evidence proves capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state, then passes `npm run security:stripe-testmode:evidence -- <saved-json-output>`. Rotate the exposed test secret before collecting clean release evidence.
+- Remaining status: backend capture/refund/cancellation/reconciliation risk is reduced. Since then, FanPass iOS simulator testing has successfully presented native Stripe PaymentSheet with a real Stripe test publishable key, backend-issued PaymentIntent client secret, and signed dashboard webhook delivery to the Render staging API. Follow-up on 2026-06-03 saved redacted staging evidence for Stripe test-mode capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`; it passed `npm run security:stripe-testmode:evidence` and repository evidence redaction. Rotate any exposed test secret or access token before sharing evidence outside the local workspace or making a real-money release decision.
 
 Update after Privy Local Config Check Gate on 2026-05-30:
 
@@ -2286,6 +2286,28 @@ Update after Free Render/Vercel HTTPS Staging Runtime Check on 2026-05-31:
 - Saved deployed runtime output at `outputs/staging-runtime/20260530T180132Z-render-vercel.json`; this file is ignored by git.
 - Follow-up on 2026-05-31: FanPass Ops ran in the iOS simulator with the staging API and Privy app/client configuration, completed Privy email OTP login, and copied the resulting access token through the simulator pasteboard without printing it. The corresponding synthetic staging user was promoted to `ADMIN` in Neon, then `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T185440Z-render-vercel-admin.json` passed against the real Render/Vercel HTTPS deployment with redacted orderbook subscription-target evidence. The deployed staging evidence gate is closed for ASR-011 free-path runtime hardening.
 
+Follow-up after Stripe/Render evidence triage on 2026-06-03:
+
+- Render reports the live `fanpass-api-staging` deploy at `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d`; the deployed worker scheduler implementation remains from `75b4e68bc7835bc2d4532259a3cecac2ab8e99da`.
+- Public API health returned 200 after a free-plan cold start, and Render logs showed the side-effect worker scheduler enabled at 15000 ms plus a prior worker run with `processed=1 completed=1 retried=0 dead=0 recovered=0`.
+- Render free-tier services cannot currently run one-off jobs, so `npm run side-effects:health -w @fanpass/api` could not be executed inside the Render service environment as a fallback to admin API or Neon SQL proof.
+- The saved Stripe dashboard evidence snapshot was refreshed for current documentation SHA drift and now passes `npm run security:stripe-dashboard:evidence -- outputs/stripe-dashboard/20260530T192215Z-dashboard-review.json`.
+- `npm run security:stripe-testmode:evidence:self-test`, `npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T185440Z-render-vercel-admin.json`, and `npm run security:evidence-redaction` passed during the triage pass.
+
+Follow-up after Stripe staging release evidence on 2026-06-03:
+
+- Using fresh local-only staging credentials from `/tmp/fanpass-staging-secrets.env` without printing values, confirmed Stripe test mode, Render admin health, Neon staging payment/outbox state, and Stripe CLI availability.
+- Exercised authorization cancellation, direct Stripe test-mode capture, admin reconciliation, admin refund, duplicate admin retries with the same idempotency keys, and signed Stripe event replay against the Render staging API.
+- Neon staging proof after worker drain showed `PAYMENT_CANCEL_AUTHORIZATION`, `PAYMENT_RECONCILE`, `PAYMENT_REFUND`, three `PAYMENT_INTENT_CREATE`, and two `ORDER_MATCH_AFTER_PAYMENT_AUTH` jobs all `COMPLETED`, with no failed side effects; payment state included one `CANCELLED`, one `REFUNDED`, and one residual `NOT_CAPTURED` test record.
+- Saved redacted evidence at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`.
+- Verification passed for `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and `npm run security:evidence-redaction`.
+
+Follow-up after order-settlement task closeout on 2026-06-03:
+
+- Closed the remaining order-settlement parent tasks after confirming all durable outbox/saga engineering subitems are complete: unique trade constraints, atomic order/ticket claims, failed-transfer compensation, idempotency keys, `SettlementSideEffectsService`, payment authorization gating, outbox-backed ownership transfer/finalization, stale lock recovery, worker verification, side-effect health, and local/staging admin health gates.
+- Verification passed for `npm run security:settlement-retry-idempotency`, `npm run side-effects:verify:self-test`, and `npm run side-effects:health:self-test`.
+- Remaining status: this closes the local order-settlement hardening checklist items, but ASR-014 chain custody remains open until saved real-chain evidence proves vault/KMS or delegated signer custody, multisig/timelock contract control, durable outbox-only chain calls, operational runbooks, and redaction.
+
 Beta cannot be considered security-ready until all of these are complete:
 
 1. Real product authentication UX and session validation are implemented across all surfaces.
@@ -2296,7 +2318,7 @@ Beta cannot be considered security-ready until all of these are complete:
 6. QR signing secret is mandatory outside local development.
 7. Data responses are privacy-scoped and redacted by default.
 8. Order settlement and redemption are idempotent and concurrency-safe.
-9. Payment authorization, capture, refund, and webhook reconciliation are idempotent and verified with Stripe test mode before real money is used; backend CLI verification and native iOS PaymentSheet authorization through the HTTPS dashboard webhook path now exist, but full saved evidence for capture/cancel/refund/reconciliation/replay/outbox health is still required before public Beta.
+9. Payment authorization, capture, refund, and webhook reconciliation are idempotent and verified with Stripe test mode before real money is used; backend CLI verification, native iOS PaymentSheet authorization through the HTTPS dashboard webhook path, and saved staging evidence for capture/cancel/refund/reconciliation/replay/outbox health now exist.
 10. Provider plan assumptions are verified in the actual Stripe/Privy dashboards before features become Beta blockers.
 11. Production dependencies are patched or explicitly risk-accepted.
 12. Security headers are configured and verified at runtime.
@@ -2308,9 +2330,9 @@ Beta cannot be considered security-ready until all of these are complete:
 1. Integrate Privy SDK login flows in FanPass, FanPass Ops, and FanPass Console.
 2. Verify Privy dashboard plan support for mobile SDK, embedded wallets, token verification, custom UI, MFA/policy controls, and webhooks. Keep webhooks optional until confirmed.
 3. Add client-side Stripe test-mode payment UI and then implement capture/refund/reconciliation sequencing.
-4. Harden order settlement with payment-aware idempotency and transaction constraints.
-5. Add production-grade staff invitation/linking policy for Console and FanPass Ops.
-6. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
-7. Patch dependency advisories and pin Node 22 LTS.
-8. Verify security headers, config validation, CORS, and rate limits in a deployed staging environment.
+4. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
+5. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
+6. Patch dependency advisories or save owner-approved risk acceptance.
+7. Save hosted CI evidence for the Node 22 Beta foundation workflow.
+8. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
 9. Run a second security review before external Beta testing.
