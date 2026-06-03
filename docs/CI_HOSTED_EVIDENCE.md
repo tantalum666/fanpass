@@ -2,6 +2,8 @@
 
 FanPass has a static GitHub Actions workflow audit for the Node 22 Beta foundation gates, but external Beta decisions also need saved evidence that the workflow actually ran on hosted CI. Do not close hosted CI evidence with local terminal output, screenshots that omit the run metadata, forked-run output, failed runs, or logs containing credentials.
 
+Current saved evidence should live under `outputs/ci-hosted/` as a timestamped JSON file and pass `npm run security:ci-hosted:evidence -- <saved-json-output>` plus `npm run security:evidence-redaction`. Regenerate this evidence after workflow, verifier, lockfile, Node/npm policy, or CI evidence contract changes.
+
 Run future saved evidence through:
 
 ```bash

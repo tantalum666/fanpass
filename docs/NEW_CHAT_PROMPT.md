@@ -26,7 +26,7 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 370/381 tasks, 97.1%.
+Current checklist: 371/382 tasks, 97.1%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
@@ -50,7 +50,7 @@ Safety rules:
 - The user has authorized Codex to use available plugins and app tools as needed, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool set and keep all safety rules above.
 
 Highest-value next task:
-Choose the next remaining Beta foundation blocker, likely FanPass Console Privy React SDK login/isolation, production tenant/staff staging evidence, hosted CI evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
+Choose the next remaining Beta foundation blocker, likely FanPass Console Privy React SDK login/isolation, production tenant/staff staging evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
 ```
 
 If the new chat is only for status/reporting, ask it to summarize `docs/CODEX_HANDOFF.md` and list the open blockers from `docs/DEVELOPMENT_TASKS.md` without changing files.

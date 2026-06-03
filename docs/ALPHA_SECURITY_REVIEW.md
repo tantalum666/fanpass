@@ -2308,6 +2308,14 @@ Follow-up after order-settlement task closeout on 2026-06-03:
 - Verification passed for `npm run security:settlement-retry-idempotency`, `npm run side-effects:verify:self-test`, and `npm run side-effects:health:self-test`.
 - Remaining status: this closes the local order-settlement hardening checklist items, but ASR-014 chain custody remains open until saved real-chain evidence proves vault/KMS or delegated signer custody, multisig/timelock contract control, durable outbox-only chain calls, operational runbooks, and redaction.
 
+Follow-up after hosted CI evidence capture on 2026-06-03:
+
+- Captured a successful hosted GitHub Actions `FanPass Beta Foundation` run for the Beta foundation PR branch.
+- The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, a healthy `postgres:16-alpine` service, and `npm run beta:foundation:verify`; the run completed with 12 API suites / 59 tests.
+- Saved redacted evidence under `outputs/ci-hosted/`.
+- Verification passed for `npm run security:ci-hosted:evidence -- <saved-json-output>` and `npm run security:evidence-redaction`.
+- Remaining status: hosted CI evidence is closed for the current workflow/verifier snapshot, but it must be regenerated after workflow, verifier, lockfile, Node/npm policy, or evidence-contract changes. External Beta still requires real Privy dashboard/app evidence, Console Privy SDK login, production tenant/staff staging evidence, dependency advisory closure or risk acceptance, iOS/TestFlight evidence, physical scanner evidence, signed Wallet evidence, chain custody evidence, and the human-reviewed walkthrough recording.
+
 Beta cannot be considered security-ready until all of these are complete:
 
 1. Real product authentication UX and session validation are implemented across all surfaces.
@@ -2333,6 +2341,5 @@ Beta cannot be considered security-ready until all of these are complete:
 4. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
 5. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
 6. Patch dependency advisories or save owner-approved risk acceptance.
-7. Save hosted CI evidence for the Node 22 Beta foundation workflow.
-8. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
-9. Run a second security review before external Beta testing.
+7. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
+8. Run a second security review before external Beta testing.

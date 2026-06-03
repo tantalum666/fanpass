@@ -301,6 +301,7 @@
   - [x] Align hosted CI evidence validator with the current API unit test-count proof.
   - [x] Bind hosted CI evidence to the current Beta foundation workflow path and SHA-256 proof.
   - [x] Bind hosted CI evidence to the current Beta verifier, Node/npm policy, package lockfile, and CI evidence contract SHA-256 snapshot.
+  - [x] Save successful hosted GitHub Actions evidence for the Node 22 Beta foundation workflow and validate it with the hosted CI evidence gate.
   - [x] Add developer-shell npm `engine-strict` enforcement for the Node 22 runtime policy.
   - [x] Add dependency risk acceptance evidence validator and self-test before any unresolved-advisory external testing decision.
   - [x] Add Stripe publishable-key leakage coverage to the dependency risk evidence validator.
