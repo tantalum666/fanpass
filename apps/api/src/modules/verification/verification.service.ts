@@ -5,6 +5,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Checkin, Prisma } from "@prisma/client";
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { DemoStore } from "../../common/demo-store";
 import { CheckinRecord, TicketRecord } from "../../common/domain";
@@ -193,7 +194,7 @@ export class VerificationService {
       return this.buildCheckinSummary(
         eventId,
         gate,
-        checkins.map((checkin) => ({
+        checkins.map((checkin: Checkin) => ({
           result: checkin.result as RedemptionResult,
           checkedInAt: checkin.checkedInAt,
         })),
@@ -405,39 +406,41 @@ export class VerificationService {
       tokenId: ticket.tokenId,
     });
 
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.ticket.update({
-        where: { id: ticket.id },
-        data: { status: "REDEEMED" },
-      });
-      const checkin = await tx.checkin.create({
-        data: {
-          id: `chk_${randomUUID()}`,
-          ticketId: ticket.id,
-          scannerUserId,
-          gate,
-          nonce: payload.nonce,
-          acceptedNonce: payload.nonce,
-          result: "ACCEPTED",
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          actorId: scannerUserId,
-          action: "TICKET_REDEEMED",
-          entityType: "ticket",
-          entityId: ticket.id,
-          metadataJson: {
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        await tx.ticket.update({
+          where: { id: ticket.id },
+          data: { status: "REDEEMED" },
+        });
+        const checkin = await tx.checkin.create({
+          data: {
+            id: `chk_${randomUUID()}`,
+            ticketId: ticket.id,
+            scannerUserId,
             gate,
             nonce: payload.nonce,
-            ownershipAdapter: ownership.adapter,
-            ownershipRef: ownership.ownershipRef,
-            transactionHash: ownership.transactionHash,
+            acceptedNonce: payload.nonce,
+            result: "ACCEPTED",
           },
-        },
-      });
-      return checkin;
-    });
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: scannerUserId,
+            action: "TICKET_REDEEMED",
+            entityType: "ticket",
+            entityId: ticket.id,
+            metadataJson: {
+              gate,
+              nonce: payload.nonce,
+              ownershipAdapter: ownership.adapter,
+              ownershipRef: ownership.ownershipRef,
+              transactionHash: ownership.transactionHash,
+            },
+          },
+        });
+        return checkin;
+      },
+    );
 
     return {
       ticketId: ticket.id,
