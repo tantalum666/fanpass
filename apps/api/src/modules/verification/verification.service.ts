@@ -5,7 +5,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Checkin, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { DemoStore } from "../../common/demo-store";
 import { CheckinRecord, TicketRecord } from "../../common/domain";
@@ -194,7 +194,7 @@ export class VerificationService {
       return this.buildCheckinSummary(
         eventId,
         gate,
-        checkins.map((checkin: Checkin) => ({
+        checkins.map((checkin: { result: string; checkedInAt: Date }) => ({
           result: checkin.result as RedemptionResult,
           checkedInAt: checkin.checkedInAt,
         })),
