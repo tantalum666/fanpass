@@ -347,7 +347,8 @@
   - [x] Add dependency-manifest guard that blocks Privy React SDK install drift until isolation evidence passes.
   - [x] Add provider dependency-placement guard that locks Stripe and Socket.IO package drift to approved API/Console boundaries.
   - [x] Add provider lockfile-placement guard that rejects Stripe and Socket.IO workspace package-lock drift.
-  - [ ] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
+  - [x] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
+  - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The root production audit path remains limited to the known 2 moderate Next/PostCSS advisories; the isolated SDK runtime audit still reports 25 moderate advisories and must stay outside root workspaces.
   - [ ] Add Privy webhook sync only after confirming the selected plan supports it.
 - [ ] Integrate Stripe test mode PaymentIntents and webhooks.
   - [x] Add API `POST /payments/intents` with `Idempotency-Key` enforcement.

@@ -35,6 +35,11 @@ const mobileSnapshotFiles = [
 ];
 
 const consoleSnapshotFiles = [
+  "apps/console-auth/app/page.tsx",
+  "apps/console-auth/app/privy-console-login.tsx",
+  "apps/console-auth/next.config.ts",
+  "apps/console-auth/package.json",
+  "apps/console-auth/package-lock.json",
   "apps/dashboard/app/api/console/privy-session/route.ts",
   "apps/dashboard/app/console-login-form.tsx",
   "apps/dashboard/lib/api.ts",

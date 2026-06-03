@@ -1,8 +1,8 @@
 # Privy Console React SDK Isolation Evidence
 
-Status: evidence gate ready; Console React SDK login remains open.
+Status: isolated Console React SDK login complete for the local Beta foundation; external Beta still requires the remaining production tenant/staff, iOS/TestFlight, Wallet, scanner, chain custody, and dependency-risk decisions.
 
-This file defines the required evidence before FanPass adds `@privy-io/react-auth` to the Console login UI. The current safe Console boundary is still `POST /api/console/privy-session`, which accepts a Privy access token, syncs through the backend, requires organizer/admin role, and stores only the server session cookie in an HttpOnly cookie.
+This file defines the required evidence before FanPass changes `@privy-io/react-auth` placement in the Console login UI. The current approved shape is the isolated `apps/console-auth` runtime, which obtains a Privy access token client-side and posts it only to `POST /api/console/privy-session`. The bridge syncs through the backend, requires organizer/admin role, and stores only the server session cookie in an HttpOnly cookie.
 
 ## Why This Gate Exists
 
@@ -166,4 +166,4 @@ Evidence must not include:
 
 ## Release Rule
 
-Do not mark `Integrate Privy React SDK into FanPass Console` complete until this evidence passes with the current Console SDK isolation SHA-256 snapshot, the actual Console login UI is implemented through the existing session bridge, the provider-boundary blocked-provider source and dependency-manifest rules are intentionally updated for the approved integration shape, and the full Beta foundation verifier passes. Regenerate evidence after any Console session bridge, login UI, server API helper, dependency manifest, or boundary-audit policy change.
+`Integrate Privy React SDK into FanPass Console` is complete for the current isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. Regenerate evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, or boundary-audit policy change.

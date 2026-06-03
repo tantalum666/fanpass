@@ -164,6 +164,14 @@ Update after Console Privy Session Bridge Pass on 2026-05-28:
   - non-forced audit fix introduced high-severity dev/contract-tooling advisories.
 - Remaining status: the Console has a safe session bridge for future Privy login, but the React SDK UI remains blocked until dependency audit risk is resolved or isolated.
 
+Update after Isolated Console Privy React SDK Login on 2026-06-03:
+
+- Added standalone `apps/console-auth` as the only approved `@privy-io/react-auth@3.28.0` runtime. It is intentionally not in root workspaces, has its own package-lock, and posts Privy access tokens only to the existing `/api/console/privy-session` bridge.
+- Extended the Console session bridge with origin-checked CORS/OPTIONS support for the isolated auth runtime while keeping organizer/admin role gating and HttpOnly cookie storage.
+- Updated provider-boundary and Console route audits so SDK imports/dependency manifests are rejected everywhere except `apps/console-auth`, and so adding the isolated app to root workspaces/root lockfile fails.
+- Saved passing evidence at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`; root production audit remains at the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime audit records 25 moderate advisories and must stay isolated.
+- Remaining status: this closes the Console React SDK login/isolation blocker for the local Beta foundation. External Beta still requires production tenant/staff staging evidence, dependency advisory closure or risk acceptance, saved iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, chain custody evidence, and the human-reviewed walkthrough recording.
+
 Update after Security Pass 15 on 2026-05-28:
 
 - Added payment-aware order settlement gating behind `FANPASS_REQUIRE_PAYMENT_AUTHORIZATION`.

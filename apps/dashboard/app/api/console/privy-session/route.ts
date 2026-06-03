@@ -3,6 +3,7 @@ import {
   CONSOLE_ACCESS_TOKEN_COOKIE,
   ConsoleMutationOriginError,
   assertConsoleMutationOrigin,
+  consoleMutationCorsHeaders,
 } from "../../../../lib/api";
 
 const API_BASE_URL =
@@ -23,13 +24,14 @@ interface PrivySessionResponse {
 }
 
 export async function POST(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
   try {
     assertConsoleMutationOrigin(request);
   } catch (error) {
     if (error instanceof ConsoleMutationOriginError) {
       return NextResponse.json(
         { ok: false, message: error.message },
-        { status: 403 },
+        { status: 403, headers: corsHeaders },
       );
     }
     throw error;
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
   if (!accessToken) {
     return NextResponse.json(
       { ok: false, message: "Privy access token is required" },
-      { status: 400 },
+      { status: 400, headers: corsHeaders },
     );
   }
 
@@ -70,24 +72,27 @@ export async function POST(request: Request) {
             ? session.message
             : "Privy session sync failed",
       },
-      { status: response.status || 401 },
+      { status: response.status || 401, headers: corsHeaders },
     );
   }
 
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
     return NextResponse.json(
       { ok: false, message: "Console requires organizer or admin access" },
-      { status: 403 },
+      { status: 403, headers: corsHeaders },
     );
   }
 
-  const result = NextResponse.json({
-    ok: true,
-    userId: session.userId,
-    displayName: session.displayName,
-    role: session.role,
-    expiresAt: session.expiresAt,
-  });
+  const result = NextResponse.json(
+    {
+      ok: true,
+      userId: session.userId,
+      displayName: session.displayName,
+      role: session.role,
+      expiresAt: session.expiresAt,
+    },
+    { headers: corsHeaders },
+  );
   result.cookies.set(CONSOLE_ACCESS_TOKEN_COOKIE, accessToken, {
     httpOnly: true,
     sameSite: "lax",
@@ -99,21 +104,38 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
   try {
     assertConsoleMutationOrigin(request);
   } catch (error) {
     if (error instanceof ConsoleMutationOriginError) {
       return NextResponse.json(
         { ok: false, message: error.message },
-        { status: 403 },
+        { status: 403, headers: corsHeaders },
       );
     }
     throw error;
   }
 
-  const result = NextResponse.json({ ok: true });
+  const result = NextResponse.json({ ok: true }, { headers: corsHeaders });
   result.cookies.delete(CONSOLE_ACCESS_TOKEN_COOKIE);
   return result;
+}
+
+export async function OPTIONS(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
+  try {
+    assertConsoleMutationOrigin(request);
+  } catch (error) {
+    if (error instanceof ConsoleMutationOriginError) {
+      return NextResponse.json(
+        { ok: false, message: error.message },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+    throw error;
+  }
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 function maxAgeSeconds(expiresAt: string | null) {

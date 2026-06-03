@@ -168,6 +168,7 @@ function providerAudit(options = {}) {
   return `
 const sourceRoots = [
   "apps/api/src",
+  "apps/console-auth/app",
   "apps/dashboard/app",
   "apps/dashboard/lib",
   "apps/ios/FanPass/FanPass",
@@ -179,6 +180,7 @@ const allowedProviderMatches = [
   { label: "Stripe Node SDK", allowedFiles: ["apps/api/src/modules/payments/payments.service.ts"] },
   { label: "ethers runtime", allowedFiles: ["apps/api/src/modules/ownership/ownership.service.ts"] },
   { label: "Privy ES256 verifier", allowedFiles: ["apps/api/src/modules/auth/privy-token.service.ts"] },
+  { label: "Privy React SDK", allowedFiles: ["apps/console-auth/app/privy-console-login.tsx"] },
   ${
     includeIosAndNativeProviders
       ? `{ label: "Stripe iOS core", allowedFiles: ["apps/ios/FanPass/FanPass/App/FanPassApp.swift"] },
@@ -229,6 +231,7 @@ const lifecycleBoundaryRules = [
 
 validatePaymentSideEffectIdempotency();
 validatePrivyAuthBoundary();
+validatePrivyReactSdkIsolationWorkspace();
 validateTestnetOwnershipProductionGuard();
 validateOwnershipAsyncSagaBoundary();
 validateSideEffectStaleLockRecovery();

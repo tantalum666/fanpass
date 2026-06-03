@@ -102,6 +102,12 @@ Update after the Privy Console React SDK isolation gate:
 - The validator requires future Console SDK evidence to prove either clean direct production-audit impact or an isolated auth workspace/runtime boundary before the React SDK login task can be closed.
 - This does not accept the existing Next/PostCSS risk and does not close the Console login blocker; it prevents a future SDK integration from bypassing dependency-audit containment.
 
+Update after isolated Console React SDK login:
+
+- Added `apps/console-auth` as a standalone, non-root-workspace Next runtime that pins `@privy-io/react-auth@3.28.0`, obtains a Privy access token, and posts it only to the existing `/api/console/privy-session` HttpOnly cookie bridge.
+- Saved passing isolation evidence at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root `npm run security:audit:prod` remains at 2 moderate known Next/PostCSS advisories; `apps/console-auth` remains isolated because its own `npm audit --omit=dev` reports 25 moderate advisories from Next/PostCSS plus wallet/provider transitive packages.
+- This closes the Console React SDK login/isolation blocker for the local Beta foundation, but it does not accept the root Next/PostCSS advisory risk for public or real-user testing.
+
 Update after the dependency tooling audit gate:
 
 - Re-ran the full dev/tooling audit under Node 22. It currently reports 40 advisories, including 4 high findings and 0 critical findings.

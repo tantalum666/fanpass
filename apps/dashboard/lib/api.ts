@@ -131,6 +131,8 @@ function consoleAllowedOrigins() {
     process.env.FANPASS_CONSOLE_ORIGINS,
     process.env.FANPASS_CONSOLE_ORIGIN,
     process.env.FANPASS_CONSOLE_URL,
+    process.env.FANPASS_CONSOLE_AUTH_ORIGIN,
+    process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL,
     process.env.NEXT_PUBLIC_CONSOLE_BASE_URL,
   ];
 
@@ -147,9 +149,28 @@ function consoleAllowedOrigins() {
   if (!isProductionLikeConsole()) {
     addAllowedOrigin(origins, "http://localhost:3000");
     addAllowedOrigin(origins, "http://127.0.0.1:3000");
+    addAllowedOrigin(origins, "http://localhost:3100");
+    addAllowedOrigin(origins, "http://127.0.0.1:3100");
   }
 
   return origins;
+}
+
+export function consoleMutationCorsHeaders(
+  request: Request,
+): Record<string, string> {
+  const origin = request.headers.get("origin");
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
+  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) {
+    return {};
+  }
+  return {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Origin": normalizedOrigin,
+    Vary: "Origin",
+  };
 }
 
 function addAllowedOrigin(origins: Set<string>, value: string) {

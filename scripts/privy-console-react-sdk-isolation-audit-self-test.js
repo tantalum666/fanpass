@@ -10,6 +10,11 @@ const auditScript = path.join(
   "scripts/privy-console-react-sdk-isolation-audit.js",
 );
 const implementationSnapshotFiles = [
+  "apps/console-auth/app/page.tsx",
+  "apps/console-auth/app/privy-console-login.tsx",
+  "apps/console-auth/next.config.ts",
+  "apps/console-auth/package.json",
+  "apps/console-auth/package-lock.json",
   "apps/dashboard/app/api/console/privy-session/route.ts",
   "apps/dashboard/app/console-login-form.tsx",
   "apps/dashboard/lib/api.ts",
@@ -275,9 +280,7 @@ function createEvidence(overrides = {}) {
         mode: "isolated-auth-workspace",
         fanPassConsoleProductionDependency: false,
         isolatedRuntimeBoundary: true,
-        sdkImportsLimitedTo: [
-          "apps/dashboard/components/auth/PrivyConsoleLogin.tsx",
-        ],
+        sdkImportsLimitedTo: ["apps/console-auth/app/privy-console-login.tsx"],
         sessionBridgeRoute: "/api/console/privy-session",
         serverRouteStoresHttpOnlyCookie: true,
         accessTokensStoredInBrowserStorage: false,

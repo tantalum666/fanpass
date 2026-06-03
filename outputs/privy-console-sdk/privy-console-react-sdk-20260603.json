@@ -1,0 +1,140 @@
+{
+  "ok": true,
+  "draft": false,
+  "draftStatus": "completed-console-sdk-dependency-isolation-review",
+  "checkedAt": "2026-06-03T08:41:42.845Z",
+  "provider": "privy-console-react-sdk-isolation",
+  "evidenceSource": "node22-dependency-isolation-review",
+  "realUserDataUsed": false,
+  "productionCredentialsUsed": false,
+  "deploymentCredentialsAvailable": false,
+  "implementationSnapshot": {
+    "source": "privy-console-sdk-isolation-boundaries",
+    "files": [
+      {
+        "file": "apps/console-auth/app/page.tsx",
+        "sha256": "bdf9eb5b6bd6f017c326297dceaa7ce6d8a464f0ef74e4a5d5f295e1c3aee7de"
+      },
+      {
+        "file": "apps/console-auth/app/privy-console-login.tsx",
+        "sha256": "82826a2263d1af07b9bc5c43b407d64f20ceaff8a97ea3a1f2c8d62dda80467f"
+      },
+      {
+        "file": "apps/console-auth/next.config.ts",
+        "sha256": "1f9680ed09e0cc33d104508b173eab493beed601b720928d4a7db24b9911de52"
+      },
+      {
+        "file": "apps/console-auth/package.json",
+        "sha256": "2b08e6d203ad4598f5b592baf423452db3053d0ac22265c2c304ee68ae49cf84"
+      },
+      {
+        "file": "apps/console-auth/package-lock.json",
+        "sha256": "dbd4cdc9ecf855bc4457b0ebd41112ebdfbc443f494cfdb21f5d8ecad6e3343b"
+      },
+      {
+        "file": "apps/dashboard/app/api/console/privy-session/route.ts",
+        "sha256": "1230a367db62f0c3fda3fd2ae9df62dc8617216c627f805acbb0a3c8f8d7eec3"
+      },
+      {
+        "file": "apps/dashboard/app/console-login-form.tsx",
+        "sha256": "46017c52c6b4d9885ee2a3724cabc0f5dde493312f156f09e96af8dc9462ed47"
+      },
+      {
+        "file": "apps/dashboard/lib/api.ts",
+        "sha256": "9dd9a157b1718bf3185c1978f6a990acf324865f0c00f190ceaa18acc93ad7e7"
+      },
+      {
+        "file": "apps/dashboard/package.json",
+        "sha256": "826f22ecb4b340c2f6f83109528e1721ac17c399e945eadde279581735863985"
+      },
+      {
+        "file": "package.json",
+        "sha256": "066eb36909d1cbf692a98571fa321a751e53f08dadecb5e2475834b18548c66c"
+      },
+      {
+        "file": "package-lock.json",
+        "sha256": "11162ede648d0e117bb20e1172797e972f84cb6646e629d447b5711a428f8fc7"
+      },
+      {
+        "file": "scripts/console-route-contract-audit.js",
+        "sha256": "2015cc0c88199170bf360e8074256867f34551e3e3b894b802987c6149355579"
+      },
+      {
+        "file": "scripts/provider-boundary-audit.js",
+        "sha256": "e7acf7c94fdc1a352c23725f2d7133de0f05d335532f593745935ab6fcc04ad1"
+      }
+    ]
+  },
+  "sdk": {
+    "package": "@privy-io/react-auth",
+    "version": "3.28.0",
+    "metadataCommand": "npm view @privy-io/react-auth@latest version dependencies peerDependencies --json"
+  },
+  "integration": {
+    "mode": "isolated-auth-workspace",
+    "fanPassConsoleProductionDependency": false,
+    "isolatedRuntimeBoundary": true,
+    "sdkImportsLimitedTo": [
+      "apps/console-auth/app/privy-console-login.tsx"
+    ],
+    "sessionBridgeRoute": "/api/console/privy-session",
+    "serverRouteStoresHttpOnlyCookie": true,
+    "accessTokensStoredInBrowserStorage": false,
+    "serverSideApiReadsUseCookieOrConfiguredToken": true
+  },
+  "dependencyAudit": {
+    "integrationMode": "isolated-auth-workspace",
+    "nodeVersion": "22.22.3",
+    "engineStrict": true,
+    "withNode22HelperUsed": true,
+    "safeNextPostcssPathChecked": true,
+    "commands": [
+      "npm run security:audit:prod",
+      "npm run security:dependency-advisories"
+    ],
+    "productionAuditBefore": {
+      "total": 2,
+      "moderate": 2,
+      "high": 0,
+      "critical": 0,
+      "knownNextPostcssOnly": true
+    },
+    "productionAuditAfter": {
+      "total": 2,
+      "moderate": 2,
+      "high": 0,
+      "critical": 0,
+      "knownNextPostcssOnly": true,
+      "newAdvisoryPackages": []
+    },
+    "isolatedWorkspaceAudit": {
+      "command": "npm audit --omit=dev --audit-level=low",
+      "workspacePath": "apps/console-auth",
+      "defaultFanPassProductionAuditPath": false,
+      "total": 25,
+      "moderate": 25,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "boundaries": {
+    "consoleRouteAuditPassed": true,
+    "providerBoundaryAuditPassed": true,
+    "dependencyAdvisoryGatePassed": true,
+    "noProviderSecretsInEnvOrBundle": true,
+    "noRawPrivyTokenLogging": true,
+    "noRawUpstreamSessionForwarding": true
+  },
+  "redaction": {
+    "accessTokensRedacted": true,
+    "appSecretRedacted": true,
+    "verificationKeyRedacted": true,
+    "providerSecretsRedacted": true,
+    "stripePublishableKeysRedacted": true,
+    "databaseUrlsRedacted": true,
+    "deploymentCredentialsRedacted": true,
+    "userIdentifiersRedacted": true,
+    "dependencyLogsReviewed": true
+  },
+  "nextValidator": "npm run security:privy-console-react-sdk:isolation -- <saved-json-output>"
+}

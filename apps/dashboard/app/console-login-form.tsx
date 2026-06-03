@@ -4,6 +4,8 @@ import { FormEvent, useState } from "react";
 
 type LoginState = "idle" | "submitting" | "ready" | "failed";
 
+const consoleAuthUrl = process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL ?? "";
+
 export function ConsoleLoginForm() {
   const [accessToken, setAccessToken] = useState("");
   const [message, setMessage] = useState("");
@@ -61,6 +63,11 @@ export function ConsoleLoginForm() {
         {state === "submitting" ? "Connecting" : "Start session"}
       </button>
       {message ? <p className="form-status">{message}</p> : null}
+      {consoleAuthUrl ? (
+        <a className="secondary-link" href={consoleAuthUrl}>
+          Continue with Privy
+        </a>
+      ) : null}
     </form>
   );
 }

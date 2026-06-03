@@ -6,6 +6,11 @@ const rootDir = path.resolve(__dirname, "..");
 const evidenceFiles = process.argv.slice(2);
 const errors = [];
 const implementationSnapshotFiles = [
+  "apps/console-auth/app/page.tsx",
+  "apps/console-auth/app/privy-console-login.tsx",
+  "apps/console-auth/next.config.ts",
+  "apps/console-auth/package.json",
+  "apps/console-auth/package-lock.json",
   "apps/dashboard/app/api/console/privy-session/route.ts",
   "apps/dashboard/app/console-login-form.tsx",
   "apps/dashboard/lib/api.ts",
@@ -251,6 +256,17 @@ function validateIntegration(relativePath, integration = {}) {
     errors.push(`${relativePath}: sdkImportsLimitedTo must be an array`);
   }
   if (mode === "isolated-auth-workspace") {
+    const imports = Array.isArray(integration.sdkImportsLimitedTo)
+      ? integration.sdkImportsLimitedTo
+      : [];
+    if (
+      imports.length !== 1 ||
+      imports[0] !== "apps/console-auth/app/privy-console-login.tsx"
+    ) {
+      errors.push(
+        `${relativePath}: isolated-auth-workspace sdkImportsLimitedTo must only allow apps/console-auth/app/privy-console-login.tsx`,
+      );
+    }
     if (integration.fanPassConsoleProductionDependency !== false) {
       errors.push(
         `${relativePath}: isolated-auth-workspace evidence must keep the SDK out of FanPass Console production dependencies`,

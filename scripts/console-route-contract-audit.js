@@ -14,10 +14,11 @@ const expectedRoutes = new Map([
   [
     "apps/dashboard/app/api/console/privy-session/route.ts",
     {
-      methods: new Set(["POST", "DELETE"]),
+      methods: new Set(["POST", "DELETE", "OPTIONS"]),
       requiredSnippets: [
         "/auth/privy/sync",
         "assertConsoleMutationOrigin(request)",
+        "consoleMutationCorsHeaders(request)",
         "ConsoleMutationOriginError",
         'session.role !== "ORGANIZER" && session.role !== "ADMIN"',
         "result.cookies.set(CONSOLE_ACCESS_TOKEN_COOKIE, accessToken",
@@ -27,6 +28,7 @@ const expectedRoutes = new Map([
         'path: "/"',
         "maxAge: maxAgeSeconds(session.expiresAt)",
         "result.cookies.delete(CONSOLE_ACCESS_TOKEN_COOKIE)",
+        "new NextResponse(null, { status: 204, headers: corsHeaders })",
       ],
       forbiddenSnippets: [
         "accessToken: accessToken",
@@ -169,10 +171,17 @@ function auditConsoleApiHelper() {
     "process.env.FANPASS_CONSOLE_ORIGINS",
     "process.env.FANPASS_CONSOLE_ORIGIN",
     "process.env.FANPASS_CONSOLE_URL",
+    "process.env.FANPASS_CONSOLE_AUTH_ORIGIN",
+    "process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL",
     "await consoleCookieAccessToken()",
     "export function assertConsoleMutationOrigin(request: Request)",
+    "export function consoleMutationCorsHeaders(",
     'request.headers.get("origin")',
     "allowedOrigins.has(normalizedOrigin)",
+    '"Access-Control-Allow-Credentials": "true"',
+    '"Access-Control-Allow-Headers": "Content-Type"',
+    '"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS"',
+    '"Access-Control-Allow-Origin": normalizedOrigin',
     "new URL(origin).origin",
     "if (isProductionLikeConsole())",
     "throw new ConsoleAuthRequiredError()",

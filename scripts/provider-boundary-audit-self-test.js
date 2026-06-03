@@ -83,6 +83,23 @@ const cases = [
       ),
   },
   {
+    label: "rejects isolated Console auth app joining root workspaces",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "package.json",
+        JSON.stringify(
+          {
+            name: "fanpass-fixture",
+            workspaces: ["apps/*", "packages/shared"],
+          },
+          null,
+          2,
+        ),
+      ),
+  },
+  {
     label: "rejects Socket.IO browser client outside Console live panel",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -266,11 +283,62 @@ function writePassingFixture(fixtureRoot) {
     JSON.stringify(
       {
         name: "fanpass-fixture",
-        workspaces: ["apps/*", "packages/*"],
+        workspaces: ["apps/api", "apps/dashboard", "packages/shared"],
       },
       null,
       2,
     ),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/console-auth/package.json",
+    JSON.stringify(
+      {
+        name: "@fanpass/console-auth",
+        private: true,
+        dependencies: {
+          "@privy-io/react-auth": "3.28.0",
+          next: "15.5.18",
+          react: "19.1.0",
+          "react-dom": "19.1.0",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/console-auth/package-lock.json",
+    JSON.stringify(
+      {
+        name: "@fanpass/console-auth",
+        version: "0.1.0",
+        lockfileVersion: 3,
+        packages: {
+          "": {
+            name: "@fanpass/console-auth",
+            version: "0.1.0",
+            dependencies: {
+              "@privy-io/react-auth": "3.28.0",
+              next: "15.5.18",
+              react: "19.1.0",
+              "react-dom": "19.1.0",
+            },
+          },
+          "node_modules/@privy-io/react-auth": {
+            version: "3.28.0",
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/console-auth/app/privy-console-login.tsx",
+    'import { PrivyProvider, usePrivy } from "@privy-io/react-auth";\nexport function PrivyLogin() { return String(Boolean(PrivyProvider && usePrivy)); }\n',
   );
   writeFixtureFile(
     fixtureRoot,
@@ -327,7 +395,7 @@ function writePassingFixture(fixtureRoot) {
           "": {
             name: "fanpass-fixture",
             version: "0.1.0",
-            workspaces: ["apps/*", "packages/*"],
+            workspaces: ["apps/api", "apps/dashboard", "packages/shared"],
           },
           "apps/api": {
             name: "@fanpass/api",

@@ -311,9 +311,11 @@ import {
   CONSOLE_ACCESS_TOKEN_COOKIE,
   ConsoleMutationOriginError,
   assertConsoleMutationOrigin,
+  consoleMutationCorsHeaders,
 } from "../../../../lib/api";
 
 export async function POST(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
   assertConsoleMutationOrigin(request);
   const accessToken = "fixture-access-token";
   const response = await fetch("http://fixture/auth/privy/sync", {
@@ -321,15 +323,18 @@ export async function POST(request: Request) {
   });
   const session = await response.json();
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
-    return NextResponse.json({ ok: false }, { status: 403 });
+    return NextResponse.json({ ok: false }, { status: 403, headers: corsHeaders });
   }
-  const result = NextResponse.json({
-    ok: true,
-    userId: session.userId,
-    displayName: session.displayName,
-    role: session.role,
-    expiresAt: session.expiresAt,
-  });
+  const result = NextResponse.json(
+    {
+      ok: true,
+      userId: session.userId,
+      displayName: session.displayName,
+      role: session.role,
+      expiresAt: session.expiresAt,
+    },
+    { headers: corsHeaders },
+  );
   result.cookies.set(CONSOLE_ACCESS_TOKEN_COOKIE, accessToken, {
     httpOnly: true,
     sameSite: "lax",
@@ -341,10 +346,17 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
   assertConsoleMutationOrigin(request);
-  const result = NextResponse.json({ ok: true });
+  const result = NextResponse.json({ ok: true }, { headers: corsHeaders });
   result.cookies.delete(CONSOLE_ACCESS_TOKEN_COOKIE);
   return result;
+}
+
+export async function OPTIONS(request: Request) {
+  const corsHeaders = consoleMutationCorsHeaders(request);
+  assertConsoleMutationOrigin(request);
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 function maxAgeSeconds(expiresAt: string | null) {
@@ -523,8 +535,25 @@ function consoleAllowedOrigins() {
   }
   addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_ORIGIN ?? "");
   addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_URL ?? "");
+  addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_AUTH_ORIGIN ?? "");
+  addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL ?? "");
   addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_BASE_URL ?? "");
   return origins;
+}
+
+export function consoleMutationCorsHeaders(request: Request) {
+  const origin = request.headers.get("origin");
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
+  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) {
+    return {};
+  }
+  return {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Origin": normalizedOrigin,
+    Vary: "Origin",
+  };
 }
 
 function addAllowedOrigin(origins: Set<string>, value: string) {

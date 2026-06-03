@@ -124,6 +124,7 @@ function validateProviderSurfaceBoundaries() {
 
   for (const sourceRoot of [
     "apps/api/src",
+    "apps/console-auth/app",
     "apps/dashboard/app",
     "apps/dashboard/lib",
     "apps/ios/FanPass/FanPass",
@@ -193,6 +194,7 @@ function validateBoundaryValidatorCoverage() {
   for (const marker of [
     "validatePaymentSideEffectIdempotency();",
     "validatePrivyAuthBoundary();",
+    "validatePrivyReactSdkIsolationWorkspace();",
     "validateTestnetOwnershipProductionGuard();",
     "validateOwnershipAsyncSagaBoundary();",
     "validateSideEffectStaleLockRecovery();",

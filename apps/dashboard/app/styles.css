@@ -229,6 +229,18 @@ textarea:focus {
   justify-self: start;
 }
 
+.secondary-link {
+  color: var(--fp-signal-blue);
+  font-size: 13px;
+  font-weight: 750;
+  justify-self: start;
+  text-decoration: none;
+}
+
+.secondary-link:hover {
+  text-decoration: underline;
+}
+
 .form-status {
   color: var(--fp-slate);
   font-size: 13px;
