@@ -40,6 +40,7 @@ Important provider status:
 - FanPass Console Privy React SDK login is implemented in isolated runtime `apps/console-auth`, outside root workspaces/default production audit. Evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`; root production audit remains limited to the known 2 moderate Next/PostCSS advisories while the isolated SDK runtime records 25 moderate advisories.
 - Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been exercised successfully against the Render staging API.
 - Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
+- Current hosted CI evidence for the Beta foundation PR branch has been refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`; it covers GitHub Actions run `26873871164` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` and passed `npm run security:ci-hosted:evidence` plus repository evidence redaction.
 - Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.
 - Render side-effect worker scheduler is enabled in env: FANPASS_SIDE_EFFECT_WORKER_ENABLED=true, FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000, SIDE_EFFECT_WORKER_LIMIT=10.
 

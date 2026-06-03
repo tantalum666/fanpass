@@ -1,0 +1,98 @@
+{
+  "ok": true,
+  "checkedAt": "2026-06-03T14:17:52.000Z",
+  "provider": "github-actions-hosted-ci",
+  "localDryRun": false,
+  "realUserDataUsed": false,
+  "productionCredentialsUsed": false,
+  "run": {
+    "workflowName": "FanPass Beta Foundation",
+    "workflowPath": ".github/workflows/beta-foundation.yml",
+    "workflowSha256": "26a201f6fe18ce2a3dcba873ec52a09ad90a85255164fb9a639a67f23615ce1a",
+    "jobName": "Node 22 foundation gates",
+    "runUrl": "https://github.com/tantalum666/fanpass/actions/runs/26873871164",
+    "runId": 26873871164,
+    "commitSha": "bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc",
+    "event": "pull_request",
+    "conclusion": "success",
+    "fromFork": false
+  },
+  "environment": {
+    "runner": "ubuntu-latest",
+    "nodeVersion": "22.22.3",
+    "nodeVersionSource": ".nvmrc",
+    "strictNodeRuntime": true,
+    "postgresService": "postgres:16-alpine",
+    "postgresHealthy": true,
+    "npmInstallCommand": "npm ci",
+    "providerSecretsAvailable": false,
+    "deploymentCredentialsAvailable": false
+  },
+  "verifierSnapshot": {
+    "source": "hosted-ci-beta-foundation-verifier-policy",
+    "files": [
+      {
+        "file": ".github/workflows/beta-foundation.yml",
+        "sha256": "26a201f6fe18ce2a3dcba873ec52a09ad90a85255164fb9a639a67f23615ce1a"
+      },
+      {
+        "file": ".nvmrc",
+        "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56"
+      },
+      {
+        "file": ".npmrc",
+        "sha256": "7151cf397def0c2cb0ab65643701d27d335a72c90f775675b5f826bc7005818a"
+      },
+      {
+        "file": "package.json",
+        "sha256": "066eb36909d1cbf692a98571fa321a751e53f08dadecb5e2475834b18548c66c"
+      },
+      {
+        "file": "package-lock.json",
+        "sha256": "11162ede648d0e117bb20e1172797e972f84cb6646e629d447b5711a428f8fc7"
+      },
+      {
+        "file": "scripts/beta-foundation-verify.sh",
+        "sha256": "46448072817a66281394176a5879109442cebfbfd9e2d463e853486e84497b45"
+      },
+      {
+        "file": "scripts/ci-node22-workflow-audit.js",
+        "sha256": "910a38f75d6ac125b98e53348fe81bebad5af4e900ed2fd4cb027906e9650dc5"
+      },
+      {
+        "file": "scripts/ci-hosted-evidence-audit.js",
+        "sha256": "7732056cb1d4a015e3f6b3c399c236aa29aeb09d5bbc45e3f93e54e3c1d4e699"
+      },
+      {
+        "file": "scripts/ci-hosted-evidence-audit-self-test.js",
+        "sha256": "48cc1098581328d6be42a087f6ffefaf78d41d2327d636bd53eff3a10476c062"
+      },
+      {
+        "file": "docs/CI_HOSTED_EVIDENCE.md",
+        "sha256": "98ced01f4b428a45e479c7cc9fd357fae7f7ef8d1d146571a7d74568c89957f8"
+      }
+    ]
+  },
+  "steps": {
+    "checkoutSucceeded": true,
+    "setupNodeFromNvmrcSucceeded": true,
+    "npmCiSucceeded": true,
+    "betaFoundationVerifySucceeded": true,
+    "dependencyAdvisoryGateRan": true,
+    "apiUnitTestsPassed": true,
+    "sideEffectHealthPassed": true,
+    "apiTestSuites": 12,
+    "apiTests": 59
+  },
+  "redaction": {
+    "providerSecretsRedacted": true,
+    "databaseUrlRedacted": true,
+    "bearerTokensRedacted": true,
+    "privyTokensRedacted": true,
+    "stripeSecretsRedacted": true,
+    "privateKeysRedacted": true,
+    "deploymentCredentialsRedacted": true,
+    "ciSecretMaskingCommandsRedacted": true,
+    "noProductionCredentialsInLogs": true
+  }
+}

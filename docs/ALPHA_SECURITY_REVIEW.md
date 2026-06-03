@@ -2318,10 +2318,10 @@ Follow-up after order-settlement task closeout on 2026-06-03:
 
 Follow-up after hosted CI evidence capture on 2026-06-03:
 
-- Captured a successful hosted GitHub Actions `FanPass Beta Foundation` run for the Beta foundation PR branch.
+- Captured a successful hosted GitHub Actions `FanPass Beta Foundation` run for the Beta foundation PR branch, then refreshed it after the isolated Console Privy SDK login change at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc`.
 - The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, a healthy `postgres:16-alpine` service, and `npm run beta:foundation:verify`; the run completed with 12 API suites / 59 tests.
-- Saved redacted evidence under `outputs/ci-hosted/`.
-- Verification passed for `npm run security:ci-hosted:evidence -- <saved-json-output>` and `npm run security:evidence-redaction`.
+- Saved redacted evidence at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`.
+- Verification passed for `npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `npm run security:evidence-redaction`.
 - Remaining status: hosted CI evidence is closed for the current workflow/verifier snapshot, but it must be regenerated after workflow, verifier, lockfile, Node/npm policy, or evidence-contract changes. External Beta still requires real Privy dashboard/app evidence, Console Privy SDK login, production tenant/staff staging evidence, dependency advisory closure or risk acceptance, iOS/TestFlight evidence, physical scanner evidence, signed Wallet evidence, chain custody evidence, and the human-reviewed walkthrough recording.
 
 Beta cannot be considered security-ready until all of these are complete:
