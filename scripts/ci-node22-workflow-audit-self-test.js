@@ -85,6 +85,16 @@ const cases = [
       ),
   },
   {
+    label: "rejects verifier without Prisma client generation",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      removeMarker(
+        fixtureRoot,
+        "scripts/beta-foundation-verify.sh",
+        "npm run prisma:generate -w apps/api",
+      ),
+  },
+  {
     label: "rejects missing documentation markers",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -206,6 +216,7 @@ function writePassingFixture(fixtureRoot) {
     fixtureRoot,
     "scripts/beta-foundation-verify.sh",
     [
+      "npm run prisma:generate -w apps/api",
       "npm run security:ci-node22-workflow:self-test",
       "npm run security:ci-node22-workflow",
       "",

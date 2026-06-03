@@ -94,13 +94,27 @@ function auditDbReset() {
 
 function auditCompositeVerifier() {
   const contents = readFile("scripts/beta-foundation-verify.sh");
+  const prismaGenerate = "npm run prisma:generate -w apps/api";
   const selfTest = "security:ci-node22-workflow:self-test";
   const audit = "security:ci-node22-workflow";
+  if (!contents.includes(prismaGenerate)) {
+    errors.push(
+      "scripts/beta-foundation-verify.sh must generate the API Prisma client before Jest audits.",
+    );
+  }
   if (!contents.includes(selfTest) || !contents.includes(audit)) {
     errors.push(
       "scripts/beta-foundation-verify.sh must run CI Node 22 workflow self-test and audit.",
     );
     return;
+  }
+  if (
+    contents.includes(prismaGenerate) &&
+    contents.indexOf(prismaGenerate) > contents.indexOf(selfTest)
+  ) {
+    errors.push(
+      "scripts/beta-foundation-verify.sh must generate the API Prisma client before CI workflow self-test.",
+    );
   }
   if (contents.indexOf(selfTest) > contents.indexOf(audit)) {
     errors.push(

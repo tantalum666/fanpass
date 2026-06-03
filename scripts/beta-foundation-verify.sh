@@ -14,6 +14,7 @@ run_step() {
   "$@"
 }
 
+run_step "API Prisma client generation" npm run prisma:generate -w apps/api
 run_step "API contract audit self-test" npm run security:api-contracts:self-test
 run_step "API contract audit" npm run security:api-contracts
 run_step "API route role matrix audit self-test" npm run security:route-roles:self-test
