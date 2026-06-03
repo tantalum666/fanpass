@@ -171,7 +171,7 @@
 - [x] Add deployment/cloud credential leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [x] Add CI secret masking command literal leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [ ] Record an Alpha walkthrough using the frozen local script.
-- [ ] Verify provider plan feasibility before locking Beta architecture.
+- [x] Verify provider plan feasibility before locking Beta architecture.
   - [x] Document current Stripe/Privy low-cost plan findings in `docs/PROVIDER_COST_FEASIBILITY.md`.
   - [x] Add Privy dashboard plan evidence validator and self-test with `npm run security:privy-plan:evidence`.
   - [x] Add provider-key, Stripe publishable-key, and database URL leakage coverage to the Privy dashboard plan evidence validator.
@@ -182,7 +182,7 @@
   - [x] Add Stripe dashboard feasibility evidence validator for test-mode PaymentIntent and webhook setup proof.
   - [x] Add CI secret masking command literal leakage coverage to the Stripe dashboard evidence validator.
   - [x] Confirm in the actual Stripe dashboard that test-mode PaymentIntents and webhook endpoints work with FanPass routes.
-  - [ ] Confirm in the actual Privy dashboard whether Developer Free/Core supports webhooks, mobile SDK use, embedded wallets, backend token verification, custom UI, and MFA/policy controls.
+  - [x] Confirm in the actual Privy dashboard whether Developer Free/Core supports webhooks, mobile SDK use, embedded wallets, backend token verification, custom UI, and MFA/policy controls.
   - [x] Keep Privy webhooks optional until plan support is verified.
 - [x] Add repeatable Beta local Prisma start/stop/verify scripts for API, Console, and side-effect worker.
 - [x] Add self-test coverage for Beta local start secret-scrubbing and local provider flag semantics.

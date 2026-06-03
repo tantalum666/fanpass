@@ -26,7 +26,7 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 371/382 tasks, 97.1%.
+Current checklist: 373/382 tasks, 97.6%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
@@ -36,7 +36,7 @@ Known live staging:
 
 Important provider status:
 - Render/Vercel HTTPS staging runtime evidence has passed.
-- Privy Dev app dashboard/mobile config evidence has passed; simulator OTP paths were used for staging/admin evidence.
+- Privy Dev app dashboard plan evidence has passed at `outputs/privy-plan/privy-plan-20260603.json`; it records mobile SDK, embedded-wallet, backend token verification, and custom auth UI support, with webhooks and MFA/policy controls plan-gated/optional. Older mobile config evidence exists but is stale against current uncommitted DEBUG-only iOS helper edits.
 - Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been exercised successfully against the Render staging API.
 - Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
 - Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.

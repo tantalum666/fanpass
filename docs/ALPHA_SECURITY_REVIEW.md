@@ -2336,10 +2336,9 @@ Beta cannot be considered security-ready until all of these are complete:
 ## Recommended Next Work Order
 
 1. Integrate Privy SDK login flows in FanPass, FanPass Ops, and FanPass Console.
-2. Verify Privy dashboard plan support for mobile SDK, embedded wallets, token verification, custom UI, MFA/policy controls, and webhooks. Keep webhooks optional until confirmed.
-3. Add client-side Stripe test-mode payment UI and then implement capture/refund/reconciliation sequencing.
-4. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
-5. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
-6. Patch dependency advisories or save owner-approved risk acceptance.
-7. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
-8. Run a second security review before external Beta testing.
+2. Add client-side Stripe test-mode payment UI and then implement capture/refund/reconciliation sequencing.
+3. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
+4. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
+5. Patch dependency advisories or save owner-approved risk acceptance.
+6. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
+7. Run a second security review before external Beta testing.
