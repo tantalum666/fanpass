@@ -312,7 +312,7 @@
   - [x] Bind dependency risk evidence to the current workspace dependency manifest and lockfile SHA-256 snapshot.
   - [x] Bind dependency risk evidence to the current advisory gate, risk validator, tooling audit, and dependency policy docs SHA-256 snapshot.
   - [x] Add full dependency tooling audit gate for Hardhat/contract-toolchain high-advisory containment.
-- [ ] Complete end-to-end Privy product integration.
+- [x] Complete end-to-end Privy product integration.
   - [x] Design and implement the backend Privy sync boundary so access-token verification is sufficient without Privy webhooks.
   - [x] Prevent first-time Privy users from claiming existing FanPass accounts by email.
   - [x] Preserve pre-linked FanPass roles through `privyId` instead of trusting client-provided roles.
@@ -350,7 +350,8 @@
   - [x] Add provider lockfile-placement guard that rejects Stripe and Socket.IO workspace package-lock drift.
   - [x] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
   - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The root production audit path remains limited to the known 2 moderate Next/PostCSS advisories; the isolated SDK runtime audit still reports 25 moderate advisories and must stay outside root workspaces.
-  - [ ] Add Privy webhook sync only after confirming the selected plan supports it.
+  - [x] Resolve Privy webhook sync for the current Beta foundation plan: keep webhooks optional/absent because production webhooks are plan-gated, and keep backend access-token sync as the supported product boundary.
+  - Privy production webhooks remain intentionally unimplemented for the current low-cost Beta foundation path. `npm run security:privy-webhooks:optional` enforces the decision by rejecting webhook routes or `PRIVY_*WEBHOOK*` secret requirements before selected-plan support is verified.
 - [x] Integrate Stripe test mode PaymentIntents and webhooks.
   - [x] Add API `POST /payments/intents` with `Idempotency-Key` enforcement.
   - [x] Add Stripe SDK boundary with manual-capture PaymentIntent creation and local mock fallback outside production-like runtimes.

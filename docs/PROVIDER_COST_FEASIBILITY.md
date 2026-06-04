@@ -55,7 +55,7 @@ Open Stripe checks before real-money Beta:
 
 ## Privy
 
-Current assessment: suitable for core low-cost auth/wallet testing, but Privy webhooks must be treated as plan-gated until verified in the actual dashboard or confirmed by Privy.
+Current assessment: suitable for core low-cost auth/wallet testing. Privy production webhooks are not part of the current low-cost Beta foundation path because official Privy docs say production webhooks require upgrading to Enterprise and the pricing page lists Webhooks with Enterprise controls.
 
 Official references:
 
@@ -69,20 +69,21 @@ Relevant findings:
 
 - Privy Developer pricing starts with a free 0-499 MAU tier. The pricing page says Developer plans include core features, including embedded wallets, unified login, SDK/UI, analytics, and monthly free signature/transaction volume.
 - Privy docs support email/SMS, passkeys, OAuth/social login, wallet login, access tokens, backend token verification, and embedded wallets.
-- Privy docs describe signed webhook payloads for user, wallet, and MFA events.
-- Pricing interpretation risk: the pricing page also highlights "Webhooks, SSO, and advanced custom integrations" under Enterprise. Because of that wording, FanPass must not assume Privy webhooks are available on Developer/low-cost plans without dashboard verification or written confirmation.
+- Privy docs describe signed webhook payloads for user, wallet, and MFA events, and the webhook overview says production webhooks require upgrading to Enterprise.
+- Pricing interpretation: the pricing page also highlights Webhooks with Enterprise features. FanPass therefore does not assume Privy webhooks are available on Developer/low-cost plans without dashboard verification or written confirmation.
 
 FanPass decision:
 
-- Core Privy login and embedded wallet integration remains a Beta target.
+- Core Privy login and embedded wallet integration is implemented for the current Beta foundation scope through FanPass/FanPass Ops Swift SDK OTP and isolated FanPass Console React SDK login.
 - Do not make Privy webhooks a hard dependency for Alpha/Beta low-cost testing.
 - Prefer backend access-token verification and explicit app-server synchronization on login/session refresh as the low-cost path.
 - Add Privy webhooks only after verifying the selected plan supports them.
+- Do not add a webhook route or `PRIVY_*WEBHOOK*` secret requirement for the current Beta foundation path.
 - `npm run security:privy-webhooks:optional` now enforces this low-cost decision by failing if a Privy webhook route/handler or `PRIVY_*WEBHOOK*` secret requirement appears in app code before plan support is verified. It also verifies the backend `/auth/privy/sync`, staff invite acceptance, Console session bridge, and iOS API client token-sync boundaries remain present.
 - `npm run security:privy-webhooks:optional:self-test` locks those semantics with synthetic fixtures that reject Privy webhook routes, required webhook secrets, missing access-token sync, missing documentation markers, and missing composite verifier wiring.
 - `npm run security:privy-plan:evidence` now validates saved Privy dashboard evidence before closing plan-support blockers. The evidence must prove the selected plan status for mobile SDK use, embedded wallet creation, backend access-token verification, webhooks, custom auth UI, and MFA/policy controls, plus the current Privy auth, webhook optionality, and plan-policy implementation SHA-256 snapshot, without real-user data, production credentials, access tokens, app secrets, verification keys, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, or database URLs, and must prove deployment credential and CI masking-command redaction.
 - `npm run security:privy-plan:evidence:self-test` is included in `npm run beta:foundation:verify` so those evidence acceptance/rejection rules, including stale policy snapshot rejection, are regression-tested without Privy credentials.
-- Current backend path: `POST /auth/privy/sync` verifies the Privy access token and creates/returns the FanPass user without requiring any Privy webhook event.
+- Current backend path: `POST /auth/privy/sync` verifies the Privy access token and creates/returns the FanPass user without requiring any Privy webhook event. This is the resolved product sync boundary for the current plan.
 - Backend Privy JWT verification is isolated in `PrivyTokenService`, which owns ES256 signature checks and Privy issuer/audience/expiry/not-before claim validation. `AuthService` keeps only FanPass user-linking and role/session decisions.
 - FanPass and FanPass Ops now link `privy-ios` 2.12.0 through XcodeGen/SPM and route Swift SDK email OTP calls through `FanPassPrivyAuthProvider`. The provider returns a Privy access token to the existing backend `POST /auth/privy/sync` and staff invite acceptance boundaries without exposing `PrivySDK` imports to screens or domain services.
 - Checked-in iOS configs include only empty `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` placeholders. Real public app/client IDs still require saved Privy dashboard evidence before release-style builds; app secrets and verification keys must never be committed to iOS config. `FanPassEnvironment` also keeps a Privy public-config secret guard so bearer tokens, JWTs, private keys, provider secrets, Stripe keys, webhook secrets, and client secrets are ignored if accidentally injected into those public slots.
@@ -97,16 +98,11 @@ Current Privy React SDK dependency status:
 - Running non-forced `npm audit fix` made the overall workspace worse by introducing high-severity dev/contract-tooling advisories.
 - Decision: keep the Privy React SDK out of root workspaces and FanPass Console production dependencies. `apps/console-auth` has its own package-lock and runtime boundary; its audit still reports 25 moderate advisories from Next/PostCSS plus wallet/provider transitive packages, so it must remain isolated until upstream dependency risk is resolved or explicitly accepted.
 
-Open Privy checks before implementation:
+Resolved Privy checks for the current Beta foundation scope:
 
-- Create/check the actual Privy app dashboard and confirm whether Developer Free/Core supports:
-  - mobile SDK use for iOS/React Native or the chosen native integration path;
-  - embedded wallet creation;
-  - backend access-token verification;
-  - webhooks;
-  - custom auth UI/whitelabel components;
-  - MFA or policy controls needed for high-value wallet actions.
-- If webhooks are Enterprise-only, keep user sync event-driven inside FanPass API instead of relying on Privy webhook callbacks.
+- Saved plan evidence confirms current support status for mobile SDK use, embedded wallets, backend access-token verification, custom auth UI, webhooks, and MFA/policy controls at `outputs/privy-plan/privy-plan-20260603.json`.
+- Product sync is event-driven inside FanPass API through verified access-token sync, not Privy webhook callbacks.
+- Privy MFA/policy controls remain plan-gated/optional and must be revisited before high-value wallet actions require them.
 
 ## Engineering Maintainability Rule
 

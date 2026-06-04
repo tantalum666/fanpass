@@ -2331,6 +2331,14 @@ Follow-up after hosted CI evidence capture on 2026-06-03:
 - Verification passed for `npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `npm run security:evidence-redaction`.
 - Remaining status: hosted CI evidence is closed for the current workflow/verifier snapshot, but it must be regenerated after workflow, verifier, lockfile, Node/npm policy, or evidence-contract changes. External Beta still requires real Privy dashboard/app evidence, Console Privy SDK login, production tenant/staff staging evidence, dependency advisory closure or risk acceptance, iOS/TestFlight evidence, physical scanner evidence, signed Wallet evidence, chain custody evidence, and the human-reviewed walkthrough recording.
 
+Follow-up after Privy webhook plan-gate closeout on 2026-06-04:
+
+- Closed the current Beta foundation Privy product-integration parent item after validating that FanPass and FanPass Ops use the shared Privy Swift SDK OTP provider, FanPass Console uses the isolated `apps/console-auth` React SDK runtime, and all product surfaces sync users through backend access-token verification rather than a Privy webhook callback.
+- Resolved the Privy webhook sync task as intentionally absent for the current plan: official Privy docs/pricing put production webhooks on the Enterprise/upgrade path, saved plan evidence keeps webhooks `plan-gated`, and `npm run security:privy-webhooks:optional` rejects webhook routes or `PRIVY_*WEBHOOK*` secret requirements before selected-plan support is verified.
+- No Privy webhook route, webhook handler, webhook signing secret, app secret, verification key, access token, production credential, live Stripe mode, or real personal data was added.
+- Verification passed for the Privy optional-webhook, provider-boundary, saved plan evidence, Console SDK isolation, and full Beta foundation gates.
+- Remaining status: this closes the non-human Privy implementation and webhook-plan checklist items for Beta foundation, but external/public Beta still requires production tenant/staff staging evidence, signed iOS/TestFlight evidence, dependency advisory closure or owner-approved risk acceptance, signed Wallet evidence, physical QR/NFC evidence, saved chain custody evidence, and the human-reviewed walkthrough recording.
+
 Beta cannot be considered security-ready until all of these are complete:
 
 1. Real product authentication UX and session validation are implemented across all surfaces.
@@ -2350,10 +2358,8 @@ Beta cannot be considered security-ready until all of these are complete:
 
 ## Recommended Next Work Order
 
-1. Integrate Privy SDK login flows in FanPass, FanPass Ops, and FanPass Console.
-2. Add client-side Stripe test-mode payment UI and then implement capture/refund/reconciliation sequencing.
-3. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
-4. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
-5. Patch dependency advisories or save owner-approved risk acceptance.
-6. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
-7. Run a second security review before external Beta testing.
+1. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
+2. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
+3. Patch dependency advisories or save owner-approved risk acceptance.
+4. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
+5. Run a second security review before external Beta testing.

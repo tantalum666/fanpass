@@ -37,19 +37,19 @@ Every progress report to the user must include:
 
 The user has explicitly authorized Codex to use available plugins and app tools as needed for FanPass work, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool or plugin set for the task, and keep using project safety rules: do not expose secrets, do not use production credentials or live Stripe mode, do not use real personal data, do not commit keys/tokens/evidence with secrets, and do not run destructive git commands.
 
-Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-06-03:
+Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-06-04:
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 377/382 tasks, 98.7% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
+- Beta foundation/security hardening: 379/382 tasks, 99.2% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
 
-## Latest New-Chat Snapshot on 2026-06-03
+## Latest New-Chat Snapshot on 2026-06-04
 
 Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `377/382`, `98.7%`.
+Current checklist count: `379/382`, `99.2%`.
 
 Latest deployed staging state:
 
@@ -69,9 +69,9 @@ Latest provider status:
 - The full local Beta foundation gate was re-run after the Stripe evidence/documentation updates and passed with `scripts/with-node-22.sh npm run beta:foundation:verify`, including API and Console typechecks plus 12 API test suites / 59 tests.
 - Follow-up on 2026-06-03: the remaining order-settlement parent tasks were closed after confirming the durable outbox/saga engineering subitems are complete and the local gates still pass: `npm run security:settlement-retry-idempotency`, `npm run side-effects:verify:self-test`, and `npm run side-effects:health:self-test`. The full `scripts/with-node-22.sh npm run beta:foundation:verify` gate was re-run afterward and passed, including side-effect live verification, side-effect health, API and Console typechecks, plus 12 API test suites / 59 tests. This does not close the separate chain custody blocker, which still requires saved vault/KMS or delegated signer plus multisig/timelock evidence.
 - Hosted GitHub Actions evidence is now refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` for a successful PR run of `FanPass Beta Foundation` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` after the isolated Console Privy SDK login change. The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, `postgres:16-alpine`, and `npm run beta:foundation:verify`; validation passed with `scripts/with-node-22.sh npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `scripts/with-node-22.sh npm run security:evidence-redaction`.
-- Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
+- Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. On 2026-06-04, the current Beta foundation webhook item was resolved as intentionally absent: production Privy webhooks are plan-gated/Enterprise-path functionality in official Privy docs/pricing, FanPass keeps backend access-token sync as the supported boundary, and `npm run security:privy-webhooks:optional` prevents webhook routes or `PRIVY_*WEBHOOK*` secrets from being introduced before selected-plan support is verified. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
 - FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root production audit remains limited to the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime records 25 moderate advisories and must stay isolated.
-- Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, dependency-risk, Wallet, scanner, or chain custody evidence blockers.
+- Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, Privy webhook sync is resolved as optional/absent for the current plan, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, dependency-risk, Wallet, scanner, or chain custody evidence blockers.
 - FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
 
@@ -4803,7 +4803,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 ## Next Engineering Tasks
 
 1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.
-2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, FanPass Console Privy React login, iOS/TestFlight staging build evidence, dependency advisory closure or risk acceptance, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
+2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, iOS/TestFlight staging build evidence, dependency advisory closure or risk acceptance, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
 3. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
 4. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
 

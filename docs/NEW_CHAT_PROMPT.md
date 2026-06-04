@@ -26,7 +26,7 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 377/382 tasks, 98.7%.
+Current checklist: 379/382 tasks, 99.2%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
@@ -36,11 +36,11 @@ Known live staging:
 
 Important provider status:
 - Render/Vercel HTTPS staging runtime evidence has passed.
-- Privy Dev app dashboard plan evidence has passed at `outputs/privy-plan/privy-plan-20260603.json`; it records mobile SDK, embedded-wallet, backend token verification, and custom auth UI support, with webhooks and MFA/policy controls plan-gated/optional. Older mobile config evidence exists but is stale against current uncommitted DEBUG-only iOS helper edits.
+- Privy Dev app dashboard plan evidence has passed at `outputs/privy-plan/privy-plan-20260603.json`; it records mobile SDK, embedded-wallet, backend token verification, and custom auth UI support, with webhooks and MFA/policy controls plan-gated/optional. Production webhooks are not implemented for the current low-cost Beta foundation path; backend access-token sync is the supported boundary and `npm run security:privy-webhooks:optional` keeps webhook routes/secrets absent. Older mobile config evidence exists but is stale against current uncommitted DEBUG-only iOS helper edits.
 - FanPass Console Privy React SDK login is implemented in isolated runtime `apps/console-auth`, outside root workspaces/default production audit. Evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`; root production audit remains limited to the known 2 moderate Next/PostCSS advisories while the isolated SDK runtime records 25 moderate advisories.
 - Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been exercised successfully against the Render staging API.
 - Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
-- Non-human SDK/payment implementation checklist items are closed: Privy SDK login is implemented across FanPass, FanPass Ops, and isolated FanPass Console auth, and Stripe test-mode PaymentIntent/webhook/client checkout work is closed through native iOS PaymentSheet plus saved Render staging evidence.
+- Non-human SDK/payment implementation checklist items are closed: Privy SDK login is implemented across FanPass, FanPass Ops, and isolated FanPass Console auth; Privy webhook sync is resolved as intentionally absent for the current plan; and Stripe test-mode PaymentIntent/webhook/client checkout work is closed through native iOS PaymentSheet plus saved Render staging evidence.
 - Current hosted CI evidence for the Beta foundation PR branch has been refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`; it covers GitHub Actions run `26873871164` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` and passed `npm run security:ci-hosted:evidence` plus repository evidence redaction.
 - Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.
 - Render side-effect worker scheduler is enabled in env: FANPASS_SIDE_EFFECT_WORKER_ENABLED=true, FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000, SIDE_EFFECT_WORKER_LIMIT=10.
