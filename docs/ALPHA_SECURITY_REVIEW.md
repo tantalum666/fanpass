@@ -2339,6 +2339,14 @@ Follow-up after Privy webhook plan-gate closeout on 2026-06-04:
 - Verification passed for the Privy optional-webhook, provider-boundary, saved plan evidence, Console SDK isolation, and full Beta foundation gates.
 - Remaining status: this closes the non-human Privy implementation and webhook-plan checklist items for Beta foundation, but external/public Beta still requires production tenant/staff staging evidence, signed iOS/TestFlight evidence, dependency advisory closure or owner-approved risk acceptance, signed Wallet evidence, physical QR/NFC evidence, saved chain custody evidence, and the human-reviewed walkthrough recording.
 
+Follow-up after Console Next exit planning on 2026-06-04:
+
+- Added `docs/CONSOLE_NEXT_EXIT_PLAN.md` because the current unresolved production dependency blocker is still the known `next -> postcss <8.5.10` advisory chain and the current npm fix path is a destructive Next downgrade.
+- Captured the current Console Next-bound files, portable React/UI candidates, BFF duties that must survive a migration, and a public/real-user release rule.
+- Closed Beta may use short owner-approved dependency risk evidence, but public or real-user Beta must have a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
+- Added QA and roadmap guardrails so new Console work should keep data shaping, redaction, and API helpers framework-neutral where practical, avoid new undocumented Next route handlers, and avoid user-controlled CSS/style serialization while the advisory remains unresolved.
+- Remaining status: this reduces future migration cost but does not close or accept the dependency advisory blocker. External testing still requires clean audit evidence or owner-approved closed-beta risk evidence; public/real-user Beta cannot proceed on unresolved Next/PostCSS risk acceptance alone.
+
 Beta cannot be considered security-ready until all of these are complete:
 
 1. Real product authentication UX and session validation are implemented across all surfaces.

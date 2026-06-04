@@ -41,7 +41,7 @@ Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklis
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 379/382 tasks, 99.2% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
+- Beta foundation/security hardening: 380/383 tasks, 99.2% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
 
 ## Latest New-Chat Snapshot on 2026-06-04
 
@@ -49,7 +49,7 @@ Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `379/382`, `99.2%`.
+Current checklist count: `380/383`, `99.2%`.
 
 Latest deployed staging state:
 
@@ -72,6 +72,7 @@ Latest provider status:
 - Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. On 2026-06-04, the current Beta foundation webhook item was resolved as intentionally absent: production Privy webhooks are plan-gated/Enterprise-path functionality in official Privy docs/pricing, FanPass keeps backend access-token sync as the supported boundary, and `npm run security:privy-webhooks:optional` prevents webhook routes or `PRIVY_*WEBHOOK*` secrets from being introduced before selected-plan support is verified. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
 - FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root production audit remains limited to the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime records 25 moderate advisories and must stay isolated.
 - Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, Privy webhook sync is resolved as optional/absent for the current plan, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, dependency-risk, Wallet, scanner, or chain custody evidence blockers.
+- Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta can use short owner-approved dependency risk evidence, but public or real-user Beta must have a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
 - FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
 
@@ -106,6 +107,7 @@ Important paths:
 - `docs/ALPHA_SECURITY_REVIEW.md` - Alpha feature completion and security review, including public Beta blockers.
 - `docs/DEVELOPMENT_TASKS.md` - task checklist.
 - `docs/PROVIDER_COST_FEASIBILITY.md` - Stripe/Privy low-cost plan feasibility, feature risks, and provider integration constraints.
+- `docs/CONSOLE_NEXT_EXIT_PLAN.md` - Console migration guardrail for the unresolved Next/PostCSS production advisory.
 - `docs/DEPENDENCY_ADVISORY_LOG.md` - current npm audit advisory status, containment decision, and external-testing gate.
 - `docs/API_RESPONSE_PRIVACY_MATRIX.md` - route-level API and Console route-handler response privacy classification matrix and release rules.
 

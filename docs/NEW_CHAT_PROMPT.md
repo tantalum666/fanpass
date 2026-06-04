@@ -26,7 +26,7 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 379/382 tasks, 99.2%.
+Current checklist: 380/383 tasks, 99.2%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
@@ -41,6 +41,7 @@ Important provider status:
 - Stripe dashboard test-mode webhook setup and native iOS PaymentSheet authorization have been exercised successfully against the Render staging API.
 - Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
 - Non-human SDK/payment implementation checklist items are closed: Privy SDK login is implemented across FanPass, FanPass Ops, and isolated FanPass Console auth; Privy webhook sync is resolved as intentionally absent for the current plan; and Stripe test-mode PaymentIntent/webhook/client checkout work is closed through native iOS PaymentSheet plus saved Render staging evidence.
+- Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta may use short owner-approved dependency risk evidence, but public or real-user Beta must use a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
 - Current hosted CI evidence for the Beta foundation PR branch has been refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`; it covers GitHub Actions run `26873871164` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` and passed `npm run security:ci-hosted:evidence` plus repository evidence redaction.
 - Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.
 - Render side-effect worker scheduler is enabled in env: FANPASS_SIDE_EFFECT_WORKER_ENABLED=true, FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000, SIDE_EFFECT_WORKER_LIMIT=10.

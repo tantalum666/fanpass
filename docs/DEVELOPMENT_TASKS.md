@@ -312,6 +312,7 @@
   - [x] Bind dependency risk evidence to the current workspace dependency manifest and lockfile SHA-256 snapshot.
   - [x] Bind dependency risk evidence to the current advisory gate, risk validator, tooling audit, and dependency policy docs SHA-256 snapshot.
   - [x] Add full dependency tooling audit gate for Hardhat/contract-toolchain high-advisory containment.
+  - [x] Add Console Next exit plan and public/real-user release rule so unresolved Next/PostCSS advisories do not become harder to remove later.
 - [x] Complete end-to-end Privy product integration.
   - [x] Design and implement the backend Privy sync boundary so access-token verification is sufficient without Privy webhooks.
   - [x] Prevent first-time Privy users from claiming existing FanPass accounts by email.

@@ -177,6 +177,7 @@ Do not force-fix the current advisories. The suggested remediation is a destruct
 - run `npm run security:dependency-advisories` before any external tester build to catch new advisories or a newly available safe Next/PostCSS upgrade path;
 - run `scripts/with-node-22.sh npm run security:node-runtime-policy` and use `scripts/with-node-22.sh <command>` for Hardhat or security/dependency output when the global shell is not Node 22;
 - upgrade Next only when there is a safe patched release path that preserves the current App Router implementation.
+- keep `docs/CONSOLE_NEXT_EXIT_PLAN.md` current so FanPass can migrate Console off Next if no safe patched Next/PostCSS path exists before public or real-user Beta.
 
 ## External Testing Gate
 
@@ -184,5 +185,7 @@ Before closed external Beta, one of these must be true:
 
 - `npm audit --omit=dev --audit-level=low` passes without production advisories; or
 - the remaining advisories are explicitly risk-accepted in `docs/ALPHA_SECURITY_REVIEW.md` with mitigation, affected surface, and review owner.
+
+Before public or real-user Beta, risk acceptance is not enough: FanPass must either have a clean production audit, upgrade to a safe patched Next/PostCSS path, or remove Next from the Console production runtime path according to `docs/CONSOLE_NEXT_EXIT_PLAN.md`.
 
 As of this log, the advisories are documented but not risk-accepted for public or real-user testing.
