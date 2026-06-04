@@ -8,6 +8,14 @@ Run future saved evidence through:
 npm run security:staff-tenant:staging-evidence -- <saved-json-output>
 ```
 
+Seed a non-passing draft with the current implementation SHA-256 snapshot before collecting real staging proof:
+
+```bash
+npm run release:evidence:draft -- staff-tenant --out outputs/staff-tenant/<draft-file>.json
+```
+
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real staging facts replace every placeholder and the saved file passes the validator above.
+
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, Privy tokens, one-time invite tokens, raw emails, wallet addresses, staff ids, organizer ids, ticket ids, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, private keys, or production credentials.
 
 Required JSON shape:

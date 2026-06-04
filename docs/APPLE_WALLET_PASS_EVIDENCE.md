@@ -8,6 +8,14 @@ Run future saved evidence through:
 npm run security:apple-wallet:evidence -- <saved-json-output>
 ```
 
+Seed a non-passing draft with the current Wallet/pass-boundary SHA-256 snapshot before collecting real `.pkpass` proof:
+
+```bash
+npm run release:evidence:draft -- apple-wallet --out outputs/apple-wallet/<draft-file>.json
+```
+
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real signed `.pkpass`, manifest/signature, physical-iPhone Wallet install, and FanPass Ops scan facts replace every placeholder and the saved file passes the validator above.
+
 The validator accepts progress-log text around the JSON object, but the saved file must not include raw certificate material, private keys, bearer tokens, Stripe secrets, Stripe publishable keys, Privy secrets, provider secrets, deployment/cloud credentials, database URLs, real ticket holder data, or payment data.
 
 Required JSON shape:

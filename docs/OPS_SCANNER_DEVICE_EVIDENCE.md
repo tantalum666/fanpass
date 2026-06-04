@@ -8,6 +8,14 @@ Run future saved evidence through:
 npm run security:ops-scanner:device-evidence -- <saved-json-output>
 ```
 
+Seed a non-passing draft with the current QR/NFC scanner/API SHA-256 snapshot before collecting real physical-device proof:
+
+```bash
+npm run release:evidence:draft -- ops-scanner --out outputs/ops-scanner/<draft-file>.json
+```
+
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real physical iPhone, camera QR, NFC NDEF tag, replay rejection, and backend-authority facts replace every placeholder and the saved file passes the validator above.
+
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, QR signing secrets, private keys, Stripe secrets, Stripe publishable keys, Privy secrets, provider secrets, deployment/cloud credentials, database URLs, raw signed payloads, raw nonces, real ticket holder data, or device identifiers.
 
 Required JSON shape:

@@ -37,6 +37,13 @@ Every progress report to the user must include:
 
 The user has explicitly authorized Codex to use available plugins and app tools as needed for FanPass work, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool or plugin set for the task, and keep using project safety rules: do not expose secrets, do not use production credentials or live Stripe mode, do not use real personal data, do not commit keys/tokens/evidence with secrets, and do not run destructive git commands.
 
+## Non-Negotiable Engineering Rules
+
+- Before code or evidence changes, read `docs/NEW_CHAT_PROMPT.md` plus the source-of-truth docs for the active task, then keep docs updated in the same change when product boundaries, evidence status, provider assumptions, release blockers, or standing user instructions change.
+- Do not build unmaintainable one-off code. Prefer existing project patterns, narrow typed adapters/services, schema validation, focused tests, and documented evidence gates. Avoid scattered provider SDK calls, stringly typed state, broad rewrites, or shortcuts that make later security work harder.
+- Security is a release blocker, not a cleanup task. Do not use real personal data, production credentials, live Stripe mode, raw private keys, production Privy secrets, saved tokens, unsanitized screenshots, or evidence containing secrets.
+- Do not claim public, real-user, TestFlight, signed Wallet, physical scanner, chain custody, payment, or provider readiness unless the matching saved evidence exists and passes the documented validator.
+
 Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-06-04:
 
 - Technical Prototype: 100%.
@@ -75,6 +82,7 @@ Latest provider status:
 - Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta can use short owner-approved dependency risk evidence, but public or real-user Beta must have a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
 - Closed-beta-only dependency risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, with `acceptedByRole: "project-owner"`, `scope: "closed-beta-only"`, and expiry on 2026-07-04. This closes the dependency blocker for closed external Beta only; public or real-user Beta still requires clean production audit, safe patched Next/PostCSS upgrade, or Console migration off Next.
 - Alpha security blocker rollup was refreshed on 2026-06-04: Privy SDK login, Stripe test-mode release evidence, deployed HTTPS runtime evidence, hosted CI, and closed-beta-only dependency risk acceptance are closed for the current Beta foundation, while production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, chain custody, public dependency posture, and the human-reviewed walkthrough recording remain open for public or real-user Beta.
+- A release evidence draft helper now seeds the five remaining external evidence gates without closing them: `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>`. Drafts intentionally emit `ok: false`, current SHA-256 snapshots, placeholders, and the next validator command so they cannot be mistaken for release evidence.
 - The latest supporting local Alpha walkthrough capture bundle is `outputs/alpha-walkthrough/20260604T122652Z/`; it passed capture, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review after clearing one-time invite token panels and raw email-shaped form values. It supports the recording review but does not close `Record an Alpha walkthrough using the frozen local script`.
 - FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
@@ -4804,6 +4812,24 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Follow-up on 2026-06-03: Stripe test-mode capture, authorization cancellation, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual outbox state were exercised against Render staging and saved at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`. The saved evidence passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and repository evidence redaction.
 - Follow-up on 2026-06-03: Hosted GitHub Actions evidence was refreshed for a successful PR run of `FanPass Beta Foundation` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc`. The saved evidence lives at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and passed `npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` plus repository evidence redaction.
 - Operational note: the Neon MCP tools were intermittently unavailable in the previous thread. If available, query the staging outbox/payment state without printing secrets or real user data; otherwise use Render logs to confirm worker processing.
+
+## After Release Evidence Draft Helper on 2026-06-04
+
+- Added `scripts/release-evidence-draft.js` and `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody` to seed non-passing, secret-free evidence drafts for the five remaining external release gates.
+- Each draft includes `ok: false`, `draft: true`, a gate-specific `draftStatus`, the current implementation SHA-256 snapshot, placeholder proof fields, redaction proof defaults, and the exact next validator command. The helper does not close any blocker by itself.
+- Generated current local draft starting points under ignored `outputs/` paths:
+  - `outputs/staff-tenant/20260604T000000Z-draft.json`
+  - `outputs/ios-staging-build/20260604T000000Z-draft.json`
+  - `outputs/apple-wallet/20260604T000000Z-draft.json`
+  - `outputs/ops-scanner/20260604T000000Z-draft.json`
+  - `outputs/chain-custody/20260604T000000Z-draft.json`
+- Updated the new-chat prompt, QA checklist, roadmap, development task notes, and each evidence contract to route future collection through the draft helper before real staging/signing/device/Wallet/custody proof is filled.
+- Added a durable `Non-Negotiable Engineering Rules` section covering maintainable code, start-of-work doc reads, same-change doc updates, and security-as-release-blocker rules.
+- Verification:
+  - `scripts/with-node-22.sh npm run release:evidence:draft:self-test`
+  - `scripts/with-node-22.sh npm run security:evidence-redaction -- outputs/staff-tenant/20260604T000000Z-draft.json outputs/ios-staging-build/20260604T000000Z-draft.json outputs/apple-wallet/20260604T000000Z-draft.json outputs/ops-scanner/20260604T000000Z-draft.json outputs/chain-custody/20260604T000000Z-draft.json`
+  - `scripts/with-node-22.sh npm run beta:foundation:verify`
+- Remaining status: production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody still require real external proof and passing validators. The helper only reduces setup, stale-snapshot, and secret-leakage risk for those evidence runs.
 
 ## Next Engineering Tasks
 

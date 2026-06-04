@@ -41,6 +41,7 @@ run_step "Privy webhook optionality audit self-test" npm run security:privy-webh
 run_step "Privy webhook optionality audit" npm run security:privy-webhooks:optional
 run_step "Privy local config check self-test" npm run security:privy-local-config:self-test
 run_step "Privy evidence draft helper self-test" npm run privy:evidence:draft:self-test
+run_step "Release evidence draft helper self-test" npm run release:evidence:draft:self-test
 run_step "Privy plan evidence validator self-test" npm run security:privy-plan:evidence:self-test
 run_step "Privy mobile app config evidence validator self-test" npm run security:privy-mobile-app-config:evidence:self-test
 run_step "Privy Console React SDK isolation validator self-test" npm run security:privy-console-react-sdk:isolation:self-test

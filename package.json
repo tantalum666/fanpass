@@ -59,6 +59,8 @@
     "security:privy-local-config:self-test": "node scripts/privy-local-config-check-self-test.js",
     "privy:evidence:draft": "node scripts/privy-evidence-draft.js",
     "privy:evidence:draft:self-test": "node scripts/privy-evidence-draft-self-test.js",
+    "release:evidence:draft": "node scripts/release-evidence-draft.js",
+    "release:evidence:draft:self-test": "node scripts/release-evidence-draft-self-test.js",
     "security:privy-plan:evidence": "node scripts/privy-plan-evidence-audit.js",
     "security:privy-plan:evidence:self-test": "node scripts/privy-plan-evidence-audit-self-test.js",
     "security:privy-mobile-app-config:evidence": "node scripts/privy-mobile-app-config-evidence-audit.js",

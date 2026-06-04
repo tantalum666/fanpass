@@ -10,6 +10,7 @@ Use this checklist before calling a version or milestone complete.
 - Read `docs/DEVELOPMENT_TASKS.md`.
 - Confirm whether the current change belongs to `FanPass`, `FanPass Ops`, `FanPass Console`, API, contracts, or shared packages.
 - Update docs immediately when product boundaries change.
+- Update docs in the same change when evidence status, provider assumptions, release blockers, standing user instructions, or external-testing claims change.
 
 ## Product Boundary Checks
 
@@ -68,6 +69,7 @@ Use this checklist before calling a version or milestone complete.
 ## Engineering Maintainability Checks
 
 - Do not build unstructured "just make it work" code that blocks future changes.
+- Do not add one-off release helpers or provider integrations that bypass existing adapters, typed contracts, tests, or evidence validators.
 - Keep Stripe, Privy, chain, NFC, QR, email, and other provider SDK code behind dedicated services/adapters.
 - Keep backend Privy JWT verification inside `PrivyTokenService`; auth/session services should delegate token verification and only handle FanPass account/role decisions.
 - Keep ticket lifecycle, order settlement, payment state, ownership transfer, and check-in rules in domain services rather than UI components.
@@ -147,6 +149,7 @@ Use this checklist before calling a version or milestone complete.
 - Real Privy mobile app configuration evidence must be saved without Privy secrets, verification keys, access tokens, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, real user data, or production credentials; it must prove the current iOS Privy auth/config implementation SHA-256 snapshot, `deploymentCredentialsAvailable: false`, `redaction.deploymentCredentialsRedacted: true`, and `redaction.ciSecretMaskingCommandsRedacted: true`, then pass `npm run security:privy-mobile-app-config:evidence -- <saved-json-output>` before real iOS app/client IDs are trusted in staging, beta, or TestFlight-style builds.
 - Keep `npm run security:privy-mobile-app-config:evidence:self-test` in `npm run beta:foundation:verify` so future mobile app config evidence continues rejecting secret leakage, stale iOS auth/config implementation snapshot proof, provider-secret/database URL leakage, deployment/cloud credential leakage, CI secret masking command literal leakage, Stripe publishable-key leakage, missing deployment credential redaction proof, missing CI masking-command redaction proof, missing dashboard review, missing FanPass/FanPass Ops coverage, non-placeholder checked-in config, webhook dependency drift, and missing redaction proof.
 - Use `npm run privy:evidence:draft -- plan|mobile|console --out <draft-json>` to seed current SHA-256 snapshots before collecting real Privy dashboard, mobile app config, or Console SDK evidence. Drafts intentionally stay non-passing with `ok: false`; only completed evidence that passes the matching validator can close blockers.
+- Use `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>` to seed current SHA-256 snapshots before collecting real production tenant/staff, signed iOS/TestFlight, signed Wallet, physical QR/NFC, or chain custody evidence. Drafts intentionally stay non-passing with `ok: false`; only completed evidence that passes the matching validator can close blockers.
 - Use `npm run security:privy-local-config` before local Privy OTP testing. Provide `FANPASS_EXPECTED_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_ID`, and `FANPASS_PRIVY_APP_CLIENT_ID` through the shell, keep `PRIVY_VERIFICATION_KEY` only in ignored `apps/api/.env`, and verify the command reports `appIdMatchesApiEnv: true`, `buildSettingsInjectedOutsideSourceControl: true`, and `secretValuesPrinted: false`.
 - Keep `npm run security:privy-local-config:self-test` in `npm run beta:foundation:verify` so the local guard keeps rejecting non-PEM verification keys, checked-in iOS Privy public client ids, and missing outside-source-control app client id injection without reading real secrets.
 - Keep production-like QR signing tests isolated from local `.env` values; missing-secret assertions must delete inherited `QR_SIGNING_SECRET` before constructing `ConfigService`.

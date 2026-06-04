@@ -53,11 +53,14 @@ Safety rules:
 - Do not use real personal data, production credentials, live Stripe mode, production Privy secrets, or destructive git commands.
 - Treat all provider tokens/keys pasted in the old chat as exposed. Do not repeat them. Recommend rotation before final evidence.
 - Keep provider integrations behind narrow adapters/services.
+- Do not build unmaintainable one-off code. Prefer existing project patterns, small typed adapters/services, schema validation, focused tests, and documented evidence gates over scattered provider calls or broad rewrites.
+- Before code or evidence changes, read the current source-of-truth docs for the task and update docs in the same change when product boundaries, evidence status, provider assumptions, release blockers, or user instructions change.
+- Security is release-blocking. Never claim public, real-user, signing, provider, payment, Wallet, scanner, or chain readiness without matching saved evidence that passes the documented validator.
 - Do not commit `.env`, tokens, keys, screenshots with secrets, or output evidence containing secrets.
 - The user has authorized Codex to use available plugins and app tools as needed, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool set and keep all safety rules above.
 
 Highest-value next task:
-Choose the next remaining Beta foundation blocker, likely the human-reviewed Alpha walkthrough recording, production tenant/staff staging evidence, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
+Choose the next remaining Beta foundation blocker, likely the human-reviewed Alpha walkthrough recording, production tenant/staff staging evidence, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Use `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>` to seed non-passing, secret-free drafts with current SHA-256 snapshots before collecting real external proof. Report stage, completed work, checklist percentage, and remaining blockers.
 ```
 
 If the new chat is only for status/reporting, ask it to summarize `docs/CODEX_HANDOFF.md` and list the open blockers from `docs/DEVELOPMENT_TASKS.md` without changing files.

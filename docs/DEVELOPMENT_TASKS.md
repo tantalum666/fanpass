@@ -185,6 +185,7 @@
   - [x] Confirm in the actual Stripe dashboard that test-mode PaymentIntents and webhook endpoints work with FanPass routes.
   - [x] Confirm in the actual Privy dashboard whether Developer Free/Core supports webhooks, mobile SDK use, embedded wallets, backend token verification, custom UI, and MFA/policy controls.
   - [x] Keep Privy webhooks optional until plan support is verified.
+  - Evidence collection aid: `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>` generates non-passing draft evidence with current SHA-256 snapshots for the remaining external release gates; completed files still require real staging/signing/device/Wallet/custody facts and the matching validator.
 - [x] Add repeatable Beta local Prisma start/stop/verify scripts for API, Console, and side-effect worker.
 - [x] Add self-test coverage for Beta local start secret-scrubbing and local provider flag semantics.
 - [x] Add self-test coverage for Beta local verification async settlement, payment capture, admin health, and redaction semantics.

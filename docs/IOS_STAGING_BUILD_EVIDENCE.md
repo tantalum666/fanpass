@@ -8,6 +8,14 @@ Run future saved evidence through:
 npm run security:ios-staging-build:evidence -- <saved-json-output>
 ```
 
+Seed a non-passing draft with the current iOS distribution/config SHA-256 snapshot before collecting real signing or TestFlight proof:
+
+```bash
+npm run release:evidence:draft -- ios-build --out outputs/ios-staging-build/<draft-file>.json
+```
+
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real signed-build, physical-device or TestFlight, and HTTPS staging/beta facts replace every placeholder and the saved file passes the validator above.
+
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, Privy tokens, Stripe secrets, Stripe publishable keys, Apple certificates, private keys, provisioning profiles, device identifiers, database URLs, provider secrets, deployment/cloud credentials, CI secret masking command literals, production credentials, or real personal data.
 
 Required JSON shape:

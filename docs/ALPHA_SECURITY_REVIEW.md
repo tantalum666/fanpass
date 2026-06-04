@@ -2367,6 +2367,14 @@ Follow-up after Alpha security blocker rollup and walkthrough capture refresh on
 - Latest supporting capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed `npm run alpha:walkthrough:capture`, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review.
 - Remaining status: this refreshes local recording support evidence and blocker wording. It does not close the still-open human-reviewed recording task because no reviewed `.mp4`, `.mov`, or `.webm` recording artifact and saved review JSON exist yet.
 
+Follow-up after release evidence draft helper on 2026-06-04:
+
+- Added `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody` and a fixture-backed self-test to seed non-passing, secret-free drafts for the remaining production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody evidence gates.
+- The helper is intentionally not release evidence: each draft uses `ok: false`, current SHA-256 snapshots, placeholders, redaction defaults, and a `nextValidator` field. Real external proof must replace placeholders and pass the matching validator before any blocker closes.
+- Generated current ignored draft files under `outputs/staff-tenant/`, `outputs/ios-staging-build/`, `outputs/apple-wallet/`, `outputs/ops-scanner/`, and `outputs/chain-custody/` for the next evidence collection pass.
+- Verification passed for `npm run release:evidence:draft:self-test`, targeted `npm run security:evidence-redaction` over the five generated drafts, and the full `npm run beta:foundation:verify`.
+- Remaining status: this improves repeatability and reduces stale-snapshot/secret-leakage risk, but public or real-user Beta remains blocked by the actual external evidence gates and the human-reviewed walkthrough recording.
+
 ## Recommended Next Work Order
 
 1. Record and save the human-reviewed Alpha walkthrough artifact, then validate its saved review JSON.

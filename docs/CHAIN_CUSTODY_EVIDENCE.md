@@ -8,6 +8,14 @@ Run future saved evidence through:
 npm run security:chain-custody:evidence -- <saved-json-output>
 ```
 
+Seed a non-passing draft with the current ownership/outbox SHA-256 snapshot before collecting real testnet custody proof:
+
+```bash
+npm run release:evidence:draft -- chain-custody --out outputs/chain-custody/<draft-file>.json
+```
+
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real vault/KMS or delegated signer, multisig/timelock, durable outbox, testnet run, and operational readiness facts replace every placeholder and the saved file passes the validator above.
+
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, Privy secrets, Stripe secrets, Stripe publishable keys, provider API keys, provider RPC URLs, deployment/cloud credentials, CI secret masking command literals, database URLs, private keys, seed phrases, copyable `0x` 64-hex values, or real user data.
 
 Required JSON shape:
