@@ -159,6 +159,13 @@ Update after the dependency risk policy snapshot binding pass:
 - Extended the fixture self-test to reject stale risk-policy snapshot source, missing policy files, unexpected files, and mismatched SHA-256 proof before clean closeout or owner-approved risk evidence can be trusted.
 - This does not close or accept the current Next/PostCSS advisory risk. It prevents dependency-risk evidence from being reused after advisory gate, risk validator, tooling audit, or dependency policy documentation changes without rerunning the Node 22 production audit and advisory gate.
 
+Update after closed-beta dependency risk acceptance on 2026-06-04:
+
+- The project owner accepted the current unresolved production dependency risk for `closed-beta-only` testing, with a 30-day expiry and 14-day review cadence.
+- Re-checked under Node 22 before evidence generation: production audit still reports exactly the known 2 moderate `next`/`postcss` advisories, `next@latest` is `16.2.7`, and it still declares `postcss: 8.4.31`.
+- The acceptance does not permit public launch, real-user open Beta, live-money launch, or weakening Console auth/CSP/style-input mitigations.
+- Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or a Console migration off Next's production runtime path according to `docs/CONSOLE_NEXT_EXIT_PLAN.md`.
+
 ## Open Advisories
 
 | Package           | Severity | Path                        | Advisory                                                                                                 | Current safe action                                                                                               |

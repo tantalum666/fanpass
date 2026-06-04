@@ -41,7 +41,7 @@ Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklis
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 380/383 tasks, 99.2% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, dependency advisory closure or explicit risk acceptance, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete.
+- Beta foundation/security hardening: 381/383 tasks, 99.5% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete. Dependency risk is accepted only for closed external Beta until 2026-07-04.
 
 ## Latest New-Chat Snapshot on 2026-06-04
 
@@ -49,7 +49,7 @@ Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `380/383`, `99.2%`.
+Current checklist count: `381/383`, `99.5%`.
 
 Latest deployed staging state:
 
@@ -71,8 +71,11 @@ Latest provider status:
 - Hosted GitHub Actions evidence is now refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` for a successful PR run of `FanPass Beta Foundation` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` after the isolated Console Privy SDK login change. The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, `postgres:16-alpine`, and `npm run beta:foundation:verify`; validation passed with `scripts/with-node-22.sh npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `scripts/with-node-22.sh npm run security:evidence-redaction`.
 - Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. On 2026-06-04, the current Beta foundation webhook item was resolved as intentionally absent: production Privy webhooks are plan-gated/Enterprise-path functionality in official Privy docs/pricing, FanPass keeps backend access-token sync as the supported boundary, and `npm run security:privy-webhooks:optional` prevents webhook routes or `PRIVY_*WEBHOOK*` secrets from being introduced before selected-plan support is verified. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
 - FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root production audit remains limited to the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime records 25 moderate advisories and must stay isolated.
-- Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, Privy webhook sync is resolved as optional/absent for the current plan, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, dependency-risk, Wallet, scanner, or chain custody evidence blockers.
+- Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, Privy webhook sync is resolved as optional/absent for the current plan, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, Wallet, scanner, or chain custody evidence blockers.
 - Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta can use short owner-approved dependency risk evidence, but public or real-user Beta must have a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
+- Closed-beta-only dependency risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, with `acceptedByRole: "project-owner"`, `scope: "closed-beta-only"`, and expiry on 2026-07-04. This closes the dependency blocker for closed external Beta only; public or real-user Beta still requires clean production audit, safe patched Next/PostCSS upgrade, or Console migration off Next.
+- Alpha security blocker rollup was refreshed on 2026-06-04: Privy SDK login, Stripe test-mode release evidence, deployed HTTPS runtime evidence, hosted CI, and closed-beta-only dependency risk acceptance are closed for the current Beta foundation, while production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, chain custody, public dependency posture, and the human-reviewed walkthrough recording remain open for public or real-user Beta.
+- The latest supporting local Alpha walkthrough capture bundle is `outputs/alpha-walkthrough/20260604T122652Z/`; it passed capture, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review after clearing one-time invite token panels and raw email-shaped form values. It supports the recording review but does not close `Record an Alpha walkthrough using the frozen local script`.
 - FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
 - Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
 
@@ -84,7 +87,7 @@ Local working tree warning:
 Fast resume prompt:
 
 - Read `docs/NEW_CHAT_PROMPT.md` and the core docs listed below.
-- Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are production tenant/staff staging evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence.
+- Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are production tenant/staff staging evidence, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, chain custody evidence, or the human-reviewed Alpha walkthrough recording.
 
 ## Repository
 
@@ -4158,13 +4161,13 @@ bash -n scripts/alpha-walkthrough-capture.sh scripts/alpha-walkthrough-capture-s
 ```
 
 - Current progress: Beta foundation/security hardening is 137/158 tasks, 86.7% by checklist count.
-- Remaining status: the actual human-reviewed Alpha walkthrough recording is still open. The capture automation can now produce a local evidence bundle, but public/TestFlight Beta remains blocked by real Privy SDK login/dashboard validation, production tenant/staff policy validation in staging, real Stripe signed-webhook validation, deployed HTTPS staging evidence with a real admin bearer, dependency advisory closure or risk acceptance, real iOS staging/beta URLs, Apple signing/provisioning, signed Apple Wallet `.pkpass`, physical QR/NFC validation, and chain operator key hardening with vault/KMS or delegated signer plus multisig/timelock.
+- Remaining status: the actual human-reviewed Alpha walkthrough recording is still open. The capture automation can now produce a local evidence bundle, but public/real-user Beta remains blocked by production tenant/staff staging evidence, signed iOS/TestFlight staging evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC validation, and chain custody evidence.
 
 ## After Alpha Walkthrough Evidence Bundle Capture on 2026-05-30
 
-- Ran `npm run alpha:walkthrough:capture` and produced the reviewed local evidence bundle:
-  - `outputs/alpha-walkthrough/20260529T182908Z/manifest.md`
-  - `outputs/alpha-walkthrough/20260529T182908Z/fanpass-console.png`
+- Ran `npm run alpha:walkthrough:capture` and produced a reviewed local evidence bundle, superseded by the 2026-06-04 clean capture:
+  - `outputs/alpha-walkthrough/20260604T122652Z/manifest.md`
+  - `outputs/alpha-walkthrough/20260604T122652Z/fanpass-console.png`
   - command logs for the demo script audit, walkthrough evidence audit, Beta foundation verifier, local Beta start/verify/stop flow, and Console visual check.
 - The capture confirmed:
   - `npm run beta:foundation:verify` passed with API typecheck, Console typecheck, side-effect health, and 11 API test suites / 54 tests;
@@ -4177,11 +4180,11 @@ bash -n scripts/alpha-walkthrough-capture.sh scripts/alpha-walkthrough-capture-s
 
 ```bash
 npm run alpha:walkthrough:capture
-grep -R -n -E 'sk_live_|sk_test_|pk_live_|whsec_|BEGIN PRIVATE KEY|PRIVY_VERIFICATION_KEY=|STRIPE_SECRET_KEY=|Authorization: Bearer ' outputs/alpha-walkthrough/20260529T182908Z || true
+npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z
 ```
 
 - Current progress: Beta foundation/security hardening is 138/159 tasks, 86.8% by checklist count.
-- Remaining status: the human-reviewed walkthrough recording remains open. The local bundle supports recording review but does not prove public/TestFlight Beta readiness; remaining blockers are real Privy SDK login/dashboard validation, production tenant/staff policy validation in staging, real Stripe signed-webhook validation, deployed HTTPS staging evidence with a real admin bearer, dependency advisory closure or risk acceptance, real iOS staging/beta URLs, Apple signing/provisioning, signed Apple Wallet `.pkpass`, physical QR/NFC validation, and chain operator key hardening with vault/KMS or delegated signer plus multisig/timelock.
+- Remaining status: the human-reviewed walkthrough recording remains open. The local bundle supports recording review but does not prove public/real-user Beta readiness; remaining blockers are production tenant/staff staging evidence, signed iOS/TestFlight staging evidence, public dependency readiness, signed Apple Wallet `.pkpass`, physical QR/NFC validation, and chain custody evidence.
 
 ## After Node Runtime Policy Gate on 2026-05-30
 
@@ -4804,8 +4807,8 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 
 ## Next Engineering Tasks
 
-1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260529T182908Z/` as supporting evidence, then close out the still-open recording task.
-2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, iOS/TestFlight staging build evidence, dependency advisory closure or risk acceptance, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
+1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260604T122652Z/` as supporting evidence, then close out the still-open recording task.
+2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, iOS/TestFlight staging build evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
 3. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
 4. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
 

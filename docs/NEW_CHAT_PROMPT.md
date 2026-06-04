@@ -26,7 +26,7 @@ Start by running `git status --short --branch` and do not revert user changes. T
 - apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift
 
 Current stage: Beta foundation/security hardening.
-Current checklist: 380/383 tasks, 99.2%.
+Current checklist: 381/383 tasks, 99.5%.
 
 Known live staging:
 - API: https://fanpass-api-staging.onrender.com
@@ -42,6 +42,9 @@ Important provider status:
 - Full Stripe test-mode release evidence has passed at `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, covering capture, authorization cancel, refund, reconciliation, duplicate webhook replay/idempotency, and healthy residual side-effect outbox state against the Render staging API.
 - Non-human SDK/payment implementation checklist items are closed: Privy SDK login is implemented across FanPass, FanPass Ops, and isolated FanPass Console auth; Privy webhook sync is resolved as intentionally absent for the current plan; and Stripe test-mode PaymentIntent/webhook/client checkout work is closed through native iOS PaymentSheet plus saved Render staging evidence.
 - Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta may use short owner-approved dependency risk evidence, but public or real-user Beta must use a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
+- Dependency risk acceptance evidence has passed for closed-beta-only scope at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, expiring on 2026-07-04. It does not permit public or real-user Beta.
+- Alpha security blocker rollup has been refreshed: Privy SDK login, Stripe test-mode release evidence, deployed HTTPS runtime evidence, hosted CI, and closed-beta-only dependency risk acceptance are closed for current Beta foundation. Public/real-user Beta still needs production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, chain custody, and public dependency readiness.
+- Latest supporting Alpha walkthrough capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed capture and redaction with token/email-free Console screenshot review, but the human-reviewed recording task remains open until an actual `.mp4`, `.mov`, or `.webm` artifact and saved review JSON pass validation.
 - Current hosted CI evidence for the Beta foundation PR branch has been refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`; it covers GitHub Actions run `26873871164` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` and passed `npm run security:ci-hosted:evidence` plus repository evidence redaction.
 - Order settlement durable outbox/saga engineering tasks are closed locally; chain custody remains a separate real-world evidence blocker.
 - Render side-effect worker scheduler is enabled in env: FANPASS_SIDE_EFFECT_WORKER_ENABLED=true, FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000, SIDE_EFFECT_WORKER_LIMIT=10.
@@ -54,7 +57,7 @@ Safety rules:
 - The user has authorized Codex to use available plugins and app tools as needed, including Product Design, Build iOS Apps, Build Web Apps, Browser, Chrome, Figma, Render, Vercel, GitHub, Data Analytics, Documents, Presentations, Spreadsheets, and related MCP/tool integrations. Choose the smallest appropriate tool set and keep all safety rules above.
 
 Highest-value next task:
-Choose the next remaining Beta foundation blocker, likely production tenant/staff staging evidence, dependency advisory closure or risk acceptance, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
+Choose the next remaining Beta foundation blocker, likely the human-reviewed Alpha walkthrough recording, production tenant/staff staging evidence, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or chain custody evidence. Report stage, completed work, checklist percentage, and remaining blockers.
 ```
 
 If the new chat is only for status/reporting, ask it to summarize `docs/CODEX_HANDOFF.md` and list the open blockers from `docs/DEVELOPMENT_TASKS.md` without changing files.

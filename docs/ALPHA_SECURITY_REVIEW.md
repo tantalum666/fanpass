@@ -2347,27 +2347,30 @@ Follow-up after Console Next exit planning on 2026-06-04:
 - Added QA and roadmap guardrails so new Console work should keep data shaping, redaction, and API helpers framework-neutral where practical, avoid new undocumented Next route handlers, and avoid user-controlled CSS/style serialization while the advisory remains unresolved.
 - Remaining status: this reduces future migration cost but does not close or accept the dependency advisory blocker. External testing still requires clean audit evidence or owner-approved closed-beta risk evidence; public/real-user Beta cannot proceed on unresolved Next/PostCSS risk acceptance alone.
 
-Beta cannot be considered security-ready until all of these are complete:
+Follow-up after closed-beta dependency risk acceptance on 2026-06-04:
 
-1. Real product authentication UX and session validation are implemented across all surfaces.
-2. Role-based authorization guards protect every API endpoint.
-3. Client-provided `userId`, `scannerUserId`, and role values are replaced by server-verified session claims.
-4. Console is protected by organizer/admin auth.
-5. CORS is allowlisted.
-6. QR signing secret is mandatory outside local development.
-7. Data responses are privacy-scoped and redacted by default.
-8. Order settlement and redemption are idempotent and concurrency-safe.
-9. Payment authorization, capture, refund, and webhook reconciliation are idempotent and verified with Stripe test mode before real money is used; backend CLI verification, native iOS PaymentSheet authorization through the HTTPS dashboard webhook path, and saved staging evidence for capture/cancel/refund/reconciliation/replay/outbox health now exist.
-10. Provider plan assumptions are verified in the actual Stripe/Privy dashboards before features become Beta blockers.
-11. Production dependencies are patched or explicitly risk-accepted.
-12. Security headers are configured and verified at runtime.
-13. Prototype/debug endpoints are disabled outside local development.
-14. Real-device iOS builds use HTTPS and environment-specific config.
+- Recorded project-owner approval for short `closed-beta-only` acceptance of the current unresolved production dependency risk.
+- Saved evidence at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json` with Node 22 production audit proof, current package/policy SHA-256 snapshots, exactly the known 2 moderate `next`/`postcss` advisories, no high or critical production advisories, no safe patched Next/PostCSS path, 14-day review cadence, and expiry on 2026-07-04.
+- Verification passed for `npm run security:dependency-risk:evidence -- outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, `npm run security:evidence-redaction -- outputs/dependency-risk`, and `npm run security:dependency-advisories`.
+- Remaining status: the dependency advisory blocker is closed for closed external Beta only. Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or Console migration off Next's production runtime path.
+
+Current Alpha security blocker rollup:
+
+- Closed for current closed-beta foundation: product Privy SDK integration across FanPass, FanPass Ops, and isolated FanPass Console auth; role-based API and Console authorization coverage; server-derived actor identity; Console organizer/admin session protection; CORS allowlisting; mandatory production-like QR/session/Privy/payment secrets; default response redaction; idempotent settlement, redemption, Stripe webhook replay, payment capture/cancel/refund/reconciliation, and durable side-effect outbox handling; actual Stripe and Privy dashboard/provider evidence; runtime security-header evidence; hosted CI evidence; deployed HTTPS runtime evidence; and owner-approved `closed-beta-only` Next/PostCSS risk acceptance expiring on 2026-07-04.
+- Still blocking public or real-user Beta: production tenant/staff staging evidence with verified Privy sessions and organizer isolation; signed iOS/TestFlight staging evidence with real HTTPS API URLs and no debug payload helpers; signed Apple Wallet `.pkpass` evidence; physical QR/NFC device validation; saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock; a human-reviewed Alpha walkthrough recording artifact; and dependency clean-audit/safe Next/PostCSS upgrade/Console migration before any public or real-user launch.
+
+Follow-up after Alpha security blocker rollup and walkthrough capture refresh on 2026-06-04:
+
+- Updated the frozen demo script, walkthrough evidence contract, recording evidence policy, QA checklist, roadmap, provider-cost notes, handoff, and new-chat prompt so remaining blocker language reflects the current Beta foundation state instead of stale Privy/Stripe/staging/dependency blockers.
+- Increased `npm run beta:local:verify` async settlement/payment-capture wait budget from 20 to 60 attempts after the repeatable capture flow showed the side-effect worker completing jobs just after the old 15-second window on this machine. The verifier still requires a settled trade, captured local payment, completed ownership transfer, completed ownership finalization, completed payment capture side effect, and admin-only side-effect health.
+- Updated `npm run console:verify:local` so it validates one-time and rotated invite token panels, clears them, removes raw email-shaped form values, and only then captures the Console screenshot for walkthrough evidence.
+- Latest supporting capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed `npm run alpha:walkthrough:capture`, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review.
+- Remaining status: this refreshes local recording support evidence and blocker wording. It does not close the still-open human-reviewed recording task because no reviewed `.mp4`, `.mov`, or `.webm` recording artifact and saved review JSON exist yet.
 
 ## Recommended Next Work Order
 
-1. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
-2. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access.
-3. Patch dependency advisories or save owner-approved risk acceptance.
-4. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
-5. Run a second security review before external Beta testing.
+1. Record and save the human-reviewed Alpha walkthrough artifact, then validate its saved review JSON.
+2. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
+3. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
+4. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access before real users.
+5. Resolve the public/real-user dependency path with clean audit evidence, a safe Next/PostCSS upgrade, or Console migration off Next before any public launch.

@@ -171,6 +171,7 @@
 - [x] Add deployment/cloud credential leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [x] Add CI secret masking command literal leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [ ] Record an Alpha walkthrough using the frozen local script.
+  - Latest supporting local capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed capture, redaction, and screenshot review, but it is not a human-reviewed recording artifact.
 - [x] Verify provider plan feasibility before locking Beta architecture.
   - [x] Document current Stripe/Privy low-cost plan findings in `docs/PROVIDER_COST_FEASIBILITY.md`.
   - [x] Add Privy dashboard plan evidence validator and self-test with `npm run security:privy-plan:evidence`.
@@ -286,7 +287,7 @@
   - [x] Add deployed staging runtime evidence proof for API trust-proxy hop configuration.
   - [x] Bind deployed staging runtime evidence to the current API/Console header, trust-proxy, admin-health, WebSocket, and evidence-validator implementation SHA-256 snapshot.
   - [x] Re-run and document the same header/config checks in a deployed staging environment.
-- [ ] Resolve or explicitly document dependency audit advisories before external testing.
+- [x] Resolve or explicitly document dependency audit advisories before external testing.
   - [x] Remove `ethers/ws` from API production dependency path by dynamically loading `ethers` only for the explicit testnet ownership adapter.
   - [x] Document current Next/PostCSS advisory status and force-fix decision in `docs/DEPENDENCY_ADVISORY_LOG.md`.
   - [x] Add repeatable production/full audit scripts and document failed safe PostCSS override attempts.
@@ -313,6 +314,7 @@
   - [x] Bind dependency risk evidence to the current advisory gate, risk validator, tooling audit, and dependency policy docs SHA-256 snapshot.
   - [x] Add full dependency tooling audit gate for Hardhat/contract-toolchain high-advisory containment.
   - [x] Add Console Next exit plan and public/real-user release rule so unresolved Next/PostCSS advisories do not become harder to remove later.
+  - Closed-beta-only owner risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`. This closes the dependency blocker only for closed external Beta. Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or a Console migration off Next's production runtime path.
 - [x] Complete end-to-end Privy product integration.
   - [x] Design and implement the backend Privy sync boundary so access-token verification is sufficient without Privy webhooks.
   - [x] Prevent first-time Privy users from claiming existing FanPass accounts by email.

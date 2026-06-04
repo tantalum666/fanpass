@@ -99,7 +99,7 @@ function auth(accessToken, extra = {}) {
   };
 }
 
-async function waitFor(label, check, attempts = 20) {
+async function waitFor(label, check, attempts = 60) {
   let last;
   for (let index = 0; index < attempts; index += 1) {
     try {

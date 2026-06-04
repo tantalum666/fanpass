@@ -60,6 +60,24 @@ async function main() {
       .getByTestId("rotated-staff-invite-token")
       .waitFor({ state: "visible", timeout: 15000 });
     const bodyText = await page.locator("body").innerText();
+
+    await page
+      .getByTestId("rotated-staff-invite-token")
+      .getByRole("button", { name: "Clear" })
+      .click();
+    await page
+      .getByTestId("staff-invite-token")
+      .getByRole("button", { name: "Clear" })
+      .click();
+    await page
+      .getByTestId("staff-invite-token")
+      .waitFor({ state: "hidden", timeout: 15000 });
+    await page
+      .getByTestId("rotated-staff-invite-token")
+      .waitFor({ state: "hidden", timeout: 15000 });
+
+    await page.locator('input[name="staffEmail"]').fill("redacted");
+
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
     const result = {

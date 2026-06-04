@@ -114,12 +114,12 @@ Status: local evidence bundle captured; walkthrough recording remains open until
 
 ## Remaining blockers
 
-- Real Privy SDK login.
-- Real Stripe test-mode keys and signed webhooks.
-- Deployed HTTPS staging evidence.
-- Next/PostCSS advisory closure or explicit risk acceptance.
+- Production tenant/staff staging evidence.
+- Signed iOS/TestFlight staging evidence.
+- Public/real-user dependency clean audit or Console migration.
 - Signed Apple Wallet \`.pkpass\`.
-- Real-device NFC/TestFlight validation.
+- Physical QR/NFC device validation.
+- Chain custody evidence.
 EOF
 
 scan_for_forbidden_markers "$MANIFEST"

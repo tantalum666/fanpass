@@ -58,11 +58,11 @@ npm run alpha:walkthrough:capture
 
 Latest reviewed local capture bundle:
 
-- `outputs/alpha-walkthrough/20260529T182908Z/manifest.md`
-- `outputs/alpha-walkthrough/20260529T182908Z/fanpass-console.png`
+- `outputs/alpha-walkthrough/20260604T122652Z/manifest.md`
+- `outputs/alpha-walkthrough/20260604T122652Z/fanpass-console.png`
 - Command logs for demo script audit, walkthrough evidence audit, Beta foundation verifier, local start, local verify, Console visual check, and local stop are in the same bundle directory.
 
-The bundle passed the capture command's forbidden-marker scan and keeps the human-reviewed recording task open.
+The bundle passed the capture command's forbidden-marker scan and `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, keeps one-time invite tokens and raw email-shaped form values out of the Console screenshot, and keeps the human-reviewed recording task open.
 
 Saved artifacts under `outputs/` must also pass:
 
@@ -75,14 +75,21 @@ This repository-level scan covers walkthrough, staging runtime, CI, provider, iO
 ## Forbidden evidence
 
 - Do not record shell environment variables, `.env` files, bearer tokens, private keys, Stripe secrets, Privy secrets, or production provider dashboards.
-- Do not claim the recording proves real Privy login, real Stripe webhooks, deployed staging, signed Wallet passes, TestFlight, or real-device NFC.
+- Do not claim the recording proves production tenant/staff staging policy, signed Wallet passes, TestFlight, physical QR/NFC validation, chain custody, public dependency readiness, or public Beta readiness.
 - Do not move the Beta checklist item to complete until a real artifact set exists under `outputs/alpha-walkthrough/` and this evidence contract is updated intentionally.
+
+## Closed for current closed-beta foundation
+
+- Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime. Signed-device OTP and production tenant/staff staging proof remain separate blockers.
+- Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, authorization cancellation, refund, reconciliation, duplicate webhook replay, and residual outbox-health evidence passed against Render staging.
+- Deployed HTTPS staging runtime evidence passed for the current Render API and Vercel Console surfaces.
+- Current unresolved Next/PostCSS production dependency risk has owner-approved `closed-beta-only` acceptance evidence expiring on 2026-07-04.
 
 ## Remaining blockers
 
-- Real Privy SDK login
-- Real Stripe test-mode keys
-- Deployed HTTPS staging evidence
-- Next/PostCSS advisory closure or explicit risk acceptance
+- Production tenant/staff staging evidence
+- Signed iOS/TestFlight staging evidence
+- Public/real-user dependency clean audit or Console migration
 - Signed Apple Wallet `.pkpass`
-- Real-device NFC/TestFlight validation
+- Physical QR/NFC device validation
+- Chain custody evidence

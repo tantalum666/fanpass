@@ -212,12 +212,12 @@ function alphaWalkthroughEvidence() {
     "",
     "## Remaining blockers",
     "",
-    "- Real Privy SDK login",
-    "- Real Stripe test-mode keys",
-    "- Deployed HTTPS staging evidence",
-    "- Next/PostCSS advisory closure or explicit risk acceptance",
+    "- Production tenant/staff staging evidence",
+    "- Signed iOS/TestFlight staging evidence",
+    "- Public/real-user dependency clean audit or Console migration",
     "- Signed Apple Wallet `.pkpass`",
-    "- Real-device NFC/TestFlight validation",
+    "- Physical QR/NFC device validation",
+    "- Chain custody evidence",
     "",
   ].join("\n");
 }

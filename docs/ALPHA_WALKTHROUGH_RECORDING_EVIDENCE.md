@@ -2,7 +2,7 @@
 
 Status: saved recording review evidence gate ready; human-reviewed recording artifact remains open.
 
-This file defines the saved JSON evidence contract for closing the Alpha walkthrough recording task. The local capture bundle under `outputs/alpha-walkthrough/20260529T182908Z/` can support review, but it is not the recording artifact.
+This file defines the saved JSON evidence contract for closing the Alpha walkthrough recording task. The local capture bundle under `outputs/alpha-walkthrough/20260604T122652Z/` can support review, but it is not the recording artifact.
 
 ## Required saved evidence
 
@@ -25,7 +25,7 @@ The saved JSON must prove:
 - `recording.supportingCaptureOnly: true`, so capture bundles cannot be substituted for the actual recording artifact.
 - All seven scenes from `docs/ALPHA_WALKTHROUGH_EVIDENCE.md` in order.
 - The verification commands `npm run alpha:demo-script:audit`, `npm run alpha:walkthrough:evidence:audit`, `npm run beta:foundation:verify`, `npm run beta:local:start`, `npm run beta:local:verify`, `npm run beta:local:stop`, and `npm run security:evidence-redaction`.
-- Visual review proof that FanPass has no staff controls, FanPass Ops owns scanner flow, FanPass Console owns organizer/admin controls, local-only scope is disclosed, external Beta readiness is not claimed, and remaining blockers are named.
+- Visual review proof that FanPass has no staff controls, FanPass Ops owns scanner flow, FanPass Console owns organizer/admin controls, local-only scope is disclosed, public/real-user Beta readiness is not claimed, and remaining blockers are named.
 - Redaction proof for provider secrets, Stripe secrets and publishable keys, Privy secrets, bearer tokens, private keys, deployment credentials, personal data, wallet addresses, QR payloads, and production credentials.
 
 ## Recording policy snapshot
@@ -83,5 +83,5 @@ The snapshot must be regenerated after the demo script, walkthrough evidence con
 ## Forbidden evidence
 
 - Do not include real emails, wallet addresses, QR nonces, signed QR payloads, bearer tokens, provider secrets, Stripe keys, Privy secrets, deployment credentials, database URLs, private keys, Apple signing material, device identifiers, or production credentials.
-- Do not claim the recording proves real Privy login, real Stripe webhooks, deployed staging, signed Wallet passes, TestFlight, real-device NFC, hosted CI, chain custody, or public Beta readiness.
+- Do not claim the recording proves production tenant/staff staging policy, signed Wallet passes, TestFlight, physical QR/NFC device validation, chain custody, clean public dependency posture, or public Beta readiness.
 - Do not close the `Record an Alpha walkthrough using the frozen local script` task until a real human-reviewed recording artifact exists and its saved review JSON passes this validator.

@@ -30,11 +30,12 @@ const requiredMarkers = [
   "Scene 6 - FanPass Ops Entry",
   "Scene 7 - Security Boundary Close",
   "Local settlement completes through durable outbox jobs without real Stripe or chain credentials.",
-  "Real Privy SDK login",
-  "Real Stripe test-mode keys",
-  "Deployed HTTPS staging evidence",
+  "Production tenant/staff staging evidence",
+  "Signed iOS/TestFlight staging evidence",
+  "Public/real-user dependency clean audit or Console migration",
   "Signed Apple Wallet `.pkpass` output",
-  "Real-device NFC/TestFlight validation",
+  "Physical QR/NFC device validation",
+  "Chain custody evidence",
   "Do not show shell environment variables",
 ];
 

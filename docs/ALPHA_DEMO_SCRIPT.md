@@ -156,15 +156,21 @@ Proven locally:
 - Role-scoped API and Console paths have automated checks.
 - Side-effect workers can recover and complete local ownership/payment jobs.
 
-Not proven for external Beta:
+Closed for current closed-beta foundation:
 
-- Real Privy SDK login and dashboard plan support.
-- Real Stripe test-mode keys, signed webhooks, PaymentSheet confirmation, capture, refund, cancellation, and reconciliation.
-- Deployed HTTPS staging evidence.
-- Next/PostCSS advisory closure or explicit risk acceptance.
-- Real iOS staging/beta URLs.
+- Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime.
+- Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, refund, cancellation, reconciliation, replay, and outbox-health evidence passed against Render staging.
+- Deployed HTTPS staging runtime evidence exists for the current API and Console.
+- Current unresolved Next/PostCSS dependency risk is accepted only for closed external Beta until 2026-07-04.
+
+Not proven for public or real-user Beta:
+
+- Production tenant/staff staging evidence.
+- Signed iOS/TestFlight staging evidence.
+- Public/real-user dependency clean audit or Console migration.
 - Signed Apple Wallet `.pkpass` output.
-- Real-device NFC/TestFlight validation.
+- Physical QR/NFC device validation.
+- Chain custody evidence.
 
 Final verification command:
 
