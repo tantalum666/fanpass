@@ -88,7 +88,7 @@ The current implementation snapshot files and SHA-256 hashes are:
 - `apps/api/src/common/fanpass-socket-io.adapter.ts`: `148f80303b5dac2b8310c58a952c42a1a5d70f03c1f76a459a46b4cd7f71a246`
 - `apps/api/src/modules/alpha/alpha.controller.ts`: `79e13f9aef0ac0ca55f3a07a292fee56bc3c3df76361aa8a153a45b2c7109645`
 - `apps/api/src/modules/side-effects/side-effect-health.service.ts`: `0804138b2db924583c48869ad998a70b38dfdb077d3e0ac00c33d56235a20dfe`
-- `apps/dashboard/next.config.ts`: `9baf7b153279ef1de2cfc566adb0b9e9b4a03fdb6d1afd4bd7d6e51dd8735e75`
+- `apps/dashboard/server/console-bff.ts`: regenerate with the current source before accepting new staging evidence.
 - `scripts/security-runtime-staging-check.sh`: `cb9ac39b3b6035b06ec76bc5de08bc53576434d59fc7d6a71fb5247c86855275`
 - `scripts/staging-runtime-evidence-audit.js`: `32146678533c94e5f813803ce1f235274b7dca462bd660495ffae7b87d246ab7`
 - `scripts/security-runtime-staging-local-dry-run.sh`: `69ee2213d6fa06596baf713d82c475e490f5ad83432723a68a9082747b1bce49`
@@ -108,7 +108,7 @@ For local dry-runs only:
 npm run security:runtime:staging:dry-run
 ```
 
-The dry-run starts a staging-like API on port `4200` and a staging-like Console on port `3200`, with local Prisma storage, demo auth disabled, explicit one-hop trust-proxy configuration, unauthenticated Console locked, a staging-like HTTPS origin header for the orderbook Socket.IO check, and an ephemeral local ES256 keypair for the Privy-like admin bearer check. Because Next dev and Next production builds share `apps/dashboard/.next`, this dry-run stops any local Console dev screen on port `3000` before building. Run `npm run beta:local:start` afterwards when you want the Prisma-backed local Console restored. Do not treat a local dry-run as deployed staging evidence.
+The dry-run starts a staging-like API on port `4200` and a staging-like Console on port `3200`, with local Prisma storage, demo auth disabled, explicit one-hop trust-proxy configuration, unauthenticated Console locked, a staging-like HTTPS origin header for the orderbook Socket.IO check, and an ephemeral local ES256 keypair for the Privy-like admin bearer check. The dry-run stops any local Console dev screen on port `3000` before building the Vite/Node BFF Console. Run `npm run beta:local:start` afterwards when you want the Prisma-backed local Console restored. Do not treat a local dry-run as deployed staging evidence.
 
 ## Deployment Order
 
@@ -116,7 +116,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 2. Configure API environment from `apps/api/.env.staging.example`.
 3. Run Prisma schema push/migration for staging only after confirming the database is not production.
 4. Deploy API and verify `/health`. Current API origin: `https://fanpass-api-staging.onrender.com`.
-5. Configure Console environment from `apps/dashboard/.env.staging.example`.
+5. Configure Console environment from `apps/dashboard/.env.staging.example` or the `fanpass-console-staging` service in `render.yaml`.
 6. Deploy Console and verify unauthenticated locked/sign-in state.
 7. Run `npm run security:runtime:staging` with real HTTPS URLs.
 8. Save the JSON command output under `outputs/staging-runtime/`, validate it with `npm run security:runtime:staging:evidence -- <file>`, and summarize the result in `docs/ALPHA_SECURITY_REVIEW.md` before treating staging checks as closed.
@@ -126,7 +126,10 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
 - Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31 and again on 2026-06-03 after a free-plan cold start.
 - Render reported the live deploy as `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d` (`Use Word report for FanPass handoff`) on 2026-06-03. The worker scheduler code remains from the earlier deployed `75b4e68bc7835bc2d4532259a3cecac2ab8e99da` commit.
-- Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`; the first Vercel build failed on Node 24, then passed after `apps/dashboard/package.json` pinned Node `>=22 <23`.
+- Historical Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`, but that evidence belongs to the old Next runtime.
+- Current Vite/Node Console service `fanpass-console-staging` is live at `https://fanpass-console-staging.onrender.com` on Render from branch `codex/beta-foundation-hosted-ci`.
+- Cookie-backed Console mutations in staging currently allow the Render Console origin `https://fanpass-console-staging.onrender.com` through `FANPASS_CONSOLE_ORIGINS`; the old dashboard origin itself should not be assumed to be an allowed mutation origin.
+- A 2026-06-07 deployed runtime check against the Render Console saved partial output at `outputs/staging-runtime/20260606T174805Z-render-console-vite-node.json`. It proves deployed API/Console headers, disabled demo auth, unauthenticated Console API rejection, and orderbook CORS for the new Console origin, but it does not pass `npm run security:runtime:staging:evidence` until a fresh staging admin bearer is supplied for admin side-effect outbox health.
 - Render `FANPASS_CORS_ORIGINS` is updated to `https://fanpass-dashboard.vercel.app` and the API was redeployed after the change.
 - `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence` passed against the real Render/Vercel HTTPS URLs with a real staging Privy admin bearer copied from the FanPass Ops simulator. The saved evidence proves the positive admin side-effect outbox health check without storing the bearer token.
 - Stripe dashboard test-mode webhook setup, native iOS PaymentSheet authorization, capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against the Render staging API. The saved evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`.

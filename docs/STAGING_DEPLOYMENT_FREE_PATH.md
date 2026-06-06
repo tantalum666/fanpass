@@ -1,12 +1,12 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, the Vercel Console is live on the free HTTPS hostname, and the deployed staging evidence bundle passes with a real staging Privy admin bearer from the iOS simulator login path.
+Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the current Vite/Node Console is deployed as `fanpass-console-staging` on Render. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. A new deployed runtime check passed all non-admin probes against the Render Console on 2026-06-07, but final evidence validation still needs a fresh staging admin bearer so the admin side-effect outbox health check can be recorded without storing the token.
 
 ## Targets
 
 - Database: Neon Postgres project `fanpass-staging`.
 - API: Render free web service `fanpass-api-staging`.
-- Console: Vercel Next.js project rooted at `apps/dashboard`.
+- Console: Render free Node web service `fanpass-console-staging`.
 
 ## API on Render
 
@@ -32,7 +32,7 @@ Use `render.yaml` as the reproducible configuration baseline. Keep these values 
 - future `STRIPE_SECRET_KEY`
 - future `STRIPE_WEBHOOK_SECRET`
 
-`FANPASS_CORS_ORIGINS` is set to the current Vercel Console origin and the API was redeployed after the update:
+`FANPASS_CORS_ORIGINS` must be set to the current HTTPS Console origin before collecting deployed staging evidence. Historical evidence used:
 
 ```text
 https://fanpass-dashboard.vercel.app
@@ -48,20 +48,34 @@ FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000
 SIDE_EFFECT_WORKER_LIMIT=10
 ```
 
-## Console on Vercel
+## Console HTTPS Deployment
 
-Current service:
+Historical service:
 
 ```text
 https://fanpass-dashboard.vercel.app
 ```
 
-The Vercel project is `fanpass-dashboard`, rooted at `apps/dashboard`, and the dashboard package pins Node `>=22 <23` so Vercel does not build it with Node 24.
-
-Create the Vercel project from the same repository with root directory:
+Current Render service:
 
 ```text
-apps/dashboard
+https://fanpass-console-staging.onrender.com
+```
+
+The historical Vercel project was `fanpass-dashboard`, rooted at `apps/dashboard`, from the old Next runtime. After the 2026-06-06 migration, `apps/dashboard` should be deployed as a Node service that serves the Vite build through `apps/dashboard/server/console-bff.ts`. `render.yaml` now includes a `fanpass-console-staging` service definition for this path.
+
+Expected build/start commands:
+
+```bash
+npm install
+npm run build -w apps/dashboard
+npm run start -w apps/dashboard
+```
+
+The deployed Render Console origin used by cookie-backed mutations is:
+
+```text
+https://fanpass-console-staging.onrender.com
 ```
 
 Set:
@@ -69,9 +83,13 @@ Set:
 ```text
 FANPASS_ENV=staging
 FANPASS_API_BASE_URL=https://fanpass-api-staging.onrender.com
-NEXT_PUBLIC_API_BASE_URL=https://fanpass-api-staging.onrender.com
-FANPASS_CONSOLE_ORIGINS=https://fanpass-dashboard.vercel.app
+VITE_API_BASE_URL=https://fanpass-api-staging.onrender.com
+FANPASS_CONSOLE_ORIGINS=https://fanpass-console-staging.onrender.com
+FANPASS_CONSOLE_AUTH_ORIGIN=https://fanpass-console-staging.onrender.com
+VITE_CONSOLE_AUTH_BASE_URL=https://fanpass-console-staging.onrender.com
 ```
+
+`STAGING_CONSOLE_URL` must be the deployed Node BFF Console URL for the current source. The `FANPASS_CONSOLE_ORIGINS` value is the allowed browser origin for cookie-backed Console mutations from the isolated auth bridge; requests from other origins should remain rejected by the mutation-origin guard.
 
 ## Validation
 
@@ -79,7 +97,7 @@ Run the deployed runtime check without printing tokens:
 
 ```bash
 STAGING_API_URL=https://<render-api-host>/health \
-STAGING_CONSOLE_URL=https://<vercel-console-host>/ \
+STAGING_CONSOLE_URL=https://<console-host>/ \
 STAGING_API_TRUST_PROXY_HOPS=1 \
 npm run security:runtime:staging
 ```
@@ -90,6 +108,6 @@ Save the JSON output under `outputs/staging-runtime/`, then validate it:
 npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json>.json
 ```
 
-The deployed staging gate is closed for the Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. The accepted evidence proves API/Console headers, disabled demo sessions, unauthenticated admin-health rejection, authenticated admin side-effect outbox health, unauthenticated Console locked/sign-in rendering, API trust-proxy hop configuration, and orderbook WebSocket origin checks without storing the bearer token in source control or saved evidence.
+The deployed staging gate was closed for the historical Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. After the 2026-06-07 Render Console deployment, `outputs/staging-runtime/20260606T174805Z-render-console-vite-node.json` passed the deployed API/Console header, demo-auth rejection, unauthenticated Console API rejection, and orderbook CORS probes, but it intentionally does not close the gate because no fresh staging admin bearer was available for the admin side-effect outbox health proof.
 
 Stripe-specific staging status on 2026-05-31: dashboard test-mode webhook setup and native iOS PaymentSheet authorization were exercised against this Render API. Before closing the Stripe release gate, save and validate full test-mode evidence for capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.

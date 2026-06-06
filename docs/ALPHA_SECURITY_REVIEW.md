@@ -170,14 +170,14 @@ Update after Isolated Console Privy React SDK Login on 2026-06-03:
 - Extended the Console session bridge with origin-checked CORS/OPTIONS support for the isolated auth runtime while keeping organizer/admin role gating and HttpOnly cookie storage.
 - Updated provider-boundary and Console route audits so SDK imports/dependency manifests are rejected everywhere except `apps/console-auth`, and so adding the isolated app to root workspaces/root lockfile fails.
 - Saved passing evidence at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`; root production audit remains at the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime audit records 25 moderate advisories and must stay isolated.
-- Remaining status: this closes the Console React SDK login/isolation blocker for the local Beta foundation. External Beta still requires production tenant/staff staging evidence, dependency advisory closure or risk acceptance, saved iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, chain custody evidence, and the human-reviewed walkthrough recording.
+- Remaining status: this closes the Console React SDK login/isolation blocker for the local Beta foundation. Follow-up staging tenant/staff evidence now passes, and the owner removed the human-reviewed recording requirement from current Beta foundation blockers; external Beta still requires dependency advisory closure or risk acceptance, saved iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
 
 Update after non-human SDK/payment checklist closure on 2026-06-03:
 
 - Closed the `Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console` checklist item after validating that FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime.
 - Closed the Stripe test-mode PaymentIntent/webhook implementation parent and client checkout subtask because the current consumer product uses native iOS Stripe `PaymentSheet` as its client checkout surface, with saved Render staging evidence for PaymentIntent authorization, signed webhooks, capture, authorization cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.
 - Verification passed for `npm run security:provider-boundaries`, `npm run security:console-routes`, `npm run security:staff-invite-policy`, `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`, and `npm run security:privy-console-react-sdk:isolation -- outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`.
-- Remaining status: this closes only local/non-human implementation checklist items. External Beta still requires the human-reviewed walkthrough recording, production tenant/staff staging evidence, dependency advisory closure or owner risk acceptance, saved real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
+- Remaining status: this closes only local/non-human implementation checklist items. Follow-up staging tenant/staff evidence now passes, and the owner removed the human-reviewed recording requirement from current Beta foundation blockers; external Beta still requires dependency advisory closure or owner risk acceptance, saved real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
 
 Update after Security Pass 15 on 2026-05-28:
 
@@ -1245,7 +1245,7 @@ Update after Security Pass 84 on 2026-05-30:
 - Added `npm run alpha:walkthrough:evidence:audit` and its fixture self-test, both wired into `npm run beta:foundation:verify`.
 - The audit verifies local-only recording scope, seven-scene coverage, required verification commands, `outputs/alpha-walkthrough/` artifact-path requirements, explicit remaining Beta blockers, and no-secret constraints.
 - The self-test rejects missing local-only evidence scope, missing seven-scene coverage, premature recording task closeout, embedded provider secret markers, and missing composite verifier wiring.
-- Remaining status: recording preparation is now harder to overstate, but the actual walkthrough recording remains open until a local-only artifact set is captured. External Beta still requires real Privy, Stripe, staging, dependency, Apple Wallet, and real-device validation.
+- Remaining status at that time: recording preparation was harder to overstate, but the actual walkthrough recording remained open until a local-only artifact set was captured. Later on 2026-06-04 the owner removed the recording requirement from current Beta foundation blockers.
 
 Update after Security Pass 85 on 2026-05-30:
 
@@ -1254,7 +1254,7 @@ Update after Security Pass 85 on 2026-05-30:
 - Added no-secret scanning for generated logs and manifests, rejecting obvious Stripe secret prefixes, Privy verification-key assignments, private-key blocks, and bearer-token strings.
 - Added `npm run alpha:walkthrough:capture:self-test` with a fake npm boundary that verifies command order, output files, screenshot path handling, no-secret scans, and manifest language that keeps the human-reviewed recording task open.
 - Extended the walkthrough evidence audit and composite Beta verifier so capture automation cannot drift after being marked complete.
-- Remaining status: local capture automation exists, but the actual Alpha walkthrough recording remains open until a human-reviewed recording artifact is produced under `outputs/alpha-walkthrough/`. External Beta still requires real Privy, Stripe, staging, dependency, Apple Wallet, and real-device validation.
+- Remaining status at that time: local capture automation existed, but the actual Alpha walkthrough recording remained open until a human-reviewed recording artifact was produced under `outputs/alpha-walkthrough/`. Later on 2026-06-04 the owner removed the recording requirement from current Beta foundation blockers.
 
 Update after Security Pass 86 on 2026-05-30:
 
@@ -2239,7 +2239,7 @@ Update after Security Pass 219 on 2026-05-30:
 - Required chain custody evidence to prove `redaction.ciSecretMaskingCommandsRedacted: true` before future vault/KMS or delegated signer custody evidence can be trusted.
 - Updated fixture-backed `npm run security:chain-custody:evidence:self-test` coverage to reject copied CI masking command values and missing masking-command redaction proof.
 - Updated chain custody evidence, task, QA, roadmap, provider-cost, and handoff docs so real-chain custody evidence coverage includes CI secret masking command literals alongside private keys, seed phrases, provider secrets, provider RPC URLs, deployment/cloud credentials, database URLs, Stripe publishable keys, and real user data.
-- Remaining status: this strengthens the saved chain custody evidence contract before real testnet/pilot chain evidence is trusted, but it does not provision vault/KMS or delegated signer custody, transfer contract ownership to multisig/timelock, run real chain side effects, or close ASR-014. External Beta still requires chain custody evidence, real Privy dashboard/app evidence, Console Privy SDK login, real Stripe test-mode evidence, saved staff tenant staging evidence, iOS/TestFlight evidence, deployed staging evidence, saved hosted CI evidence, dependency advisory closure or risk acceptance, physical scanner evidence, signed Wallet evidence, and the human-reviewed walkthrough recording.
+- Remaining status: this strengthens the saved chain custody evidence contract before real testnet/pilot chain evidence is trusted, but it does not provision vault/KMS or delegated signer custody, transfer contract ownership to multisig/timelock, run real chain side effects, or close ASR-014. Follow-up Privy, Stripe, staff tenant, deployed staging, and hosted CI evidence now passes, and the owner removed the human-reviewed recording requirement from current Beta foundation blockers; External Beta still requires chain custody evidence, iOS/TestFlight evidence, dependency public-readiness closure, physical scanner evidence, and signed Wallet evidence.
 
 Update after Stripe Backend Test-Mode Verification on 2026-05-30:
 
@@ -2329,7 +2329,7 @@ Follow-up after hosted CI evidence capture on 2026-06-03:
 - The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, a healthy `postgres:16-alpine` service, and `npm run beta:foundation:verify`; the run completed with 12 API suites / 59 tests.
 - Saved redacted evidence at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json`.
 - Verification passed for `npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `npm run security:evidence-redaction`.
-- Remaining status: hosted CI evidence is closed for the current workflow/verifier snapshot, but it must be regenerated after workflow, verifier, lockfile, Node/npm policy, or evidence-contract changes. External Beta still requires real Privy dashboard/app evidence, Console Privy SDK login, production tenant/staff staging evidence, dependency advisory closure or risk acceptance, iOS/TestFlight evidence, physical scanner evidence, signed Wallet evidence, chain custody evidence, and the human-reviewed walkthrough recording.
+- Remaining status: hosted CI evidence is closed for the current workflow/verifier snapshot, but it must be regenerated after workflow, verifier, lockfile, Node/npm policy, or evidence-contract changes. Follow-up Privy, Stripe, production tenant/staff staging, and deployed staging evidence now passes, and the owner removed the human-reviewed recording requirement from current Beta foundation blockers; External Beta still requires dependency public-readiness closure, iOS/TestFlight evidence, physical scanner evidence, signed Wallet evidence, and chain custody evidence.
 
 Follow-up after Privy webhook plan-gate closeout on 2026-06-04:
 
@@ -2337,7 +2337,7 @@ Follow-up after Privy webhook plan-gate closeout on 2026-06-04:
 - Resolved the Privy webhook sync task as intentionally absent for the current plan: official Privy docs/pricing put production webhooks on the Enterprise/upgrade path, saved plan evidence keeps webhooks `plan-gated`, and `npm run security:privy-webhooks:optional` rejects webhook routes or `PRIVY_*WEBHOOK*` secret requirements before selected-plan support is verified.
 - No Privy webhook route, webhook handler, webhook signing secret, app secret, verification key, access token, production credential, live Stripe mode, or real personal data was added.
 - Verification passed for the Privy optional-webhook, provider-boundary, saved plan evidence, Console SDK isolation, and full Beta foundation gates.
-- Remaining status: this closes the non-human Privy implementation and webhook-plan checklist items for Beta foundation, but external/public Beta still requires production tenant/staff staging evidence, signed iOS/TestFlight evidence, dependency advisory closure or owner-approved risk acceptance, signed Wallet evidence, physical QR/NFC evidence, saved chain custody evidence, and the human-reviewed walkthrough recording.
+- Remaining status: this closes the non-human Privy implementation and webhook-plan checklist items for Beta foundation. Follow-up staging tenant/staff evidence now passes, and the owner removed the human-reviewed recording requirement from current Beta foundation blockers, but external/public Beta still requires signed iOS/TestFlight evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC evidence, and saved chain custody evidence.
 
 Follow-up after Console Next exit planning on 2026-06-04:
 
@@ -2354,10 +2354,33 @@ Follow-up after closed-beta dependency risk acceptance on 2026-06-04:
 - Verification passed for `npm run security:dependency-risk:evidence -- outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, `npm run security:evidence-redaction -- outputs/dependency-risk`, and `npm run security:dependency-advisories`.
 - Remaining status: the dependency advisory blocker is closed for closed external Beta only. Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or Console migration off Next's production runtime path.
 
+Follow-up after Console Next production-runtime exit on 2026-06-06:
+
+- Migrated the main `apps/dashboard` FanPass Console from Next to Vite React static assets plus `apps/dashboard/server/console-bff.ts`.
+- Preserved the existing organizer/admin session bridge, HttpOnly Console cookie, mutation origin/CORS guard, operations proxy, gate assignment proxy, one-time invite redaction, orderbook Socket.IO panel, and production-like security headers without keeping Next in the primary production dependency path.
+- `npm run security:audit:prod -- --json` reports `0` production advisories, and `npm run security:dependency-advisories` reports `releaseBlocker: null`.
+- Updated Console route, provider-boundary, API privacy, security-header, staging-runtime, staff-invite, Privy, and evidence-draft gates to audit the Vite/Node BFF shape instead of the removed Next route handlers.
+- Remaining status: public dependency readiness is closed for the root production path. Do not re-add Next to `apps/dashboard` without a fresh security review, clean production audit, and full Beta verifier pass.
+
+Follow-up after Render Vite/Node Console staging deployment on 2026-06-07:
+
+- Created Render web service `fanpass-console-staging` for the current Vite/Node Console at `https://fanpass-console-staging.onrender.com` from branch `codex/beta-foundation-hosted-ci`.
+- Updated Render API `FANPASS_CORS_ORIGINS` to include the new Console origin and redeployed `fanpass-api-staging` so the deployed `/orderbook` WebSocket accepts the current Console origin.
+- Updated `npm run security:runtime:staging` and its dry-run/self-test path so the Vite SPA Console evidence proves an unauthenticated app shell plus `GET /api/console/operations -> 401`, instead of relying on server-rendered locked-state text from the old Next runtime.
+- Local staging-like dry-run passed with `npm run security:runtime:staging:dry-run` and validation passed with `npm run security:runtime:staging:evidence -- --allow-dry-run /tmp/fanpass-staging-runtime-dry-run-current.txt`.
+- Saved deployed partial evidence at `outputs/staging-runtime/20260606T174805Z-render-console-vite-node.json`. It proves deployed API/Console security headers, absent powered-by headers, disabled demo sessions, unauthenticated admin-health rejection, unauthenticated Console API rejection, trust-proxy hop proof, and orderbook allowed/disallowed-origin behavior for the new Render Console.
+- Remaining status: this partial evidence intentionally does not close the deployed staging evidence gate because no fresh staging admin bearer was available to prove `admin side-effect outbox health ok`. Complete it by rerunning `npm run security:runtime:staging` with a fresh staging admin bearer in `STAGING_ADMIN_ACCESS_TOKEN` and validating the saved JSON.
+
 Current Alpha security blocker rollup:
 
-- Closed for current closed-beta foundation: product Privy SDK integration across FanPass, FanPass Ops, and isolated FanPass Console auth; role-based API and Console authorization coverage; server-derived actor identity; Console organizer/admin session protection; CORS allowlisting; mandatory production-like QR/session/Privy/payment secrets; default response redaction; idempotent settlement, redemption, Stripe webhook replay, payment capture/cancel/refund/reconciliation, and durable side-effect outbox handling; actual Stripe and Privy dashboard/provider evidence; runtime security-header evidence; hosted CI evidence; deployed HTTPS runtime evidence; and owner-approved `closed-beta-only` Next/PostCSS risk acceptance expiring on 2026-07-04.
-- Still blocking public or real-user Beta: production tenant/staff staging evidence with verified Privy sessions and organizer isolation; signed iOS/TestFlight staging evidence with real HTTPS API URLs and no debug payload helpers; signed Apple Wallet `.pkpass` evidence; physical QR/NFC device validation; saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock; a human-reviewed Alpha walkthrough recording artifact; and dependency clean-audit/safe Next/PostCSS upgrade/Console migration before any public or real-user launch.
+- Closed for current closed-beta foundation: product Privy SDK integration across FanPass, FanPass Ops, and isolated FanPass Console auth; role-based API and Console authorization coverage; server-derived actor identity; Console organizer/admin session protection; CORS allowlisting; mandatory production-like QR/session/Privy/payment secrets; default response redaction; idempotent settlement, redemption, Stripe webhook replay, payment capture/cancel/refund/reconciliation, and durable side-effect outbox handling; actual Stripe and Privy dashboard/provider evidence; runtime security-header evidence; hosted CI evidence; deployed HTTPS runtime evidence; and clean root production dependency audit after the Console Next exit.
+- Still blocking public or real-user Beta: signed iOS/TestFlight staging evidence with real HTTPS API URLs and no debug payload helpers; signed Apple Wallet `.pkpass` evidence; physical QR/NFC device validation; and saved release-grade chain custody evidence for vault/KMS or delegated signer plus multisig/timelock.
+
+Follow-up after dynamic QR lifecycle and dev-only outbox chain smoke on 2026-06-06:
+
+- Added Prisma-backed `EntryCredential` lifecycle state for short-lived QR/NFC entry credentials. New QR issue supersedes prior active credentials for the same ticket, accepted redemption consumes the credential with the check-in/ticket/audit transaction, and rejected refreshed credentials no longer rely only on HMAC expiry or check-in nonce history.
+- Added a dev-only Sepolia outbox proof-sync smoke that exercises `OWNERSHIP_ISSUE`, `OWNERSHIP_TRANSFER`, and `OWNERSHIP_REDEEM` through `SideEffectWorkerService`. The saved full artifact remains under gitignored `.fanpass-local/chain-dev/`, console output is redacted, and the command reports `custodyEvidence: false`.
+- Remaining status: this improves dynamic QR lifecycle and development confidence in the chain worker path. It does not close physical-device QR/NFC evidence, signed Wallet evidence, signed iOS/TestFlight evidence, or release-grade chain custody.
 
 Follow-up after Alpha security blocker rollup and walkthrough capture refresh on 2026-06-04:
 
@@ -2365,20 +2388,18 @@ Follow-up after Alpha security blocker rollup and walkthrough capture refresh on
 - Increased `npm run beta:local:verify` async settlement/payment-capture wait budget from 20 to 60 attempts after the repeatable capture flow showed the side-effect worker completing jobs just after the old 15-second window on this machine. The verifier still requires a settled trade, captured local payment, completed ownership transfer, completed ownership finalization, completed payment capture side effect, and admin-only side-effect health.
 - Updated `npm run console:verify:local` so it validates one-time and rotated invite token panels, clears them, removes raw email-shaped form values, and only then captures the Console screenshot for walkthrough evidence.
 - Latest supporting capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed `npm run alpha:walkthrough:capture`, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review.
-- Remaining status: this refreshes local recording support evidence and blocker wording. It does not close the still-open human-reviewed recording task because no reviewed `.mp4`, `.mov`, or `.webm` recording artifact and saved review JSON exist yet.
+- Remaining status: this refreshes optional local recording support evidence and blocker wording. The owner later removed the human-reviewed recording requirement from current Beta foundation blockers, so no reviewed `.mp4`, `.mov`, or `.webm` recording artifact is required unless the gate is deliberately reintroduced.
 
 Follow-up after release evidence draft helper on 2026-06-04:
 
-- Added `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody` and a fixture-backed self-test to seed non-passing, secret-free drafts for the remaining production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody evidence gates.
+- Added `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody` and a fixture-backed self-test to seed non-passing, secret-free drafts for production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody evidence gates. The staff tenant staging gate now has passing evidence; the helper remains useful if that evidence must be regenerated after relevant implementation drift.
 - The helper is intentionally not release evidence: each draft uses `ok: false`, current SHA-256 snapshots, placeholders, redaction defaults, and a `nextValidator` field. Real external proof must replace placeholders and pass the matching validator before any blocker closes.
 - Generated current ignored draft files under `outputs/staff-tenant/`, `outputs/ios-staging-build/`, `outputs/apple-wallet/`, `outputs/ops-scanner/`, and `outputs/chain-custody/` for the next evidence collection pass.
 - Verification passed for `npm run release:evidence:draft:self-test`, targeted `npm run security:evidence-redaction` over the five generated drafts, and the full `npm run beta:foundation:verify`.
-- Remaining status: this improves repeatability and reduces stale-snapshot/secret-leakage risk, but public or real-user Beta remains blocked by the actual external evidence gates and the human-reviewed walkthrough recording.
+- Remaining status: this improves repeatability and reduces stale-snapshot/secret-leakage risk, but public or real-user Beta remains blocked by the actual external evidence gates.
 
 ## Recommended Next Work Order
 
-1. Record and save the human-reviewed Alpha walkthrough artifact, then validate its saved review JSON.
-2. Add production-grade staff invitation/linking policy evidence for Console and FanPass Ops in staging.
-3. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
-4. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access before real users.
-5. Resolve the public/real-user dependency path with clean audit evidence, a safe Next/PostCSS upgrade, or Console migration off Next before any public launch.
+1. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
+2. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access before real users.
+3. Keep the root production audit clean and block any reintroduction of Next or equivalent production dependency risk through the Beta verifier.
