@@ -44,26 +44,40 @@ The user has explicitly authorized Codex to use available plugins and app tools 
 - Security is a release blocker, not a cleanup task. Do not use real personal data, production credentials, live Stripe mode, raw private keys, production Privy secrets, saved tokens, unsanitized screenshots, or evidence containing secrets.
 - Do not claim public, real-user, TestFlight, signed Wallet, physical scanner, chain custody, payment, or provider readiness unless the matching saved evidence exists and passes the documented validator.
 
-Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-06-04:
+Current version progress snapshot, based on `docs/DEVELOPMENT_TASKS.md` checklist counts on 2026-06-07:
 
 - Technical Prototype: 100%.
 - Alpha local demo baseline: 100%.
-- Beta foundation/security hardening: 381/383 tasks, 99.5% by checklist count, but still not suitable for real users because the human-reviewed walkthrough recording, production tenant/staff policy evidence, saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete. Dependency risk is accepted only for closed external Beta until 2026-07-04.
+- Beta foundation/security hardening: 396/397 tasks, 99.7% by checklist count, but still not suitable for real users because saved real iOS staging/TestFlight build evidence for real HTTPS API URLs, signed Apple Wallet `.pkpass` generation and physical-device validation, real-device QR/NFC validation, and saved release-grade chain custody evidence for vault/KMS or delegated signer plus multisig/timelock remain incomplete. The prior public dependency blocker is closed for the root production path after migrating `apps/dashboard` off Next to Vite React plus a Node BFF and obtaining a clean production audit.
+- On 2026-06-05, dynamic QR/Core NFC local foundation advanced: `VerificationService` now generates versioned signed entry payloads with `credentialId`, `ticketTypeId`, `entryMode`, `kid`, owner hash, expiry, and base64url HMAC signatures while preserving old hex-signature verification compatibility; `/verification/nfc/validate` is staff/admin-only and normalizes NDEF Text/URI payloads into the same redemption path; FanPass Ops NFC captures now call the NFC validation endpoint. Local verification passed `npm run test -w apps/api -- --runTestsByPath test/verification.service.spec.ts test/route-security.spec.ts`, `npm run typecheck -w apps/api`, and both FanPass/FanPassOps simulator builds. Physical-device NFC evidence, Redis replay lock, durable QR credential lifecycle, and real staging/TestFlight proof remain open.
+- On 2026-06-05, local smart-contract foundation advanced: `FanPassTicket` now supports safe ticket/ticket-type/policy/metadata proof hashes, refunded state, lifecycle transfer blocking, and owner-only proof updates; `FanPassSoulbound` now supports safe Access Badge proof hashes, ERC5192-style locked behavior, and revocation; `RedemptionRegistry` now stores duplicate-protected event/gate/credential redemption context; `packages/contracts/scripts/deploy-local.ts` dry-runs all three contracts on the local Hardhat network. Verification passed `scripts/with-node-22.sh npm run test -w packages/contracts` and `scripts/with-node-22.sh npm run deploy:local -w packages/contracts`. This is not Sepolia deployment or chain custody evidence.
 
-## Latest New-Chat Snapshot on 2026-06-04
+Brand/UI redesign foundation:
+
+- Clean V4 is now the only visual identity source of truth for future UI/UX work. Use `FanPass_VI_Redesign_V4/` and do not redesign the V4 logo or app icon.
+- Clean V4 audit and implementation guardrails live in `docs/brand/FanPass_VI_Clean_V4_Audit.md`, `docs/brand/FanPass_UI_Guardrails.md`, and `docs/brand/FanPass_Final_Design_Tokens_V4.md`.
+- V4 machine tokens are mirrored at `docs/brand/fanpass-brand-tokens.json` and sourced from `FanPass_VI_Redesign_V4/docs/fanpass-brand-tokens-v4.json`.
+- `docs/BRAND_VI.md`, `docs/brand/FanPass_Visual_Identity.md`, `docs/brand/FanPass_Brand_Tokens.md`, and `docs/brand/FanPass_Asset_Usage_Guide.md` are superseded historical context.
+- SwiftUI design-system foundations live in `apps/ios/FanPass/FanPass/DesignSystem/`; the color/gradient foundation now mirrors Clean V4.
+- Future UI work must follow the V4 guardrails: no decorative lines crossing text, QR, logos, buttons, charts, prices, ticket metadata, or navigation; NFC waves must be contained icons/indicators or background shapes below 8% opacity.
+- Complete Clean V4 UX structure docs now live in `docs/ux/`: `FanPass_Information_Architecture_V4.md`, `FanPass_User_Flows_V4.md`, `FanPass_Screen_List_V4.md`, `FanPass_Content_Model_V4.md`, and `FanPass_Interaction_Principles_V4.md`. Do not implement SwiftUI screens until the screen pass follows these IA, role-boundary, content, and interaction rules.
+- Clean V4 iOS foundation now exists in the real Xcode source path `apps/ios/FanPass/FanPass/`, with `ios/FanPass` as a symlink compatibility path. The FanPass app root is now `FanPassV4AppShellView`, a mock-only SwiftUI shell using V4 tokens, V4 components, namespaced `FanPassV4` models, mock data, and mock services. It intentionally does not call backend, real payment, real chain, or real NFC services. The older API-backed `AppShellView` and feature files remain in the repo for migration/reference.
+
+## Latest New-Chat Snapshot on 2026-06-07
 
 Use this section first when resuming in a new conversation.
 
 Current stage: `Beta foundation/security hardening`.
 
-Current checklist count: `381/383`, `99.5%`.
+Current checklist count: `396/397`, `99.7%`.
 
 Latest deployed staging state:
 
 - API: `https://fanpass-api-staging.onrender.com`
-- Console: `https://fanpass-dashboard.vercel.app`
+- Console: `https://fanpass-console-staging.onrender.com`
 - GitHub repo: `https://github.com/tantalum666/fanpass`
 - Latest deployed API commit verified in Render on 2026-06-03: `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d` (`Use Word report for FanPass handoff`). The worker implementation was introduced in the earlier deployed commit `75b4e68bc7835bc2d4532259a3cecac2ab8e99da`; `07d4cb6` only changed `README.md` and `docs/FANPASS_REPORT.md`.
+- Latest deployed Console commit verified in Render on 2026-06-07: `2df41595d23dd756984fa7f0e4299ab9e62bbeef` (`Record Render Console partial staging evidence`), with the Vite React static UI plus Node BFF introduced in `2fd850e35341844a953db151652b2f4c7088b8c9`.
 - Render API health returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}` after free-plan cold start on 2026-06-03.
 - Render worker scheduler env was set through the dashboard/API, not committed: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, `SIDE_EFFECT_WORKER_LIMIT=10`.
 - Render logs on 2026-06-03 showed the side-effect worker scheduler enabled at 15000 ms on the live service and one prior processing line after the worker deployment: `processed=1 completed=1 retried=0 dead=0 recovered=0`. A Render one-off job attempt to run `npm run side-effects:health -w @fanpass/api` could not be used because Render free-tier services do not support jobs.
@@ -77,15 +91,15 @@ Latest provider status:
 - Follow-up on 2026-06-03: the remaining order-settlement parent tasks were closed after confirming the durable outbox/saga engineering subitems are complete and the local gates still pass: `npm run security:settlement-retry-idempotency`, `npm run side-effects:verify:self-test`, and `npm run side-effects:health:self-test`. The full `scripts/with-node-22.sh npm run beta:foundation:verify` gate was re-run afterward and passed, including side-effect live verification, side-effect health, API and Console typechecks, plus 12 API test suites / 59 tests. This does not close the separate chain custody blocker, which still requires saved vault/KMS or delegated signer plus multisig/timelock evidence.
 - Hosted GitHub Actions evidence is now refreshed at `outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` for a successful PR run of `FanPass Beta Foundation` at commit `bad6847617ce83fdb5b8c1a7eeb302c6ff7644fc` after the isolated Console Privy SDK login change. The run used `ubuntu-latest`, Node `22.22.3` from `.nvmrc`, `npm ci`, `postgres:16-alpine`, and `npm run beta:foundation:verify`; validation passed with `scripts/with-node-22.sh npm run security:ci-hosted:evidence -- outputs/ci-hosted/20260603T141752Z-github-actions-beta-foundation.json` and `scripts/with-node-22.sh npm run security:evidence-redaction`.
 - Privy Dev app dashboard plan evidence was refreshed on 2026-06-03 at `outputs/privy-plan/privy-plan-20260603.json` after implementation/documentation SHA drift and now passes `npm run security:privy-plan:evidence -- outputs/privy-plan/privy-plan-20260603.json`. The evidence records mobile SDK support, embedded-wallet support, backend access-token verification support, custom auth UI support, and keeps webhooks plus MFA/policy controls plan-gated/optional. On 2026-06-04, the current Beta foundation webhook item was resolved as intentionally absent: production Privy webhooks are plan-gated/Enterprise-path functionality in official Privy docs/pricing, FanPass keeps backend access-token sync as the supported boundary, and `npm run security:privy-webhooks:optional` prevents webhook routes or `PRIVY_*WEBHOOK*` secrets from being introduced before selected-plan support is verified. Older mobile config evidence exists but is currently stale against the user's uncommitted DEBUG-only iOS helper edits; do not refresh or close iOS-dependent evidence until those edits are deliberately reviewed.
-- FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Root production audit remains limited to the known 2 moderate Next/PostCSS advisories, while the isolated auth runtime records 25 moderate advisories and must stay isolated.
+- FanPass Console React SDK login is implemented in isolated runtime `apps/console-auth`, which is intentionally outside root workspaces/default production audit. It posts Privy access tokens only to `/api/console/privy-session`; saved evidence passed at `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The main `apps/dashboard` Console now runs as Vite React static assets plus `apps/dashboard/server/console-bff.ts`; root production audit is clean, while the isolated auth runtime remains separate.
 - Non-human SDK/payment implementation checklist items are closed after validating current boundaries: FanPass and FanPass Ops use the shared Privy Swift SDK email OTP provider, FanPass Console uses the isolated Privy React SDK auth runtime, Privy webhook sync is resolved as optional/absent for the current plan, and Stripe test-mode PaymentIntent/webhook/client checkout implementation is covered by native iOS PaymentSheet plus saved Render staging evidence. This does not close signed-device OTP, production tenant/staff, Wallet, scanner, or chain custody evidence blockers.
-- Console Next exit planning is documented in `docs/CONSOLE_NEXT_EXIT_PLAN.md`: closed Beta can use short owner-approved dependency risk evidence, but public or real-user Beta must have a clean production audit, a safe patched Next/PostCSS upgrade, or a Console migration off Next's production runtime path.
-- Closed-beta-only dependency risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, with `acceptedByRole: "project-owner"`, `scope: "closed-beta-only"`, and expiry on 2026-07-04. This closes the dependency blocker for closed external Beta only; public or real-user Beta still requires clean production audit, safe patched Next/PostCSS upgrade, or Console migration off Next.
-- Alpha security blocker rollup was refreshed on 2026-06-04: Privy SDK login, Stripe test-mode release evidence, deployed HTTPS runtime evidence, hosted CI, and closed-beta-only dependency risk acceptance are closed for the current Beta foundation, while production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, chain custody, public dependency posture, and the human-reviewed walkthrough recording remain open for public or real-user Beta.
-- A release evidence draft helper now seeds the five remaining external evidence gates without closing them: `npm run release:evidence:draft -- staff-tenant|ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>`. Drafts intentionally emit `ok: false`, current SHA-256 snapshots, placeholders, and the next validator command so they cannot be mistaken for release evidence.
-- The latest supporting local Alpha walkthrough capture bundle is `outputs/alpha-walkthrough/20260604T122652Z/`; it passed capture, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review after clearing one-time invite token panels and raw email-shaped form values. It supports the recording review but does not close `Record an Alpha walkthrough using the frozen local script`.
-- FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, but signed/staging-device OTP evidence and production-like tenant/staff evidence remain open.
-- Render/Vercel free HTTPS staging runtime evidence passed with a real staging Privy admin bearer from the simulator login path.
+- Console Next exit is complete for `apps/dashboard`: the previous Next production runtime was replaced with Vite React plus a Node built-in HTTP BFF. `npm run security:dependency-advisories` reports `releaseBlocker: null` and a clean production audit.
+- Closed-beta-only dependency risk acceptance evidence remains at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, with `acceptedByRole: "project-owner"`, `scope: "closed-beta-only"`, and expiry on 2026-07-04, but the root production dependency blocker is now closed by migration rather than risk acceptance.
+- Alpha security blocker rollup was refreshed on 2026-06-06: Privy SDK login, Stripe test-mode release evidence, deployed HTTPS runtime evidence, hosted CI, production tenant/staff staging evidence, owner-skipped walkthrough recording, and public dependency readiness are closed for the current Beta foundation, while signed iOS/TestFlight, signed Wallet, physical QR/NFC, and release-grade chain custody remain open for public or real-user Beta.
+- A release evidence draft helper now seeds the remaining external evidence gates without closing them: `npm run release:evidence:draft -- ios-build|apple-wallet|ops-scanner|chain-custody --out <draft-json>`. Drafts intentionally emit `ok: false`, current SHA-256 snapshots, placeholders, and the next validator command so they cannot be mistaken for release evidence.
+- The latest supporting local Alpha walkthrough capture bundle is `outputs/alpha-walkthrough/20260604T122652Z/`; it passed capture, `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and screenshot review after clearing one-time invite token panels and raw email-shaped form values. The owner removed the human-reviewed recording requirement from current Beta foundation blockers on 2026-06-04; recording evidence is optional unless deliberately reintroduced.
+- FanPass/FanPass Ops simulator OTP paths worked for local/staging evidence, and production-like tenant/staff staging evidence now passes. Signed/staging-device OTP evidence remains open.
+- Render free HTTPS staging runtime evidence for the current Render API plus Render Vite/Node Console passed with a real staging Privy admin bearer from the simulator login path at `outputs/staging-runtime/20260606T180256Z-render-console-vite-node-admin.json`.
 
 Local working tree warning:
 
@@ -95,7 +109,7 @@ Local working tree warning:
 Fast resume prompt:
 
 - Read `docs/NEW_CHAT_PROMPT.md` and the core docs listed below.
-- Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are production tenant/staff staging evidence, real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, chain custody evidence, or the human-reviewed Alpha walkthrough recording.
+- Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or release-grade chain custody evidence.
 
 ## Repository
 
@@ -106,7 +120,7 @@ Workspace:
 Important paths:
 
 - `apps/api` - NestJS API.
-- `apps/dashboard` - Next.js web dashboard, now positioned as `FanPass Console`.
+- `apps/dashboard` - Vite React web dashboard plus Node BFF, positioned as `FanPass Console`.
 - `packages/contracts` - Solidity contracts and Hardhat tests.
 - `packages/shared` - shared TypeScript types.
 - `apps/ios/FanPass` - SwiftUI iOS fan app source and generated Xcode project.
@@ -4169,7 +4183,7 @@ bash -n scripts/alpha-walkthrough-capture.sh scripts/alpha-walkthrough-capture-s
 ```
 
 - Current progress: Beta foundation/security hardening is 137/158 tasks, 86.7% by checklist count.
-- Remaining status: the actual human-reviewed Alpha walkthrough recording is still open. The capture automation can now produce a local evidence bundle, but public/real-user Beta remains blocked by production tenant/staff staging evidence, signed iOS/TestFlight staging evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC validation, and chain custody evidence.
+- Remaining status at that time: the actual human-reviewed Alpha walkthrough recording was still open. Later on 2026-06-04 the owner removed the recording requirement from current Beta foundation blockers. Public/real-user Beta remains blocked by signed iOS/TestFlight staging evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC validation, and chain custody evidence.
 
 ## After Alpha Walkthrough Evidence Bundle Capture on 2026-05-30
 
@@ -4192,7 +4206,7 @@ npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652
 ```
 
 - Current progress: Beta foundation/security hardening is 138/159 tasks, 86.8% by checklist count.
-- Remaining status: the human-reviewed walkthrough recording remains open. The local bundle supports recording review but does not prove public/real-user Beta readiness; remaining blockers are production tenant/staff staging evidence, signed iOS/TestFlight staging evidence, public dependency readiness, signed Apple Wallet `.pkpass`, physical QR/NFC validation, and chain custody evidence.
+- Remaining status at that time: the human-reviewed walkthrough recording was still open. Later on 2026-06-04 the owner removed the recording requirement from current Beta foundation blockers. The local bundle supports optional future recording review but does not prove public/real-user Beta readiness; remaining blockers are signed iOS/TestFlight staging evidence, public dependency readiness, signed Apple Wallet `.pkpass`, physical QR/NFC validation, and chain custody evidence.
 
 ## After Node Runtime Policy Gate on 2026-05-30
 
@@ -4829,14 +4843,156 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `scripts/with-node-22.sh npm run release:evidence:draft:self-test`
   - `scripts/with-node-22.sh npm run security:evidence-redaction -- outputs/staff-tenant/20260604T000000Z-draft.json outputs/ios-staging-build/20260604T000000Z-draft.json outputs/apple-wallet/20260604T000000Z-draft.json outputs/ops-scanner/20260604T000000Z-draft.json outputs/chain-custody/20260604T000000Z-draft.json`
   - `scripts/with-node-22.sh npm run beta:foundation:verify`
-- Remaining status: production tenant/staff staging, signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody still require real external proof and passing validators. The helper only reduces setup, stale-snapshot, and secret-leakage risk for those evidence runs.
+- Remaining status: staff tenant staging now has passing real staging evidence, and the helper remains useful if staff invite, Console proxy, Ops linking, or gate policy implementation drift requires regeneration. Signed iOS/TestFlight, signed Wallet, physical QR/NFC, and chain custody still require real external proof and passing validators.
+
+## After Completed Staff Tenant Staging Evidence on 2026-06-04
+
+- Completed production-like staging staff evidence against the Render API and Vercel Console URL without printing or saving bearer tokens, Privy access tokens, invite tokens, raw emails, staff ids, organizer ids, ticket ids, wallet addresses, provider secrets, deployment credentials, database URLs, or Stripe keys.
+- Read the separate staff Privy token from the booted iOS simulator pasteboard and used the previously saved one-time invite state from `/tmp/fanpass-staff-tenant-state.json`; both remained outside source control and saved evidence.
+- Verified in staging:
+  - Staff invite acceptance with a separate verified Privy staff session returned `GATE_STAFF`.
+  - Reusing the same staff invite was rejected.
+  - Superseded invite acceptance was rejected.
+  - Linked staff invite rotation was rejected.
+  - Deactivating a gate assignment revoked the linked staff session's gate access.
+  - Inactive assignments could not receive new invites.
+  - Linked staff could read check-in summary only for assigned gates.
+  - Assigned-gate QR redemption succeeded, duplicate QR redemption was rejected, unassigned-gate redemption was rejected, and a client-supplied scanner identity field was rejected by request validation.
+  - Deployed staging `POST /auth/demo-session` rejected a real existing verified test user with `Demo sessions are disabled`.
+  - Deployed Console mutations from the allowed staging auth origin rejected unauthenticated access with 401.
+  - The deployed Console Privy session bridge set the expected HttpOnly, Secure, SameSite cookie for a verified admin session.
+  - The deployed Console staff invite proxy created and rotated one-time invite tokens without returning raw identity fields or persisting tokens in a URL.
+  - The deployed Console session bridge rejected a linked gate-staff role with 403 and did not set a cookie. This supports non-console-role rejection but does not satisfy the validator's separate fan-role proof requirement.
+  - The deployed Console session bridge rejected a verified fan role with 403 and did not set a cookie.
+- Saved completed redacted staging evidence at `outputs/staff-tenant/20260604T135635Z-staging-evidence.json` (ignored by git). `npm run security:staff-tenant:staging-evidence -- outputs/staff-tenant/20260604T135635Z-staging-evidence.json` and `npm run security:evidence-redaction -- outputs/staff-tenant/20260604T135635Z-staging-evidence.json` passed.
+- Completed the remaining staff-tenant evidence gaps:
+  - Second-organizer isolation plus cross-organizer Console read, staff assignment, and invite rotation rejection.
+- Console origin note: deployed Console mutations accept the staging auth origin `https://fanpass-console-staging.vercel.app`; the dashboard origin `https://fanpass-dashboard.vercel.app` is not itself in the mutation-origin allowlist. Keep Vercel `FANPASS_CONSOLE_ORIGINS` aligned with the auth bridge origin before collecting future Console session evidence.
+- Current progress by full `docs/DEVELOPMENT_TASKS.md` checkbox count is 391/392 tasks, 99.7%; the staff tenant staging evidence blocker, owner-skipped walkthrough recording task, dynamic QR/Core NFC local foundation, and local smart-contract foundation are closed for current local Beta foundation scope, while the remaining open checkbox is the overall public/real-user Alpha security blocker umbrella.
+
+## After Local Smart-Contract Foundation on 2026-06-05
+
+- Extended `packages/contracts/contracts/FanPassTicket.sol` with safe proof hashes for ticket id, ticket type, policy, and metadata; added refunded lifecycle state; blocked transfer after cancelled, refunded, or redeemed states; and added owner-only proof updates.
+- Extended `packages/contracts/contracts/FanPassSoulbound.sol` with safe Access Badge proof hashes, ERC5192-style locked behavior, and owner-only revocation state.
+- Extended `packages/contracts/contracts/RedemptionRegistry.sol` with duplicate-protected event, gate, credential, and redemption context hashes.
+- Added `packages/contracts/scripts/deploy-local.ts` and `npm run deploy:local -w packages/contracts` for local Hardhat deployment dry-run only.
+- Added `docs/technical/FanPass_Contract_Deployment_Runbook_V4.md` and updated V4 blockchain/review/task/QA/new-chat docs to make the local-vs-testnet boundary explicit.
+- Fixed `docs/API_RESPONSE_PRIVACY_MATRIX.md` so the staff/admin-only `POST /verification/nfc/validate` route is classified as `STAFF_PRIVATE`; this was required for the full Beta foundation verifier after the QR/NFC local foundation work.
+- Verification:
+  - `scripts/with-node-22.sh npm run test -w packages/contracts`
+  - `scripts/with-node-22.sh npm run deploy:local -w packages/contracts`
+  - `scripts/with-node-22.sh npm run security:chain-operator-key`
+  - `scripts/with-node-22.sh npm run security:chain-operator-key:self-test`
+  - `scripts/with-node-22.sh npm run security:chain-custody:evidence:self-test`
+  - `scripts/with-node-22.sh npm run security:dependency-tooling`
+  - `scripts/with-node-22.sh npm run security:node-runtime-policy`
+  - `scripts/with-node-22.sh npm run security:api-privacy:self-test`
+  - `scripts/with-node-22.sh npm run security:api-privacy`
+  - `scripts/with-node-22.sh npm run beta:foundation:verify` (passed; API unit tests 12 suites / 61 tests)
+  - `git diff --check`
+- Remaining status: this does not close Sepolia deployment, real chain custody, vault/KMS or delegated signer, multisig/timelock ownership, backend proof sync, or saved chain custody evidence.
+
+## After Chain Custody Draft/Runbook Preparation on 2026-06-05
+
+- Generated a fresh non-passing chain custody draft at `outputs/chain-custody/20260605T051653Z-draft.json` with current implementation SHA-256 snapshots.
+- Added `docs/technical/FanPass_Chain_Custody_Runbook_V4.md` with signer policy, rotation, signer-disable, incident response, monitoring, and rollback/pause procedures.
+- Selected the future evidence architecture as Sepolia + Safe multisig owner + OpenZeppelin Relayer with Turnkey signer. Added `docs/technical/FanPass_Sepolia_Safe_Relayer_Setup_V4.md`.
+- Updated `docs/CHAIN_CUSTODY_EVIDENCE.md`, `docs/technical/FanPass_Contract_Deployment_Runbook_V4.md`, and `docs/technical/FanPass_Blockchain_Integration_Plan_V4.md` to reference the custody runbook and setup guide.
+- Remaining status: the draft must stay `ok: false` until real vault/KMS or delegated signer proof, multisig/timelock proof, testnet ownership change proof, durable outbox testnet run proof, healthy residual outbox proof, and redacted signer audit logs are collected.
+
+## After Sepolia Dev-Only Hot-Key Deployment Prep on 2026-06-06
+
+- The owner accepted deferring Safe/multisig and delegated signer setup until later because all signer wallets would currently be owner-operated and manual setup would slow contract development.
+- Added a dev-only Sepolia deployment lane for contract/ABI validation:
+  - `packages/contracts/hardhat.config.ts` now defines `sepoliaDev`.
+  - `packages/contracts/scripts/deploy-sepolia-dev.ts` deploys `FanPassTicket`, `FanPassSoulbound`, and `RedemptionRegistry`, performs fictional proof mint/badge mint/redemption writes, prints a redacted summary, and writes full local deployment details only to `.fanpass-local/chain-dev/`.
+  - `packages/contracts/package.json` now includes `npm run deploy:sepolia-dev -w packages/contracts`.
+  - `.fanpass-local/` is gitignored.
+- The script refuses to run unless `FANPASS_ALLOW_SEPOLIA_DEV_HOTKEY=true`, an HTTPS `FANPASS_SEPOLIA_RPC_URL`, a valid `FANPASS_SEPOLIA_DEV_PRIVATE_KEY`, Sepolia chain id `11155111`, and a funded temporary deployer are present.
+- Added `docs/technical/FanPass_Sepolia_Dev_Hotkey_Runbook_V4.md` and updated chain custody/deployment docs to clarify that this is not release evidence. It must remain `custodyEvidence: false` and cannot close chain custody, public Beta, real-user Beta, production signing, or pilot readiness.
+- Final custody target remains Sepolia + Safe multisig owner + OpenZeppelin Relayer with Turnkey signer.
+
+## After Sepolia Dev-Only Deployment on 2026-06-06
+
+- Configured dev-only Sepolia RPC in ignored `.env.local` using PublicNode: `https://ethereum-sepolia-rpc.publicnode.com`. The temporary private key remains only in ignored local env and must not be pasted into chat, docs, screenshots, git, or saved evidence.
+- Deployed the current contracts to Sepolia with the gated temporary-hot-key path:
+  - `FanPassTicket`
+  - `FanPassSoulbound`
+  - `RedemptionRegistry`
+- The deployment script minted one fictional ticket proof, one fictional Access Badge proof, and one fictional redemption context.
+- Saved only a redacted deployment log at `docs/technical/FanPass_Sepolia_Dev_Deployment_Log_V4.md`; full local deployment details remain under gitignored `.fanpass-local/chain-dev/`.
+- Verification:
+  - `scripts/with-node-22.sh npm run build -w packages/contracts`
+  - `scripts/with-node-22.sh npm run test -w packages/contracts`
+  - `scripts/with-node-22.sh npm run deploy:sepolia-dev -w packages/contracts`
+- Remaining status: this proves only dev contract/ABI viability. It does not close chain custody, Safe/multisig, timelock/admin delay, delegated signer/vault/KMS, durable outbox backend proof-sync, public Beta, or real-user Beta blockers.
+
+## After Backend Sepolia Dev Ownership Smoke on 2026-06-06
+
+- Added owner-only `FanPassTicket.syncTicketTransfer(from, to, tokenId)` so backend-authorized proof synchronization does not pretend the operator has fan wallet approval for `transferFrom`.
+- Updated API `OwnershipService` testnet adapter to use `mintTicketWithProof`, SHA-256 namespaced `bytes32` proof hashes, and `syncTicketTransfer`.
+- Added focused adapter tests proving raw local ticket ids and ticket type ids are not sent as proof parameters and transfer sync uses the owner-only sync function.
+- Added `apps/api/src/workers/sepolia-dev-ownership-smoke.ts`, exposed as `npm run chain:sepolia-dev:ownership-smoke`, for manual dev-only Sepolia mint -> sync transfer -> redeem smoke testing.
+- Re-deployed the updated Sepolia dev-only contracts and ran the backend ownership smoke successfully. Redacted logs:
+  - `docs/technical/FanPass_Sepolia_Dev_Deployment_Log_V4.md`
+  - `docs/technical/FanPass_Sepolia_Dev_Backend_Smoke_V4.md`
+- Added `docs/technical/FanPass_Chain_Security_Review_V4.md`.
+- Remaining status: this is still dev-only and `custodyEvidence: false`; it does not close real chain custody or public/real-user Beta blockers.
+
+## After Final Self-Solvable Chain Validation on 2026-06-06
+
+- Completed the current self-solvable chain development pass without requiring additional owner action:
+  - local contract tests and local Hardhat deployment dry-run pass;
+  - Sepolia dev-only deployment and backend ownership smoke pass with redacted logs only;
+  - API `OwnershipService` typecheck and focused ownership/ticket/outbox tests pass;
+  - provider-boundary, chain-operator-key, chain-custody self-test, saved-evidence redaction, and full `beta:foundation:verify` pass;
+  - `.env.local` and `.fanpass-local/chain-dev/` are ignored by git, and `git diff --check` passes.
+- Security decision unchanged: the temporary Sepolia hot key is development-only and must be rotated/discarded before real evidence. It cannot close chain custody, public Beta, real-user Beta, pilot readiness, Safe/multisig, timelock/admin delay, delegated signer/vault/KMS, or deployed durable-outbox proof-sync blockers.
+- Next chain work now requires deliberate release custody infrastructure: Safe/multisig or equivalent owner, timelock/admin delay, delegated signer/vault/KMS or accepted relayer custody, testnet ownership transfer, outbox-routed chain writes, signer audit logs, outbox health proof, and a saved redacted artifact that passes `npm run security:chain-custody:evidence`.
+
+## After Outbox-Backed Chain Proof-Sync Prewire on 2026-06-06
+
+- Added opt-in `FANPASS_CHAIN_PROOF_SYNC_OUTBOX=true` support to `TicketOwnershipSideEffectsService`.
+- Ticket issue now can enqueue `OWNERSHIP_ISSUE`, resale transfer already enqueues `OWNERSHIP_TRANSFER` and `OWNERSHIP_SETTLEMENT_FINALIZE`, and scanner redemption now can enqueue `OWNERSHIP_REDEEM`.
+- Prisma ticket issue and redemption paths write their ticket/check-in/audit state and outbox job in the same transaction when proof-sync outbox mode is enabled.
+- `SideEffectWorkerService` now dispatches issue, transfer, redemption, and finalization ownership jobs through the same durable retry loop.
+- Added focused tests for the new outbox proof-sync behavior and extended settlement idempotency/provider-boundary audits so issue/redeem chain proof-sync cannot drift out of the side-effect boundary.
+- Default remains `OWNERSHIP_ADAPTER=mock`; production-like `OWNERSHIP_ADAPTER=testnet` is still blocked. This is an integration prewire only, not chain custody evidence.
+
+## After Dynamic QR Lifecycle and Dev-Only Outbox Chain Smoke on 2026-06-06
+
+- Added Prisma `EntryCredential` lifecycle storage for dynamic QR/NFC credentials.
+- Prisma QR issue now persists an active credential and supersedes prior active credentials for the same ticket. Accepted redemption consumes the credential in the same transaction as ticket redemption, check-in creation, audit logging, and optional `OWNERSHIP_REDEEM` outbox enqueue.
+- The memory verification path mirrors credential supersession/consumption for local tests.
+- Added `apps/api/src/workers/sepolia-dev-outbox-proof-sync-smoke.ts` and npm script `chain:sepolia-dev:outbox-smoke`.
+- The new smoke passed against the current Sepolia dev-only contract for `OWNERSHIP_ISSUE`, `OWNERSHIP_TRANSFER`, and `OWNERSHIP_REDEEM` through `SideEffectWorkerService`. Console output was redacted; the full artifact is ignored at `.fanpass-local/chain-dev/sepolia-dev-outbox-proof-sync-smoke-20260606T143025Z.json`.
+- Fixed the Sepolia dev smoke scripts so an empty `FANPASS_TICKET_CONTRACT_ADDRESS` env value falls back to the latest ignored deployment artifact.
+- Fixed `SideEffectWorkerService` ownership issue/redeem completion payloads to include the provider `tokenId`.
+- Verification so far:
+  - `scripts/with-node-22.sh npm run prisma:generate -w apps/api`
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/verification.service.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `scripts/with-node-22.sh npm run chain:sepolia-dev:outbox-smoke`
+- Remaining status: this is still dev-only and `custodyEvidence: false`; it does not close release-grade chain custody, physical QR/NFC evidence, signed Wallet evidence, signed iOS/TestFlight evidence, public dependency readiness, public Beta, or real-user Beta.
+
+## After V4 iOS API Provider Foundation on 2026-06-06
+
+- Added `apps/ios/FanPass/FanPass/Services/FanPassV4APIDataProvider.swift`.
+- Added V4 service protocols for event, ticket, and scanner operations in `FanPassV4MockServices.swift`.
+- `FanPassV4APIDataProvider` maps existing backend event, ticket, and signed QR payload DTOs into Clean V4 models. It keeps mock fallback for product actions whose backend contract is not ready for the V4 prototype yet.
+- `ExploreViewModel`, `CheckoutViewModel`, `TicketsViewModel`, and `ScannerViewModel` now accept injected protocol services while defaulting to mock services for offline product review.
+- Regenerated the Xcode project with `xcodegen generate --spec apps/ios/FanPass/project.yml` so the new Swift file is included in both app targets.
+- Verification:
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+- Current checklist count after closing the Console dependency blocker is 396/397 tasks, 99.7%.
+- Remaining status: this prepares staging-backed V4 UI integration but does not replace mock review flows by default, does not add production auth/session exchange, and does not close signed iOS/TestFlight, signed Wallet, physical QR/NFC, release-grade chain custody, public Beta, or real-user Beta evidence.
 
 ## Next Engineering Tasks
 
-1. Add a human-reviewed recording artifact under `outputs/alpha-walkthrough/` using the reviewed local capture bundle `outputs/alpha-walkthrough/20260604T122652Z/` as supporting evidence, then close out the still-open recording task.
-2. Continue security hardening before any real-user/public Beta: production staff invitation/linking validation in staging, iOS/TestFlight staging build evidence, public dependency readiness, signed Wallet evidence, physical QR/NFC evidence, and chain custody evidence.
-3. Apply FanPass VI v0.2 consistently across FanPass Ops and FanPass Console where appropriate.
-4. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
+1. Continue security hardening before any real-user/public Beta: iOS/TestFlight staging build evidence, signed Wallet evidence, physical QR/NFC evidence, and release-grade chain custody evidence.
+2. Collect release-grade chain custody evidence only after Safe/multisig or equivalent ownership, timelock/admin delay, delegated signer/vault/KMS or accepted relayer custody, deployed outbox-routed chain writes, signer audit logs, and outbox health proof are available.
+3. Validate the Core NFC scanner prototype on a physical iPhone with a supported NDEF tag after signing/provisioning is available.
 
 ## Context Strategy
 

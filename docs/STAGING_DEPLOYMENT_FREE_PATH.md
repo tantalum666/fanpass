@@ -1,6 +1,6 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the current Vite/Node Console is deployed as `fanpass-console-staging` on Render. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. A new deployed runtime check passed all non-admin probes against the Render Console on 2026-06-07, but final evidence validation still needs a fresh staging admin bearer so the admin side-effect outbox health check can be recorded without storing the token.
+Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the current Vite/Node Console is deployed as `fanpass-console-staging` on Render. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. Fresh deployed runtime evidence for the Render API plus Render Vite/Node Console passed on 2026-06-07, including the admin side-effect outbox health check with a fresh staging admin bearer that was not stored in the evidence.
 
 ## Targets
 
@@ -108,6 +108,6 @@ Save the JSON output under `outputs/staging-runtime/`, then validate it:
 npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json>.json
 ```
 
-The deployed staging gate was closed for the historical Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. After the 2026-06-07 Render Console deployment, `outputs/staging-runtime/20260606T175303Z-render-console-vite-node-partial.json` passed the deployed API/Console header, demo-auth rejection, unauthenticated Console API rejection, and orderbook CORS probes, but it intentionally does not close the gate because no fresh staging admin bearer was available for the admin side-effect outbox health proof.
+The deployed staging gate was closed for the historical Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. After the 2026-06-07 Render Console deployment, refreshed evidence passed at `outputs/staging-runtime/20260606T180256Z-render-console-vite-node-admin.json`, covering deployed API/Console headers, demo-auth rejection, unauthenticated Console API rejection, orderbook CORS probes, and admin side-effect outbox health for the new Render Console origin.
 
 Stripe-specific staging status on 2026-05-31: dashboard test-mode webhook setup and native iOS PaymentSheet authorization were exercised against this Render API. Before closing the Stripe release gate, save and validate full test-mode evidence for capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.
