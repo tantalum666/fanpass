@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
-
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.FANPASS_API_BASE_URL ??
+  process.env.VITE_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:4000";
 const CONSOLE_USER_ID =
@@ -28,8 +27,15 @@ export class ConsoleMutationOriginError extends Error {
   }
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const accessToken = await consoleAccessToken();
+export interface CookieAccessTokenSource {
+  cookieHeader?: string | null;
+}
+
+export async function apiGet<T>(
+  path: string,
+  source: CookieAccessTokenSource,
+): Promise<T> {
+  const accessToken = await consoleAccessToken(source);
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -45,8 +51,9 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T, Body extends Record<string, unknown>>(
   path: string,
   body: Body,
+  source: CookieAccessTokenSource,
 ): Promise<T> {
-  const accessToken = await consoleAccessToken();
+  const accessToken = await consoleAccessToken(source);
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: {
@@ -62,12 +69,12 @@ export async function apiPost<T, Body extends Record<string, unknown>>(
   return response.json() as Promise<T>;
 }
 
-export async function consoleAccessToken() {
+export async function consoleAccessToken(source: CookieAccessTokenSource) {
   if (configuredAccessToken) {
     return configuredAccessToken;
   }
 
-  const cookieAccessToken = await consoleCookieAccessToken();
+  const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader);
   if (cookieAccessToken) {
     return cookieAccessToken;
   }
@@ -120,9 +127,56 @@ export function assertConsoleMutationOrigin(request: Request) {
   }
 }
 
-async function consoleCookieAccessToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get(CONSOLE_ACCESS_TOKEN_COOKIE)?.value ?? null;
+export function consoleMutationCorsHeaders(
+  request: Request,
+): Record<string, string> {
+  const origin = request.headers.get("origin");
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
+  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) {
+    return {};
+  }
+  return {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Origin": normalizedOrigin,
+    Vary: "Origin",
+  };
+}
+
+export function consoleCookieAccessToken(cookieHeader?: string | null) {
+  return parseCookies(cookieHeader).get(CONSOLE_ACCESS_TOKEN_COOKIE) ?? null;
+}
+
+export function consoleSessionCookie(
+  accessToken: string,
+  expiresAt: string | null,
+) {
+  const attributes = [
+    `${CONSOLE_ACCESS_TOKEN_COOKIE}=${encodeURIComponent(accessToken)}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    `Max-Age=${maxAgeSeconds(expiresAt)}`,
+  ];
+  if (isProductionLikeConsole()) {
+    attributes.push("Secure");
+  }
+  return attributes.join("; ");
+}
+
+export function clearConsoleSessionCookie() {
+  const attributes = [
+    `${CONSOLE_ACCESS_TOKEN_COOKIE}=`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    "Max-Age=0",
+  ];
+  if (isProductionLikeConsole()) {
+    attributes.push("Secure");
+  }
+  return attributes.join("; ");
 }
 
 function consoleAllowedOrigins() {
@@ -132,6 +186,8 @@ function consoleAllowedOrigins() {
     process.env.FANPASS_CONSOLE_ORIGIN,
     process.env.FANPASS_CONSOLE_URL,
     process.env.FANPASS_CONSOLE_AUTH_ORIGIN,
+    process.env.VITE_CONSOLE_AUTH_BASE_URL,
+    process.env.VITE_CONSOLE_BASE_URL,
     process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL,
     process.env.NEXT_PUBLIC_CONSOLE_BASE_URL,
   ];
@@ -156,23 +212,6 @@ function consoleAllowedOrigins() {
   return origins;
 }
 
-export function consoleMutationCorsHeaders(
-  request: Request,
-): Record<string, string> {
-  const origin = request.headers.get("origin");
-  const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
-  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) {
-    return {};
-  }
-  return {
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Origin": normalizedOrigin,
-    Vary: "Origin",
-  };
-}
-
 function addAllowedOrigin(origins: Set<string>, value: string) {
   const normalized = normalizeOrigin(value.trim());
   if (normalized) {
@@ -189,6 +228,28 @@ function normalizeOrigin(origin: string) {
   } catch {
     return null;
   }
+}
+
+function parseCookies(cookieHeader?: string | null) {
+  const cookies = new Map<string, string>();
+  for (const part of String(cookieHeader ?? "").split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (!rawName || rawValue.length === 0) {
+      continue;
+    }
+    cookies.set(rawName, decodeURIComponent(rawValue.join("=")));
+  }
+  return cookies;
+}
+
+function maxAgeSeconds(expiresAt: string | null) {
+  if (!expiresAt) {
+    return 55 * 60;
+  }
+  const seconds = Math.floor(
+    (new Date(expiresAt).getTime() - Date.now()) / 1000,
+  );
+  return Math.max(60, Math.min(seconds, 55 * 60));
 }
 
 function isProductionLikeConsole() {

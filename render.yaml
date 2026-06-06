@@ -64,3 +64,30 @@ services:
         sync: false
       - key: PRIVY_VERIFICATION_KEY
         sync: false
+  - type: web
+    name: fanpass-console-staging
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build -w apps/dashboard
+    startCommand: npm run start -w apps/dashboard
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: NODE_ENV
+        value: production
+      - key: FANPASS_ENV
+        value: staging
+      - key: FANPASS_API_BASE_URL
+        value: https://fanpass-api-staging.onrender.com
+      - key: VITE_API_BASE_URL
+        value: https://fanpass-api-staging.onrender.com
+      - key: FANPASS_CONSOLE_ORIGINS
+        sync: false
+      - key: FANPASS_CONSOLE_AUTH_ORIGIN
+        sync: false
+      - key: VITE_CONSOLE_AUTH_BASE_URL
+        sync: false
+      - key: FANPASS_CONSOLE_ACCESS_TOKEN
+        sync: false

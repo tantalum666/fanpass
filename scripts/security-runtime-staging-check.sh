@@ -39,10 +39,11 @@ fi
 api_headers="$(mktemp)"
 console_headers="$(mktemp)"
 console_body="$(mktemp)"
+console_api_body="$(mktemp)"
 demo_body="$(mktemp)"
 health_body="$(mktemp)"
 health_unauth_body="$(mktemp)"
-trap 'rm -f "$api_headers" "$console_headers" "$console_body" "$demo_body" "$health_body" "$health_unauth_body"' EXIT
+trap 'rm -f "$api_headers" "$console_headers" "$console_body" "$console_api_body" "$demo_body" "$health_body" "$health_unauth_body"' EXIT
 
 curl --max-time 10 -fsSI "$API_URL" >"$api_headers"
 curl --max-time 10 -fsSI "$CONSOLE_URL" >"$console_headers"
@@ -55,6 +56,10 @@ api_origin_from_url() {
 API_ORIGIN="$(api_origin_from_url "$API_URL")"
 CONSOLE_ORIGIN="$(api_origin_from_url "$CONSOLE_URL")"
 SOCKET_ALLOWED_ORIGIN="${STAGING_SOCKET_ORIGIN:-$CONSOLE_ORIGIN}"
+console_api_status="$(
+  curl --max-time 10 -sS -o "$console_api_body" -w '%{http_code}' \
+    "$CONSOLE_ORIGIN/api/console/operations" || true
+)"
 demo_status="$(
   curl --max-time 10 -sS -o "$demo_body" -w '%{http_code}' \
     -H 'Content-Type: application/json' \
@@ -114,8 +119,13 @@ if [[ "$health_unauth_status" =~ ^2 ]]; then
   exit 1
 fi
 
-if grep -q 'FanPass Console' "$console_body" && ! grep -Eq 'Console locked|Authentication required|Privy|Sign in' "$console_body"; then
-  printf 'Console rendered, but no locked/sign-in state was detected for unauthenticated staging access.\n' >&2
+if ! grep -q 'FanPass Console' "$console_body"; then
+  printf 'Console root page did not render the FanPass Console app shell.\n' >&2
+  exit 1
+fi
+
+if [[ "$console_api_status" != "401" ]]; then
+  printf 'Unauthenticated Console API must return 401. Status: %s Body: %s\n' "$console_api_status" "$(cat "$console_api_body")" >&2
   exit 1
 fi
 
@@ -256,7 +266,7 @@ const implementationSnapshotFiles = [
   "apps/api/src/common/fanpass-socket-io.adapter.ts",
   "apps/api/src/modules/alpha/alpha.controller.ts",
   "apps/api/src/modules/side-effects/side-effect-health.service.ts",
-  "apps/dashboard/next.config.ts",
+  "apps/dashboard/server/console-bff.ts",
   "scripts/security-runtime-staging-check.sh",
   "scripts/staging-runtime-evidence-audit.js",
   "scripts/security-runtime-staging-local-dry-run.sh",

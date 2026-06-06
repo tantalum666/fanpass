@@ -121,12 +121,19 @@ if [[ "$args" == *" -fsSI "* && "$args" == *"console.staging.fanpass.test/"* ]];
   exit 0
 fi
 
-if [[ "$args" == *" -fsS "* && "$args" == *"console.staging.fanpass.test/"* ]]; then
+if [[ "$args" == *"/api/console/operations"* ]]; then
   if [[ "$fixture_case" == "console-unlocked" ]]; then
-    printf '<html><title>FanPass Console</title><body>Operational dashboard</body></html>'
+    write_to_o_file '{"ok":true,"events":[]}' "$@"
+    printf '200'
   else
-    printf '<html><title>FanPass Console</title><body>Console locked</body></html>'
+    write_to_o_file '{"ok":false,"message":"FanPass Console requires organizer/admin authentication"}' "$@"
+    printf '401'
   fi
+  exit 0
+fi
+
+if [[ "$args" == *" -fsS "* && "$args" == *"console.staging.fanpass.test/"* ]]; then
+  printf '<html><title>FanPass Console</title><body><div id="root"></div></body></html>'
   exit 0
 fi
 
@@ -164,7 +171,7 @@ set -euo pipefail
 fixture_case="${FANPASS_STAGING_RUNTIME_SELF_TEST_CASE:-accept}"
 
 if [[ "${1:-}" == "-e" ]]; then
-  url="${2:-}"
+  url="${3:-}"
   protocol="${url%%://*}"
   rest="${url#*://}"
   host="${rest%%/*}"

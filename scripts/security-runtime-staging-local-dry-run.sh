@@ -163,23 +163,33 @@ fi
 
 (
   cd "$ROOT_DIR/apps/dashboard"
-  FANPASS_ENV=staging \
-  FANPASS_API_BASE_URL="http://localhost:${API_PORT}" \
-  NEXT_PUBLIC_API_BASE_URL="http://localhost:${API_PORT}" \
-  npx next start -p "$CONSOLE_PORT"
+  export FANPASS_ENV=staging
+  export FANPASS_API_BASE_URL="http://localhost:${API_PORT}"
+  export VITE_API_BASE_URL="http://localhost:${API_PORT}"
+  export FANPASS_CONSOLE_PORT="$CONSOLE_PORT"
+  npm run build >/dev/null 2>&1 &&
+  npm run start
 ) >"$CONSOLE_LOG" 2>&1 &
 CONSOLE_PID="$!"
 
 printf 'Waiting for staging-like Console'
 for _ in {1..45}; do
-  if curl --max-time 5 -fsS "http://localhost:${CONSOLE_PORT}/" 2>/dev/null | grep -Eq "Console locked|Authentication required"; then
+  console_api_status="$(
+    curl --max-time 5 -sS -o /dev/null -w '%{http_code}' \
+      "http://localhost:${CONSOLE_PORT}/api/console/operations" 2>/dev/null || true
+  )"
+  if curl --max-time 5 -fsS "http://localhost:${CONSOLE_PORT}/" 2>/dev/null | grep -q "FanPass Console" && [[ "$console_api_status" == "401" ]]; then
     printf '\n'
     break
   fi
   printf '.'
   sleep 1
 done
-if ! curl --max-time 5 -fsS "http://localhost:${CONSOLE_PORT}/" | grep -Eq "Console locked|Authentication required"; then
+console_api_status="$(
+  curl --max-time 5 -sS -o /dev/null -w '%{http_code}' \
+    "http://localhost:${CONSOLE_PORT}/api/console/operations" 2>/dev/null || true
+)"
+if ! curl --max-time 5 -fsS "http://localhost:${CONSOLE_PORT}/" | grep -q "FanPass Console" || [[ "$console_api_status" != "401" ]]; then
   printf '\nStaging-like Console did not render locked state. Log:\n' >&2
   sed -n '1,180p' "$CONSOLE_LOG" >&2
   exit 1

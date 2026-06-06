@@ -1,25 +1,8 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import type { AlphaOperations } from "./ConsoleApp";
 
-interface MarketSnapshot {
-  eventId: string;
-  eventTitle: string;
-  ticketTypeId: string;
-  ticketTypeName: string;
-  currency: string;
-  faceValue: number;
-  resaleCap: number | null;
-  bids: { price: number; quantity: number }[];
-  asks: { price: number; quantity: number }[];
-  lastTradePrice: number | null;
-  floorPrice: number | null;
-  highestBid: number | null;
-  spread: number | null;
-  volume: number;
-  premiumPercent: number | null;
-}
+type MarketSnapshot = NonNullable<AlphaOperations["market"]>;
 
 interface OrderbookSocketSnapshot {
   eventId: string;
@@ -44,20 +27,12 @@ interface OrderbookUpdatePayload {
 
 type ConnectionState = "idle" | "connecting" | "live" | "offline";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
-export function OrderbookLivePanel({
-  market,
-}: {
-  market: MarketSnapshot | null;
-}) {
+export function OrderbookLivePanel({ market }: { market: MarketSnapshot | null }) {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(market);
-  const [connectionState, setConnectionState] =
-    useState<ConnectionState>("idle");
-  const [lastUpdate, setLastUpdate] = useState<OrderbookUpdatePayload | null>(
-    null,
-  );
+  const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
+  const [lastUpdate, setLastUpdate] = useState<OrderbookUpdatePayload | null>(null);
 
   useEffect(() => {
     setSnapshot(market);
@@ -83,39 +58,25 @@ export function OrderbookLivePanel({
       });
     });
 
-    socket.on(
-      "orderbook.snapshot",
-      (payload: { snapshot?: OrderbookSocketSnapshot }) => {
-        if (!payload.snapshot) {
-          return;
-        }
-        setSnapshot((current) =>
-          mergeSocketSnapshot(current ?? market, payload.snapshot!),
-        );
-        setConnectionState("live");
-      },
-    );
-
-    socket.on("orderbook.updated", (payload: OrderbookUpdatePayload) => {
-      if (
-        payload.eventId !== market.eventId ||
-        payload.ticketTypeId !== market.ticketTypeId
-      ) {
+    socket.on("orderbook.snapshot", (payload: { snapshot?: OrderbookSocketSnapshot }) => {
+      if (!payload.snapshot) {
         return;
       }
-      setSnapshot((current) =>
-        mergeSocketSnapshot(current ?? market, payload.snapshot),
-      );
+      setSnapshot((current) => mergeSocketSnapshot(current ?? market, payload.snapshot!));
+      setConnectionState("live");
+    });
+
+    socket.on("orderbook.updated", (payload: OrderbookUpdatePayload) => {
+      if (payload.eventId !== market.eventId || payload.ticketTypeId !== market.ticketTypeId) {
+        return;
+      }
+      setSnapshot((current) => mergeSocketSnapshot(current ?? market, payload.snapshot));
       setLastUpdate(payload);
       setConnectionState("live");
     });
 
-    socket.on("disconnect", () => {
-      setConnectionState("offline");
-    });
-    socket.on("connect_error", () => {
-      setConnectionState("offline");
-    });
+    socket.on("disconnect", () => setConnectionState("offline"));
+    socket.on("connect_error", () => setConnectionState("offline"));
 
     return () => {
       socket.emit("orderbook.unsubscribe", {
@@ -126,7 +87,6 @@ export function OrderbookLivePanel({
     };
   }, [market]);
 
-  const liveMarket = snapshot;
   const statusLabel = useMemo(() => {
     switch (connectionState) {
       case "live":
@@ -160,13 +120,9 @@ export function OrderbookLivePanel({
             : "Waiting for market updates"}
         </span>
       </div>
-      <MarketSummary market={liveMarket} />
-      <OrderbookSide
-        title="Asks"
-        levels={liveMarket?.asks ?? []}
-        tone="orange"
-      />
-      <OrderbookSide title="Bids" levels={liveMarket?.bids ?? []} tone="blue" />
+      <MarketSummary market={snapshot} />
+      <OrderbookSide title="Asks" levels={snapshot?.asks ?? []} tone="orange" />
+      <OrderbookSide title="Bids" levels={snapshot?.bids ?? []} tone="blue" />
     </>
   );
 }
@@ -184,10 +140,7 @@ function mergeSocketSnapshot(
     lastTradePrice: update.lastTradePrice,
     floorPrice,
     highestBid,
-    spread:
-      floorPrice === null || highestBid === null
-        ? null
-        : floorPrice - highestBid,
+    spread: floorPrice === null || highestBid === null ? null : floorPrice - highestBid,
     volume: update.volume,
     premiumPercent: update.premiumPercent,
   };
@@ -200,35 +153,12 @@ function MarketSummary({ market }: { market: MarketSnapshot | null }) {
 
   return (
     <div className="market-summary">
-      <MiniMetric
-        label="Last trade"
-        value={
-          market.lastTradePrice === null
-            ? "No trade"
-            : money(market.lastTradePrice)
-        }
-      />
+      <MiniMetric label="Last trade" value={market.lastTradePrice === null ? "No trade" : money(market.lastTradePrice)} />
       <MiniMetric label="Face value" value={money(market.faceValue)} />
-      <MiniMetric
-        label="Resale cap"
-        value={market.resaleCap === null ? "None" : money(market.resaleCap)}
-      />
-      <MiniMetric
-        label="Premium"
-        value={
-          market.premiumPercent === null
-            ? "n/a"
-            : `${market.premiumPercent.toFixed(1)}%`
-        }
-      />
-      <MiniMetric
-        label="Best bid"
-        value={market.highestBid === null ? "No bid" : money(market.highestBid)}
-      />
-      <MiniMetric
-        label="Spread"
-        value={market.spread === null ? "n/a" : money(market.spread)}
-      />
+      <MiniMetric label="Resale cap" value={market.resaleCap === null ? "None" : money(market.resaleCap)} />
+      <MiniMetric label="Premium" value={market.premiumPercent === null ? "n/a" : `${market.premiumPercent.toFixed(1)}%`} />
+      <MiniMetric label="Best bid" value={market.highestBid === null ? "No bid" : money(market.highestBid)} />
+      <MiniMetric label="Spread" value={market.spread === null ? "n/a" : money(market.spread)} />
     </div>
   );
 }
