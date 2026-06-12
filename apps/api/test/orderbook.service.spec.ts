@@ -184,4 +184,48 @@ describe("OrderbookService", () => {
       }),
     ).rejects.toThrow("Idempotency key already belongs");
   });
+
+  it("issues a primary ticket for an authorized buy order without a resale ask", async () => {
+    const buy = await orderbook.createOrder({
+      userId: "usr_buyer_demo",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      side: "BUY",
+      price: 1288,
+    });
+
+    expect(buy.trade).toBeNull();
+
+    const settlement = await orderbook.settleAfterPaymentAuthorization(
+      buy.order.id,
+    );
+
+    expect(settlement).toMatchObject({
+      orderId: buy.order.id,
+      tradeId: null,
+      fulfillmentType: "PRIMARY",
+      matched: false,
+      issued: true,
+    });
+    expect(settlement?.ticketId).toEqual(expect.stringMatching(/^tkt_/));
+    expect(buy.order).toMatchObject({
+      status: "SETTLED",
+      remainingQuantity: 0,
+      ticketId: settlement?.ticketId,
+    });
+    expect(store.getTicket(settlement!.ticketId)).toMatchObject({
+      ownerId: "usr_buyer_demo",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      status: "ACTIVE",
+      seatHash: `primary-order:${buy.order.id}`,
+    });
+    expect(
+      store.auditLogs.some(
+        (log) =>
+          log.action === "ORDER_PRIMARY_TICKET_ISSUED" &&
+          log.entityId === buy.order.id,
+      ),
+    ).toBe(true);
+  });
 });

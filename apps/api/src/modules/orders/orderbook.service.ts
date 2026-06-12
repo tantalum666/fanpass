@@ -38,6 +38,15 @@ interface FinalizeOwnershipTransferInput {
   };
 }
 
+export interface PaymentAuthorizedSettlementResult {
+  orderId: string;
+  ticketId: string;
+  tradeId: string | null;
+  fulfillmentType: "RESALE" | "PRIMARY";
+  matched: boolean;
+  issued: boolean;
+}
+
 @Injectable()
 export class OrderbookService {
   constructor(
@@ -238,6 +247,30 @@ export class OrderbookService {
     return this.tryMemoryMatch(orderId);
   }
 
+  async settleAfterPaymentAuthorization(
+    orderId: string,
+  ): Promise<PaymentAuthorizedSettlementResult | null> {
+    const prisma = this.prismaClient();
+    if (prisma) {
+      return this.settlePrismaAfterPaymentAuthorization(prisma, orderId);
+    }
+
+    const trade = await this.tryMemoryMatch(orderId, {
+      skipPaymentAuthorizationGate: true,
+    });
+    if (trade) {
+      return {
+        orderId,
+        ticketId: trade.ticketId,
+        tradeId: trade.id,
+        fulfillmentType: "RESALE",
+        matched: true,
+        issued: false,
+      };
+    }
+    return this.issuePrimaryMemoryTicketForAuthorizedBuy(orderId);
+  }
+
   async finalizeOwnershipTransfer(input: FinalizeOwnershipTransferInput) {
     const prisma = this.prismaClient();
     if (!prisma) {
@@ -358,12 +391,18 @@ export class OrderbookService {
     return settledTrade;
   }
 
-  private async tryMemoryMatch(orderId: string) {
+  private async tryMemoryMatch(
+    orderId: string,
+    options: { skipPaymentAuthorizationGate?: boolean } = {},
+  ) {
     const incoming = this.store.orders.find((order) => order.id === orderId);
     if (!incoming || incoming.status !== "OPEN") {
       return null;
     }
-    if (this.requiresPaymentAuthorization()) {
+    if (
+      this.requiresPaymentAuthorization() &&
+      !options.skipPaymentAuthorizationGate
+    ) {
       return null;
     }
 
@@ -400,6 +439,68 @@ export class OrderbookService {
           left.createdAt.localeCompare(right.createdAt),
       )[0];
     return bid ? this.settle(bid.id, incoming.id, incoming.price) : null;
+  }
+
+  private async issuePrimaryMemoryTicketForAuthorizedBuy(
+    orderId: string,
+  ): Promise<PaymentAuthorizedSettlementResult | null> {
+    const order = this.store.orders.find(
+      (candidate) => candidate.id === orderId,
+    );
+    if (!order || order.side !== "BUY") {
+      return null;
+    }
+    if (order.status === "SETTLED" && order.ticketId) {
+      return {
+        orderId: order.id,
+        ticketId: order.ticketId,
+        tradeId: null,
+        fulfillmentType: "PRIMARY",
+        matched: false,
+        issued: true,
+      };
+    }
+    if (order.status !== "OPEN") {
+      return null;
+    }
+
+    const ticket = await this.tickets.issueTicket({
+      eventId: order.eventId,
+      ticketTypeId: order.ticketTypeId,
+      ownerId: order.userId,
+      seatHash: `primary-order:${order.id}`,
+    });
+
+    order.status = "SETTLED";
+    order.remainingQuantity = 0;
+    order.ticketId = ticket.id;
+    this.audit.record(
+      order.userId,
+      "ORDER_PRIMARY_TICKET_ISSUED",
+      "order",
+      order.id,
+      {
+        ticketId: ticket.id,
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        price: order.price,
+      },
+    );
+    await this.publishOrderbookUpdate({
+      eventId: order.eventId,
+      ticketTypeId: order.ticketTypeId,
+      reason: "primary_ticket_issued",
+      orderId: order.id,
+    });
+
+    return {
+      orderId: order.id,
+      ticketId: ticket.id,
+      tradeId: null,
+      fulfillmentType: "PRIMARY",
+      matched: false,
+      issued: true,
+    };
   }
 
   private async settle(buyOrderId: string, sellOrderId: string, price: number) {
@@ -767,6 +868,157 @@ export class OrderbookService {
       : null;
   }
 
+  private async settlePrismaAfterPaymentAuthorization(
+    prisma: PrismaService,
+    orderId: string,
+  ): Promise<PaymentAuthorizedSettlementResult | null> {
+    const trade = await this.tryPrismaMatch(prisma, orderId);
+    if (trade) {
+      return {
+        orderId,
+        ticketId: trade.ticketId,
+        tradeId: trade.id,
+        fulfillmentType: "RESALE",
+        matched: true,
+        issued: false,
+      };
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || order.side !== "BUY") {
+      return null;
+    }
+    if (order.status === "SETTLED" && order.ticketId) {
+      return {
+        orderId: order.id,
+        ticketId: order.ticketId,
+        tradeId: null,
+        fulfillmentType: "PRIMARY",
+        matched: false,
+        issued: true,
+      };
+    }
+    if (order.status !== "OPEN") {
+      return null;
+    }
+    if (!(await this.hasAuthorizedPaymentForOrder(prisma, order.id))) {
+      return null;
+    }
+
+    const claim = await prisma.order.updateMany({
+      where: {
+        id: order.id,
+        status: "OPEN",
+        side: "BUY",
+        ticketId: null,
+      },
+      data: {
+        status: "MATCHED",
+      },
+    });
+    if (claim.count !== 1) {
+      const settled = await prisma.order.findUnique({
+        where: { id: order.id },
+      });
+      if (settled?.status === "SETTLED" && settled.ticketId) {
+        return {
+          orderId: settled.id,
+          ticketId: settled.ticketId,
+          tradeId: null,
+          fulfillmentType: "PRIMARY",
+          matched: false,
+          issued: true,
+        };
+      }
+      return null;
+    }
+
+    let ticket;
+    try {
+      ticket = await this.tickets.issueTicket({
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        ownerId: order.userId,
+        seatHash: `primary-order:${order.id}`,
+      });
+    } catch (error) {
+      await this.rejectPrimarySettlementAfterFailure(
+        prisma,
+        order.id,
+        order.userId,
+        error,
+      );
+      throw error;
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const settled = await tx.order.updateMany({
+          where: {
+            id: order.id,
+            status: "MATCHED",
+            side: "BUY",
+            ticketId: null,
+          },
+          data: {
+            status: "SETTLED",
+            remainingQuantity: 0,
+            ticketId: ticket.id,
+          },
+        });
+        if (settled.count !== 1) {
+          throw new BadRequestException(
+            "Primary ticket settlement lost its matched order claim",
+          );
+        }
+        await this.enqueuePaymentCaptureForPrimaryTicket(
+          tx,
+          order.id,
+          ticket.id,
+        );
+        await tx.auditLog.create({
+          data: {
+            actorId: order.userId,
+            action: "ORDER_PRIMARY_TICKET_ISSUED",
+            entityType: "order",
+            entityId: order.id,
+            metadataJson: {
+              ticketId: ticket.id,
+              eventId: order.eventId,
+              ticketTypeId: order.ticketTypeId,
+              price: order.price,
+            },
+          },
+        });
+      });
+    } catch (error) {
+      await this.rejectPrimarySettlementAfterFailure(
+        prisma,
+        order.id,
+        order.userId,
+        error,
+        ticket.id,
+      );
+      throw error;
+    }
+
+    await this.publishOrderbookUpdate({
+      eventId: order.eventId,
+      ticketTypeId: order.ticketTypeId,
+      reason: "primary_ticket_issued",
+      orderId: order.id,
+    });
+
+    return {
+      orderId: order.id,
+      ticketId: ticket.id,
+      tradeId: null,
+      fulfillmentType: "PRIMARY",
+      matched: false,
+      issued: true,
+    };
+  }
+
   private async settlePrisma(
     prisma: PrismaService,
     buyOrderId: string,
@@ -996,6 +1248,86 @@ export class OrderbookService {
     });
   }
 
+  private async enqueuePaymentCaptureForPrimaryTicket(
+    prisma: Prisma.TransactionClient,
+    buyOrderId: string,
+    ticketId: string,
+  ) {
+    const payment = await prisma.payment.findFirst({
+      where: {
+        orderId: buyOrderId,
+        captureStatus: "AUTHORIZED",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    if (!payment) {
+      return;
+    }
+    await this.settlementSideEffects.enqueuePaymentCaptureForPrimaryTicket(
+      prisma,
+      {
+        paymentId: payment.id,
+        buyOrderId,
+        ticketId,
+      },
+    );
+  }
+
+  private async rejectPrimarySettlementAfterFailure(
+    prisma: PrismaService,
+    buyOrderId: string,
+    actorId: string,
+    error: unknown,
+    issuedTicketId?: string,
+  ) {
+    await prisma.$transaction(async (tx) => {
+      await tx.order.updateMany({
+        where: {
+          id: buyOrderId,
+          status: "MATCHED",
+          side: "BUY",
+        },
+        data: {
+          status: "REJECTED",
+          remainingQuantity: 0,
+        },
+      });
+      if (issuedTicketId) {
+        await tx.ticket.updateMany({
+          where: {
+            id: issuedTicketId,
+            status: "ACTIVE",
+          },
+          data: {
+            status: "CANCELLED",
+          },
+        });
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: "PRIMARY_TICKET_ISSUE_FAILED",
+          entityType: "order",
+          entityId: buyOrderId,
+          metadataJson: {
+            ticketId: issuedTicketId ?? null,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Primary ticket issue failed",
+          },
+        },
+      });
+      await this.enqueuePaymentCompensationForFailedSettlement(
+        tx,
+        buyOrderId,
+        "primary_ticket_issue_failed",
+      );
+    });
+  }
+
   private async enqueuePaymentCompensationForFailedSettlement(
     prisma: Prisma.TransactionClient,
     buyOrderId: string,
@@ -1180,7 +1512,11 @@ export class OrderbookService {
   private async publishOrderbookUpdate(input: {
     eventId: string;
     ticketTypeId: string;
-    reason: "order_created" | "order_cancelled" | "trade_settled";
+    reason:
+      | "order_created"
+      | "order_cancelled"
+      | "trade_settled"
+      | "primary_ticket_issued";
     orderId?: string;
     tradeId?: string;
   }) {

@@ -18,6 +18,12 @@ interface PaymentCaptureJobInput {
   tradeId: string;
 }
 
+interface PrimaryPaymentCaptureJobInput {
+  paymentId: string;
+  buyOrderId: string;
+  ticketId: string;
+}
+
 interface PaymentCompensationJobInput {
   paymentId: string;
   buyOrderId: string;
@@ -97,6 +103,27 @@ export class SettlementSideEffectsService {
         paymentId: input.paymentId,
         orderId: input.buyOrderId,
         tradeId: input.tradeId,
+      },
+    });
+  }
+
+  async enqueuePaymentCaptureForPrimaryTicket(
+    prisma: Prisma.TransactionClient,
+    input: PrimaryPaymentCaptureJobInput,
+  ) {
+    await this.outbox?.enqueue(prisma, {
+      type: "PAYMENT_CAPTURE",
+      idempotencyKey: this.paymentCaptureSideEffectKey(
+        input.paymentId,
+        `primary:${input.ticketId}`,
+      ),
+      aggregateType: "payment",
+      aggregateId: input.paymentId,
+      payload: {
+        paymentId: input.paymentId,
+        orderId: input.buyOrderId,
+        ticketId: input.ticketId,
+        tradeId: null,
       },
     });
   }

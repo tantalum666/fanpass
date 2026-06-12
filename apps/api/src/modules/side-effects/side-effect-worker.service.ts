@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { Prisma, SideEffectOutbox } from "@prisma/client";
 import {
+  IssueOwnershipInput,
   OwnershipReceipt,
   OwnershipService,
+  RedeemOwnershipInput,
   TransferOwnershipInput,
 } from "../ownership/ownership.service";
 import { OrderbookService } from "../orders/orderbook.service";
@@ -68,8 +70,12 @@ export class SideEffectWorkerService {
     job: SideEffectOutbox,
   ): Promise<Prisma.InputJsonValue> {
     switch (job.type) {
+      case "OWNERSHIP_ISSUE":
+        return this.issueOwnership(job);
       case "OWNERSHIP_TRANSFER":
         return this.transferOwnership(job);
+      case "OWNERSHIP_REDEEM":
+        return this.redeemOwnership(job);
       case "OWNERSHIP_SETTLEMENT_FINALIZE":
         return this.finalizeOwnershipSettlement(job);
       case "PAYMENT_INTENT_CREATE":
@@ -122,6 +128,36 @@ export class SideEffectWorkerService {
       });
     }
     return result;
+  }
+
+  private async issueOwnership(
+    job: SideEffectOutbox,
+  ): Promise<Prisma.InputJsonValue> {
+    const payload = this.readOwnershipIssuePayload(job.payloadJson);
+    const ownership = await this.ownership.issueTicket(payload);
+    return {
+      ...payload,
+      tokenId: ownership.tokenId,
+      ownershipAdapter: ownership.adapter,
+      ownershipRef: ownership.ownershipRef,
+      transactionHash: ownership.transactionHash,
+      status: ownership.status,
+    };
+  }
+
+  private async redeemOwnership(
+    job: SideEffectOutbox,
+  ): Promise<Prisma.InputJsonValue> {
+    const payload = this.readOwnershipRedeemPayload(job.payloadJson);
+    const ownership = await this.ownership.redeemTicket(payload);
+    return {
+      ...payload,
+      tokenId: ownership.tokenId,
+      ownershipAdapter: ownership.adapter,
+      ownershipRef: ownership.ownershipRef,
+      transactionHash: ownership.transactionHash,
+      status: ownership.status,
+    };
   }
 
   private async finalizeOwnershipSettlement(
@@ -199,12 +235,16 @@ export class SideEffectWorkerService {
   ): Promise<Prisma.InputJsonValue> {
     const payload = this.readRecordPayload(job.payloadJson);
     const orderId = this.requiredString(payload.orderId, "orderId");
-    const trade = await this.orderbook.tryMatch(orderId);
+    const settlement =
+      await this.orderbook.settleAfterPaymentAuthorization(orderId);
     return {
       orderId,
       paymentId: this.optionalString(payload.paymentId),
-      tradeId: trade?.id ?? null,
-      matched: Boolean(trade),
+      ticketId: settlement?.ticketId ?? null,
+      tradeId: settlement?.tradeId ?? null,
+      fulfillmentType: settlement?.fulfillmentType ?? null,
+      matched: settlement?.matched ?? false,
+      issued: settlement?.issued ?? false,
     };
   }
 
@@ -219,6 +259,37 @@ export class SideEffectWorkerService {
       fromWalletAddress: this.optionalString(record.fromWalletAddress),
       toOwnerId: this.requiredString(record.toOwnerId, "toOwnerId"),
       toWalletAddress: this.optionalString(record.toWalletAddress),
+    };
+  }
+
+  private readOwnershipIssuePayload(
+    payload: Prisma.JsonValue,
+  ): IssueOwnershipInput {
+    const record = this.readRecordPayload(payload);
+    return {
+      localTicketId: this.requiredString(record.localTicketId, "localTicketId"),
+      tokenIdHint: this.requiredString(record.tokenIdHint, "tokenIdHint"),
+      eventId: this.requiredString(record.eventId, "eventId"),
+      ticketTypeId: this.requiredString(record.ticketTypeId, "ticketTypeId"),
+      ownerId: this.requiredString(record.ownerId, "ownerId"),
+      ownerWalletAddress: this.optionalString(record.ownerWalletAddress),
+      transferable: this.requiredBoolean(record.transferable, "transferable"),
+      resaleCap: this.optionalNumber(record.resaleCap),
+      maxTransferCount: this.requiredInteger(
+        record.maxTransferCount,
+        "maxTransferCount",
+      ),
+      metadataUri: this.optionalString(record.metadataUri),
+    };
+  }
+
+  private readOwnershipRedeemPayload(
+    payload: Prisma.JsonValue,
+  ): RedeemOwnershipInput {
+    const record = this.readRecordPayload(payload);
+    return {
+      ticketId: this.requiredString(record.ticketId, "ticketId"),
+      tokenId: this.optionalString(record.tokenId),
     };
   }
 
@@ -263,6 +334,24 @@ export class SideEffectWorkerService {
 
   private optionalString(value: unknown) {
     return typeof value === "string" && value.length > 0 ? value : null;
+  }
+
+  private requiredBoolean(value: unknown, key: string) {
+    if (typeof value !== "boolean") {
+      throw new BadRequestException(`${key} must be a boolean`);
+    }
+    return value;
+  }
+
+  private requiredInteger(value: unknown, key: string) {
+    if (!Number.isInteger(value)) {
+      throw new BadRequestException(`${key} must be an integer`);
+    }
+    return value as number;
+  }
+
+  private optionalNumber(value: unknown) {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
 
   private ownershipAdapter(value: unknown): OwnershipReceipt["adapter"] {

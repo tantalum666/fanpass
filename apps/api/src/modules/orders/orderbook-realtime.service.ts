@@ -15,7 +15,11 @@ export interface OrderbookSnapshot {
 export interface OrderbookUpdatePayload {
   eventId: string;
   ticketTypeId: string;
-  reason: "order_created" | "order_cancelled" | "trade_settled";
+  reason:
+    | "order_created"
+    | "order_cancelled"
+    | "trade_settled"
+    | "primary_ticket_issued";
   orderId?: string;
   tradeId?: string;
   snapshot: OrderbookSnapshot;

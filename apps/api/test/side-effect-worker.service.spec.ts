@@ -1,6 +1,67 @@
 import { SideEffectWorkerService } from "../src/modules/side-effects/side-effect-worker.service";
 
 describe("SideEffectWorkerService", () => {
+  it("claims and completes an ownership issue side-effect", async () => {
+    const outbox = new FakeOutbox([
+      fakeJob({
+        type: "OWNERSHIP_ISSUE",
+        idempotencyKey: "ownership-issue:tkt_demo_new",
+        payloadJson: {
+          localTicketId: "tkt_demo_new",
+          tokenIdHint: "42",
+          eventId: "evt_weekend_demo",
+          ticketTypeId: "tt_cat2_demo",
+          ownerId: "usr_fan_demo",
+          ownerWalletAddress: null,
+          transferable: true,
+          resaleCap: 1200,
+          maxTransferCount: 2,
+          metadataUri: null,
+        },
+      }),
+    ]);
+    const ownership = {
+      issueTicket: jest.fn(async () => ({
+        adapter: "mock",
+        status: "CONFIRMED",
+        tokenId: "42",
+        ownershipRef: "mock:ticket:tkt_demo_new",
+        transactionHash: "mock_issue_tx",
+      })),
+    };
+
+    const worker = new SideEffectWorkerService(
+      outbox as never,
+      ownership as never,
+      { processCreateIntentJob: jest.fn() } as never,
+      { tryMatch: jest.fn() } as never,
+    );
+    const result = await worker.workOnce();
+
+    expect(result.completed).toBe(1);
+    expect(ownership.issueTicket).toHaveBeenCalledWith({
+      localTicketId: "tkt_demo_new",
+      tokenIdHint: "42",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      ownerId: "usr_fan_demo",
+      ownerWalletAddress: null,
+      transferable: true,
+      resaleCap: 1200,
+      maxTransferCount: 2,
+      metadataUri: null,
+    });
+    expect(outbox.completed[0]).toMatchObject({
+      id: "sfx_demo",
+      result: expect.objectContaining({
+        tokenId: "42",
+        ownershipAdapter: "mock",
+        ownershipRef: "mock:ticket:tkt_demo_new",
+        transactionHash: "mock_issue_tx",
+      }),
+    });
+  });
+
   it("claims and completes an ownership transfer side-effect", async () => {
     const outbox = new FakeOutbox([
       fakeJob({
@@ -169,6 +230,51 @@ describe("SideEffectWorkerService", () => {
         tradeId: "trd_demo",
         finalized: true,
       },
+    });
+  });
+
+  it("claims and completes an ownership redeem side-effect", async () => {
+    const outbox = new FakeOutbox([
+      fakeJob({
+        type: "OWNERSHIP_REDEEM",
+        idempotencyKey: "ownership-redeem:tkt_demo_001:1",
+        payloadJson: {
+          ticketId: "tkt_demo_001",
+          tokenId: "1",
+        },
+      }),
+    ]);
+    const ownership = {
+      redeemTicket: jest.fn(async () => ({
+        adapter: "mock",
+        status: "CONFIRMED",
+        tokenId: "1",
+        ownershipRef: "mock:redeem:tkt_demo_001",
+        transactionHash: "mock_redeem_tx",
+      })),
+    };
+
+    const worker = new SideEffectWorkerService(
+      outbox as never,
+      ownership as never,
+      { processCreateIntentJob: jest.fn() } as never,
+      { tryMatch: jest.fn() } as never,
+    );
+    const result = await worker.workOnce();
+
+    expect(result.completed).toBe(1);
+    expect(ownership.redeemTicket).toHaveBeenCalledWith({
+      ticketId: "tkt_demo_001",
+      tokenId: "1",
+    });
+    expect(outbox.completed[0]).toMatchObject({
+      id: "sfx_demo",
+      result: expect.objectContaining({
+        tokenId: "1",
+        ownershipAdapter: "mock",
+        ownershipRef: "mock:redeem:tkt_demo_001",
+        transactionHash: "mock_redeem_tx",
+      }),
     });
   });
 
@@ -412,10 +518,13 @@ describe("SideEffectWorkerService", () => {
       }),
     ]);
     const orderbook = {
-      tryMatch: jest.fn(async () => ({
-        id: "trd_demo",
-        buyOrderId: "ord_buy_demo",
-        sellOrderId: "ord_sell_demo",
+      settleAfterPaymentAuthorization: jest.fn(async () => ({
+        orderId: "ord_buy_demo",
+        ticketId: "tkt_demo_001",
+        tradeId: "trd_demo",
+        fulfillmentType: "RESALE",
+        matched: true,
+        issued: false,
       })),
     };
     const worker = new SideEffectWorkerService(
@@ -434,14 +543,66 @@ describe("SideEffectWorkerService", () => {
       retried: 0,
       dead: 0,
     });
-    expect(orderbook.tryMatch).toHaveBeenCalledWith("ord_buy_demo");
+    expect(orderbook.settleAfterPaymentAuthorization).toHaveBeenCalledWith(
+      "ord_buy_demo",
+    );
     expect(outbox.completed[0]).toMatchObject({
       id: "sfx_demo",
       result: expect.objectContaining({
         orderId: "ord_buy_demo",
         paymentId: "pay_demo",
+        ticketId: "tkt_demo_001",
         tradeId: "trd_demo",
+        fulfillmentType: "RESALE",
         matched: true,
+        issued: false,
+      }),
+    });
+  });
+
+  it("claims and completes a primary ticket issue after payment authorization", async () => {
+    const outbox = new FakeOutbox([
+      fakeJob({
+        type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+        payloadJson: {
+          paymentId: "pay_primary",
+          orderId: "ord_primary_buy",
+        },
+      }),
+    ]);
+    const orderbook = {
+      settleAfterPaymentAuthorization: jest.fn(async () => ({
+        orderId: "ord_primary_buy",
+        ticketId: "tkt_primary_001",
+        tradeId: null,
+        fulfillmentType: "PRIMARY",
+        matched: false,
+        issued: true,
+      })),
+    };
+    const worker = new SideEffectWorkerService(
+      outbox as never,
+      { transferTicket: jest.fn() } as never,
+      { processCreateIntentJob: jest.fn() } as never,
+      orderbook as never,
+    );
+
+    const result = await worker.workOnce();
+
+    expect(result.completed).toBe(1);
+    expect(orderbook.settleAfterPaymentAuthorization).toHaveBeenCalledWith(
+      "ord_primary_buy",
+    );
+    expect(outbox.completed[0]).toMatchObject({
+      id: "sfx_demo",
+      result: expect.objectContaining({
+        orderId: "ord_primary_buy",
+        paymentId: "pay_primary",
+        ticketId: "tkt_primary_001",
+        tradeId: null,
+        fulfillmentType: "PRIMARY",
+        matched: false,
+        issued: true,
       }),
     });
   });
