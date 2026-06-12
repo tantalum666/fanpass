@@ -5338,6 +5338,22 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `git diff --check`
 - Remaining status: the backend issuance path is implemented and unit-verified, but Render staging needs redeploy plus a real Stripe webhook/order evidence pass before claiming production-like settlement evidence. Physical device QR scan evidence, TestFlight, Wallet, and release-grade chain custody remain open.
 
+## After Render Push And Physical iPhone FanPass Install on 2026-06-12
+
+- Repeated the required startup pass before deployment/device work: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read.
+- Render CLI/API credentials were not available in the local shell, so deployment was triggered through the Git-backed Render path by committing and pushing the backend settlement changes to `origin/codex/beta-foundation-hosted-ci`.
+- Pushed commit: `d2a0767426c2b5fdf89563ec35609266f146b655` (`Settle primary tickets after Stripe auth`).
+- Staged files for that commit were limited to the API settlement/worker files, focused tests, and deployment handoff docs. The broader dirty worktree was left untouched.
+- `https://fanpass-api-staging.onrender.com/health` returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}` after the push. Because `/health` does not expose a deployed commit SHA and no Render API/Dashboard tool session was available, this confirms staging is online but does not independently prove Render has finished deploying commit `d2a0767`.
+- Physical iPhone status:
+  - `xcrun devicectl list devices` showed connected iPhone `tantalum` / iPhone 16 Pro Max.
+  - The device already had `FanPass` (`com.fanpass.app`) and `FanPass Ops` (`com.fanpass.ops`) installed.
+  - Built `FanPass` for the connected iPhone with `xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'platform=iOS,id=00008140-001E5D801409801C' -derivedDataPath outputs/ios-device-build/FanPassBetaDevice build`.
+  - Installed `outputs/ios-device-build/FanPassBetaDevice/Build/Products/Beta-iphoneos/FanPass.app` to the phone with `xcrun devicectl device install app`.
+  - Launched `com.fanpass.app` on the phone successfully.
+  - Device build executable SHA-256: `a160b10e8419bb6a1eeed50002cea8b30ad167c206971cf476ca4f46416a4d87`.
+- Boundary: this is a local development-device install, not TestFlight evidence. Render staging online check is not yet webhook settlement evidence. Next live check should wait for Render to finish deploying or manually deploy latest commit from Render Dashboard if auto-deploy is off, then run a real Stripe test checkout and verify the backend ticket appears.
+
 ## After Web Event Detail And Checkout Concept Pass on 2026-06-07
 
 - Confirmed the non-negotiable engineering rules are present in `docs/NEW_CHAT_PROMPT.md`, `docs/CODEX_HANDOFF.md`, and `docs/QA_CHECKLIST.md`.
