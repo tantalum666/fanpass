@@ -168,21 +168,22 @@ model TicketType {
 }
 
 model Ticket {
-  id            String       @id @default(cuid())
-  tokenId       String?      @map("token_id")
-  eventId       String       @map("event_id")
-  ticketTypeId  String       @map("ticket_type_id")
-  ownerId       String       @map("owner_id")
-  seatHash      String?      @map("seat_hash")
-  status        TicketStatus @default(CREATED)
-  transferCount Int          @default(0) @map("transfer_count")
-  metadataUri   String?      @map("metadata_uri")
-  event         Event        @relation(fields: [eventId], references: [id])
-  ticketType    TicketType   @relation(fields: [ticketTypeId], references: [id])
-  owner         User         @relation("TicketOwner", fields: [ownerId], references: [id])
-  trades        Trade[]
-  checkins      Checkin[]
-  orders        Order[]
+  id               String            @id @default(cuid())
+  tokenId          String?           @map("token_id")
+  eventId          String            @map("event_id")
+  ticketTypeId     String            @map("ticket_type_id")
+  ownerId          String            @map("owner_id")
+  seatHash         String?           @map("seat_hash")
+  status           TicketStatus      @default(CREATED)
+  transferCount    Int               @default(0) @map("transfer_count")
+  metadataUri      String?           @map("metadata_uri")
+  event            Event             @relation(fields: [eventId], references: [id])
+  ticketType       TicketType        @relation(fields: [ticketTypeId], references: [id])
+  owner            User              @relation("TicketOwner", fields: [ownerId], references: [id])
+  trades           Trade[]
+  checkins         Checkin[]
+  orders           Order[]
+  entryCredentials EntryCredential[]
 
   @@map("tickets")
 }
@@ -306,18 +307,47 @@ model PaymentWebhookEvent {
 }
 
 model Checkin {
-  id            String   @id @default(cuid())
-  ticketId      String   @map("ticket_id")
-  scannerUserId String   @map("scanner_user_id")
-  gate          String
-  nonce         String
-  acceptedNonce String?  @unique @map("accepted_nonce")
-  result        String
-  checkedInAt   DateTime @default(now()) @map("checked_in_at")
-  ticket        Ticket   @relation(fields: [ticketId], references: [id])
-  scanner       User     @relation("ScannerCheckins", fields: [scannerUserId], references: [id])
+  id               String   @id @default(cuid())
+  ticketId         String   @map("ticket_id")
+  scannerUserId    String   @map("scanner_user_id")
+  gate             String
+  nonce            String
+  acceptedNonce    String?  @unique @map("accepted_nonce")
+  acceptedTicketId String?  @unique @map("accepted_ticket_id")
+  result           String
+  checkedInAt      DateTime @default(now()) @map("checked_in_at")
+  ticket           Ticket   @relation(fields: [ticketId], references: [id])
+  scanner          User     @relation("ScannerCheckins", fields: [scannerUserId], references: [id])
 
   @@map("checkins")
+}
+
+model EntryCredential {
+  id                       String    @id
+  ticketId                 String    @map("ticket_id")
+  eventId                  String    @map("event_id")
+  ticketTypeId             String?   @map("ticket_type_id")
+  ownerIdHash              String    @map("owner_id_hash")
+  nonce                    String    @unique
+  entryMode                String    @map("entry_mode")
+  keyId                    String?   @map("key_id")
+  status                   String    @default("ACTIVE")
+  revokedReason            String?   @map("revoked_reason")
+  supersededByCredentialId String?   @map("superseded_by_credential_id")
+  issuedAt                 DateTime  @map("issued_at")
+  expiresAt                DateTime  @map("expires_at")
+  consumedAt               DateTime? @map("consumed_at")
+  consumedCheckinId        String?   @map("consumed_checkin_id")
+  scannerUserId            String?   @map("scanner_user_id")
+  gate                     String?
+  createdByUserId          String?   @map("created_by_user_id")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  ticket                   Ticket    @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, status, expiresAt])
+  @@index([eventId, status])
+  @@map("entry_credentials")
 }
 
 model AuditLog {
