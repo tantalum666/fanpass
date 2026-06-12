@@ -313,7 +313,7 @@ model Checkin {
   gate             String
   nonce            String
   acceptedNonce    String?  @unique @map("accepted_nonce")
-  acceptedTicketId String?  @unique @map("accepted_ticket_id")
+  acceptedTicketId String?  @map("accepted_ticket_id")
   result           String
   checkedInAt      DateTime @default(now()) @map("checked_in_at")
   ticket           Ticket   @relation(fields: [ticketId], references: [id])
