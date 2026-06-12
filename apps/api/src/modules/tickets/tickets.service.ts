@@ -4,6 +4,7 @@ import {
   Injectable,
   Optional,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { DemoStore } from "../../common/demo-store";
 import { TicketRecord } from "../../common/domain";
@@ -17,6 +18,15 @@ export interface IssueTicketInput {
   ticketTypeId: string;
   ownerId: string;
   seatHash?: string;
+}
+
+export interface TicketProofHistoryItem {
+  id: string;
+  label: string;
+  state: string;
+  timestamp: string;
+  description: string;
+  safeTicketRef: string;
 }
 
 @Injectable()
@@ -75,6 +85,77 @@ export class TicketsService {
     return this.expandTicket(ticket.id);
   }
 
+  async getProofHistory(id: string, session?: FanPassSession) {
+    const prisma = this.prismaClient();
+    if (prisma) {
+      const ticket = await prisma.ticket.findUniqueOrThrow({
+        where: { id },
+        include: {
+          event: {
+            include: {
+              organizer: true,
+            },
+          },
+          ticketType: true,
+          checkins: {
+            orderBy: {
+              checkedInAt: "desc",
+            },
+            take: 1,
+          },
+        },
+      });
+      this.assertPrismaProofAccess(ticket, session);
+      const auditLogs = await prisma.auditLog.findMany({
+        where: {
+          entityType: "ticket",
+          entityId: ticket.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 12,
+      });
+
+      return this.buildProofHistory({
+        id: ticket.id,
+        status: ticket.status,
+        transferCount: ticket.transferCount,
+        eventTitle: ticket.event.title,
+        ticketTypeName: ticket.ticketType.name,
+        auditLogs: auditLogs.map((log) => ({
+          action: log.action,
+          createdAt: log.createdAt.toISOString(),
+        })),
+        latestCheckinAt: ticket.checkins[0]?.checkedInAt.toISOString(),
+      });
+    }
+
+    const ticket = this.store.getTicket(id);
+    this.assertMemoryProofAccess(ticket, session);
+    const event = this.store.getEvent(ticket.eventId);
+    const ticketType = this.store.getTicketType(ticket.ticketTypeId);
+    const auditLogs = this.store.auditLogs
+      .filter((log) => log.entityType === "ticket" && log.entityId === id)
+      .map((log) => ({
+        action: log.action,
+        createdAt: log.createdAt,
+      }));
+    const latestCheckinAt = this.store.checkins.find(
+      (checkin) => checkin.ticketId === id,
+    )?.checkedInAt;
+
+    return this.buildProofHistory({
+      id: ticket.id,
+      status: ticket.status,
+      transferCount: ticket.transferCount,
+      eventTitle: event.title,
+      ticketTypeName: ticketType.name,
+      auditLogs,
+      latestCheckinAt,
+    });
+  }
+
   getRawTicket(id: string) {
     return this.store.getTicket(id);
   }
@@ -128,6 +209,7 @@ export class TicketsService {
       localTicketId: ticketId,
       tokenIdHint: String(this.store.tickets.length + 1),
       eventId: input.eventId,
+      ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
       ownerWalletAddress: owner.walletAddress,
       transferable: ticketType.transferable,
@@ -209,6 +291,116 @@ export class TicketsService {
     };
   }
 
+  private buildProofHistory(input: {
+    id: string;
+    status: TicketRecord["status"];
+    transferCount: number;
+    eventTitle: string;
+    ticketTypeName: string;
+    auditLogs: Array<{ action: string; createdAt: string }>;
+    latestCheckinAt?: string;
+  }): { items: TicketProofHistoryItem[] } {
+    const safeTicketRef = this.safeTicketRef(input.id);
+    const issuedAt =
+      this.auditTimestamp(input.auditLogs, "TICKET_ISSUED") ??
+      this.auditTimestamp(input.auditLogs, "TICKET_PURCHASED") ??
+      null;
+    const listedAt = this.auditTimestamp(
+      input.auditLogs,
+      "TICKET_LISTED_FOR_RESALE",
+    );
+    const redeemedAt =
+      input.latestCheckinAt ??
+      this.auditTimestamp(input.auditLogs, "TICKET_REDEEMED");
+
+    const items: TicketProofHistoryItem[] = [
+      {
+        id: "issued",
+        label: "Verified issue",
+        state: "OK",
+        timestamp: issuedAt ?? "Not recorded",
+        description: `${input.eventTitle} ${input.ticketTypeName} is linked to ${safeTicketRef}.`,
+        safeTicketRef,
+      },
+      {
+        id: "holder-boundary",
+        label: "Holder boundary",
+        state: "Redacted",
+        timestamp: "Current",
+        description:
+          "Current holder check passed. Full holder, wallet, signing, and scanner data remain hidden.",
+        safeTicketRef,
+      },
+      {
+        id: "lifecycle",
+        label: "Lifecycle state",
+        state: this.safeStatus(input.status),
+        timestamp: listedAt ?? redeemedAt ?? "Current",
+        description: this.lifecycleDescription(
+          input.status,
+          input.transferCount,
+        ),
+        safeTicketRef,
+      },
+      {
+        id: "entry-code",
+        label: "Dynamic code window",
+        state: this.entryState(input.status),
+        timestamp: "Short-lived",
+        description:
+          "Entry credentials are generated by the backend and rendered on web without exposing raw credential internals.",
+        safeTicketRef,
+      },
+    ];
+
+    return { items };
+  }
+
+  private auditTimestamp(
+    logs: Array<{ action: string; createdAt: string }>,
+    action: string,
+  ) {
+    return logs.find((log) => log.action === action)?.createdAt;
+  }
+
+  private lifecycleDescription(
+    status: TicketRecord["status"],
+    transferCount: number,
+  ) {
+    if (status === "LISTED_FOR_RESALE") {
+      return "Entry is paused while the resale listing is open.";
+    }
+    if (status === "REDEEMED") {
+      return "Ticket has been redeemed; entry code generation is closed.";
+    }
+    if (status === "CANCELLED" || status === "REFUNDED") {
+      return "Ticket is no longer eligible for entry.";
+    }
+    if (transferCount > 0) {
+      return `Ownership has changed ${transferCount} time${transferCount === 1 ? "" : "s"} under organizer rules.`;
+    }
+    return "No public transfer details are exposed in the web fallback preview.";
+  }
+
+  private entryState(status: TicketRecord["status"]) {
+    return status === "ACTIVE" || status === "TRANSFERRED"
+      ? "Ready"
+      : "Paused";
+  }
+
+  private safeStatus(status: TicketRecord["status"]) {
+    return status
+      .toLowerCase()
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  private safeTicketRef(id: string) {
+    const compact = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    return `FP-${compact.slice(-6).padStart(6, "0")}`;
+  }
+
   private async issuePrismaTicket(
     prisma: PrismaService,
     input: IssueTicketInput,
@@ -232,16 +424,63 @@ export class TicketsService {
     });
     const ticketId = `tkt_${randomUUID()}`;
     const tokenIdHint = String((await prisma.ticket.count()) + 1);
-    const ownership = await this.ticketOwnership.issueTicket({
+    const ownershipInput = {
       localTicketId: ticketId,
       tokenIdHint,
       eventId: input.eventId,
+      ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
       ownerWalletAddress: owner.walletAddress,
       transferable: ticketType.transferable,
       resaleCap: ticketType.resaleCap,
       maxTransferCount: ticketType.maxTransferCount,
       metadataUri: null,
+    };
+
+    if (this.ticketOwnership.usesOutboxProofSync()) {
+      const ticket = await prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          const ownership = await this.ticketOwnership.issueTicket(
+            ownershipInput,
+            { writer: tx },
+          );
+          const issued = await tx.ticket.create({
+            data: {
+              id: ticketId,
+              tokenId: ownership.tokenId,
+              eventId: input.eventId,
+              ticketTypeId: input.ticketTypeId,
+              ownerId: input.ownerId,
+              seatHash: input.seatHash ?? null,
+              status: "ACTIVE",
+              transferCount: 0,
+              metadataUri: null,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              actorId: input.ownerId,
+              action: "TICKET_ISSUED",
+              entityType: "ticket",
+              entityId: issued.id,
+              metadataJson: {
+                eventId: input.eventId,
+                ticketTypeId: input.ticketTypeId,
+                ownershipAdapter: ownership.adapter,
+                ownershipRef: ownership.ownershipRef,
+                transactionHash: ownership.transactionHash,
+              },
+            },
+          });
+          return issued;
+        },
+      );
+
+      return this.mapPrismaTicket(ticket);
+    }
+
+    const ownership = await this.ticketOwnership.issueTicket({
+      ...ownershipInput,
     });
 
     const ticket = await prisma.ticket.create({
@@ -349,6 +588,28 @@ export class TicketsService {
     this.assertPrismaEventAccess(event, session);
   }
 
+  private assertPrismaProofAccess(
+    ticket: {
+      ownerId: string;
+      event: { organizer?: { userId?: string } };
+    },
+    session: FanPassSession | undefined,
+  ) {
+    if (!session || session.role === "ADMIN") {
+      return;
+    }
+    if (session.role === "FAN" && ticket.ownerId === session.userId) {
+      return;
+    }
+    if (
+      session.role === "ORGANIZER" &&
+      ticket.event.organizer?.userId === session.userId
+    ) {
+      return;
+    }
+    throw new ForbiddenException("Ticket proof history is not accessible");
+  }
+
   private assertPrismaEventAccess(
     event: { organizer?: { userId?: string } },
     session: FanPassSession | undefined,
@@ -392,5 +653,22 @@ export class TicketsService {
     if (!this.memoryCanAccessEvent(eventId, session)) {
       throw new ForbiddenException("Organizer is not assigned to this event");
     }
+  }
+
+  private assertMemoryProofAccess(
+    ticket: TicketRecord,
+    session: FanPassSession | undefined,
+  ) {
+    if (!session || session.role === "ADMIN") {
+      return;
+    }
+    if (session.role === "FAN" && ticket.ownerId === session.userId) {
+      return;
+    }
+    if (session.role === "ORGANIZER") {
+      this.assertMemoryEventAccess(ticket.eventId, session);
+      return;
+    }
+    throw new ForbiddenException("Ticket proof history is not accessible");
   }
 }

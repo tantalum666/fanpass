@@ -141,6 +141,19 @@ describe("security config validation", () => {
     ).toBe(120);
   });
 
+  it("limits QR TTL configuration to 30 seconds", () => {
+    expect(() =>
+      validateEnvironment({
+        QR_TTL_SECONDS: "31",
+      }),
+    ).toThrow(/QR_TTL_SECONDS/);
+    expect(() =>
+      validateEnvironment({
+        QR_TTL_SECONDS: "30",
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects invalid dedicated auth and staff rate-limit config", () => {
     expect(() =>
       validateEnvironment({

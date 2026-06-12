@@ -67,9 +67,11 @@ const expectedAccessByHandler = new Map<string, "PUBLIC" | string[]>([
   ["TicketsController.listTickets", ["ORGANIZER", "ADMIN"]],
   ["TicketsController.listOwnedTickets", ["FAN", "ORGANIZER", "ADMIN"]],
   ["TicketsController.issueTicket", ["ORGANIZER", "ADMIN"]],
+  ["TicketsController.getProofHistory", ["FAN", "ORGANIZER", "ADMIN"]],
   ["TicketsController.getTicket", ["ORGANIZER", "ADMIN"]],
   ["VerificationController.generateQr", ["FAN", "ADMIN"]],
   ["VerificationController.redeem", ["GATE_STAFF", "ADMIN"]],
+  ["VerificationController.validateNfc", ["GATE_STAFF", "ADMIN"]],
   [
     "VerificationController.checkinSummary",
     ["GATE_STAFF", "ORGANIZER", "ADMIN"],

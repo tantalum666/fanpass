@@ -143,4 +143,35 @@ describe("TicketsService", () => {
       ),
     ).rejects.toThrow(ForbiddenException);
   });
+
+  it("returns redacted proof history only to the ticket owner", async () => {
+    const proofStore = new DemoStore({ includeMarketDepth: true });
+    const proofTickets = new TicketsService(
+      proofStore,
+      new AuditService(proofStore),
+      new TicketOwnershipSideEffectsService(
+        new OwnershipService(new ConfigService()),
+      ),
+    );
+    const proofHistory = await proofTickets.getProofHistory("tkt_demo_003", {
+      userId: "usr_buyer_demo",
+      role: "FAN",
+    });
+
+    expect(proofHistory.items).toHaveLength(4);
+    expect(proofHistory.items[0]).toMatchObject({
+      id: "issued",
+      safeTicketRef: "FP-EMO003",
+    });
+    expect(JSON.stringify(proofHistory)).not.toMatch(
+      /ownerId|ownerIdHash|nonce|signature|walletAddress|provider|accessToken|bearer/i,
+    );
+
+    await expect(
+      proofTickets.getProofHistory("tkt_demo_003", {
+        userId: "usr_fan_demo",
+        role: "FAN",
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
 });

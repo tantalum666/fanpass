@@ -37,7 +37,7 @@ export class DemoStore {
   readonly checkins: CheckinRecord[] = [];
   readonly auditLogs: AuditLogRecord[] = [];
 
-  constructor() {
+  constructor(private readonly options: { includeMarketDepth?: boolean } = {}) {
     this.seed();
   }
 
@@ -59,13 +59,15 @@ export class DemoStore {
   }
 
   private seed() {
-    const seed = createDemoSeed();
+    const seed = createDemoSeed(this.options);
     this.users.push(...seed.users);
     this.organizers.push(...seed.organizers);
     this.venues.push(...seed.venues);
     this.events.push(...seed.events);
     this.ticketTypes.push(...seed.ticketTypes);
     this.tickets.push(...seed.tickets);
+    this.orders.push(...seed.orders);
+    this.trades.push(...seed.trades);
     this.fanTasks.push(...seed.fanTasks);
     this.gateAssignments.push(...seed.gateAssignments);
   }

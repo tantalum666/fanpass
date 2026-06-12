@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
   IsISO8601,
+  IsIn,
+  IsInt,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -22,6 +25,15 @@ class GenerateQrDto {
 }
 
 class RedeemDto implements SignedQrPayload {
+  @IsOptional()
+  @IsInt()
+  v?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
+  credentialId?: string;
+
   @IsString()
   @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
   ticketId!: string;
@@ -29,6 +41,11 @@ class RedeemDto implements SignedQrPayload {
   @IsString()
   @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
   eventId!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
+  ticketTypeId?: string;
 
   @IsString()
   @Matches(/^[a-f0-9]{64}$/i)
@@ -46,14 +63,40 @@ class RedeemDto implements SignedQrPayload {
   @IsISO8601()
   expiresAt!: string;
 
+  @IsOptional()
   @IsString()
-  @Matches(/^[a-f0-9]{64}$/i)
+  @IsIn(["qr", "nfc"])
+  entryMode?: "qr" | "nfc";
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9_.-]{1,63}$/)
+  kid?: string;
+
+  @IsString()
+  @Matches(/^([a-f0-9]{64}|[A-Za-z0-9_-]{32,96})$/i)
   signature!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(24)
   gate!: string;
+}
+
+class ValidateNfcDto {
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
+  eventId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(24)
+  gate!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(4096)
+  ndefPayload!: string;
 }
 
 @Controller("/verification")
@@ -75,6 +118,22 @@ export class VerificationController {
   @Roles("GATE_STAFF", "ADMIN")
   redeem(@Body() body: RedeemDto, @CurrentSession() session: FanPassSession) {
     return this.verification.redeem(body, session.userId, body.gate, session);
+  }
+
+  @Post("/nfc/validate")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("GATE_STAFF", "ADMIN")
+  validateNfc(
+    @Body() body: ValidateNfcDto,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.verification.validateNfcPayload(
+      body.ndefPayload,
+      body.eventId,
+      session.userId,
+      body.gate,
+      session,
+    );
   }
 
   @Get("/events/:eventId/gates/:gate/checkins/summary")

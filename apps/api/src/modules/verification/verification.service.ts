@@ -19,13 +19,20 @@ import { AuditService } from "../audit/audit.service";
 import { TicketOwnershipSideEffectsService } from "../side-effects/ticket-ownership-side-effects.service";
 import { TicketsService } from "../tickets/tickets.service";
 
+const QR_TTL_SECONDS = 30;
+
 export interface SignedQrPayload {
+  v?: number;
+  credentialId?: string;
   ticketId: string;
   eventId: string;
+  ticketTypeId?: string;
   ownerIdHash: string;
   nonce: string;
   issuedAt: string;
   expiresAt: string;
+  entryMode?: "qr" | "nfc";
+  kid?: string;
   signature: string;
 }
 
@@ -40,9 +47,29 @@ export type RedemptionResult =
   | "CANCELLED"
   | "ERROR";
 
+type EntryCredentialStatus = "ACTIVE" | "CONSUMED" | "REVOKED" | "EXPIRED";
+
+interface MemoryEntryCredential {
+  credentialId: string;
+  ticketId: string;
+  eventId: string;
+  ticketTypeId?: string;
+  ownerIdHash: string;
+  nonce: string;
+  entryMode: "qr" | "nfc";
+  keyId?: string;
+  status: EntryCredentialStatus;
+  issuedAt: string;
+  expiresAt: string;
+  revokedReason?: string;
+  supersededByCredentialId?: string;
+}
+
 @Injectable()
 export class VerificationService {
   private readonly consumedNonces = new Set<string>();
+  private readonly activeRedemptionClaims = new Set<string>();
+  private readonly entryCredentials = new Map<string, MemoryEntryCredential>();
 
   constructor(
     private readonly config: ConfigService,
@@ -55,6 +82,8 @@ export class VerificationService {
 
   reset() {
     this.consumedNonces.clear();
+    this.activeRedemptionClaims.clear();
+    this.entryCredentials.clear();
   }
 
   createPayload(
@@ -69,20 +98,22 @@ export class VerificationService {
     const ticket = this.tickets.getRawTicket(ticketId);
     this.assertCanGenerateForSession(ticket, session);
     this.tickets.assertCanGenerateEntryPayload(ticket);
-    const issuedAt = new Date();
-    const expiresAt = new Date(issuedAt.getTime() + this.ttlMs());
-    const payload = {
-      ticketId: ticket.id,
-      eventId: ticket.eventId,
-      ownerIdHash: this.hash(ticket.ownerId),
-      nonce: `nonce_${randomUUID()}`,
-      issuedAt: issuedAt.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    };
-    return {
-      ...payload,
-      signature: this.sign(payload),
-    };
+    const payload = this.buildUnsignedPayload(ticket, "qr");
+    this.revokeActiveMemoryCredentials(ticket.id, payload.credentialId);
+    this.entryCredentials.set(payload.credentialId, {
+      credentialId: payload.credentialId,
+      ticketId: payload.ticketId,
+      eventId: payload.eventId,
+      ticketTypeId: payload.ticketTypeId,
+      ownerIdHash: payload.ownerIdHash,
+      nonce: payload.nonce,
+      issuedAt: payload.issuedAt,
+      expiresAt: payload.expiresAt,
+      entryMode: payload.entryMode,
+      keyId: payload.kid,
+      status: "ACTIVE",
+    });
+    return this.attachSignature(payload);
   }
 
   async redeem(
@@ -111,8 +142,17 @@ export class VerificationService {
       this.throwRedemptionFailure("INVALID_SIGNATURE", "Invalid QR signature");
     }
     if (new Date(payload.expiresAt).getTime() < Date.now()) {
+      this.expireMemoryCredential(payload.credentialId);
       this.recordCheckin(payload, scannerUserId, gate, "EXPIRED");
       this.throwRedemptionFailure("EXPIRED", "QR payload has expired");
+    }
+    const memoryCredentialResult = this.assertMemoryCredentialActive(payload);
+    if (memoryCredentialResult) {
+      this.recordCheckin(payload, scannerUserId, gate, memoryCredentialResult);
+      this.throwRedemptionFailure(
+        memoryCredentialResult,
+        this.credentialFailureMessage(memoryCredentialResult),
+      );
     }
     if (this.consumedNonces.has(payload.nonce)) {
       this.recordCheckin(payload, scannerUserId, gate, "DUPLICATE");
@@ -144,25 +184,39 @@ export class VerificationService {
       );
     }
 
-    const ownership = await this.ticketOwnership.redeemTicket({
-      ticketId: ticket.id,
-      tokenId: ticket.tokenId,
-    });
-    ticket.status = "REDEEMED";
-    this.consumedNonces.add(payload.nonce);
-    const checkin = this.recordCheckin(
-      payload,
-      scannerUserId,
-      gate,
-      "ACCEPTED",
-    );
-    this.audit.record(scannerUserId, "TICKET_REDEEMED", "ticket", ticket.id, {
-      gate,
-      nonce: payload.nonce,
-      ownershipAdapter: ownership.adapter,
-      ownershipRef: ownership.ownershipRef,
-      transactionHash: ownership.transactionHash,
-    });
+    try {
+      this.claimMemoryRedemption(payload);
+    } catch (error) {
+      this.recordCheckin(payload, scannerUserId, gate, "DUPLICATE");
+      throw error;
+    }
+    let checkin: ReturnType<typeof this.recordCheckin>;
+    try {
+      const ownership = await this.ticketOwnership.redeemTicket({
+        ticketId: ticket.id,
+        tokenId: ticket.tokenId,
+      });
+      ticket.status = "REDEEMED";
+      this.consumedNonces.add(payload.nonce);
+      this.consumeMemoryCredential(payload.credentialId);
+      checkin = this.recordCheckin(
+        payload,
+        scannerUserId,
+        gate,
+        "ACCEPTED",
+      );
+      this.audit.record(scannerUserId, "TICKET_REDEEMED", "ticket", ticket.id, {
+        gate,
+        nonce: payload.nonce,
+        ownershipAdapter: ownership.adapter,
+        ownershipRef: ownership.ownershipRef,
+        transactionHash: ownership.transactionHash,
+      });
+    } catch (error) {
+      this.releaseMemoryRedemptionClaim(payload);
+      throw error;
+    }
+    this.releaseMemoryRedemptionClaim(payload);
 
     return {
       ticketId: ticket.id,
@@ -170,6 +224,31 @@ export class VerificationService {
       result: "ACCEPTED",
       redeemedAt: checkin.checkedInAt,
     };
+  }
+
+  async validateNfcPayload(
+    ndefPayload: string,
+    eventId: string,
+    scannerUserId: string,
+    gate: string,
+    session?: FanPassSession,
+  ) {
+    const payload = this.parseSignedEntryPayload(ndefPayload);
+    if (payload.eventId !== eventId) {
+      this.throwRedemptionFailure(
+        "OWNER_MISMATCH",
+        "NFC payload belongs to a different event",
+      );
+    }
+    return this.redeem(
+      {
+        ...payload,
+        entryMode: payload.entryMode ?? "nfc",
+      },
+      scannerUserId,
+      gate,
+      session,
+    );
   }
 
   async checkinSummary(
@@ -215,20 +294,25 @@ export class VerificationService {
   private sign(payload: Omit<SignedQrPayload, "signature">) {
     return createHmac("sha256", this.secret())
       .update(this.canonical(payload))
-      .digest("hex");
+      .digest("base64url");
   }
 
   private verifySignature(payload: SignedQrPayload) {
     const expected = this.sign({
+      v: payload.v,
+      credentialId: payload.credentialId,
       ticketId: payload.ticketId,
       eventId: payload.eventId,
+      ticketTypeId: payload.ticketTypeId,
       ownerIdHash: payload.ownerIdHash,
       nonce: payload.nonce,
       issuedAt: payload.issuedAt,
       expiresAt: payload.expiresAt,
+      entryMode: payload.entryMode,
+      kid: payload.kid,
     });
-    const actual = Buffer.from(payload.signature, "hex");
-    const expectedBuffer = Buffer.from(expected, "hex");
+    const actual = this.signatureBuffer(payload.signature);
+    const expectedBuffer = this.signatureBuffer(expected);
     if (
       actual.length !== expectedBuffer.length ||
       !timingSafeEqual(actual, expectedBuffer)
@@ -237,19 +321,31 @@ export class VerificationService {
     }
   }
 
-  private canonical(payload: Record<string, string>) {
+  private canonical(payload: Record<string, string | number | undefined>) {
     return JSON.stringify(
       Object.keys(payload)
+        .filter((key) => payload[key] !== undefined)
         .sort()
-        .reduce<Record<string, string>>((accumulator, key) => {
-          accumulator[key] = payload[key];
+        .reduce<Record<string, string | number>>((accumulator, key) => {
+          accumulator[key] = payload[key] as string | number;
           return accumulator;
         }, {}),
     );
   }
 
+  private signatureBuffer(signature: string) {
+    if (/^[a-f0-9]{64}$/i.test(signature)) {
+      return Buffer.from(signature, "hex");
+    }
+    return Buffer.from(signature, "base64url");
+  }
+
   private hash(value: string) {
     return createHmac("sha256", this.secret()).update(value).digest("hex");
+  }
+
+  private keyId() {
+    return this.config.get<string>("QR_SIGNING_KEY_ID") ?? "local-dev-key-v1";
   }
 
   private secret() {
@@ -264,8 +360,12 @@ export class VerificationService {
   }
 
   private ttlMs() {
-    const ttlSeconds = readIntegerConfig(this.config, "QR_TTL_SECONDS", 300);
-    return ttlSeconds * 1000;
+    const ttlSeconds = readIntegerConfig(
+      this.config,
+      "QR_TTL_SECONDS",
+      QR_TTL_SECONDS,
+    );
+    return Math.min(ttlSeconds, QR_TTL_SECONDS) * 1000;
   }
 
   private recordCheckin(
@@ -293,20 +393,37 @@ export class VerificationService {
     );
     this.assertCanGenerateForSession(ticket, session);
     this.tickets.assertCanGenerateEntryPayload(ticket);
-    const issuedAt = new Date();
-    const expiresAt = new Date(issuedAt.getTime() + this.ttlMs());
-    const payload = {
-      ticketId: ticket.id,
-      eventId: ticket.eventId,
-      ownerIdHash: this.hash(ticket.ownerId),
-      nonce: `nonce_${randomUUID()}`,
-      issuedAt: issuedAt.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    };
-    return {
-      ...payload,
-      signature: this.sign(payload),
-    };
+    const payload = this.buildUnsignedPayload(ticket, "qr");
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.entryCredential.updateMany({
+        where: {
+          ticketId: ticket.id,
+          status: "ACTIVE",
+        },
+        data: {
+          status: "REVOKED",
+          revokedReason: "SUPERSEDED",
+          supersededByCredentialId: payload.credentialId,
+        },
+      });
+      await tx.entryCredential.create({
+        data: {
+          id: payload.credentialId,
+          ticketId: payload.ticketId,
+          eventId: payload.eventId,
+          ticketTypeId: payload.ticketTypeId,
+          ownerIdHash: payload.ownerIdHash,
+          nonce: payload.nonce,
+          entryMode: payload.entryMode,
+          keyId: payload.kid,
+          status: "ACTIVE",
+          issuedAt: new Date(payload.issuedAt),
+          expiresAt: new Date(payload.expiresAt),
+          createdByUserId: session?.userId ?? null,
+        },
+      });
+    });
+    return this.attachSignature(payload);
   }
 
   private async redeemPrismaPayload(
@@ -332,6 +449,7 @@ export class VerificationService {
     }
 
     if (new Date(payload.expiresAt).getTime() < Date.now()) {
+      await this.expirePrismaCredential(prisma, payload.credentialId);
       await this.recordPrismaCheckin(
         prisma,
         payload,
@@ -340,6 +458,24 @@ export class VerificationService {
         "EXPIRED",
       );
       this.throwRedemptionFailure("EXPIRED", "QR payload has expired");
+    }
+
+    const credentialResult = await this.assertPrismaCredentialActive(
+      prisma,
+      payload,
+    );
+    if (credentialResult) {
+      await this.recordPrismaCheckin(
+        prisma,
+        payload,
+        scannerUserId,
+        gate,
+        credentialResult,
+      );
+      this.throwRedemptionFailure(
+        credentialResult,
+        this.credentialFailureMessage(credentialResult),
+      );
     }
 
     const consumedNonce = await prisma.checkin.findFirst({
@@ -401,45 +537,18 @@ export class VerificationService {
       );
     }
 
-    const ownership = await this.ticketOwnership.redeemTicket({
+    const redeemTicket = {
       ticketId: ticket.id,
       tokenId: ticket.tokenId,
-    });
+    };
 
-    const result = await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        await tx.ticket.update({
-          where: { id: ticket.id },
-          data: { status: "REDEEMED" },
-        });
-        const checkin = await tx.checkin.create({
-          data: {
-            id: `chk_${randomUUID()}`,
-            ticketId: ticket.id,
-            scannerUserId,
-            gate,
-            nonce: payload.nonce,
-            acceptedNonce: payload.nonce,
-            result: "ACCEPTED",
-          },
-        });
-        await tx.auditLog.create({
-          data: {
-            actorId: scannerUserId,
-            action: "TICKET_REDEEMED",
-            entityType: "ticket",
-            entityId: ticket.id,
-            metadataJson: {
-              gate,
-              nonce: payload.nonce,
-              ownershipAdapter: ownership.adapter,
-              ownershipRef: ownership.ownershipRef,
-              transactionHash: ownership.transactionHash,
-            },
-          },
-        });
-        return checkin;
-      },
+    const result = await this.acceptPrismaRedemption(
+      prisma,
+      payload,
+      ticket,
+      scannerUserId,
+      gate,
+      redeemTicket,
     );
 
     return {
@@ -474,6 +583,386 @@ export class VerificationService {
         result,
       },
     });
+  }
+
+  private async acceptPrismaRedemption(
+    prisma: PrismaService,
+    payload: SignedQrPayload,
+    ticket: TicketRecord,
+    scannerUserId: string,
+    gate: string,
+    redeemTicket: { ticketId: string; tokenId: string | null },
+  ) {
+    try {
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const ticketClaim = await tx.ticket.updateMany({
+          where: {
+            id: ticket.id,
+            status: {
+              in: ["ACTIVE", "TRANSFERRED"],
+            },
+          },
+          data: { status: "REDEEMED" },
+        });
+        if (ticketClaim.count !== 1) {
+          this.throwRedemptionFailure(
+            "DUPLICATE",
+            "Ticket has already been redeemed",
+          );
+        }
+
+        const ownership = await this.ticketOwnership.redeemTicket(redeemTicket, {
+          writer: tx,
+        });
+        const checkin = await tx.checkin.create({
+          data: {
+            id: `chk_${randomUUID()}`,
+            ticketId: ticket.id,
+            scannerUserId,
+            gate,
+            nonce: payload.nonce,
+            acceptedNonce: payload.nonce,
+            acceptedTicketId: ticket.id,
+            result: "ACCEPTED",
+          } as Prisma.CheckinUncheckedCreateInput,
+        });
+        await this.consumePrismaCredential(tx, payload, checkin.id, {
+          scannerUserId,
+          gate,
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: scannerUserId,
+            action: "TICKET_REDEEMED",
+            entityType: "ticket",
+            entityId: ticket.id,
+            metadataJson: {
+              gate,
+              nonce: payload.nonce,
+              ownershipAdapter: ownership.adapter,
+              ownershipRef: ownership.ownershipRef,
+              transactionHash: ownership.transactionHash,
+            },
+          },
+        });
+        return checkin;
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintViolation(error)) {
+        await this.recordPrismaCheckin(
+          prisma,
+          payload,
+          scannerUserId,
+          gate,
+          "DUPLICATE",
+        );
+        this.throwRedemptionFailure(
+          "DUPLICATE",
+          "Ticket or QR nonce has already been redeemed",
+        );
+      }
+      throw error;
+    }
+  }
+
+  private parseSignedEntryPayload(value: string): SignedQrPayload {
+    const normalized = this.normalizeNdefPayload(value);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(normalized);
+    } catch (error) {
+      throw new BadRequestException({
+        result: "INVALID_TICKET",
+        message: "NFC payload is not valid FanPass entry JSON",
+      });
+    }
+    if (!this.isSignedEntryPayload(parsed)) {
+      throw new BadRequestException({
+        result: "INVALID_TICKET",
+        message: "NFC payload is missing required FanPass entry fields",
+      });
+    }
+    return parsed;
+  }
+
+  private normalizeNdefPayload(value: string) {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("fanpass://entry?")) {
+      const url = new URL(trimmed);
+      const encodedPayload = url.searchParams.get("payload");
+      if (!encodedPayload) {
+        throw new BadRequestException({
+          result: "INVALID_TICKET",
+          message: "NFC URI is missing FanPass payload",
+        });
+      }
+      return encodedPayload;
+    }
+    return trimmed;
+  }
+
+  private buildUnsignedPayload(
+    ticket: TicketRecord,
+    entryMode: "qr" | "nfc",
+  ): Omit<SignedQrPayload, "signature"> & {
+    credentialId: string;
+    ticketTypeId: string;
+    entryMode: "qr" | "nfc";
+    kid: string;
+  } {
+    const issuedAt = new Date();
+    const expiresAt = new Date(issuedAt.getTime() + this.ttlMs());
+    return {
+      v: 1,
+      credentialId: `cred_${randomUUID()}`,
+      ticketId: ticket.id,
+      eventId: ticket.eventId,
+      ticketTypeId: ticket.ticketTypeId,
+      ownerIdHash: this.hash(ticket.ownerId),
+      nonce: `nonce_${randomUUID()}`,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      entryMode,
+      kid: this.keyId(),
+    };
+  }
+
+  private attachSignature(
+    payload: Omit<SignedQrPayload, "signature">,
+  ): SignedQrPayload {
+    return {
+      ...payload,
+      signature: this.sign(payload),
+    };
+  }
+
+  private revokeActiveMemoryCredentials(
+    ticketId: string,
+    supersededByCredentialId: string,
+  ) {
+    for (const credential of this.entryCredentials.values()) {
+      if (credential.ticketId === ticketId && credential.status === "ACTIVE") {
+        credential.status = "REVOKED";
+        credential.revokedReason = "SUPERSEDED";
+        credential.supersededByCredentialId = supersededByCredentialId;
+      }
+    }
+  }
+
+  private expireMemoryCredential(credentialId: string | undefined) {
+    if (!credentialId) {
+      return;
+    }
+    const credential = this.entryCredentials.get(credentialId);
+    if (credential?.status === "ACTIVE") {
+      credential.status = "EXPIRED";
+    }
+  }
+
+  private consumeMemoryCredential(credentialId: string | undefined) {
+    if (!credentialId) {
+      return;
+    }
+    const credential = this.entryCredentials.get(credentialId);
+    if (credential?.status === "ACTIVE") {
+      credential.status = "CONSUMED";
+    }
+  }
+
+  private claimMemoryRedemption(payload: SignedQrPayload) {
+    const nonceClaim = `nonce:${payload.nonce}`;
+    const ticketClaim = `ticket:${payload.ticketId}`;
+    if (
+      this.consumedNonces.has(payload.nonce) ||
+      this.activeRedemptionClaims.has(nonceClaim) ||
+      this.activeRedemptionClaims.has(ticketClaim)
+    ) {
+      this.throwRedemptionFailure(
+        "DUPLICATE",
+        "Ticket or QR nonce has already been redeemed",
+      );
+    }
+    this.activeRedemptionClaims.add(nonceClaim);
+    this.activeRedemptionClaims.add(ticketClaim);
+  }
+
+  private releaseMemoryRedemptionClaim(payload: SignedQrPayload) {
+    this.activeRedemptionClaims.delete(`nonce:${payload.nonce}`);
+    this.activeRedemptionClaims.delete(`ticket:${payload.ticketId}`);
+  }
+
+  private assertMemoryCredentialActive(
+    payload: SignedQrPayload,
+  ): Exclude<RedemptionResult, "ACCEPTED"> | null {
+    if (!payload.credentialId) {
+      return null;
+    }
+    const credential = this.entryCredentials.get(payload.credentialId);
+    if (!credential) {
+      return "INVALID_TICKET";
+    }
+    if (!this.credentialMatchesPayload(credential, payload)) {
+      return "OWNER_MISMATCH";
+    }
+    if (credential.status === "CONSUMED") {
+      return "DUPLICATE";
+    }
+    if (credential.status === "REVOKED") {
+      return "INVALID_TICKET";
+    }
+    if (
+      credential.status === "EXPIRED" ||
+      new Date(credential.expiresAt).getTime() < Date.now()
+    ) {
+      credential.status = "EXPIRED";
+      return "EXPIRED";
+    }
+    return null;
+  }
+
+  private async assertPrismaCredentialActive(
+    prisma: PrismaService,
+    payload: SignedQrPayload,
+  ): Promise<Exclude<RedemptionResult, "ACCEPTED"> | null> {
+    if (!payload.credentialId) {
+      return null;
+    }
+    const credential = await prisma.entryCredential.findUnique({
+      where: {
+        id: payload.credentialId,
+      },
+    });
+    if (!credential) {
+      return "INVALID_TICKET";
+    }
+    if (!this.credentialMatchesPayload(credential, payload)) {
+      return "OWNER_MISMATCH";
+    }
+    if (credential.status === "CONSUMED") {
+      return "DUPLICATE";
+    }
+    if (credential.status === "REVOKED") {
+      return "INVALID_TICKET";
+    }
+    if (
+      credential.status === "EXPIRED" ||
+      credential.expiresAt.getTime() < Date.now()
+    ) {
+      await this.expirePrismaCredential(prisma, payload.credentialId);
+      return "EXPIRED";
+    }
+    return null;
+  }
+
+  private credentialMatchesPayload(
+    credential: {
+      ticketId: string;
+      eventId: string;
+      ticketTypeId?: string | null;
+      ownerIdHash: string;
+      nonce: string;
+      entryMode: string;
+      keyId?: string | null;
+    },
+    payload: SignedQrPayload,
+  ) {
+    return (
+      credential.ticketId === payload.ticketId &&
+      credential.eventId === payload.eventId &&
+      (credential.ticketTypeId ?? undefined) === payload.ticketTypeId &&
+      credential.ownerIdHash === payload.ownerIdHash &&
+      credential.nonce === payload.nonce &&
+      credential.entryMode === (payload.entryMode ?? "qr") &&
+      (credential.keyId ?? undefined) === payload.kid
+    );
+  }
+
+  private async expirePrismaCredential(
+    prisma: PrismaService,
+    credentialId: string | undefined,
+  ) {
+    if (!credentialId) {
+      return;
+    }
+    await prisma.entryCredential.updateMany({
+      where: {
+        id: credentialId,
+        status: "ACTIVE",
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+  }
+
+  private async consumePrismaCredential(
+    writer: Prisma.TransactionClient,
+    payload: SignedQrPayload,
+    checkinId: string,
+    context: { scannerUserId: string; gate: string },
+  ) {
+    if (!payload.credentialId) {
+      return;
+    }
+    const updated = await writer.entryCredential.updateMany({
+      where: {
+        id: payload.credentialId,
+        status: "ACTIVE",
+      },
+      data: {
+        status: "CONSUMED",
+        consumedAt: new Date(),
+        consumedCheckinId: checkinId,
+        scannerUserId: context.scannerUserId,
+        gate: context.gate,
+      },
+    });
+    if (updated.count !== 1) {
+      this.throwRedemptionFailure(
+        "DUPLICATE",
+        "Entry credential has already been used",
+      );
+    }
+  }
+
+  private credentialFailureMessage(
+    result: Exclude<RedemptionResult, "ACCEPTED">,
+  ) {
+    switch (result) {
+      case "DUPLICATE":
+        return "Entry credential has already been used";
+      case "EXPIRED":
+        return "Entry credential has expired";
+      case "OWNER_MISMATCH":
+        return "Entry credential does not match current ticket ownership";
+      default:
+        return "Entry credential is no longer valid";
+    }
+  }
+
+  private isUniqueConstraintViolation(error: unknown) {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    );
+  }
+
+  private isSignedEntryPayload(value: unknown): value is SignedQrPayload {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const candidate = value as Record<string, unknown>;
+    return [
+      "ticketId",
+      "eventId",
+      "ownerIdHash",
+      "nonce",
+      "issuedAt",
+      "expiresAt",
+      "signature",
+    ].every((field) => typeof candidate[field] === "string");
   }
 
   private mapPrismaTicket(ticket: {

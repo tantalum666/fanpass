@@ -74,6 +74,16 @@ export class TicketsController {
     return this.tickets.issueTicket(body, session);
   }
 
+  @Get(":id/proof-history")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("FAN", "ORGANIZER", "ADMIN")
+  getProofHistory(
+    @Param("id", FanPassIdParamPipe) id: string,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.tickets.getProofHistory(id, session);
+  }
+
   @Get(":id")
   @UseGuards(FanPassAuthGuard)
   @Roles("ORGANIZER", "ADMIN")

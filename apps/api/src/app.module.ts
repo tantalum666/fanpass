@@ -52,7 +52,10 @@ import { validateEnvironment } from "./config/security-config";
     AlphaController,
   ],
   providers: [
-    DemoStore,
+    {
+      provide: DemoStore,
+      useFactory: () => new DemoStore({ includeMarketDepth: true }),
+    },
     PrismaService,
     AlphaPersistenceService,
     AuditService,
