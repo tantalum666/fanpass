@@ -156,7 +156,7 @@ Known live staging:
 - API: https://fanpass-api-staging.onrender.com
 - Console: https://fanpass-console-staging.onrender.com
 - GitHub repo: https://github.com/tantalum666/fanpass
-- Latest Render API deployed commit verified on 2026-06-03: 07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d; worker scheduler code was introduced in 75b4e68bc7835bc2d4532259a3cecac2ab8e99da.
+- Latest Render API deployed commit verified on 2026-06-12: a1b6d56b5083c33b8a35b7ebc6d91a2150c810d9 (`Clamp QR TTL at runtime without blocking staging env`) via deploy `dep-d8m046bbc2fs73ee9l4g`; `https://fanpass-api-staging.onrender.com/health` returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}`. The API Render service is configured to branch `main`, so deploys from `codex/beta-foundation-hosted-ci` currently require explicit `render deploys create srv-d8dh521o3t8c73eidcv0 --commit <sha> --wait --confirm`.
 - Latest Render Console deployed commit verified on 2026-06-07: 2df41595d23dd756984fa7f0e4299ab9e62bbeef; the current Vite/Node BFF Console runtime was introduced in 2fd850e35341844a953db151652b2f4c7088b8c9.
 
 Important provider status:

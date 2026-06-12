@@ -5355,6 +5355,42 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Git status after deployment: API settlement files and deployment docs are committed/pushed. The local V4 iOS file `apps/ios/FanPass/FanPass/Services/FanPassV4APIDataProvider.swift` remains untracked with the no-mock-QR-fallback behavior used in the installed phone build.
 - Boundary: this is a local development-device install, not TestFlight evidence. Render staging online check is not yet webhook settlement evidence. Next live check should wait for Render to finish deploying or manually deploy latest commit from Render Dashboard if auto-deploy is off, then run a real Stripe test checkout and verify the backend ticket appears.
 
+## After Render CLI Setup And API Staging Deploy on 2026-06-12
+
+- Repeated the required startup pass for the Render CLI continuation: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read before continuing.
+- Installed Render CLI locally with Homebrew. `render login` completed through the Render Dashboard device flow, `render whoami -o json` confirmed the account, and `render workspace set tea-d8dg6inavr4c73fo04m0 --confirm` set the active workspace to `FanPass`.
+- Render service discovery via CLI found:
+  - API service `fanpass-api-staging`, id `srv-d8dh521o3t8c73eidcv0`, public URL `https://fanpass-api-staging.onrender.com`, configured branch `main`.
+  - Console service `fanpass-console-staging`, id `srv-d8i5oma8qa3s73e3vug0`, public URL `https://fanpass-console-staging.onrender.com`, configured branch `codex/beta-foundation-hosted-ci`.
+- Important deployment finding: pushing `codex/beta-foundation-hosted-ci` does not auto-deploy the API because the API service is configured against `main`. API staging was deployed by explicitly passing commit SHAs to `render deploys create srv-d8dh521o3t8c73eidcv0 --commit <sha> --wait --confirm`.
+- Several deploy attempts correctly exposed missing committed backend pieces and staging config mismatches:
+  - `593f5ac6eedffd09348e80031ddaa95354629301` failed because `side-effect-worker.service.ts` referenced `ticketTypeId` before the ownership input/type changes were committed.
+  - `0bfad75d1ebd17037237b8dfa04080ce22cfceba` failed because `tickets.service.ts` still had uncommitted `ticketTypeId` issue-call changes.
+  - `1e7a86f893f256ee9aadd592b9108b5d936eafa9` failed because Prisma `EntryCredential` schema changes had not been committed.
+  - `ac44656df4c34000a919bcc0fb9856c4723d90c2` failed during `prisma db push` because a new `acceptedTicketId @unique` constraint required a data-loss override.
+  - `1eed5a05aebfa04d6a8a4f4b39351bfbb714cd33` built but failed startup because Render had an older `QR_TTL_SECONDS` value and strict config validation required exactly `30`.
+- Fixes committed and pushed to `origin/codex/beta-foundation-hosted-ci`:
+  - `0bfad75d1ebd17037237b8dfa04080ce22cfceba` (`Complete ownership proof sync worker types`): committed ownership proof-sync input/types and tests.
+  - `1e7a86f893f256ee9aadd592b9108b5d936eafa9` (`Harden entry credentials and proof history`): committed QR credential lifecycle, NFC validate, proof-history, demo market-depth, and tests.
+  - `ac44656df4c34000a919bcc0fb9856c4723d90c2` (`Add entry credential persistence schema`): committed Prisma `EntryCredential` persistence.
+  - `1eed5a05aebfa04d6a8a4f4b39351bfbb714cd33` (`Avoid staging data-loss warning for entry credentials`): removed the unnecessary `acceptedTicketId` uniqueness so staging `prisma db push` does not require `--accept-data-loss`.
+  - `a1b6d56b5083c33b8a35b7ebc6d91a2150c810d9` (`Clamp QR TTL at runtime without blocking staging env`): allowed existing staging `QR_TTL_SECONDS` config to pass startup while runtime QR issuance still clamps credentials to 30 seconds.
+- Final Render deploy:
+  - Deploy id `dep-d8m046bbc2fs73ee9l4g`.
+  - Commit `a1b6d56b5083c33b8a35b7ebc6d91a2150c810d9`.
+  - Status `live`.
+  - `curl -m 30 -fsS https://fanpass-api-staging.onrender.com/health` returned `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}`.
+- Verification run locally before final deploy:
+  - `npm run test -w apps/api -- --runTestsByPath test/ownership.service.spec.ts test/ticket-ownership-side-effects.service.spec.ts test/side-effect-worker.service.spec.ts test/orderbook.service.spec.ts test/verification.service.spec.ts`
+  - `npm run test -w apps/api -- --runTestsByPath test/verification.service.spec.ts test/tickets.service.spec.ts test/route-security.spec.ts test/security-config.spec.ts test/ownership.service.spec.ts test/ticket-ownership-side-effects.service.spec.ts test/side-effect-worker.service.spec.ts test/orderbook.service.spec.ts`
+  - `npm run prisma:push -w apps/api`
+  - `npm run test -w apps/api -- --runTestsByPath test/security-config.spec.ts test/verification.service.spec.ts`
+  - `npm run typecheck -w apps/api`
+  - `npm run build -w apps/api`
+- Current backend status: Render API staging is live on the latest API commit above and now includes primary ticket settlement after Stripe authorization, dynamic entry credential persistence, 30-second runtime QR credential windows, NFC validate endpoint support, and proof-history support.
+- Remaining evidence boundary: this deploy closes the Render API staging deployment gap, but it does not by itself close real Stripe webhook settlement evidence, physical fan QR -> Ops scanner evidence, signed/TestFlight evidence, signed Wallet evidence, or release-grade chain custody evidence.
+- Worktree caution: many pre-existing non-API files remain dirty/untracked. This deployment intentionally staged only the API files and docs needed for the Render deploy path.
+
 ## After Web Event Detail And Checkout Concept Pass on 2026-06-07
 
 - Confirmed the non-negotiable engineering rules are present in `docs/NEW_CHAT_PROMPT.md`, `docs/CODEX_HANDOFF.md`, and `docs/QA_CHECKLIST.md`.
