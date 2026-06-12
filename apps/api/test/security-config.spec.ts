@@ -141,15 +141,10 @@ describe("security config validation", () => {
     ).toBe(120);
   });
 
-  it("limits QR TTL configuration to 30 seconds", () => {
+  it("allows staging QR TTL config while runtime credential windows stay capped", () => {
     expect(() =>
       validateEnvironment({
-        QR_TTL_SECONDS: "31",
-      }),
-    ).toThrow(/QR_TTL_SECONDS/);
-    expect(() =>
-      validateEnvironment({
-        QR_TTL_SECONDS: "30",
+        QR_TTL_SECONDS: "300",
       }),
     ).not.toThrow();
   });

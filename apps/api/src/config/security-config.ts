@@ -22,7 +22,7 @@ export function validateEnvironment(config: EnvMap) {
   const errors: string[] = [];
   const productionLike = isProductionLikeEnvironment(config);
 
-  validatePositiveInteger(config, "QR_TTL_SECONDS", errors, 30, 30);
+  validatePositiveInteger(config, "QR_TTL_SECONDS", errors, 30, 900);
   validatePositiveInteger(config, "SESSION_TTL_SECONDS", errors, 300, 86_400);
   validatePositiveInteger(
     config,
