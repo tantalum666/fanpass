@@ -5388,6 +5388,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `npm run typecheck -w apps/api`
   - `npm run build -w apps/api`
 - Current backend status: Render API staging is live on the latest API commit above and now includes primary ticket settlement after Stripe authorization, dynamic entry credential persistence, 30-second runtime QR credential windows, NFC validate endpoint support, and proof-history support.
+- Physical iPhone follow-up after the deploy: `xcrun devicectl list devices` still showed connected iPhone `tantalum` / iPhone 16 Pro Max. `xcrun devicectl device info apps` confirmed both `com.fanpass.app` (`FanPass`) and `com.fanpass.ops` (`FanPass Ops`) remain installed as developer-built apps. No iOS source changed during the Render CLI/deploy fix, so the previously installed `FanPass` device build with executable SHA-256 `a160b10e8419bb6a1eeed50002cea8b30ad167c206971cf476ca4f46416a4d87` was not reinstalled.
 - Remaining evidence boundary: this deploy closes the Render API staging deployment gap, but it does not by itself close real Stripe webhook settlement evidence, physical fan QR -> Ops scanner evidence, signed/TestFlight evidence, signed Wallet evidence, or release-grade chain custody evidence.
 - Worktree caution: many pre-existing non-API files remain dirty/untracked. This deployment intentionally staged only the API files and docs needed for the Render deploy path.
 
