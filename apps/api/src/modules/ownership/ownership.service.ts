@@ -15,6 +15,7 @@ export interface IssueOwnershipInput {
   localTicketId: string;
   tokenIdHint: string;
   eventId: string;
+  ticketTypeId: string;
   ownerId: string;
   ownerWalletAddress: string | null;
   transferable: boolean;
@@ -57,15 +58,19 @@ interface TestnetContract {
   interface: {
     parseLog(log: unknown): ParsedContractLog | null;
   };
-  mintTicket(
+  mintTicketWithProof(
     to: string,
     eventId: bigint,
+    ticketIdHash: string,
+    ticketTypeHash: string,
+    policyHash: string,
+    metadataHash: string,
     transferable: boolean,
     resaleCap: number,
     maxTransferCount: number,
     metadataUri: string,
   ): Promise<TestnetTransaction>;
-  transferFrom(
+  syncTicketTransfer(
     from: string,
     to: string,
     tokenId: bigint,
@@ -182,10 +187,11 @@ class TestnetOwnershipAdapter implements OwnershipAdapter {
   readonly name = "testnet" as const;
 
   private readonly abi = [
-    "function mintTicket(address to,uint256 eventId,bool transferable,uint256 resaleCap,uint256 maxTransferCount,string metadataUri) returns (uint256)",
-    "function transferFrom(address from,address to,uint256 tokenId)",
+    "function mintTicketWithProof(address to,uint256 eventId,bytes32 ticketIdHash,bytes32 ticketTypeHash,bytes32 policyHash,bytes32 metadataHash,bool transferable,uint256 resaleCap,uint256 maxTransferCount,string metadataUri) returns (uint256)",
+    "function syncTicketTransfer(address from,address to,uint256 tokenId)",
     "function redeem(uint256 tokenId)",
     "event TicketMinted(uint256 indexed tokenId,uint256 indexed eventId,address indexed owner)",
+    "event TicketTransferSynced(uint256 indexed tokenId,address indexed from,address indexed to)",
   ];
 
   constructor(private readonly config: ConfigService) {}
@@ -193,9 +199,23 @@ class TestnetOwnershipAdapter implements OwnershipAdapter {
   async issueTicket(input: IssueOwnershipInput): Promise<OwnershipReceipt> {
     const contract = await this.contract();
     const ownerWallet = this.requiredWallet(input.ownerWalletAddress, "owner");
-    const tx = await contract.mintTicket(
+    const policyHash = this.bytes32Hash(
+      [
+        "policy",
+        input.eventId,
+        input.ticketTypeId,
+        String(input.transferable),
+        String(input.resaleCap ?? 0),
+        String(input.maxTransferCount),
+      ].join(":"),
+    );
+    const tx = await contract.mintTicketWithProof(
       ownerWallet,
       this.chainEventId(input.eventId),
+      this.bytes32Hash(`ticket:${input.localTicketId}`),
+      this.bytes32Hash(`ticket-type:${input.ticketTypeId}`),
+      policyHash,
+      this.bytes32Hash(`metadata:${input.metadataUri ?? input.localTicketId}`),
       input.transferable,
       input.resaleCap ?? 0,
       input.maxTransferCount,
@@ -218,7 +238,7 @@ class TestnetOwnershipAdapter implements OwnershipAdapter {
   ): Promise<OwnershipReceipt> {
     const tokenId = this.requiredTokenId(input.tokenId);
     const contract = await this.contract();
-    const tx = await contract.transferFrom(
+    const tx = await contract.syncTicketTransfer(
       this.requiredWallet(input.fromWalletAddress, "from owner"),
       this.requiredWallet(input.toWalletAddress, "to owner"),
       BigInt(tokenId),
@@ -292,6 +312,10 @@ class TestnetOwnershipAdapter implements OwnershipAdapter {
     return BigInt(
       `0x${createHash("sha256").update(eventId).digest("hex").slice(0, 16)}`,
     );
+  }
+
+  private bytes32Hash(value: string) {
+    return `0x${createHash("sha256").update(value).digest("hex")}`;
   }
 
   private async loadEthers(): Promise<EthersRuntime> {
