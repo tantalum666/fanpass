@@ -5325,7 +5325,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Updated tests for memory orderbook primary issuance and worker resale/primary authorization results.
 - QR status after this change:
   - A ticket returned by the backend uses `/verification/qr` to create a signed, 30-second QR payload.
-  - `FanPassV4APIScannerService.refreshQRCredential` no longer silently falls back to `local-review` when `/verification/qr` fails. API-backed tickets must display a backend QR or show an error; only the explicit mock service path can generate local-review QR.
+  - Local iOS worktree note: `FanPassV4APIScannerService.refreshQRCredential` was tightened in the local untracked V4 iOS source used for the device build so it no longer silently falls back to `local-review` when `/verification/qr` fails. API-backed tickets must display a backend QR or show an error; only the explicit mock service path can generate local-review QR. Because the current V4 iOS source tree is broadly untracked, this Swift file was not included in the Render/API Git deployment commit.
   - `FanPass Ops` scanner decodes the QR and calls `/verification/redeem` unless the payload is explicitly `kid == "local-review"`.
   - Backend verification returns accepted/rejected states including duplicate, expired, invalid signature, invalid ticket, wrong ownership/current holder mismatch, and inactive/cancelled ticket failures.
   - The simulator/local fallback QR remains `local-review` and is not release evidence. Physical fan QR -> Ops scanner evidence is still open.
@@ -5352,6 +5352,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - Installed `outputs/ios-device-build/FanPassBetaDevice/Build/Products/Beta-iphoneos/FanPass.app` to the phone with `xcrun devicectl device install app`.
   - Launched `com.fanpass.app` on the phone successfully.
   - Device build executable SHA-256: `a160b10e8419bb6a1eeed50002cea8b30ad167c206971cf476ca4f46416a4d87`.
+- Git status after deployment: API settlement files and deployment docs are committed/pushed. The local V4 iOS file `apps/ios/FanPass/FanPass/Services/FanPassV4APIDataProvider.swift` remains untracked with the no-mock-QR-fallback behavior used in the installed phone build.
 - Boundary: this is a local development-device install, not TestFlight evidence. Render staging online check is not yet webhook settlement evidence. Next live check should wait for Render to finish deploying or manually deploy latest commit from Render Dashboard if auto-deploy is off, then run a real Stripe test checkout and verify the backend ticket appears.
 
 ## After Web Event Detail And Checkout Concept Pass on 2026-06-07
