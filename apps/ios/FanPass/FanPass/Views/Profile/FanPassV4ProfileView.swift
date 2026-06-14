@@ -15,6 +15,7 @@ struct FanPassV4ProfileView: View {
     @State private var walletBalances: FanPassWalletBalancesResponse?
     @State private var walletBalanceError: String?
     @State private var isLoadingWalletBalances = false
+    @State private var copiedWalletAddress = false
     let showStaffMode: Bool
     let onSignOut: () -> Void
     let onScenarioApplied: (FanPassV4.DemoUserScenario) -> Void
@@ -305,6 +306,10 @@ struct FanPassV4ProfileView: View {
                 .init(id: "address", icon: FPIcons.wallet, title: "Wallet address", subtitle: walletAddressLabel, value: walletStatusValue, kind: walletKind),
                 walletBalanceRow(asset: "USDC", icon: "dollarsign.circle.fill")
             ])
+            FPSecondaryButton(title: copiedWalletAddress ? "Address copied" : "Copy wallet address", systemImage: copiedWalletAddress ? "checkmark" : "doc.on.doc.fill") {
+                copyWalletAddress()
+            }
+            .disabled(walletFullAddress == nil)
             FPSecondaryButton(title: isLoadingWalletBalances ? "Refreshing balances" : "Refresh balances", systemImage: "arrow.clockwise") {
                 Task { await refreshWalletBalances(force: true) }
             }
@@ -327,11 +332,13 @@ struct FanPassV4ProfileView: View {
             )
             FPConceptRowList(rows: [
                 .init(id: "wallet", icon: FPIcons.wallet, title: "Wallet", subtitle: walletAddressLabel, value: walletStatusValue, kind: walletKind),
-                .init(id: "security", icon: "faceid", title: "Security check", subtitle: "Wallet re-authentication is required before export.", value: "Required", kind: .warning),
-                .init(id: "status", icon: "lock.fill", title: "Export status", subtitle: "Secure export flow is not enabled for this wallet yet.", value: "Locked", kind: .neutral)
+                .init(id: "provider", icon: "shield.lefthalf.filled", title: "Provider support", subtitle: "The current Privy iOS SDK exposes wallet creation, address, and signing APIs, but no public private-key export API.", value: "Unavailable", kind: .warning),
+                .init(id: "status", icon: "lock.fill", title: "Export status", subtitle: "Private keys are not displayed or fabricated inside FanPass.", value: "Blocked", kind: .neutral)
             ])
-            FPSecondaryButton(title: "Secure export not enabled", systemImage: "lock.fill") {}
-                .disabled(true)
+            FPSecondaryButton(title: copiedWalletAddress ? "Address copied" : "Copy wallet address", systemImage: copiedWalletAddress ? "checkmark" : "doc.on.doc.fill") {
+                copyWalletAddress()
+            }
+            .disabled(walletFullAddress == nil)
         }
     }
 
@@ -341,6 +348,15 @@ struct FanPassV4ProfileView: View {
 
     private var walletAddressLabel: String {
         walletBalances?.address ?? walletReference?.addressFragment ?? "No wallet linked"
+    }
+
+    private var walletFullAddress: String? {
+        guard let address = walletBalances?.address?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !address.isEmpty
+        else {
+            return nil
+        }
+        return address
     }
 
     private var walletStatusValue: String {
@@ -433,6 +449,20 @@ struct FanPassV4ProfileView: View {
         let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 12 else { return trimmed }
         return "\(trimmed.prefix(6))...\(trimmed.suffix(4))"
+    }
+
+    private func copyWalletAddress() {
+        guard let walletFullAddress else {
+            return
+        }
+        UIPasteboard.general.string = walletFullAddress
+        copiedWalletAddress = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            await MainActor.run {
+                copiedWalletAddress = false
+            }
+        }
     }
 
     private var settings: some View {

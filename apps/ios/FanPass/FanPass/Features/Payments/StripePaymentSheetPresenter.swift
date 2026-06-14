@@ -42,19 +42,84 @@ struct FanPassStripePaymentSheetPresenter: UIViewControllerRepresentable {
         }
 
         context.coordinator.lastRequest = request
-        STPAPIClient.shared.publishableKey = publishableKey
-
-        var configuration = PaymentSheet.Configuration()
-        configuration.returnURL = returnURL
-        configuration.allowsDelayedPaymentMethods = false
-
-        let paymentSheet = PaymentSheet(
-            paymentIntentClientSecret: clientSecret,
-            configuration: configuration
+        context.coordinator.present(
+            request: request,
+            from: viewController,
+            clientSecret: clientSecret,
+            publishableKey: publishableKey,
+            returnURL: returnURL,
+            clearRequest: {
+                presentationRequest = nil
+            },
+            onResult: onResult
         )
+    }
 
-        DispatchQueue.main.async {
-            let presentingController = currentPresentingController(fallback: viewController)
+    final class Coordinator {
+        var lastRequest: UUID?
+
+        func present(
+            request: UUID,
+            from viewController: UIViewController,
+            clientSecret: String,
+            publishableKey: String,
+            returnURL: String,
+            clearRequest: @escaping () -> Void,
+            onResult: @escaping (FanPassStripeCheckoutResult) -> Void
+        ) {
+            STPAPIClient.shared.publishableKey = publishableKey
+
+            var configuration = PaymentSheet.Configuration()
+            configuration.merchantDisplayName = "FanPass"
+            configuration.returnURL = returnURL
+            configuration.allowsDelayedPaymentMethods = false
+
+            let paymentSheet = PaymentSheet(
+                paymentIntentClientSecret: clientSecret,
+                configuration: configuration
+            )
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+                self?.attemptPresentation(
+                    request: request,
+                    retriesRemaining: 6,
+                    paymentSheet: paymentSheet,
+                    fallback: viewController,
+                    clearRequest: clearRequest,
+                    onResult: onResult
+                )
+            }
+        }
+
+        private func attemptPresentation(
+            request: UUID,
+            retriesRemaining: Int,
+            paymentSheet: PaymentSheet,
+            fallback: UIViewController,
+            clearRequest: @escaping () -> Void,
+            onResult: @escaping (FanPassStripeCheckoutResult) -> Void
+        ) {
+            guard lastRequest == request else {
+                return
+            }
+
+            let presentingController = currentPresentingController(fallback: fallback)
+            guard presentingController.viewIfLoaded?.window != nil,
+                  presentingController.transitionCoordinator == nil,
+                  !presentingController.isBeingPresented,
+                  !presentingController.isBeingDismissed
+            else {
+                retryOrFail(
+                    request: request,
+                    retriesRemaining: retriesRemaining,
+                    paymentSheet: paymentSheet,
+                    fallback: fallback,
+                    clearRequest: clearRequest,
+                    onResult: onResult
+                )
+                return
+            }
+
             paymentSheet.present(from: presentingController) { result in
                 switch result {
                 case .completed:
@@ -64,13 +129,35 @@ struct FanPassStripePaymentSheetPresenter: UIViewControllerRepresentable {
                 case let .failed(error):
                     onResult(.failed(error.localizedDescription))
                 }
-                presentationRequest = nil
+                clearRequest()
             }
         }
-    }
 
-    final class Coordinator {
-        var lastRequest: UUID?
+        private func retryOrFail(
+            request: UUID,
+            retriesRemaining: Int,
+            paymentSheet: PaymentSheet,
+            fallback: UIViewController,
+            clearRequest: @escaping () -> Void,
+            onResult: @escaping (FanPassStripeCheckoutResult) -> Void
+        ) {
+            guard retriesRemaining > 0 else {
+                clearRequest()
+                onResult(.failed("Stripe checkout could not open. Try again after the current screen finishes loading."))
+                return
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak self] in
+                self?.attemptPresentation(
+                    request: request,
+                    retriesRemaining: retriesRemaining - 1,
+                    paymentSheet: paymentSheet,
+                    fallback: fallback,
+                    clearRequest: clearRequest,
+                    onResult: onResult
+                )
+            }
+        }
     }
 }
 

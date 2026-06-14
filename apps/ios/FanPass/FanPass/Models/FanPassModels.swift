@@ -76,6 +76,7 @@ struct FanPassTicket: Codable, Identifiable, Hashable {
     let eventId: String
     let ticketTypeId: String
     let ownerId: String
+    let seatHash: String?
     let status: String
     let transferCount: Int
 }

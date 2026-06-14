@@ -224,19 +224,74 @@ enum FanPassV4APIMapper {
     static func ticket(_ ticket: FanPassTicket, context: Context) -> FanPassV4.Ticket {
         let event = context.events.first { $0.id == ticket.eventId } ?? FanPassMockData.events[0]
         let ticketType = context.ticketTypesById[ticket.ticketTypeId] ?? event.safePrimaryTicketType
+        let seat = seatAssignment(for: ticket, ticketType: ticketType)
         return FanPassV4.Ticket(
             id: ticket.id,
             event: event,
             ticketType: ticketType,
             ownerId: ticket.ownerId,
             status: ticketStatus(ticket.status),
-            section: "Verified",
-            row: "Access",
-            seat: ticket.tokenId ?? "Digital",
+            section: seat.section,
+            row: seat.row,
+            seat: seat.seat,
             entryMode: ticketStatus(ticket.status).allowsEntryCode ? .nfcReady : .unavailable,
             transferCount: ticket.transferCount,
             proofHistory: FanPassMockData.proofHistory(ticketId: ticket.id)
         )
+    }
+
+    private static func seatAssignment(
+        for ticket: FanPassTicket,
+        ticketType: FanPassV4.TicketType
+    ) -> (section: String, row: String, seat: String) {
+        if let parsed = parseSeatHash(ticket.seatHash) {
+            return parsed
+        }
+
+        let tier = ticketType.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (
+            section: tier.isEmpty ? "Digital" : tier,
+            row: "Unassigned",
+            seat: ticket.tokenId ?? "Pending"
+        )
+    }
+
+    private static func parseSeatHash(_ seatHash: String?) -> (section: String, row: String, seat: String)? {
+        guard let seatHash,
+              !seatHash.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return nil
+        }
+
+        let parts = seatHash
+            .split(separator: "-")
+            .map(String.init)
+        guard parts.count >= 6 else {
+            return nil
+        }
+
+        var section: String?
+        var row: String?
+        var seat: String?
+        var index = 0
+        while index < parts.count - 1 {
+            switch parts[index].lowercased() {
+            case "section":
+                section = parts[index + 1].uppercased()
+            case "row":
+                row = parts[index + 1].uppercased()
+            case "seat":
+                seat = parts[index + 1].uppercased()
+            default:
+                break
+            }
+            index += 2
+        }
+
+        guard let section, let row, let seat else {
+            return nil
+        }
+        return (section, row, seat)
     }
 
     static func proofHistoryItem(_ item: FanPassProofHistoryItem) -> FanPassV4.ProofHistoryItem {

@@ -6082,6 +6082,33 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Cleanup/triage: the temporary physical-device DerivedData directory `outputs/ios-device-build/FanPassBetaLatest` was removed after install. Remaining dirty worktree items are source/docs/assets/scripts from prior FanPass work, not this turn's build cache. Continue by committing validated source groups or explicitly leaving them as user-owned work; do not delete or revert them blindly.
 - Boundary: this is local development-device install evidence only. It is not TestFlight, App Store, signed Wallet evidence, authenticated USDC balance evidence, live Stripe settlement evidence, scanner redemption evidence, or release-grade chain custody evidence.
 
+## After Stripe Presenter, Ticket Seat, Wallet Copy, and HK$5 Price Fixes on 2026-06-14
+
+- This turn resumed after automatic context compaction, so `docs/CODEX_HANDOFF.md` was read first, then only non-ignored Markdown was enumerated/read/hashed per the compaction rule: 98 files, 26,438 lines, 2,216,894 bytes, SHA-256 `6ed5d26c389627ebc070927af9178960b50bab9639077d255ab445f12001e4f3`.
+- Stripe diagnosis:
+  - Render logs for `fanpass-api-staging` showed mounted `/payments` routes and Stripe SDK API-version warnings, but no recent `Stripe is not configured` or `/payments/intents` 500 evidence in the queried logs.
+  - The likely remaining instability is iOS PaymentSheet presentation timing plus free-tier/network interruptions, not a missing API route. Backend route availability had already been proven by unauthenticated 401s after the latest deploy.
+  - Backend `STRIPE_API_VERSION` was updated from `2026-02-25.clover` to `2026-05-27.dahlia` to match the current Stripe warning and reduce runtime noise.
+- iOS Stripe hardening:
+  - `FanPassStripePaymentSheetPresenter` now waits briefly and retries presentation if the SwiftUI host is not in a window yet or a navigation/sheet transition is active.
+  - If PaymentSheet still cannot be presented, checkout now gets an explicit failure result instead of leaving the UI silently stuck.
+  - The PaymentSheet configuration now sets `merchantDisplayName` to `FanPass`.
+- Ticket seat fix:
+  - `FanPassTicket` now decodes backend `seatHash`.
+  - API-backed tickets no longer hard-code `SECTION Verified` and `ROW Access`. Seat hashes like `section-118-row-h-seat-12` now display as section `118`, row `H`, seat `12`; records without parseable seat hashes fall back to the ticket tier plus `Unassigned`/token id.
+- Account Wallet fix:
+  - Account -> Wallet now has a real `Copy wallet address` action using `UIPasteboard`, enabled only when the backend returns a full wallet address.
+  - The private-key export subpage no longer presents a disabled-looking dead action. It states that the current Privy iOS SDK exposes wallet creation/address/signing APIs but no public private-key export API, and offers address copy instead. Do not fabricate or display private keys in FanPass.
+- Price update:
+  - Local iOS mock `Family Matinee Spectacular` base price is now HK$5.
+  - API demo seed `Neon Theatre Weekend` / `Balcony` face value and cap are now HK$5 for future seeded/demo resets. Existing live database rows will not change unless reseeded/migrated.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/payments.service.spec.ts test/wallet.service.spec.ts test/route-security.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `git diff --check`
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+- Not done yet in this pass: no authenticated live Stripe PaymentSheet authorization/webhook settlement, no physical iPhone install of these newest UI fixes yet, no authenticated USDC balance read, no scanner redemption evidence, no TestFlight build, no signed Wallet evidence, and no release-grade chain-custody evidence.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

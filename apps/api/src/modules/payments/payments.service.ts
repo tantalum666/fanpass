@@ -14,7 +14,7 @@ import { isProductionLikeEnvironment } from "../../config/security-config";
 import { AuditService } from "../audit/audit.service";
 import { SideEffectOutboxService } from "../side-effects/side-effect-outbox.service";
 
-const STRIPE_API_VERSION = "2026-02-25.clover";
+const STRIPE_API_VERSION = "2026-05-27.dahlia";
 
 export interface CreatePaymentIntentInput {
   orderId: string;
