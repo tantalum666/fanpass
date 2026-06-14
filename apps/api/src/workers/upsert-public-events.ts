@@ -2,9 +2,17 @@ import "reflect-metadata";
 import { PrismaClient } from "@prisma/client";
 import { createDemoSeed } from "../common/demo-seed";
 
-const prisma = new PrismaClient();
+export interface PublicEventsUpsertResult {
+  ok: true;
+  mode: "upsert-public-events";
+  events: number;
+  ticketTypes: number;
+  fanTasks: number;
+}
 
-async function main() {
+export async function upsertPublicEvents(
+  prisma: PrismaClient,
+): Promise<PublicEventsUpsertResult> {
   const seed = createDemoSeed();
 
   for (const user of seed.users) {
@@ -118,7 +126,7 @@ async function main() {
     });
   }
 
-  await markLegacyDuplicateEvents();
+  await markLegacyDuplicateEvents(prisma);
 
   const publicEventIds = seed.events.map((event) => event.id);
   const [events, ticketTypes, fanTasks] = await Promise.all([
@@ -127,22 +135,16 @@ async function main() {
     prisma.fanTask.count({ where: { eventId: { in: publicEventIds } } }),
   ]);
 
-  console.log(
-    JSON.stringify(
-      {
-        ok: true,
-        mode: "upsert-public-events",
-        events,
-        ticketTypes,
-        fanTasks,
-      },
-      null,
-      2,
-    ),
-  );
+  return {
+    ok: true,
+    mode: "upsert-public-events",
+    events,
+    ticketTypes,
+    fanTasks,
+  };
 }
 
-async function markLegacyDuplicateEvents() {
+async function markLegacyDuplicateEvents(prisma: PrismaClient) {
   await prisma.event.updateMany({
     where: {
       id: {
@@ -156,11 +158,19 @@ async function markLegacyDuplicateEvents() {
   });
 }
 
-main()
-  .catch((error) => {
+async function main() {
+  const prisma = new PrismaClient();
+  try {
+    const result = await upsertPublicEvents(prisma);
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+if (require.main === module) {
+  main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });
+}

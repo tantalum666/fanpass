@@ -7,10 +7,12 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { AppModule } from "./app.module";
 import { FanPassSocketIoAdapter } from "./common/fanpass-socket-io.adapter";
+import { PrismaService } from "./common/prisma.service";
 import {
   isProductionLikeEnvironment,
   readIntegerConfig,
 } from "./config/security-config";
+import { upsertPublicEvents } from "./workers/upsert-public-events";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -160,6 +162,13 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  if (
+    config.get<string>("FANPASS_ENV") === "staging" &&
+    config.get<string>("FANPASS_DATA_SOURCE") === "prisma"
+  ) {
+    const result = await upsertPublicEvents(app.get(PrismaService));
+    console.log(JSON.stringify(result));
+  }
 
   const port = readIntegerConfig(config, "PORT", 4000);
   await app.listen(port);
