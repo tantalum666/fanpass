@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FanPassV4MarketView: View {
     @Environment(FanPassRootViewModel.self) private var appViewModel
+    @Environment(FanPassBackendContext.self) private var backend
     @State private var viewModel = MarketViewModel()
     @State private var selectedMode: MarketMode = .overview
     @State private var selectedListing: FanPassV4.ResaleListing?
@@ -36,8 +37,18 @@ struct FanPassV4MarketView: View {
                     event: viewModel.selectedEvent,
                     ticketType: selectedMarketTicketType,
                     listings: viewModel.listings,
-                    bestAsk: selectedMarketContext.bestAskLabel
+                    bestAsk: selectedMarketContext.bestAskLabel,
+                    onAuthRequired: openSignInFromMarketSheet
                 )
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showBuyFlow = false
+                        } label: {
+                            Label("Back", systemImage: "chevron.left")
+                        }
+                    }
+                }
             }
             .presentationDetents([.large])
         }
@@ -59,6 +70,13 @@ struct FanPassV4MarketView: View {
         .onAppear {
             applyFocusedMarketEvent()
         }
+        .task(id: backend.connectionState) {
+            await viewModel.load(eventService: backend.eventService())
+            applyFocusedMarketEvent()
+            if selectedTicketTypeID == nil {
+                selectedTicketTypeID = viewModel.selectedEvent.safePrimaryTicketType.id
+            }
+        }
         .onChange(of: appViewModel.focusedMarketEvent?.id) { _, _ in
             applyFocusedMarketEvent()
         }
@@ -67,6 +85,7 @@ struct FanPassV4MarketView: View {
     private var tradingPanel: some View {
         MarketTradingPanel(
             event: viewModel.selectedEvent,
+            events: viewModel.availableEvents,
             selectedTicketTypeID: selectedTicketTypeID
         ) { event in
             viewModel.selectedEvent = event
@@ -230,10 +249,19 @@ struct FanPassV4MarketView: View {
         selectedTicketTypeID = event.safePrimaryTicketType.id
     }
 
+    private func openSignInFromMarketSheet() {
+        showBuyFlow = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(180))
+            appViewModel.openPrivySignIn()
+        }
+    }
+
 }
 
 private struct MarketTradingPanel: View {
     let event: FanPassV4.Event
+    let events: [FanPassV4.Event]
     let selectedTicketTypeID: String?
     let onSelectEvent: (FanPassV4.Event) -> Void
     let onSelectTicketType: (FanPassV4.TicketType) -> Void
@@ -254,8 +282,8 @@ private struct MarketTradingPanel: View {
 
     private var filteredEvents: [FanPassV4.Event] {
         let query = eventSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return FanPassMockData.events }
-        return FanPassMockData.events.filter { candidate in
+        guard !query.isEmpty else { return events }
+        return events.filter { candidate in
             candidate.title.localizedCaseInsensitiveContains(query) ||
                 candidate.venue.name.localizedCaseInsensitiveContains(query) ||
                 candidate.venue.city.localizedCaseInsensitiveContains(query) ||
@@ -1101,6 +1129,7 @@ private struct FanPassV4BuyOrderSheet: View {
     let ticketType: FanPassV4.TicketType
     let listings: [FanPassV4.ResaleListing]
     let bestAsk: String
+    let onAuthRequired: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var mode: FanPassV4BuyOrderMode = .market
@@ -1124,11 +1153,12 @@ private struct FanPassV4BuyOrderSheet: View {
         lowestListing?.price ?? MarketPricingSnapshot(event: event, ticketType: ticketType).floorPrice
     }
 
-    init(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, listings: [FanPassV4.ResaleListing], bestAsk: String) {
+    init(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, listings: [FanPassV4.ResaleListing], bestAsk: String, onAuthRequired: @escaping () -> Void) {
         self.event = event
         self.ticketType = ticketType
         self.listings = listings
         self.bestAsk = bestAsk
+        self.onAuthRequired = onAuthRequired
         _limitPrice = State(initialValue: "\(MarketPricingSnapshot(event: event, ticketType: ticketType).floorPrice)")
     }
 
@@ -1178,7 +1208,8 @@ private struct FanPassV4BuyOrderSheet: View {
                 event: event,
                 ticketType: ticketType,
                 quotedPrice: marketCheckoutPrice,
-                priceLineTitle: "Market price"
+                priceLineTitle: "Market price",
+                onAuthRequired: onAuthRequired
             )
             .navigationBarTitleDisplayMode(.inline)
         }

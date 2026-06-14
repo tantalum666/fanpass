@@ -16,8 +16,10 @@ struct FanPassV4CheckoutView: View {
         event: FanPassV4.Event = FanPassMockData.events[0],
         ticketType: FanPassV4.TicketType = FanPassMockData.events[0].safePrimaryTicketType,
         quotedPrice: Int? = nil,
-        priceLineTitle: String = "Face value"
+        priceLineTitle: String = "Face value",
+        onAuthRequired: (() -> Void)? = nil
     ) {
+        self.onAuthRequired = onAuthRequired
         _viewModel = State(
             initialValue: CheckoutViewModel(
                 event: event,
@@ -27,6 +29,8 @@ struct FanPassV4CheckoutView: View {
             )
         )
     }
+
+    private let onAuthRequired: (() -> Void)?
 
     var body: some View {
         FanPassV4Scaffold(title: "Checkout", subtitle: "Choose a payment method and keep ticket issue server-owned.") {
@@ -146,6 +150,7 @@ struct FanPassV4CheckoutView: View {
                 title: "Sign in to continue",
                 message: "A fan session is required before checkout, ticket ownership, or ticket assignment.",
                 signIn: {
+                    showingAuthGate = false
                     appViewModel.openPrivySignIn()
                 }
             )
@@ -243,7 +248,7 @@ struct FanPassV4CheckoutView: View {
 
     private func prepareCryptoCheckout() {
         guard backend.isAuthenticated else {
-            showingAuthGate = true
+            requestSignIn()
             return
         }
         guard canBuyTickets else {
@@ -259,7 +264,7 @@ struct FanPassV4CheckoutView: View {
             return
         }
         guard backend.isAuthenticated else {
-            showingAuthGate = true
+            requestSignIn()
             return
         }
         guard canBuyTickets else {
@@ -329,6 +334,14 @@ struct FanPassV4CheckoutView: View {
 
     private var canBuyTickets: Bool {
         backend.user.role == .fan || backend.user.role == .admin
+    }
+
+    private func requestSignIn() {
+        if let onAuthRequired {
+            onAuthRequired()
+        } else {
+            showingAuthGate = true
+        }
     }
 
     private func handleStripeResult(_ result: FanPassStripeCheckoutResult) {

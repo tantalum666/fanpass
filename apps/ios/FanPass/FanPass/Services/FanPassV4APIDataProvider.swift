@@ -36,7 +36,11 @@ struct FanPassV4APIEventService: FanPassV4EventServicing {
             .map(FanPassV4APIMapper.event)
             .filter(Self.isPublicDisplayEvent)
             .sorted(by: Self.preferPurchasableStagingEvents)
-        let primaryAPIEvents = Array(apiEvents.prefix(10))
+        let apiEventsById = Dictionary(uniqueKeysWithValues: apiEvents.map { ($0.id, $0) })
+        let designedAPIEvents = FanPassMockData.events.compactMap { apiEventsById[$0.id] }
+        let designedEventIds = Set(designedAPIEvents.map(\.id))
+        let remainingAPIEvents = apiEvents.filter { !designedEventIds.contains($0.id) }
+        let primaryAPIEvents = Array((designedAPIEvents + remainingAPIEvents).prefix(10))
         let apiEventIds = Set(primaryAPIEvents.map(\.id))
         let reviewEvents = FanPassMockData.events.filter { !apiEventIds.contains($0.id) }
         return Array((primaryAPIEvents + reviewEvents).prefix(10))
@@ -213,7 +217,7 @@ enum FanPassV4APIMapper {
             coverAssetName: fallback?.coverAssetName ?? FanPassMockData.events.first?.coverAssetName,
             fanAccessAvailable: fallback?.fanAccessAvailable ?? false,
             startTime: isoDate(event.startTime) ?? fallback?.startTime ?? Date(),
-            status: eventStatus(event.status),
+            status: fallback?.status ?? eventStatus(event.status),
             venue: venue(event.venue, fallback: fallback?.venue),
             ticketTypes: ticketTypes,
             fanTasks: fallback?.fanTasks ?? [],

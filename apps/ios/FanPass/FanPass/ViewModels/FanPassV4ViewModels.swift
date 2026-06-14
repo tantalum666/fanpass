@@ -485,6 +485,7 @@ final class TicketsViewModel {
 @MainActor
 @Observable
 final class MarketViewModel {
+    var availableEvents: [FanPassV4.Event] = FanPassMockData.events
     var listings: [FanPassV4.ResaleListing] = FanPassMockData.listings
     var trades: [FanPassV4.Trade] = FanPassMockData.trades
     var selectedEvent: FanPassV4.Event = FanPassMockData.events[0] {
@@ -496,6 +497,21 @@ final class MarketViewModel {
 
     var orderbook: [FanPassV4.OrderbookOrder] {
         FanPassMockData.orderbook(for: selectedEvent)
+    }
+
+    func load(eventService: FanPassV4EventServicing = MockEventService()) async {
+        do {
+            let events = try await eventService.featuredEvents(network: .online)
+            guard !events.isEmpty else { return }
+            availableEvents = events
+            if let matchingEvent = events.first(where: { $0.id == selectedEvent.id }) {
+                selectedEvent = matchingEvent
+            } else if let firstEvent = events.first {
+                selectedEvent = firstEvent
+            }
+        } catch {
+            availableEvents = FanPassMockData.events
+        }
     }
 
     var premiumLabel: String {

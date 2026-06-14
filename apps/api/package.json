@@ -16,6 +16,7 @@
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
     "alpha:seed": "ts-node prisma/seed-alpha.ts",
+    "public-events:upsert": "node dist/src/workers/upsert-public-events.js",
     "side-effects:work-once": "ts-node src/workers/side-effect-worker-once.ts",
     "side-effects:health": "ts-node src/workers/side-effect-health-check.ts",
     "chain:sepolia-dev:ownership-smoke": "ts-node src/workers/sepolia-dev-ownership-smoke.ts",
