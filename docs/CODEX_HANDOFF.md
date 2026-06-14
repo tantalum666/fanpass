@@ -6046,6 +6046,29 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `git diff --check` passed.
 - Not done in this pass: no staging API source deploy, no authenticated live USDC balance read, no physical iPhone install, no TestFlight build, no live Stripe authorization/webhook settlement run, no scanner redemption evidence, and no release-grade chain custody evidence.
 
+## After Render API Staging Deploy for Wallet and Payment Repair on 2026-06-14
+
+- The owner asked Codex to deploy the staging API. The deployment used the smallest practical backend file set instead of pushing the whole dirty worktree.
+- Pre-deploy validation passed:
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/payments.service.spec.ts test/wallet.service.spec.ts test/route-security.spec.ts test/security-config.spec.ts test/ownership.service.spec.ts test/side-effect-worker.service.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `scripts/with-node-22.sh npm run build -w apps/api`
+  - `git diff --check`
+- Committed and pushed only the API deployment subset plus docs on `codex/beta-foundation-hosted-ci`: commit `f2fb60c495de57b882a44e160d136aa774833300` (`Deploy wallet balances and payment idempotency repair`).
+- Render API service deployment:
+  - Service: `fanpass-api-staging` (`srv-d8dh521o3t8c73eidcv0`)
+  - Deploy id: `dep-d8n7tortqb8s73cs7n80`
+  - Trigger: Render API manual deploy with `--commit f2fb60c495de57b882a44e160d136aa774833300 --wait`
+  - Status: `live`
+  - Finished at: `2026-06-14T10:16:10.535988Z`
+  - Previous live deploy `a1b6d56b5083c33b8a35b7ebc6d91a2150c810d9` was deactivated.
+- Post-deploy staging probes:
+  - `GET https://fanpass-api-staging.onrender.com/health` returned HTTP 200 with the FanPass API health JSON.
+  - Unauthenticated `GET /wallet/balances` now returns HTTP 401 `Authentication is required`, not 404. This proves the WalletController route is live and protected.
+  - Unauthenticated `POST /payments/intents` returns HTTP 401 `Authentication is required`, confirming the payment route remains mounted/protected after deploy.
+- Important boundary: this deploy proves route availability, not a live authenticated USDC balance. A real wallet balance check still requires an authenticated FanPass/Privy session from the app or a safe test bearer path. Do not claim live USDC balance evidence until that authenticated call succeeds and is recorded without exposing tokens.
+- Remaining open after deploy: authenticated Account -> Wallet live balance read, live Stripe PaymentSheet authorization plus webhook settlement, live USDC transfer/crypto settlement, physical phone install/retest if needed, scanner redemption evidence, TestFlight evidence, signed Wallet evidence, and release-grade chain custody evidence.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
