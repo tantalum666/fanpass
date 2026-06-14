@@ -44,9 +44,10 @@ Current work cursor:
   - `FanPass` and `FanPassOps` Beta generic iOS archive compiles passed with `CODE_SIGNING_ALLOWED=NO`. These are compile confidence only, not signed/TestFlight evidence.
   - Evidence drafts were generated at `outputs/ios-staging-build/20260610T-testflight-draft.json` and `outputs/ops-scanner/20260610T-physical-qr-nfc-draft.json`.
   - Added `scripts/ios-beta-archive.sh` and npm script `ios:archive:beta` for caller-supplied signed archives without committing Apple/provider configuration.
+  - On 2026-06-12, after repeating the required startup Markdown pass, the owner selected the `FanPass Ops - Staff Entry Verification` Direction 3 concept board as the implementation target. `FanPassOps` was refactored from the broader multi-section staff shell into a result-first gate terminal with mandatory sign-in, only two top-level destinations (`Home` and `Account`), a Home scanner terminal, a QR/NFC mode selector, and Account-owned subpages for gate assignment, device checks, scan history, shift summary, and help/support. `ScannerView` now supports QR/NFC auto-start from Ops, automatically redeems a captured payload, and shows a full-screen green `ACCEPTED` or red `REJECTED` result for 1.5 seconds before dismissing back to Ops. DEBUG paste/manual-check helpers remain gated out of Beta/Release paths. Verification passed `npm run security:ios-distribution-boundaries`, `npm run security:nfc-ndef-fixture`, `FanPassOps` Beta simulator build, and `FanPass` Beta simulator build on `FanPass-iPhone-17`; XcodeBuildMCP UI smoke confirmed the Ops login page, Home terminal, mode selector, Account root, and Gate assignment subpage. A signed local development-device `FanPassOps` Beta build was also installed and launched on the connected iPhone. This is simulator UX/build plus local development-device install evidence only and does not close physical fan QR -> Ops scanner evidence or TestFlight evidence.
 - Next iOS actions:
-  - If continuing concept polish before release hardening, decide first whether to add stronger fan-facing event/poster media and whether `FanPassOps` should stay dark or move to a lighter onsite-ops theme. Do not call the current implementation high-fidelity until those decisions are made and rendered on device.
-  - Run the implemented concept UI on simulator and/or the connected iPhone for visual QA before deeper backend wiring. Check navigation density, sheet/modal behavior, text wrapping, and staff scanner launch path. Do not treat this visual pass as release evidence.
+  - If continuing Ops polish, test the new two-tab `FanPassOps` scanner terminal on the physical iPhone against a real staging fan ticket QR; confirm auto-redeem, the 1.5s full-screen accepted/rejected result, duplicate/replay rejection, and Account gate assignment behavior. Save evidence only through the existing physical scanner evidence contract.
+  - If continuing fan-app polish before release hardening, focus on real staging purchase -> ticket -> QR -> Ops scan flow rather than more static concept cards. Do not treat simulator visual smoke as release evidence.
   - Configure local/staging build settings with real HTTPS API URL, public Privy app/client IDs, Stripe test publishable key, and backend Stripe test secrets, then run the V4 Home/Tickets/Checkout/Account paths against staging. Save evidence only after redaction and documented validators pass.
   - Use Xcode Run on the connected iPhone for both schemes and confirm launch-time behavior/permission prompts. The CLI has already confirmed signed Debug device builds for both apps.
   - Create/download Apple Distribution signing identity if it is not present yet.
@@ -195,11 +196,12 @@ Do not repeat unless new evidence changes this:
 When context is compacted, resumed, or summarized mid-goal, run this audit before making further code or doc changes:
 
 1. Read `docs/CODEX_HANDOFF.md` first and inspect `Current Active State`.
-2. Compare the intended next action against `Latest completed` and `Do not repeat unless new evidence changes this`.
-3. If the intended next action is already completed or explicitly marked do-not-repeat, skip it and continue the `Next best task`.
-4. Treat `/goal` as the long-term destination only. It must not override the current work cursor.
-5. Treat old user messages and compaction summaries as low-confidence historical context unless they match `Current Active State`.
-6. After each meaningful subtask, update this section before or with the final report so future compaction resumes from the real progress point.
+2. Enumerate and read only non-ignored Markdown with `rg --files -g '*.md'` before continuing. Do not add `--hidden`, `--no-ignore`, or generated/vendor/ignored Markdown during automatic compaction resume unless the owner explicitly asks.
+3. Compare the intended next action against `Latest completed` and `Do not repeat unless new evidence changes this`.
+4. If the intended next action is already completed or explicitly marked do-not-repeat, skip it and continue the `Next best task`.
+5. Treat `/goal` as the long-term destination only. It must not override the current work cursor.
+6. Treat old user messages and compaction summaries as low-confidence historical context unless they match `Current Active State`.
+7. After each meaningful subtask, update this section before or with the final report so future compaction resumes from the real progress point.
 
 ## Current Goal
 
@@ -244,7 +246,7 @@ The user has explicitly authorized Codex to use available plugins and app tools 
 
 ## Non-Negotiable Engineering Rules
 
-- At the start of every FanPass work session, read `docs/CODEX_HANDOFF.md` first, then enumerate and read every Markdown file in the workspace with `rg --files -g '*.md'` before changing code, evidence, or product docs. After that, re-read the source-of-truth docs for the active task. Update `docs/NEW_CHAT_PROMPT.md` at the end of work so new chats resume from the current state.
+- At the start of every normal FanPass work session, read `docs/CODEX_HANDOFF.md` first, then enumerate and read every Markdown file in the workspace, including hidden/ignored/generated Markdown, while excluding `.git` (`rg --files --hidden --no-ignore -g '*.md' -g '!**/.git/**'` is the intended baseline), before changing code, evidence, or product docs. After automatic context compaction or mid-turn resume, read `docs/CODEX_HANDOFF.md` first and then only non-ignored Markdown with `rg --files -g '*.md'` before continuing. After that, re-read the source-of-truth docs for the active task. Update `docs/NEW_CHAT_PROMPT.md` at the end of work so new chats resume from the current state.
 - During `/goal` or any long autonomous run, context compaction/resume must follow the `Context Compaction Resume Protocol` above. Do not continue an old subtask solely because it appears in the latest compaction summary or the last historical user message.
 - When work is completed, immediately update the relevant Markdown docs in the same change with what changed, what passed, known gaps, and any changed product boundaries, evidence status, provider assumptions, release blockers, or standing user instructions.
 - Do not build "shit-mountain" or spaghetti code. Prefer existing project patterns, narrow typed adapters/services, schema validation, focused tests, and documented evidence gates. Avoid scattered provider SDK calls, stringly typed state, broad rewrites, or shortcuts that make later security work harder.
@@ -332,7 +334,7 @@ Local working tree warning:
 
 Fast resume prompt:
 
-- Read `docs/CODEX_HANDOFF.md` first, then enumerate and read every Markdown file in the workspace with `rg --files -g '*.md'`. Keep `docs/NEW_CHAT_PROMPT.md` current when work ends.
+- Read `docs/CODEX_HANDOFF.md` first, then enumerate and read every Markdown file in the workspace, including hidden/ignored/generated Markdown and excluding `.git`, for normal session startup. If this is an automatic context-compaction resume, read only non-ignored Markdown with `rg --files -g '*.md'`. Keep `docs/NEW_CHAT_PROMPT.md` current when work ends.
 - Start by checking `git status --short --branch`, then pick the next remaining Beta blocker. Good next targets are real iOS staging/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, or release-grade chain custody evidence.
 
 ## Repository
@@ -5392,6 +5394,405 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Remaining evidence boundary: this deploy closes the Render API staging deployment gap, but it does not by itself close real Stripe webhook settlement evidence, physical fan QR -> Ops scanner evidence, signed/TestFlight evidence, signed Wallet evidence, or release-grade chain custody evidence.
 - Worktree caution: many pre-existing non-API files remain dirty/untracked. This deployment intentionally staged only the API files and docs needed for the Render deploy path.
 
+## After iOS Fan Home Search And Account Polish on 2026-06-12
+
+- Repeated the required startup pass before touching iOS: `docs/CODEX_HANDOFF.md` was read first, then every Markdown file in the workspace was enumerated/read in full. Enumeration result: 98 Markdown files, 25,582 lines, SHA-256 `7dc07dd508a353ac36fa3f22adb1d01496ab5af21c26496f5d35f9c2c0ce7e11`.
+- Used the Build iOS Apps SwiftUI UI patterns skill for the user-facing SwiftUI pass.
+- Updated `apps/ios/FanPass/FanPass/Views/Home/FanPassV4HomeView.swift`:
+  - Removed the Home filter-chip row below the search bar.
+  - Removed the duplicate standalone header magnifying-glass button, leaving the search bar as the single search entry.
+  - Replaced the old static Search sheet rows with `HomeSearchSheetContent`, which has a focused `TextField`, clear button, selectable filters (`Tonight`, `Weekend`, `Under HK$800`, `Fan Access`, `Verified resale`, `Hong Kong`), dynamic result copy, and an Apply action.
+  - Updated the Home profile/login sheet wording from Guest to Login for signed-out browsing state.
+- Updated `apps/ios/FanPass/FanPass/Views/Profile/FanPassV4ProfileView.swift`:
+  - Account header card now stretches full width instead of wrapping only its content.
+  - Signed-out Account identity now displays `Login` and `Sign in to manage tickets`; the role pill also displays `Login` instead of `Guest`.
+- Verification:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass` / `Beta` / simulator `FanPass-iPhone-17` / bundle `com.fanpass.app`.
+  - XcodeBuildMCP `build_run_sim` passed for FanPass Beta simulator.
+  - XcodeBuildMCP runtime UI snapshot confirmed Home has no standalone header search button and no Home filter chips; the remaining search bar opens the sheet.
+  - XcodeBuildMCP typed `Aurora` into the new Search sheet `TextField` and tapped a filter option successfully.
+  - XcodeBuildMCP Account snapshot confirmed signed-out copy is `Login` / `Sign in to manage tickets`; screenshot inspection confirmed the Account card is full width. Screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_a4105503-f8ac-4373-aec0-979b1171e05c.jpg`.
+  - Physical iPhone `tantalum` / iPhone 16 Pro Max was available as device `0185F0DC-2EC1-5340-9999-B8EA666DC02C`.
+  - Built FanPass for that device with `xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'platform=iOS,id=0185F0DC-2EC1-5340-9999-B8EA666DC02C' -derivedDataPath outputs/ios-device-build/FanPassBetaDevice build`.
+  - Installed `outputs/ios-device-build/FanPassBetaDevice/Build/Products/Beta-iphoneos/FanPass.app` to the phone with `xcrun devicectl device install app` and launched `com.fanpass.app` successfully.
+  - Device build executable SHA-256: `608236579789803297b9535848ffc966f0f8fa43164155995080e132217972f6`.
+- Boundary: this closes the reported Home search/filter chip and Account signed-out visual issues for the local development build. It does not close TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence.
+- Worktree caution: the V4 iOS source tree is still largely untracked from earlier V4 work, and many unrelated files remain dirty. Do not treat `git diff` alone as a complete view of these source edits.
+
+## After iOS Fan Account Vertical Settings Polish on 2026-06-12
+
+- Repeated the required startup pass before this Account-only follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 98 Markdown files, 25,609 lines, SHA-256 `3c041b7626beb6bc6889d234e87d20feef59599a3a25e6e753507bef51e3e220`.
+- The owner explicitly said not to push to the phone yet because more UI changes remain. This pass only built/ran on the simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Profile/FanPassV4ProfileView.swift`:
+  - Account header now removes the signed-out subtitle and all status pills under `Login`.
+  - The email-code login controls moved directly under the Login area; copy now says generic `Login` / `Send code` and no longer mentions Privy.
+  - Removed the horizontal `FPConceptSegmentedControl` from Account root.
+  - Replaced the horizontal/two-column Account option cards with vertical grouped settings rows: Profile, Orders, Alerts, Privacy and security, Payments, Help and support.
+  - Removed the Overview bottom cards (`Ticket identity`, `Active device`, `Role access`) from the Account root.
+  - Removed residual `Ticket identity` / `Role access` rows from Account subpage content as well.
+  - Account subpages now open from vertical rows in a sheet, and Security no longer contains the login card or Privy wording.
+  - Added bottom scroll padding so the lower settings rows are not covered by the tab bar.
+- Verification:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass` / `Beta` / simulator `FanPass-iPhone-17`.
+  - First build exposed a local type mistake (`FPConceptTone`); fixed to the existing `FPStateKind`.
+  - XcodeBuildMCP `build_run_sim` then passed for FanPass Beta simulator; a final `build_sim` after residual row removal also passed.
+  - Runtime snapshot confirmed Account root shows `Login`, the login form, vertical setting rows, and no horizontal segmented Account options.
+  - Screenshot inspection confirmed the visible Account layout matches the requested vertical settings direction: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_f74138bc-c4bf-40c7-b374-d49cdc91fce0.jpg`.
+  - Runtime UI automation opened `Privacy and security`; snapshot confirmed Security shows `Login protection`, `Sessions and devices`, `Sensitive data`, and `Delete account`, with no Privy text and no login form inside Security.
+- Boundary: local simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Fan Account Sign-In Sheet And Single Settings Group on 2026-06-12
+
+- Repeated the required startup pass before this Account follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 98 Markdown files, 25,633 lines, SHA-256 `bf45633ca9f9ece7845416befa9cf0b7a0ba085c1d54e7d0bf6d6cac821fef04`.
+- The owner again kept phone installs out of scope. This pass only built/ran on the FanPass Beta simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Profile/FanPassV4ProfileView.swift`:
+  - Removed the inline sign-in form from the Account root.
+  - The top signed-out identity card now reads `Sign in / Sign up` and opens the sign-in sheet when tapped.
+  - Sign-in now uses the shared Account sheet path; the sheet title is `Sign in / Sign up`, with an `Email code` form card and generic copy, still with no Privy wording.
+  - Replaced the two separate settings groups with one continuous vertical settings group.
+  - Added a `Settings` row.
+  - Updated row descriptions: Profile `Personal information`, Orders `Purchases and receipts`, Alerts `Notifications and price rules`, Privacy and security `Sign-in and data controls`, Payments `Payment methods`, Settings `App preferences`, Help and support `Get help with tickets`.
+  - Added dedicated Settings and Help/Support sheet content so those rows no longer reuse the Payments content.
+- Verification:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass` / `Beta` / simulator `FanPass-iPhone-17`.
+  - XcodeBuildMCP `build_run_sim` passed for FanPass Beta simulator.
+  - Runtime UI snapshot confirmed Account root has only the top `Sign in / Sign up` entry plus one continuous list containing Profile, Orders, Alerts, Privacy and security, Payments, Settings, and Help and support.
+  - Runtime UI automation tapped the top `Sign in / Sign up` card and confirmed the email-code form appears only in the sheet.
+  - Screenshot inspection confirmed the root Account layout: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_a3ade116-8a4d-4456-a56e-14f09cacb781.jpg`.
+  - Final XcodeBuildMCP `build_sim` passed after changing the inner form title to `Email code` and replacing remaining visible Login wording in Security with Sign-in wording.
+- Boundary: local simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Fan Market Fullscreen CEX-Style Pass on 2026-06-13
+
+- Repeated the required startup pass before this Market follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 98 Markdown files, 25,656 lines, SHA-256 `a8f5eec229c25e537f046174d98e2c75d086b3e99948844aeefc1995d57c3e05`.
+- The owner explicitly said not to push to the phone yet. This pass only built/ran on the FanPass Beta simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Market/FanPassV4MarketView.swift`:
+  - Replaced the old separated Market title, event selector card, segmented tabs, stat cards, and policy card with a single fullscreen CEX-style market terminal.
+  - The top ticker and K-line chart are now one combined panel, with event dropdown, floor price, bid/ask/last/range, time range chips, and a large K-line area.
+  - Removed the middle `Overview / Event / Buy / Sell / States` segmented row from the default Market page.
+  - Removed the default bottom stat/policy cards from the Market page.
+  - Market is now a fixed non-scrolling screen; runtime UI snapshot reported no scroll targets.
+  - Kept bottom Buy/Sell actions fixed; Buy and Sell now open their flows in sheets so the main Market terminal remains a stable fullscreen surface.
+  - Removed the visible EMA/Cap legend row and removed EMA overlay lines from the K-line chart.
+  - Added pinch zoom support to the K-line canvas; zoom narrows the visible candle range instead of only visually scaling the drawing.
+  - Right-side chart axis labels now render numeric values only, with no `HK$` currency prefix or letters.
+- Updated `apps/ios/FanPass/FanPass/MockData/FanPassMockData.swift`:
+  - All mock event resale caps are now computed as 110% of face value.
+  - Mock price history now has more candle points and clamps prices inside the 110% cap.
+- Verification:
+  - XcodeBuildMCP `build_run_sim` passed repeatedly for FanPass Beta simulator after the Market changes.
+  - Runtime UI snapshot confirmed Market shows the combined terminal only, with no segmented row and `scroll: []`.
+  - Runtime UI snapshot confirmed the removed EMA/Cap legend no longer appears in visible accessibility text.
+  - Screenshot inspection confirmed the fullscreen terminal avoids the Dynamic Island/status area, keeps fixed Buy/Sell above the tab bar, removes EMA lines, and renders numeric-only right-axis labels. Latest screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_8a33f882-9d5e-4c44-a225-727561c783ff.jpg`.
+- Boundary: simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Fan Market Top Fill, Ranges, And Buy Order Sheet on 2026-06-13
+
+- Repeated the required startup pass before this Market follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 2,956 Markdown files, 598,893 lines, SHA-256 `8d2c7cce90a5429ed7114c9d13b8bee3d14cb22f45f0903e846d6e58deee8bef`.
+- The owner still has not asked for a phone install. This pass only built/ran on the FanPass Beta simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Market/FanPassV4MarketView.swift`:
+  - The Market terminal background/panel now extends behind the status bar to the top of the screen, while the actual text/content starts below the Dynamic Island/status area.
+  - Removed the cramped `24h range` metric from the top bid/ask block.
+  - The time range chips (`15m`, `1h`, `4h`, `1D`, `7D`) are now real stateful controls instead of static labels.
+  - Each time range now generates a different K-line shape/label/volatility profile, keeping the CEX-style chart direction without reintroducing finance-heavy copy.
+  - The Market page remains fixed and non-scrolling.
+  - Replaced the old Buy list sheet with a dedicated Buy order sheet.
+  - Buy sheet now supports `Market` and `Limit` modes. Market mode shows the current event's estimated fill price; Limit mode has a numeric price input and short copy explaining that limit orders wait until a seller lists at or below the entered price.
+  - Fixed a bug where the Buy sheet could use the lowest listing across all mock events; it now filters listings to the selected event before calculating estimated fill/current lowest ask.
+- Verification:
+  - XcodeBuildMCP `build_run_sim` passed for FanPass Beta simulator after the changes.
+  - Runtime snapshot confirmed Market has `scroll: []`, time-range buttons are tappable targets, and `24h range` is absent.
+  - Runtime automation tapped `15m` and `7D`, confirming range buttons update.
+  - Screenshot inspection confirmed the panel now visually fills the top status area while preserving text below the Dynamic Island. Screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_03c001d2-fe02-4180-a3be-e791912efc42.jpg`.
+  - Runtime automation opened Buy, confirmed Market mode `Estimated fill` is `HK$1,360` for Aurora rather than another event's lower price, then tapped Limit and confirmed the price input plus `Current lowest ask HK$1,360`. Buy sheet screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_3ad6f258-bb1a-45ca-b05d-2d72f64a5d45.jpg`.
+- Boundary: simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Fan Explore Fan Access And Culture Feed Update on 2026-06-13
+
+- Repeated the required startup pass before this Explore follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 2,956 Markdown files, 598,916 lines, SHA-256 `6d86ad885507a2fc3fd116dd88de0c71900af3d299a922073f8c5811d7965a20`.
+- The owner did not ask for a phone install. This pass only built/ran on the FanPass simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Explore/FanPassV4ExploreView.swift`:
+  - Removed the visible six-option Explore segmented row from the default Explore screen.
+  - Removed the city map/card and old summary metric cards from the default Explore screen.
+  - Refocused Explore around Fan Access, trend/culture briefing, artist updates, and verified recommended events.
+  - Fan Access rows now link into the existing event-scoped `FanPassV4FanAccessView`.
+  - Added a local `ExploreBriefCard` component for compact culture/artist trend cards instead of using the old directory/map surface.
+- Verification:
+  - XcodeBuildMCP defaults were restored for `FanPass` on `iPhone 17`, then `build_run_sim` passed after removing a stale `selectedSection` reference.
+  - A final XcodeBuildMCP `build_run_sim` also passed after deleting the old unused Explore directory/map section code and `FanPassV4VenueDetailView` dead code from this file.
+  - Runtime UI snapshot on the Explore tab confirmed `Fan Access`, `Trend briefing`, and event-linked Fan Access rows render on the first screen.
+  - Runtime UI snapshot after scrolling confirmed `Artist updates` and `Recommended events` render, with no visible `Overview`, `Events`, `Venues`, `Artists`, `Collections`, `Saved`, `Browse by city`, `Verified events`, or `Cities` map/stat surface.
+  - Screenshot inspection confirmed the new Explore first screen: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_05f99372-db21-403d-bd8f-d4d3b7fd8617.jpg`.
+- Boundary: simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Fan Account Locked Root Update on 2026-06-13
+
+- Repeated the required startup pass before this Account follow-up: `docs/CODEX_HANDOFF.md` was read first, then all Markdown files were enumerated/read in full. Enumeration result: 2,956 Markdown files, 598,936 lines, SHA-256 `7de030f8c872724dc8ddff5e81a50537e81144e834387cf4d58b442e83c08509`.
+- The owner did not ask for a phone install. This pass only built/ran on the FanPass simulator; no physical iPhone install was performed.
+- Updated `apps/ios/FanPass/FanPass/Views/Components/FanPassV4Scaffold.swift`:
+  - Added optional `verticalSpacing`, `topPadding`, `bottomPadding`, and `scrollDisabled` parameters while preserving existing defaults for all existing callers.
+- Updated `apps/ios/FanPass/FanPass/Views/Profile/FanPassV4ProfileView.swift`:
+  - Account root now uses compact spacing and disabled scrolling when the user is signed out.
+  - Signed-out Account menu rows are compact enough to fit on one screen above the tab bar.
+  - Tapping any Account function row while signed out now opens the `Sign in / Sign up` email-code sheet instead of opening Profile, Orders, Alerts, Privacy/Security, Payments, Settings, or Support.
+  - Account settings rows now use a full-row tap gesture/content shape so the row hit target reliably triggers the gate action.
+  - Successful email-code verification dismisses the sign-in sheet after `backend.isAuthenticated` becomes true.
+- Verification:
+  - XcodeBuildMCP `session_show_defaults` confirmed the active project was `FanPass` on `iPhone 17`.
+  - XcodeBuildMCP `build_run_sim` passed after the Account/Scaffold changes.
+  - Runtime Account snapshot confirmed all seven settings rows are visible on the signed-out Account root.
+  - Runtime swipe on the signed-out Account root kept the same screen hash, confirming there is no actual page movement.
+- Runtime tap on the `Orders` row opened the `Sign in / Sign up` sheet instead of the Orders sheet.
+- Screenshot inspection confirmed the compact non-scrolling signed-out Account root: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_99ff56c4-efc8-4ecc-a363-845fb9e61235.jpg`.
+- Boundary: simulator UI closure only. No phone install, TestFlight evidence, signed Wallet evidence, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence was closed.
+
+## After iOS Ticket Proof History API Wiring on 2026-06-13
+
+- Repeated the startup Markdown pass after the owner asked to start iOS contract integration: `docs/CODEX_HANDOFF.md` was read first, all workspace Markdown files were enumerated/read with NUL-safe paths, and the full content hash was recorded. Enumeration result: 2,956 Markdown files, 598,882 lines, SHA-256 `9644f3b61a7d7b7b1fdd417b18076dc6cf9d530403edbe41f4774c0b07688b00`.
+- Interpreted the requested iOS contract integration through the existing security boundary: iOS must not hold signer keys, RPC URLs, ABIs, or directly write chain transactions. The correct first iOS integration surface is backend-owned `/tickets/:id/proof-history`, which exposes safe lifecycle/proof summaries derived from the API/audit/ownership path.
+- Updated `apps/ios/FanPass/FanPass/Models/FanPassModels.swift` with `FanPassProofHistoryResponse` and `FanPassProofHistoryItem` DTOs for the backend proof-history response.
+- Updated `apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift` with `proofHistory(ticketId:)`.
+- Extended `FanPassV4TicketServicing` with `proofHistory(for:)`, implemented it in the API ticket service, mock ticket service, and session pending-ticket wrapper.
+- Added `FanPassV4APIMapper.proofHistoryItem` so API proof rows become `FanPassV4.ProofHistoryItem` values with product-safe titles, status, safe references, and no raw transaction hashes, wallet addresses, payloads, nonces, signatures, RPC data, or provider internals.
+- Updated `FanPassV4TicketDetailView` so opening a ticket asynchronously refreshes Proof & History from the authenticated backend service; pending checkout tickets and unauthenticated/local fallback still show existing local history. API failures show a fallback banner rather than blocking the ticket screen.
+- Verification passed:
+  - `npm --workspace apps/api run test -- --runTestsByPath test/tickets.service.spec.ts test/route-security.spec.ts`
+  - `xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+- Boundary: this is iOS consumption of backend proof-history summaries only. It does not close release-grade chain custody, real signer/relayer custody, TestFlight, signed Wallet, physical fan QR -> Ops scanner evidence, or real Stripe webhook settlement evidence.
+
+## After Privy Embedded Wallet And Dev Testnet Run-Through Wiring on 2026-06-13
+
+- Read the local Privy, mobile config, iOS architecture, contract, and chain custody docs after the owner explicitly deprioritized release-grade chain custody evidence and asked to first make real ticket purchase/entry write to chain and be queryable.
+- Checked current Privy Swift SDK interfaces in local DerivedData plus official Privy docs. Root cause confirmed: the FanPass iOS Privy login path authenticated and obtained an access token, but it did not ensure an embedded Ethereum wallet existed, so `/auth/privy/sync` usually received `walletAddress: nil`.
+- Updated `apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift` so successful email-code login now returns an existing embedded Ethereum wallet address or creates one with `createEthereumWallet()` before syncing to the backend.
+- Kept the private key/RPC/ABI boundary on the backend. iOS still sends only the Privy access token, email, and wallet address to `/auth/privy/sync`; it does not hold signer material or write contracts directly.
+- Added a deliberate non-production escape hatch for owner-approved run-throughs: `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true` permits `OWNERSHIP_ADAPTER=testnet` in staging/dev only, never when `FANPASS_ENV=production`. When enabled, startup validation requires an HTTPS `TESTNET_RPC_URL`, a 0x-prefixed 32-byte `TESTNET_OPERATOR_PRIVATE_KEY`, and a valid `FANPASS_TICKET_CONTRACT_ADDRESS`.
+- Added the new testnet-write flag to the API env examples with a default of `false`.
+- Extended ticket proof history so backend ownership audit metadata can surface a safe `On-chain proof` row. Testnet rows expose a shortened transaction reference and Sepolia Etherscan transaction URL; local/mock rows stay local proof summaries.
+- Updated the iOS proof-history DTO and mapper so the ticket detail screen can display the backend proof reference instead of only the safe ticket ref.
+- Fastest current dev run-through path:
+  - Deploy the contract with the Sepolia dev hot-key runbook or reuse the existing dev-only contract.
+  - Configure the API outside source control with `FANPASS_ENV=staging`, `OWNERSHIP_ADAPTER=testnet`, `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true`, `FANPASS_CHAIN_PROOF_SYNC_OUTBOX=false`, `TESTNET_RPC_URL`, `TESTNET_OPERATOR_PRIVATE_KEY`, and `FANPASS_TICKET_CONTRACT_ADDRESS`.
+  - Configure iOS outside source control with real `FANPASS_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_CLIENT_ID`, HTTPS API URL, and Stripe test publishable key.
+  - Sign in on the fan app with Privy email code; iOS should create/sync the embedded Ethereum wallet, then Stripe/webhook or simulator-settled backend ticket issuance can call the testnet ownership adapter.
+- Verification passed:
+  - `npm --workspace apps/api run test -- --runTestsByPath test/security-config.spec.ts test/ownership.service.spec.ts test/tickets.service.spec.ts test/auth.service.spec.ts test/side-effect-worker.service.spec.ts`
+  - `npm --workspace apps/api run typecheck`
+  - `xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+  - `scripts/with-node-22.sh npm run test -w packages/contracts`
+  - `git diff --check`
+- Boundary: this is an owner-approved dev/staging hot-key path for making the chain integration run end to end with fictional/test data. It still does not close release-grade chain custody, signer/vault/KMS evidence, Safe/multisig ownership, TestFlight, signed Wallet, physical fan QR -> Ops scanner evidence, or real Stripe webhook settlement evidence.
+
+## After Local Sepolia And Privy Config Rediscovery on 2026-06-13
+
+- Re-ran the owner-requested startup Markdown pass with ignored/generated Markdown included, not just tracked docs. Result: 2,956 Markdown files, 598,957 lines, content SHA-256 `8c76c58793d67455e343f3e4933d75cae074370ca7ca6995827cd168b0a9f013`.
+- Confirmed from docs and local ignored files that the earlier Sepolia dev-only contract work did exist:
+  - `.env.local` still contains the dev-only Sepolia RPC, hot-key allow flag, and temporary Sepolia private key. Values were not printed.
+  - `.fanpass-local/chain-dev/` still contains two deployment artifacts and the earlier ownership/outbox smoke artifacts.
+  - The latest deployment artifact is `.fanpass-local/chain-dev/sepolia-dev-deployment-20260606T133736Z.json`; its `FanPassTicket` short reference is `0xc6629B...9042e1`.
+- Ran a read-only Sepolia check using the ignored local RPC and latest artifact. It confirmed Sepolia chain id `11155111`, bytecode exists at the latest `FanPassTicket` address, and the temporary signer still has enough Sepolia ETH for small dev transactions.
+- Confirmed `apps/api/.env` has local backend Privy `PRIVY_APP_ID` and PEM `PRIVY_VERIFICATION_KEY`, plus Stripe test secrets, but it is still configured for `OWNERSHIP_ADAPTER=mock` and does not currently enable the new `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES` testnet path.
+- Confirmed checked-in iOS xcconfigs remain placeholder-only for `FANPASS_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_CLIENT_ID`, and Stripe publishable key. Prior docs show those public values were injected through shell/build settings, but no reusable local shell value for `FANPASS_PRIVY_APP_CLIENT_ID` is present in the current session.
+- `scripts/ios-beta-archive.sh` already supports caller-supplied `FANPASS_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_CLIENT_ID`, `FANPASS_STRIPE_PUBLISHABLE_KEY`, and HTTPS API URL build-setting overrides.
+- `scripts/with-node-22.sh npm run security:privy-local-config:self-test` passed, proving the local Privy config guard still rejects missing/mismatched iOS public config and checked-in public client ids.
+- Ran a fresh dev-only Sepolia ownership smoke:
+  - command: `scripts/with-node-22.sh npm run chain:sepolia-dev:ownership-smoke`
+  - result: `ok: true`, `custodyEvidence: false`, `chainCustodyBlockerClosed: false`
+  - contract: `0xc6629B...9042e1`
+  - token id: `6`
+  - issue, transfer sync, and redeem all returned `CONFIRMED`
+  - full local artifact: `.fanpass-local/chain-dev/sepolia-dev-ownership-smoke-20260613T135652Z.json`
+- Practical next step for iOS-to-contract run-through: use the existing `.env.local` Sepolia values plus latest deployment artifact to populate the API runtime environment outside source control, set `OWNERSHIP_ADAPTER=testnet`, `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true`, and `FANPASS_CHAIN_PROOF_SYNC_OUTBOX=false`, then launch iOS with real `FANPASS_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_CLIENT_ID`, HTTPS API URL, and Stripe test publishable key injected as build settings.
+- Boundary: the fresh smoke spends Sepolia testnet gas and proves current dev contract/adapter viability only. It is not release custody evidence and does not close TestFlight, signed Wallet, physical fan QR -> Ops scanner, or real Stripe webhook settlement evidence.
+
+## After Local API Testnet Env Enablement on 2026-06-13
+
+- The owner asked how to change the local API from `OWNERSHIP_ADAPTER=mock` and how to handle iOS Privy public config not being written into checked-in xcconfigs.
+- Updated ignored `apps/api/.env` only, without printing secret values:
+  - `OWNERSHIP_ADAPTER=testnet`
+  - `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true`
+  - `FANPASS_CHAIN_PROOF_SYNC_OUTBOX=false`
+  - `TESTNET_RPC_URL` copied from ignored `.env.local`
+  - `TESTNET_OPERATOR_PRIVATE_KEY` copied from ignored `.env.local`
+  - `FANPASS_TICKET_CONTRACT_ADDRESS` copied from latest ignored Sepolia deployment artifact, short ref `0xc6629B...9042e1`
+- Confirmed the resulting local API env has HTTPS testnet RPC, valid operator private-key shape, valid ticket contract address, local backend `PRIVY_APP_ID`, and PEM `PRIVY_VERIFICATION_KEY`.
+- Confirmed iOS `Config/*.xcconfig` remain placeholder-only by design. A direct `xcodebuild -showBuildSettings` check for the current generated `FanPass.xcodeproj` shows `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` are currently set in the generated project build settings, not in the xcconfig files. If the project is regenerated from `project.yml`, those generated settings may need to be re-injected through shell/Xcode build settings.
+- Verification passed:
+  - `scripts/with-node-22.sh npm --workspace apps/api run test -- --runTestsByPath test/security-config.spec.ts test/ownership.service.spec.ts`
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -showBuildSettings` with Privy build setting values redacted
+- Boundary: this changes local ignored runtime config for dev/staging chain run-through only. It does not commit RPC URLs, private keys, Privy verification keys, or iOS public provider ids into xcconfig files.
+
+## After XcodeGen-Stable iOS Local Provider Config on 2026-06-13
+
+- The owner asked whether the iOS Privy config could be made stable after rerunning XcodeGen.
+- Added gitignored local override support:
+  - `apps/ios/FanPass/Config/LocalSecrets.xcconfig` is now ignored by `.gitignore`.
+  - `Config/Local.xcconfig`, `Config/Staging.xcconfig`, `Config/Beta.xcconfig`, and `Config/Production.xcconfig` now end with `#include? "LocalSecrets.xcconfig"`.
+  - `apps/ios/FanPass/Config/LocalSecrets.xcconfig.example` documents the public API/Privy/Stripe keys that may be put in the ignored local file and warns against private keys, bearer tokens, webhook secrets, database URLs, Privy verification keys, and live Stripe secrets.
+- Created the local ignored `LocalSecrets.xcconfig` from the current generated project build settings without printing values. It contains the local API base URL, Privy app id, Privy app client id, and Stripe publishable key needed for current dev builds.
+- Updated `scripts/privy-local-config-check.js` so `npm run security:privy-local-config` can read `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` from the ignored local xcconfig when shell env values are absent. It now reports the source as `local-xcconfig` and verifies the file is ignored by source control.
+- Extended `scripts/privy-local-config-check-self-test.js` with a passing ignored-local-xcconfig case and stronger ignore-rule fallback handling.
+- Ran `xcodegen generate` from `apps/ios/FanPass`; the regenerated `FanPass.xcodeproj` no longer needs real provider values committed in `project.pbxproj`.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run security:privy-local-config:self-test`
+  - `scripts/with-node-22.sh npm run security:privy-local-config`
+  - `xcodegen generate`
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -showBuildSettings` with provider values redacted; `FANPASS_API_BASE_URL`, `FANPASS_PRIVY_APP_ID`, `FANPASS_PRIVY_APP_CLIENT_ID`, and `FANPASS_STRIPE_PUBLISHABLE_KEY` remain set after regeneration.
+  - `xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+- Boundary: this makes local iOS public provider configuration regeneration-stable without committing provider values. If a different machine lacks `LocalSecrets.xcconfig`, copy the example and fill values or pass them through `xcodebuild`/archive helper env vars.
+
+## After Privy Dashboard Chrome Inspection on 2026-06-13
+
+- Re-ran the owner-required full Markdown startup pass before using Chrome. Result: 2,956 Markdown files, 599,090 lines, content SHA-256 `c50298ea9d743b3a6d63078247d53ae5445f6bbcf4271917899b2b9acd6f7995`.
+- Used the Chrome plugin to inspect the owner-opened Privy Dashboard tab for the `FanPass dev` app. No app secret, verification key, bearer token, webhook secret, or full private credential was recorded.
+- Required-for-current-iOS-chain-smoke settings observed as present:
+  - App is in Development mode, with App ID/JWKS/signing material surfaces available in App settings.
+  - App client exists for mobile: `FanPass iOS Beta`.
+  - Mobile client has allowed app identifiers `com.fanpass.app` and `com.fanpass.ops`.
+  - Mobile client has URL schemes `fanpass-payments` and `fanpass-ops`.
+  - Email login is enabled.
+  - External wallet login is enabled.
+  - Passkeys are enabled.
+  - Automatic embedded wallet creation is enabled, with EVM wallets checked.
+  - Wallets page shows existing wallet rows, so embedded wallet creation has happened at least for prior users/tests.
+  - Wallet environment shows TEE enabled.
+- Recommended but not currently enabled:
+  - `Restrict users to linking a single third party wallet` was unchecked during this inspection; it was enabled and re-verified later on 2026-06-13 in the follow-up section below.
+  - MFA for transactions is off; the dashboard labels it recommended.
+  - Webhooks are not configured; Webhooks page still shows the setup CTA.
+  - Social login providers, including Apple and Google, are off.
+  - Policies page is empty; no wallet policy exists.
+- Optional/not blocking current smoke:
+  - SMS login is off.
+  - Solana external wallets are enabled and Solana automatic embedded wallet creation is off; current FanPass chain path uses EVM.
+  - Smart wallets are off.
+  - Fiat onramps are off; deposit address funding is on.
+  - Global wallet is not enabled and is blocked by Development mode/production upgrade requirements.
+  - Guest accounts are off.
+  - Return user data in identity token is off.
+- Practical conclusion from this inspection: Privy is configured enough for current FanPass iOS email-code login plus embedded EVM wallet creation and backend access-token sync. Before wider beta/release evidence, enable or deliberately accept the remaining recommended gaps: transaction MFA, webhooks, and Apple/Google social login if the product wants native iOS convenience.
+
+## After Privy Single External Wallet Restriction on 2026-06-13
+
+- Re-ran the owner-required full Markdown startup pass before the Chrome follow-up. Result: 2,956 Markdown files, 599,123 lines, content SHA-256 `d42ed19f1f0879cdd81a0b31efedf34a6014eade98ba858f772a8e93f4cab036`.
+- Used the Chrome plugin on the already-open Privy Dashboard page for the `FanPass dev` app. No app secret, verification key, bearer token, webhook secret, OAuth secret, or private credential was recorded.
+- Enabled `Restrict users to linking a single third party wallet` under Login methods -> External wallets, then reloaded the dashboard and verified the checkbox remained checked.
+- Social login assessment from current Privy docs and the local Swift SDK:
+  - Dashboard-only dev trial is low effort because Privy can enable OAuth providers with default credentials.
+  - Production-ready Apple/Google/X/Discord should use the project's own OAuth app credentials. Apple is the most iOS-specific because the OAuth Client ID must match the app Bundle ID/App ID and Sign in with Apple must be associated; X/Twitter requires a Confidential Client with Client ID and Client Secret; Google and Discord are normal OAuth app setup, but Google can be restricted in in-app browsers and must be tested on the target mobile flow.
+  - Local SDK support exists: `Privy.oAuth.login(with:appUrlScheme:)` supports `.apple`, `.google`, `.twitter`, and `.discord`, and the current Privy mobile app client already has URL schemes `fanpass-payments` and `fanpass-ops`.
+  - FanPass iOS still only implements the email-code provider path. Adding social login means adding social buttons/UI, calling the OAuth provider flow, then reusing the existing embedded-wallet creation and `/auth/privy/sync` backend session path.
+- Current remaining Privy dashboard recommendations after this change: transaction MFA, webhooks, Apple or other additional social login providers if wanted for conversion, and wallet policies before broader beta/release. The single external-wallet restriction is no longer an open dashboard gap.
+
+## After Privy Google X Discord OAuth Enablement on 2026-06-13
+
+- Re-ran the owner-required full Markdown startup pass before the Chrome follow-up. Result: 2,956 Markdown files, 599,137 lines, content SHA-256 `06748954b665ee2f4300d99a5b0bfd44c96280d4a6301356af68fd196c5b6a6c`.
+- Used the Chrome plugin on the already-open Privy Dashboard Login methods page for the `FanPass dev` app. No app secret, verification key, bearer token, webhook secret, OAuth client secret, or private credential was recorded or entered.
+- Opened Login methods -> Socials and enabled the dashboard providers requested by the owner:
+  - Google
+  - Twitter, which is Privy's current dashboard label for X login
+  - Discord
+- Each provider opened an optional OAuth credentials section. The provider was saved using Privy's default OAuth configuration; no project-owned Google/X/Discord Client ID or Client Secret was entered in this pass.
+- After saving each provider, the dashboard showed `OAuth configuration was updated successfully`. A full page reload was then performed, Socials was reopened, and Google, Twitter, and Discord all remained `aria-checked: true`.
+- Updated Privy dashboard status: Google, Twitter/X, Discord, Email, External wallets, Passkeys, automatic embedded EVM wallet creation, TEE wallet environment, and the single third-party wallet restriction are enabled. Remaining recommendations are transaction MFA, webhooks, wallet policies, and Apple login if the product wants native Apple convenience.
+
+## After iOS Social OAuth And Sepolia Ticket Link Wiring on 2026-06-13
+
+- Re-ran the owner-required full Markdown startup pass before this implementation turn, including ignored/generated Markdown. Result: 2,956 Markdown files, 599,151 lines, content SHA-256 `250a3ce86cda14f4ae3ef199726e248aacdb432bc2345db07eaf353dc7be5bd7`.
+- Read the SwiftUI UI patterns skill plus its required `components-index.md`, `sheets.md`, and `async-state.md` references before editing the iOS UI.
+- Implemented fan-app social login for the Privy providers already enabled in the dashboard:
+  - Added typed `PrivyOAuthLoginProvider` cases for Google, X/Twitter, and Discord.
+  - `FanPassPrivyAuthProvider.loginWithOAuth(_:)` now calls `privy.oAuth.login(with:appUrlScheme:)` with `fanpass-payments`, ensures an embedded Ethereum wallet through the same helper used by email-code login, and returns the Privy access token plus wallet address for backend sync.
+  - `FanPassBackendContext.loginWithPrivyOAuth(_:)` reuses `/auth/privy/sync`, preserves the Privy bearer when the backend session token is null, applies the returned FanPass user/session, and keeps the API bearer path identical to email-code login.
+  - The Account sign-in sheet now shows `Continue with Google`, `Continue with X`, and `Continue with Discord` above the existing email-code backup. Twitter/X email extraction is intentionally skipped because the local Privy Swift SDK `TwitterAccount` type does not expose an email field.
+- Implemented simple ticket chain status display in iOS:
+  - `FanPassV4.ProofHistoryItem` now carries an optional `externalURL`.
+  - `FanPassV4APIDataProvider` maps backend proof-history `externalUrl` values into the iOS model.
+  - Ticket detail now renders an `On-chain status` card. When the backend returns the existing `chain-proof` row with Sepolia metadata, the UI shows the safe proof reference and an `Open Sepolia scan` link to the backend-provided explorer URL.
+- Backend endpoint surface did not need a new route. Existing `/auth/privy/sync` accepts a valid Privy access token regardless of whether it came from email code or OAuth, and existing `/tickets/:id/proof-history` already returns the Sepolia explorer URL when the ownership adapter has testnet transaction metadata.
+- Verification passed:
+  - First FanPass Beta simulator build failed on an attempted `TwitterAccount.email` read; fixed by skipping Twitter/X email extraction.
+  - XcodeBuildMCP `build_sim` for `FanPass` Beta with `CODE_SIGNING_ALLOWED=NO`.
+  - XcodeBuildMCP `build_run_sim` for `FanPass` Beta on `FanPass-iPhone-17`.
+  - XcodeBuildMCP UI snapshot opened Account -> `Sign in / Sign up` and confirmed `Continue with Google`, `Continue with X`, `Continue with Discord`, `Social sign-in`, and `Email code` render.
+  - `scripts/with-node-22.sh npm --workspace apps/api run typecheck`.
+  - Focused tickets service test first timed out under the current local `OWNERSHIP_ADAPTER=testnet` env because it attempted the real Sepolia path. Rerun with `OWNERSHIP_ADAPTER=mock FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=false` passed.
+  - `git diff --check`.
+- Boundary: live Google/X/Discord OAuth was not completed in this turn because it requires interactive provider-account login. The Sepolia scan link appears when the backend proof-history row has testnet transaction metadata; this turn did not create a new live chain transaction. This remains dev/staging integration work and does not close TestFlight, signed Wallet, physical fan QR -> Ops scanner evidence, real Stripe webhook settlement evidence, or release-grade chain custody evidence.
+
+## After iOS Social Login Logo-Only UI Polish on 2026-06-13
+
+- Re-ran the owner-required startup Markdown pass before this UI follow-up. Tracked-only pass result was 98 Markdown files, 26,078 lines, content SHA-256 `e1e04abd3be9117c5758e6098c621468e47d35d0c87942883c9660994de8c083`; the corrected all-files pass including hidden/ignored/generated Markdown was 2,956 files, 599,212 lines, content SHA-256 `76231e0e9907c063b87b47894b67bcded089be6d5228ecb870884c905db704e8`.
+- Re-read the SwiftUI UI patterns skill and required `components-index.md`, `sheets.md`, and `async-state.md` references before editing.
+- Checked current official brand guidance/assets before adding logo files:
+  - Google Identity docs say pre-approved Sign in with Google assets are available in PNG/SVG for all platforms and that custom buttons must keep the standard color Google `G` on a white background.
+  - X's official brand toolkit provides the X logo package and says use of X trademarks/resources must follow X brand/trademark guidelines.
+  - Discord's official branding/developer docs say to use Discord brand assets only under the brand guidelines and not edit, distort, recolor, or reconfigure the Discord logo.
+- Added local bundled social login assets under `apps/ios/FanPass/FanPass/Assets/`:
+  - `auth-google-logo.png` from Google's pre-approved iOS Sign in assets.
+  - `auth-x-logo.png` from the official X logo package.
+  - `auth-discord-symbol.png` from Discord's official branding page symbol asset, converted from SVG with transparent background.
+- Updated `FanPassV4ProfileView.swift` so the sign-in sheet no longer renders three full-width social cards. The default sheet now shows the email/code form first, then a centered row of three circular icon-only buttons under the email/code fields and above `Send code`.
+- Kept accessibility labels on the icon-only buttons: `Continue with Google`, `Continue with X`, and `Continue with Discord`.
+- Updated `PrivyOAuthLoginProvider` to expose `logoAssetName` instead of an SF Symbol name.
+- Ran `xcodegen generate` so the new PNG assets are present in `FanPass.xcodeproj` resources.
+- Verification passed:
+  - XcodeBuildMCP `build_sim` for `FanPass` Beta with `CODE_SIGNING_ALLOWED=NO`.
+  - XcodeBuildMCP `build_run_sim` for `FanPass` Beta with `CODE_SIGNING_ALLOWED=NO`.
+  - XcodeBuildMCP UI snapshot confirmed the sign-in sheet exposes icon-only accessibility targets for Google, X, and Discord.
+  - Simulator screenshots visually confirmed the three social entries are logo-only and positioned below the email/code fields.
+- Boundary: this is UI/asset polish only. It does not change Privy dashboard/provider configuration, complete live OAuth sign-in, or close TestFlight, signed Wallet, physical scanner, real Stripe webhook settlement, or release-grade chain custody evidence.
+
+## After iOS Event Carousel And Full-Screen Account Sign-In on 2026-06-13
+
+- Continued the same owner-requested iOS fan-app polish turn after the full all-files Markdown startup pass above; no new provider secrets or private keys were read into docs.
+- Generated fictional local-review event cover artwork with the image generation tool and copied 10 selected 900 x 900 PNGs into `apps/ios/FanPass/FanPass/Assets/`:
+  - `event-cover-aurora.png`
+  - `event-cover-neon.png`
+  - `event-cover-finals.png`
+  - `event-cover-indie.png`
+  - `event-cover-lab.png`
+  - `event-cover-midnight.png`
+  - `event-cover-future.png`
+  - `event-cover-jazz.png`
+  - `event-cover-family.png`
+  - `event-cover-comedy.png`
+- Updated `FanPassMockData.swift` to expose 10 local review events with varied demand profiles. Very hot/hot events have low availability and market prices near the 110% organizer cap; medium events sit around face value; soft/cold events can price below face value with higher availability. Every mock ticket type still computes its resale cap through the shared `resaleCap(for:) = faceValue * 1.10` path.
+- Updated API event loading so the fan app keeps the first API staging event when available, then fills the rest of the Home/Explore/Market review set from the 10 local events. This prevents repeated staging API rows from hiding the richer local review dataset while keeping the API demo event visible.
+- Added `coverAssetName` to `FanPassV4.Event` and wired image-first poster rendering through Home cards, Explore/Market editorial rows, and Event Detail. API events without a local match fall back to the first local cover image instead of a pure generated gradient.
+- Reworked Home's main event area from a single static featured card to a stable carousel-style control. It now renders one full card at a time with previous/next controls and dot buttons; this replaced a first attempt using `TabView` because simulator state could restore the page mid-swipe and visually crop the hero card.
+- Expanded Home visible event coverage: the carousel uses the first five events, `Popular near you` shows four event tiles, and `Just announced` shows five announcement rows. Explore's recommended event list now renders all filtered events instead of truncating at three.
+- Fixed the social icon sizing issue:
+  - Re-exported `auth-google-logo.png` from Google's official multicolor G path with a cropped transparent viewBox so the G mark no longer appears much smaller than X/Discord.
+  - Kept the social buttons icon-only and centered below the email/code fields.
+- Changed the Account `Sign in / Sign up` surface from a bottom sheet to a full-screen secondary page within the Account `NavigationStack`. The pushed page hides the tab bar and uses the normal Back affordance; signed-out Account rows route to this page instead of opening a sheet. Successful email-code/OAuth login pops the page back to Account.
+- Ran `xcodegen generate` after adding image assets so `FanPass.xcodeproj` includes all new event covers and the updated Google logo.
+- Verification passed:
+  - XcodeBuildMCP `build_run_sim` for `FanPass` Beta with `CODE_SIGNING_ALLOWED=NO` after the event-cover/carousel changes.
+  - XcodeBuildMCP `build_run_sim` again after the Account full-screen sign-in and Google asset crop changes. The final build had zero warnings and zero errors.
+  - XcodeBuildMCP runtime snapshot confirmed Home contains carousel controls and multiple event targets (`FanPass Demo Concert`, `Aurora Nights World Tour`, `Neon Harbor Festival`).
+  - Simulator screenshots verified the full Home hero card, generated event art, icon-only social row, and full-screen Account sign-in page without the tab bar.
+  - `git diff --check`.
+- Boundary: the generated cover art is fictional local review media, not licensed real event imagery and not release evidence. This pass does not change Privy dashboard/provider configuration, complete live OAuth sign-in, create a new Sepolia transaction, or close TestFlight, signed Wallet, physical scanner, real Stripe webhook settlement, or release-grade chain custody evidence.
+
+## After iOS Privy Login Network-Loss Diagnosis on 2026-06-14
+
+- Repeated the owner-required startup Markdown pass before diagnosis. A quiet full read of every Markdown file under the workspace, including ignored/generated/vendor Markdown, counted 2,956 files, 599,360 lines, 27,620,130 bytes, SHA-256 `0de3524820e4d08fb6b3fc0a7198d510fe5354778053f444781db8742f31c158`.
+- Investigated the Account full-screen sign-in failure shown as `The network connection was lost.` after entering a Privy email code.
+- Current Beta build settings are intact: `FANPASS_API_BASE_URL` points to the Render staging API, and the iOS Privy app id/client id plus Stripe test publishable key are present through local build settings. These values remain outside checked-in xcconfig secrets except the documented local ignored config path.
+- Staging API was not down during the diagnosis:
+  - `GET /health` returned HTTP 200 with `{"ok":true,"service":"fanpass-api","target":"technical-prototype"}`.
+  - `GET /events` returned HTTP 200.
+  - `POST /auth/privy/sync` with an intentionally invalid Bearer token reached the API and returned HTTP 401 `Invalid Privy access token`, proving the route was reachable.
+- Simulator system logs narrowed the failure: Privy `passwordless/authenticate` started first, then the app attempted `https://fanpass-api-staging.onrender.com/auth/privy/sync`. The failing task was `NSURLErrorDomain Code=-1005` with `NSErrorFailingURLStringKey=https://fanpass-api-staging.onrender.com/auth/privy/sync`. CFNetwork showed an HTTP/3/QUIC connection over `utun4` stalling and timing out before URLSession surfaced `The network connection was lost.`
+- Conclusion: this incident was not a missing iOS config or a fully broken API. Privy verification had progressed far enough to call the FanPass API sync step, and the observed failure was a simulator/network/HTTP3 transient on the sync POST.
+- Code changes:
+  - `FanPassAPIClient` now retries once, after 350 ms, only for `NSURLErrorNetworkConnectionLost` or `NSURLErrorTimedOut` on safe Privy sync calls: `/auth/privy/sync` and `/auth/privy/accept-staff-invite`.
+  - Generic order/payment/ticket mutation POSTs were not given a broad retry to avoid duplicating side effects.
+  - `FanPassBackendContext` now separates user-facing errors into `Privy sign-in failed: ...` versus `Privy verified, but FanPass API sync failed: ...`.
+- Verification passed: XcodeBuildMCP `build_sim` and `build_run_sim` for `FanPass` Beta with `CODE_SIGNING_ALLOWED=NO`, zero warnings and zero errors. The updated app was installed and launched on simulator `FanPass-iPhone-17`.
+- If this happens again in the current installed simulator build before the retry build is installed, send a fresh code first; the previous code may already have been consumed by Privy before the FanPass API sync failed.
+
 ## After Web Event Detail And Checkout Concept Pass on 2026-06-07
 
 - Confirmed the non-negotiable engineering rules are present in `docs/NEW_CHAT_PROMPT.md`, `docs/CODEX_HANDOFF.md`, and `docs/QA_CHECKLIST.md`.
@@ -5438,6 +5839,213 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - Browser QA reported zero console errors and zero horizontal overflow at desktop 1728 x 1117 and mobile 390 x 844.
 - Remaining maintainability gaps: `FeatureWorkspace.tsx` remains large at 447 lines, and `global.css` remains large at 4,912 lines. Continue splitting secondary feature surfaces and CSS layers before adding more major UI behavior.
 
+## After iOS Checkout, Ticket, Market, and Release-Copy Polish on 2026-06-14
+
+- Before implementation, the owner-required startup read was already completed for `docs/CODEX_HANDOFF.md` first and then every Markdown file under the workspace, including ignored/generated/vendor Markdown: 2,956 files, 599,380 lines, 27,624,722 bytes, SHA-256 `4f77eb2d1cb21462241f9d02a0062ac6e36d554182fc1ccdc93b832faaedf83d`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill and its required references.
+- Event Detail no longer shows the old static bottom price chart. The bottom card is now a market-chart jump that opens the Market tab focused on the same event and its K-line/orderbook context.
+- Market Sell now has a top-left Back button in the sell sheet. Ticket Detail now has a direct `Sell ticket` action for resale-eligible tickets plus an `Open market chart` action, so the owner does not need to start from the Market tab.
+- Checkout now exposes only `Pay with Crypto` and `Pay with Stripe` below the price breakdown. The old visible simulator/failed/expired checkout controls were removed from the customer-facing path.
+- Crypto checkout currently accepts only `USDC`, `USDT`, `BTC`, and `ETH` in the iOS quote surface. The app shows a quote preview with reference HKD rates and a locked-quote boundary. This is intentionally not treated as completed crypto settlement: real payment still needs an API-owned quote with asset, rate, receiving address, amount, expiry, chain/network, and reconciliation before ticket assignment.
+- Privy review: local Privy iOS SDK interface supports embedded Ethereum wallets and Ethereum RPC transaction requests such as `EthereumRpcRequest.ethSendTransaction`, so Privy can be used for wallet creation/signing/transaction submission. It does not replace FanPass order pricing, quote locking, receiving address control, payment finality checks, refund policy, or ticket-assignment reconciliation.
+- Contract conclusion: do not put FX rates or crypto payment logic into `FanPassTicket.sol`. The existing ticket contract correctly owns ticket/proof/transfer state. Crypto payments belong in the backend payment module plus treasury/settlement monitoring, followed by existing ticket issuance/ownership side effects.
+- Release-facing copy sweep:
+  - Removed customer-visible `test`, `demo`, `simulator`, `staging`, `PaymentIntent`, `client secret`, and old Privy/provider-internal wording from the current V4 screens touched in this pass.
+  - Cleaned legacy Auth/Event/Scanner Swift strings that could show debug/demo wording if old routes are reintroduced.
+  - Mock account display data now uses neutral names/emails and `Embedded wallet` instead of `Demo Fan`, `.test` emails, or `Demo wallet`.
+- Remaining keyword matches after the sweep are internal endpoint/type/id names or safety checks such as `/auth/demo-session`, `pk_test_` rejection, `pi_mock` rejection, `FanPassPaymentIntent` model naming, and internal mock user ids. These are not current customer-facing strings.
+- Verification passed:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass.xcodeproj`, scheme `FanPass`, configuration `Beta`, simulator `FanPass-iPhone-17`.
+  - XcodeBuildMCP `build_sim` passed twice after edits, zero warnings and zero errors.
+- Not done in this pass:
+  - No API crypto quote/settlement endpoint was added.
+  - No contract change was made for payments.
+  - No live crypto transfer, Stripe PaymentSheet run, TestFlight install, physical QR/NFC validation, signed Wallet evidence, or release-grade chain custody evidence was claimed.
+
+## After iOS USDC/USDT Wallet Account Update on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,328 lines, 27,630,424 bytes, SHA-256 `cd701220a6d24e6e570632f411d08ef9dbec365bc8fb8f7291a8662510096453`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill plus the components index, sheets, navigation, and form/settings references.
+- Checkout crypto asset support was narrowed to USDC and USDT only:
+  - `FanPassCryptoAsset` now only has `.usdc` and `.usdt`.
+  - Checkout copy now says crypto accepts USDT and USDC only.
+  - The crypto quote sheet accepted-assets section no longer shows BTC or ETH.
+- Account settings changed from `Payments` to `Wallet`:
+  - `FanPassAccountSection.payments` became `.wallet`.
+  - `AccountMenuItem.payments` became `.wallet`.
+  - The Account row now shows `Wallet` with address/balance/private-key wording.
+- The Account Wallet sheet now shows:
+  - wallet address from `walletReference.addressFragment` when linked, otherwise `No wallet linked`;
+  - USDC and USDT balance rows with `0.00` for linked wallets and `--` when no wallet is linked;
+  - an `Export private key` button.
+- The private-key export button opens a wallet-security sheet with a warning and locked status. It deliberately does not display or fabricate a private key until a provider-backed secure export/re-authentication flow is connected.
+- Verification passed XcodeBuildMCP `FanPass` Beta simulator `build_sim`, zero warnings and zero errors.
+- Not done in this pass: no live balance RPC/API lookup, no provider-backed private-key export flow, no API crypto quote endpoint, no live crypto transfer, and no contract payment changes.
+
+## After Backend Wallet Balance API and iOS Wallet Sync on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,350 lines, 27,633,653 bytes, SHA-256 `3fe3e4a7db813497d68fd2b64712abf90b3b4e531a4c9c9bded16c02787d19c9`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill, with the async-state and form references re-read before editing.
+- The API now exposes authenticated `GET /wallet/balances` through `WalletController` guarded by `FanPassAuthGuard` and roles `FAN`/`ADMIN`.
+- `WalletService` looks up the current session user wallet address from Prisma when `FANPASS_DATA_SOURCE=prisma`, otherwise from `DemoStore`, then reads USDC and USDT balances with backend-owned JSON-RPC `eth_call balanceOf(address)`.
+- Wallet balance configuration stays on the backend:
+  - RPC source: `FANPASS_WALLET_RPC_URL`, falling back to `TESTNET_RPC_URL` and then `FANPASS_SEPOLIA_RPC_URL`.
+  - Token contracts: `FANPASS_USDC_CONTRACT_ADDRESS` and `FANPASS_USDT_CONTRACT_ADDRESS`.
+  - Optional chain display: `FANPASS_WALLET_CHAIN_ID`.
+  - USDC/USDT decimals default to 6.
+- The endpoint returns per-asset statuses (`ok`, `wallet_missing`, `not_configured`, `rpc_unavailable`) so iOS can show real state without fabricating balances. Missing token/RPC config now renders as unavailable instead of `0.00`.
+- iOS `FanPassAPIClient` now has typed `walletBalances()`. Account -> Wallet calls that endpoint on open and on manual refresh, shows the backend wallet address, maps USDC/USDT status rows, and clears stale balances when the user changes or signs out.
+- Environment examples were updated with the wallet RPC/chain/token address variable names only; no real RPC URL, token address, or secret was committed.
+- Local ignored env check after implementation found `apps/api/.env` already has `TESTNET_RPC_URL` set, but the USDC/USDT wallet token address variables are still missing. Until those are set in ignored local env or deployment env, the endpoint will return `not_configured` for those assets instead of showing a fake balance.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/wallet.service.spec.ts test/route-security.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - XcodeBuildMCP `FanPass` Beta simulator `build_sim`, zero warnings and zero errors.
+  - `git diff --check` for the touched wallet/API/iOS files.
+- Not done in this pass: no real token contract addresses were added to committed config, no live chain balance was queried from the owner wallet in this turn, no provider-backed private-key export flow was enabled, no API crypto quote endpoint or live crypto transfer was added, and no contract payment changes were made.
+
+## After USDC-Only Wallet and Crypto Checkout Update on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,451 lines, 27,638,144 bytes, SHA-256 `e14ec87cdb8b90b128162a2fcb58582c5dec573a96cf8d23cdf590276580754a`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill, with the async-state and form references re-read before editing.
+- Per owner direction after official-token review, USDT was removed from the current wallet and crypto-checkout surfaces because no official Tether Sepolia USDt contract was confirmed.
+- `WalletService` now exposes only USDC in `GET /wallet/balances`; wallet tests now assert a single USDC row and no USDT fallback row.
+- `apps/api/.env.example` and `apps/api/.env.staging.example` now set the public Circle official Ethereum Sepolia USDC contract address: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`.
+- Local ignored `apps/api/.env` was updated with public `FANPASS_WALLET_CHAIN_ID=11155111` and the same USDC Sepolia contract address, while leaving existing RPC/private-key values untouched and unprinted.
+- iOS Account -> Wallet now renders only the USDC balance row.
+- iOS Checkout crypto asset support now has only `.usdc`; customer-facing checkout copy and the crypto quote sheet now say USDC only.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/wallet.service.spec.ts test/route-security.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - XcodeBuildMCP `FanPass` Beta simulator `build_sim`, zero warnings and zero errors.
+  - `git diff --check` for the touched wallet/API/iOS/env files.
+- Not done in this pass: no live owner-wallet USDC balance query was captured, no API crypto quote/settlement endpoint was added, no live USDC transfer was performed, and private-key export remains locked.
+
+## After Latest FanPass Install to Simulator and Physical iPhone on 2026-06-14
+
+- Before install work, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,470 lines, 27,641,474 bytes, SHA-256 `8c9075aaa97248b0ef037aa6a6af8bb6016e85440edcfb80aa3b94c5771a4bf9`.
+- XcodeBuildMCP `session_show_defaults` confirmed `apps/ios/FanPass/FanPass.xcodeproj`, scheme `FanPass`, configuration `Beta`, simulator `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`), bundle id `com.fanpass.app`.
+- XcodeBuildMCP `build_sim` succeeded for the Beta simulator target with zero warnings and zero errors.
+- The latest simulator app was installed to `FanPass-iPhone-17` with `xcrun simctl install` and launched with `xcrun simctl launch`; launch returned process id `78611`.
+- Physical device detected:
+  - `tantalum`, iPhone 16 Pro Max (`iPhone17,2`)
+  - CoreDevice id `0185F0DC-2EC1-5340-9999-B8EA666DC02C`
+  - Xcode destination hardware id `00008140-001E5D801409801C`
+- The first physical-device Beta build failed because the project uses manual signing with empty `FANPASS_APPLE_TEAM_ID` / `FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER` expansion. A second automatic-signing attempt with the wrong team id crashed `xcodebuild` at provisioning input.
+- A usable Xcode-managed wildcard provisioning profile was found in the previous local `Debug-iphoneos/FanPass.app/embedded.mobileprovision`: `iOS Team Provisioning Profile: *`, UUID `51caedb3-cdba-42dc-bf21-096cac743f97`, TeamIdentifier `8L99CFNK24`.
+- The physical-device Beta build succeeded by overriding signing at command time: `DEVELOPMENT_TEAM=8L99CFNK24 CODE_SIGN_STYLE=Automatic PROVISIONING_PROFILE_SPECIFIER=` plus `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`. It signed with `Apple Development: Yuchen YUAN (DJHS5VHF23)` and the Xcode-managed wildcard profile.
+- Physical build warning: `All interface orientations must be supported unless the app requires full screen.` No build errors.
+- The latest physical-device app was installed with `xcrun devicectl device install app --device 0185F0DC-2EC1-5340-9999-B8EA666DC02C .../Beta-iphoneos/FanPass.app` and launched with `xcrun devicectl device process launch --device 0185F0DC-2EC1-5340-9999-B8EA666DC02C com.fanpass.app`.
+- Local executable SHA-256:
+  - Simulator Beta: `aef91dcd611189b580d50b2119df0409ae6e89fd765af5c1717013cedfcd85a8`
+  - iPhoneOS Beta: `5cef14a9be61f38fbddf7d6ddd18673b51d4fb5bdd79e3414498beb933783336`
+- This is local simulator and development-device install evidence only. It is not TestFlight, App Store, signed Wallet evidence, physical QR/NFC validation evidence, or release-grade chain custody evidence.
+
+## After iOS Simulator-Only Market, Account, and Stripe Readiness Pass on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,492 lines, 27,645,931 bytes, SHA-256 `a145d6b7d36872287e41bb294e548640e48fe87fbec3dcf2a35d4307713e7beb`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill with navigation, searchable, controls, async-state, and form references read before editing.
+- Simulator freshness check before changes confirmed the installed simulator executable SHA-256 matched the then-current `Beta-iphonesimulator` build product: `aef91dcd611189b580d50b2119df0409ae6e89fd765af5c1717013cedfcd85a8`.
+- Per owner instruction, this pass was simulator-only. No physical iPhone build/install/launch was performed.
+- Account functions now open as NavigationStack child pages instead of Account sheets. Wallet/private-key export also uses a child destination. The unauthenticated Account path still pushes the full-screen Sign in / Sign up page with a Back button.
+- Market now has scalable event selection through an inline search field plus a horizontal event rail, instead of only a dropdown. Runtime snapshot verified Home -> Market shows the search field and event chips for Aurora, Neon, and City Finals.
+- Mock event ticket types now model seat/price tiers: concerts/festivals use `CAT 2`, `Floor`, `VIP`; sports use `Upper Bowl`, `Lower Bowl`, `Courtside`; theatre uses `Balcony`, `Orchestra`, `Box`; conference uses `Conference Pass`, `Priority Pass`, `Founder Pass`. All tiers still use the shared 110% resale cap path.
+- Market pricing is now computed per event plus ticket tier. Runtime snapshot verified Aurora tiers show different states and prices: `CAT 2` Up, `Floor` Flat, and `VIP` Down, with tier-specific floor/bid/ask/last sale.
+- Buy flow now receives the selected ticket tier and filters listings by event plus ticket type. Runtime snapshot verified selecting `Floor` and tapping Buy opens `Buy` with subtitle `Aurora Nights World Tour • Floor`, a `Seat tier` row, Floor-specific estimated fill, and Floor-specific cap.
+- K-line canvas now supports a real zoom window and horizontal panning: pinch changes visible candle count, drag shifts the start index, and double-tap toggles zoom. The chart resets when event/tier/range changes.
+- iOS now filters staging/API events before display when titles/metadata look internal (`staff tenant`, `evidence`, `fixture`, `mock`, `staging`, `smoke`, `local-review`, or tokenized `test`/`demo`/`qa`). This removed the user-visible `Staff tenant redeem evidence ...` event from Home; a runtime Home snapshot verified only public-looking review events such as Aurora, Neon, and City Finals render.
+- Stripe status:
+  - Build settings confirm `FANPASS_STRIPE_PUBLISHABLE_KEY` is present as a `pk_test_...` value in the Beta simulator build.
+  - `GET https://fanpass-api-staging.onrender.com/health` returned HTTP 200.
+  - `GET /alpha/side-effects/health` returned HTTP 401, which means the route is auth-protected and was not used as proof of Stripe side-effect health.
+  - Local ignored API env currently has `FANPASS_ENABLE_PAYMENTS=false`, so local API payment intent creation can still return mock/unavailable results.
+  - Checkout now renders `stripeReadinessMessage` directly beside the Stripe button, and the Stripe PaymentSheet presenter now presents from the current key window's top-most view controller instead of the hidden representable controller. This should reduce "tap but nothing appears" cases, but it does not prove live Stripe checkout works on the phone.
+- Verification passed:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass.xcodeproj`, scheme `FanPass`, configuration `Beta`, simulator `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`).
+  - XcodeBuildMCP `build_run_sim` passed after the UI changes, zero warnings and zero errors.
+  - XcodeBuildMCP `build_run_sim` passed again after staging-event filtering, zero warnings and zero errors, and launched simulator process id `1586`.
+  - Runtime snapshots verified Home public event display, Market tier/trend display, Floor-specific Buy flow, and Account navigation child-page behavior.
+- Not done in this pass: no physical iPhone install, no TestFlight build, no live Stripe PaymentSheet completion, no payment webhook/capture/refund evidence, no live crypto transfer, and no release-grade chain custody evidence.
+
+## After Real API Payment Config and Ticket QR Removal on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including ignored/generated/vendor Markdown: 2,956 files, 599,443 lines, 27,652,488 bytes, SHA-256 `cc1fb87cba33a5d68fc91f5733ac9171b1fe5da5adbbdd636520f9960d80fd4a`.
+- SwiftUI UI work followed the `build-ios-apps:swiftui-ui-patterns` skill, with navigation, controls, and async-state references read before editing.
+- Local ignored `apps/api/.env` was switched toward real dev/staging paths without printing secrets: `FANPASS_DATA_SOURCE=prisma`, `FANPASS_ENABLE_PRISMA_CONNECT=true`, `FANPASS_ENABLE_PAYMENTS=true`, and `FANPASS_REQUIRE_PAYMENT_AUTHORIZATION=true`. Existing local Stripe, Privy, Prisma, Sepolia RPC, operator key, and ticket-contract values remain outside source control.
+- Checked-in API examples were aligned with the real path: `apps/api/.env.example` and `.env.staging.example` now enable payments, require payment authorization, use Prisma connection mode, and default `OWNERSHIP_ADAPTER=testnet` with non-production private-key testnet writes enabled for dev/staging only.
+- Local API boot verification passed with payments enabled on port `4011`: `/health` returned 200 and the API mounted payments, webhook, wallet, events, tickets, and orders routes.
+- iOS V4 API event loading now uses up to 10 API events instead of only the first row. `event(id:)` now tries the API event list before returning nil, wallet ticket listing returns an empty list on API failure instead of fake tickets, and `ticket(id:)` no longer falls back to `MockTicketService`.
+- The iOS runtime Home snapshot showed API-backed `FanPass Demo Concert`, confirming the app can now display API event data in the simulator. The display filter still blocks internal phrases such as `staff tenant`, `evidence`, `fixture`, `mock`, `staging`, `smoke`, and `local-review`, but no longer blocks tokenized `test`/`demo`/`qa` so legitimate staging API rows can surface during this integration phase.
+- V4 Tickets no longer shows the standalone `Entry QR` / `Open entry QR` card. Ticket cards and ticket detail no longer render the fake QR image, `showsQRCode`, `FPQRCodePlaceholder`, or QR credential sheet; copy now refers to hidden entry credentials/access instead of displaying a QR payload on the ticket face.
+- Remaining mock or local-review surfaces after this pass: V4 market chart/listings/orderbook are still mostly local generated data; scanner `scan`/`nfcResult` still use `MockScannerService`; ticket mutation protocol methods (`purchaseTicket`, `listForResale`, `cancelListing`, `transfer`) still fall back to `MockTicketService`; checkout can still create a local pending ticket after payment success until backend settlement returns the real ticket; Home/ViewModel still seeds from local review data before API load completes.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/security-config.spec.ts test/route-security.spec.ts test/wallet.service.spec.ts`
+  - `scripts/with-node-22.sh npm run build -w apps/api`
+  - XcodeBuildMCP FanPass Beta simulator `build_run_sim` twice after the iOS edits, both with zero warnings and zero errors; the final simulator launch returned process id `16856`.
+  - Static V4 search found no remaining `Entry QR`, `Open entry`, `QR 30s`, `FPQRCodePlaceholder`, or `showsQRCode` matches under V4 Views/DesignSystem/App/Shared.
+  - `git diff --check` passed for the touched API env examples and iOS files.
+- Not done in this pass: no physical iPhone install, no TestFlight build, no live Stripe checkout/webhook settlement, no live USDC transfer, no scanner redemption run, and no release-grade chain custody evidence. Legacy unmounted `Features/Tickets/TicketWalletView.swift` still has an old QR accessibility label, but the current app launches the V4 shell.
+
+## After Market Checkout Jump and Ticket Detail QR Restore on 2026-06-14
+
+- The owner clarified the Markdown rule for context-compaction resume: after automatic context compaction/resume and before FanPass work, read `docs/CODEX_HANDOFF.md` first, then enumerate/read only non-ignored Markdown from `rg --files -g '*.md'`. Do not add `--hidden`, `--no-ignore`, or generated/vendor/ignored Markdown during compaction resume unless the owner explicitly asks.
+- This pass followed the compaction-resume scope: non-ignored Markdown enumeration returned 98 files and 26,331 total lines, with SHA-256 aggregate `e02a25015751baf1936d14835f9c504191f8a7ffe2225391c4647f7c2b631fe9`.
+- A later 2026-06-14 owner correction restored the normal-start rule: normal new FanPass work sessions still require full all-Markdown startup reading, including hidden/ignored/generated Markdown while excluding `.git`; only automatic context compaction or mid-turn resume uses the non-ignored Markdown boundary.
+- SwiftUI work followed the `build-ios-apps:swiftui-ui-patterns` skill with navigation, controls, and async-state references read before editing.
+- Market `Buy at market` no longer displays an `Order prepared` card. The button now immediately pushes `FanPassV4CheckoutView` from the buy flow.
+- Checkout now accepts an optional quoted order price and row title. Market buy passes the lowest available resale price as `quotedPrice` and labels the checkout row `Market price`; backend order creation now uses that quoted price instead of always using ticket face value. Event Detail direct primary checkout still defaults to face value.
+- `FPTicketCard` no longer renders the ticket/QR-like signal block on the ticket face. The ticket card now shows the event poster, status pills, seat metadata, Proof & History, and safe ticket id only.
+- Ticket Detail now restores a real entry QR in the `Entry readiness` section only. It calls the backend scanner credential service, renders the credential as a QR image, refreshes on a 25-second loop, and keeps raw payload, nonce, and signature hidden from text UI.
+- Verification passed:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass`, `Beta`, `FanPass-iPhone-17`.
+  - XcodeBuildMCP `build_run_sim` passed with `CODE_SIGNING_ALLOWED=NO`, zero warnings and zero errors, launching process id `32120`.
+  - Runtime UI snapshot verified Market buy now lands on Checkout with `Market price` and `HK$1,382`; no `Order prepared` text was present.
+  - Runtime UI snapshot and screenshot verified Ticket Detail shows `Entry QR`, `Refresh QR`, and the rendered QR image under `Entry readiness`; the ticket face no longer includes the removed signal block.
+  - Static search found no remaining `Order prepared`, `market order is ready`, `ticketSignal`, `Ticket preview icon`, `FPQRCodePlaceholder`, or `showsQRCode` matches under V4 Views/DesignSystem/ViewModels.
+  - `git diff --check` passed for the touched iOS and doc files.
+- Not done in this pass: no physical iPhone install, no TestFlight build, no live Stripe webhook settlement proof, no scanner redemption evidence, and no release-grade chain custody evidence.
+
+## After Stripe Retry and Wallet Staging Diagnosis on 2026-06-14
+
+- This turn resumed after automatic context compaction, so it followed the compaction-specific Markdown scope: `docs/CODEX_HANDOFF.md` was read first, then non-ignored Markdown was enumerated/read/hashed. The non-ignored set contained 98 files and 26,352 lines at the start of the turn.
+- The owner clarified the standing Markdown rule again: normal start-of-work must read all Markdown, including hidden/ignored/generated files while excluding `.git`; after automatic context compaction or mid-turn resume, read only non-ignored Markdown with `rg --files -g '*.md'`. `README.md`, this handoff, and `docs/NEW_CHAT_PROMPT.md` were corrected to preserve both cases.
+- Stripe instability diagnosis: the deployed Render staging API is reachable (`/health` 200), and `/orders` plus `/payments/intents` are mounted and return authenticated-route 401s when called without a bearer. The unstable iOS symptom is therefore likely the same transient `NSURLErrorNetworkConnectionLost`/timeout class seen earlier before PaymentSheet opens, plus Render/free-tier/cold-start/network edge behavior, not a missing Stripe route.
+- iOS payment hardening: `FanPassAPIClient.createOrder` now retries transient network failures when an Idempotency-Key is present, `createPaymentIntent` retries transient network failures, and `walletBalances` GET retries transient network failures. Retry remains narrow and does not retry backend policy/auth/API failures.
+- Wallet diagnosis: deployed staging currently returns 404 `Cannot GET /wallet/balances`, while local source contains the guarded WalletController/WalletService. This explains why the Privy test account can have a wallet/USDC but Account -> Wallet cannot display the balance against the current Render API. Deploy the latest API with `/wallet/balances` plus `FANPASS_USDC_CONTRACT_ADDRESS`, chain id, and backend RPC env before expecting live USDC display from staging.
+- iOS Wallet UI now surfaces backend/API failure clearly. If staging is stale and returns `Cannot GET /wallet/balances`, the Wallet page reports that the Wallet balance API is not deployed on the current FanPass API instead of only showing a generic refresh failure; the USDC row shows `Unavailable`.
+- Render deployment baseline was corrected without secrets: `render.yaml` now has API payments enabled, payment authorization required, `OWNERSHIP_ADAPTER=testnet`, private-key testnet writes explicitly enabled for staging, QR TTL 30 seconds, public Sepolia USDC config, and secret/RPC/contract values marked `sync: false`. This does not deploy local changes by itself. Render CLI showed `fanpass-api-staging` auto-deploys from GitHub `main` and the service was last updated on 2026-06-12; a deploy will not include local uncommitted WalletController/iOS changes until the relevant source is pushed to the configured branch or otherwise deployed.
+- The owner provided a reusable Privy test account for future manual testing. Do not commit the account verification code or write it into docs/evidence; request or use a fresh code when needed because Privy codes are time-limited and may be consumed by failed sync attempts.
+- Verification passed:
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass`, `Beta`, `FanPass-iPhone-17`.
+  - XcodeBuildMCP `build_run_sim` passed with `CODE_SIGNING_ALLOWED=NO`, zero warnings and zero errors, launching process id `48301`.
+  - Runtime UI snapshot confirmed the app launched to Home; Account was signed out, so Wallet was not force-tested to avoid consuming the provided Privy code.
+  - Staging probes returned `/health` 200, `/orders` 401 unauthenticated, `/payments/intents` 401 unauthenticated, and `/wallet/balances` 404.
+  - `render.yaml` parsed successfully with Ruby YAML.
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api` passed.
+  - `scripts/with-node-22.sh npm run build -w apps/api` passed.
+  - `git diff --check` passed.
+- Not done in this pass: no staging API deploy, no live authenticated USDC balance read, no phone install, no TestFlight build, no live Stripe authorization/webhook settlement run, no scanner redemption evidence, and no release-grade chain custody evidence.
+
+## After Stripe Idempotency Repair and Render Wallet Env Verification on 2026-06-14
+
+- This turn resumed after automatic context compaction, so `docs/CODEX_HANDOFF.md` was read first, then only non-ignored Markdown was enumerated/read/hashed per the compaction rule: 98 files, 26,573 lines, 2,208,684 bytes, SHA-256 `bbe6a1a63e54d816e3e0d79b6f0cd0424d3253c95cc7aaf6a32395c522b5f42b`.
+- The owner-provided reusable Privy test account was written only to gitignored local state at `.fanpass-local/fanpass-test-account.env`. Do not copy the verification code into committed docs, checked-in config, screenshots, or evidence.
+- Stripe instability root cause found in the backend: `PaymentsService.createPaymentIntent` returned an existing payment row immediately for a repeated idempotency key. If the first request had created the local payment row but lost the network before Stripe `clientSecret` was persisted, iOS could receive a null client secret and fail before PaymentSheet opened.
+- Backend fix: repeated idempotent PaymentIntent requests now run through `ensureProviderPaymentIntent`. Complete existing payments return as before; incomplete existing payments repair the provider intent or reconcile the existing Stripe intent, persist `stripePaymentIntentId` plus `clientSecret`, complete the `PAYMENT_INTENT_CREATE` side effect, and record `PAYMENT_INTENT_REPAIRED`. `processCreateIntentJob` uses the same repair path for stale outbox jobs.
+- iOS fix: `FanPassV4CheckoutView` now owns a stable `stripeCheckoutAttemptId` for the checkout page lifecycle. `CheckoutViewModel.prepareBackendPayment` uses that id for both order and payment idempotency keys, so a retry reuses the same backend order/payment instead of creating a fresh order after a transient network loss. `Reset checkout` creates a new attempt id.
+- iOS fix: `prepareAndPresentStripe` now guards against re-entry while a PaymentSheet request is already preparing/presenting and clears stale prepared PaymentSheet state after any Stripe result.
+- Render env verification: `fanpass-api-staging` has all target wallet/payment/testnet env keys present without printing values: `FANPASS_ENABLE_PAYMENTS`, `FANPASS_REQUIRE_PAYMENT_AUTHORIZATION`, `OWNERSHIP_ADAPTER`, `FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES`, `FANPASS_CHAIN_PROOF_SYNC_OUTBOX`, `QR_TTL_SECONDS`, `TESTNET_RPC_URL`, `TESTNET_OPERATOR_PRIVATE_KEY`, `FANPASS_TICKET_CONTRACT_ADDRESS`, `FANPASS_WALLET_RPC_URL`, `FANPASS_WALLET_CHAIN_ID`, and `FANPASS_USDC_CONTRACT_ADDRESS`.
+- Staging wallet diagnosis remains: `https://fanpass-api-staging.onrender.com/wallet/balances` still returns 404 because the live Render deploy is commit `a1b6d56b5083c33b8a35b7ebc6d91a2150c810d9` from 2026-06-12 and does not include the local `WalletController` route. The env is configured, but USDC balance display cannot work against staging until the API source with `/wallet/balances` is deployed.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/payments.service.spec.ts`
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `scripts/with-node-22.sh npm run build -w apps/api`
+  - XcodeBuildMCP `session_show_defaults` confirmed `FanPass`, `Beta`, `FanPass-iPhone-17`.
+  - XcodeBuildMCP `build_run_sim` passed with `CODE_SIGNING_ALLOWED=NO`, zero warnings and zero errors, launching process id `70865`.
+  - `git diff --check` passed.
+- Not done in this pass: no staging API source deploy, no authenticated live USDC balance read, no physical iPhone install, no TestFlight build, no live Stripe authorization/webhook settlement run, no scanner redemption evidence, and no release-grade chain custody evidence.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
@@ -5454,5 +6062,5 @@ Codex cannot create separate conversation windows by itself. Keep durable state 
 - Keep product decisions in `docs/BETA_ROADMAP.md`.
 - Keep security findings and release blockers in `docs/ALPHA_SECURITY_REVIEW.md`.
 - Keep provider pricing/feature checks in `docs/PROVIDER_COST_FEASIBILITY.md`.
-- Before starting any new implementation turn, read this file first, enumerate and read every Markdown file in the workspace with `rg --files -g '*.md'`, then re-read the active source-of-truth docs for the task such as `docs/BETA_ROADMAP.md`, `docs/DEVELOPMENT_TASKS.md`, `docs/QA_CHECKLIST.md`, and the Clean V4 docs when UI is involved.
+- Before starting any normal new implementation turn, read this file first, enumerate and read every Markdown file in the workspace including hidden/ignored/generated Markdown while excluding `.git`, then re-read the active source-of-truth docs for the task such as `docs/BETA_ROADMAP.md`, `docs/DEVELOPMENT_TASKS.md`, `docs/QA_CHECKLIST.md`, and the Clean V4 docs when UI is involved. After automatic context compaction or mid-turn resume, use the `Context Compaction Resume Protocol` instead and read only non-ignored Markdown with `rg --files -g '*.md'`.
 - Also read `docs/ALPHA_PLAN.md` during Alpha work.

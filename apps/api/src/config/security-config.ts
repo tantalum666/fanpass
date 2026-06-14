@@ -18,6 +18,16 @@ export function isProductionLikeEnvironment(
   );
 }
 
+export function allowsPrivateKeyTestnetWrites(
+  env: NodeJS.ProcessEnv | EnvMap = process.env,
+) {
+  const fanpassEnv = String(env.FANPASS_ENV ?? "").toLowerCase();
+  return (
+    fanpassEnv !== "production" &&
+    stringValue(env.FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES) === "true"
+  );
+}
+
 export function validateEnvironment(config: EnvMap) {
   const errors: string[] = [];
   const productionLike = isProductionLikeEnvironment(config);
@@ -155,9 +165,33 @@ function validateOwnershipConfiguration(config: EnvMap, errors: string[]) {
   if (stringValue(config.OWNERSHIP_ADAPTER) !== "testnet") {
     return;
   }
-  errors.push(
-    "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments until real chain ownership settlement runs only through the durable async saga",
-  );
+  if (!allowsPrivateKeyTestnetWrites(config)) {
+    errors.push(
+      "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments unless FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true is explicitly set outside production",
+    );
+    return;
+  }
+
+  const rpcUrl = stringValue(config.TESTNET_RPC_URL);
+  if (!rpcUrl || !rpcUrl.startsWith("https://")) {
+    errors.push(
+      "TESTNET_RPC_URL must be an HTTPS RPC URL when private-key testnet writes are explicitly enabled",
+    );
+  }
+
+  const privateKey = stringValue(config.TESTNET_OPERATOR_PRIVATE_KEY);
+  if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
+    errors.push(
+      "TESTNET_OPERATOR_PRIVATE_KEY must be a 0x-prefixed 32-byte private key when private-key testnet writes are explicitly enabled",
+    );
+  }
+
+  const contractAddress = stringValue(config.FANPASS_TICKET_CONTRACT_ADDRESS);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
+    errors.push(
+      "FANPASS_TICKET_CONTRACT_ADDRESS must be an EVM address when private-key testnet writes are explicitly enabled",
+    );
+  }
 }
 
 export function readIntegerConfig(

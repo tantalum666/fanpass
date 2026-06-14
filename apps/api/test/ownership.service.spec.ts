@@ -97,7 +97,7 @@ describe("OwnershipService", () => {
     ).rejects.toThrow("TESTNET_RPC_URL is required");
   });
 
-  it("blocks testnet ownership calls in production-like environments until the async saga owns real chain settlement", async () => {
+  it("blocks testnet ownership calls in production-like environments unless explicitly enabled for non-production", async () => {
     const ownership = new OwnershipService(
       new ConfigService({
         FANPASS_ENV: "staging",
@@ -109,6 +109,64 @@ describe("OwnershipService", () => {
       ownership.issueTicket({
         localTicketId: "tkt_local",
         tokenIdHint: "7",
+        eventId: "evt_weekend_demo",
+        ticketTypeId: "tt_cat2_demo",
+        ownerId: "usr_fan_demo",
+        ownerWalletAddress: "0x0000000000000000000000000000000000002001",
+        transferable: true,
+        resaleCap: 1545,
+        maxTransferCount: 2,
+        metadataUri: null,
+      }),
+    ).toThrow(/OWNERSHIP_ADAPTER=testnet/);
+  });
+
+  it("allows explicit staging private-key testnet writes while production remains blocked", async () => {
+    const ownership = new OwnershipService(
+      new ConfigService({
+        NODE_ENV: "production",
+        FANPASS_ENV: "staging",
+        FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES: "true",
+        OWNERSHIP_ADAPTER: "testnet",
+        TESTNET_RPC_URL: "https://rpc.testnet.example",
+        TESTNET_OPERATOR_PRIVATE_KEY:
+          "0x0000000000000000000000000000000000000000000000000000000000000001",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+      }),
+    );
+
+    const receipt = await ownership.issueTicket({
+      localTicketId: "tkt_staging_dev",
+      tokenIdHint: "7",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      ownerId: "usr_fan_demo",
+      ownerWalletAddress: "0x0000000000000000000000000000000000002001",
+      transferable: true,
+      resaleCap: 1545,
+      maxTransferCount: 2,
+      metadataUri: null,
+    });
+
+    expect(receipt).toMatchObject({
+      adapter: "testnet",
+      tokenId: "42",
+      transactionHash: "0xreceipt_mint",
+    });
+
+    const productionOwnership = new OwnershipService(
+      new ConfigService({
+        NODE_ENV: "production",
+        FANPASS_ENV: "production",
+        FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES: "true",
+        OWNERSHIP_ADAPTER: "testnet",
+      }),
+    );
+    expect(() =>
+      productionOwnership.issueTicket({
+        localTicketId: "tkt_prod",
+        tokenIdHint: "8",
         eventId: "evt_weekend_demo",
         ticketTypeId: "tt_cat2_demo",
         ownerId: "usr_fan_demo",

@@ -123,6 +123,48 @@ describe("security config validation", () => {
     ).toThrow(/OWNERSHIP_ADAPTER=testnet/);
   });
 
+  it("allows explicit private-key Sepolia writes for staging development only", () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: "production",
+        FANPASS_ENV: "staging",
+        QR_SIGNING_SECRET: "qr-secret-with-at-least-thirty-two-chars",
+        PRIVY_APP_ID: "privy-app-demo",
+        PRIVY_VERIFICATION_KEY: TEST_PRIVY_PUBLIC_KEY,
+        FANPASS_CORS_ORIGINS: "https://console.fanpass.test",
+        FANPASS_TRUST_PROXY_HOPS: "1",
+        OWNERSHIP_ADAPTER: "testnet",
+        FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES: "true",
+        TESTNET_RPC_URL: "https://rpc.testnet.example",
+        TESTNET_OPERATOR_PRIVATE_KEY:
+          "0x0000000000000000000000000000000000000000000000000000000000000001",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+      }),
+    ).not.toThrow();
+  });
+
+  it("still rejects explicit private-key testnet writes in production", () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: "production",
+        FANPASS_ENV: "production",
+        QR_SIGNING_SECRET: "qr-secret-with-at-least-thirty-two-chars",
+        PRIVY_APP_ID: "privy-app-demo",
+        PRIVY_VERIFICATION_KEY: TEST_PRIVY_PUBLIC_KEY,
+        FANPASS_CORS_ORIGINS: "https://console.fanpass.test",
+        FANPASS_TRUST_PROXY_HOPS: "1",
+        OWNERSHIP_ADAPTER: "testnet",
+        FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES: "true",
+        TESTNET_RPC_URL: "https://rpc.testnet.example",
+        TESTNET_OPERATOR_PRIVATE_KEY:
+          "0x0000000000000000000000000000000000000000000000000000000000000001",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+      }),
+    ).toThrow(/OWNERSHIP_ADAPTER=testnet/);
+  });
+
   it("rejects wildcard CORS origins", () => {
     expect(() =>
       validateEnvironment({

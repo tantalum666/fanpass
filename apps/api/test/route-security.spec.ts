@@ -18,6 +18,7 @@ import { OrdersController } from "../src/modules/orders/orders.controller";
 import { PaymentsController } from "../src/modules/payments/payments.controller";
 import { TicketsController } from "../src/modules/tickets/tickets.controller";
 import { VerificationController } from "../src/modules/verification/verification.controller";
+import { WalletController } from "../src/modules/wallet/wallet.controller";
 
 const controllers = [
   AppController,
@@ -29,6 +30,7 @@ const controllers = [
   PaymentsController,
   TicketsController,
   VerificationController,
+  WalletController,
 ];
 
 const expectedAccessByHandler = new Map<string, "PUBLIC" | string[]>([
@@ -77,6 +79,7 @@ const expectedAccessByHandler = new Map<string, "PUBLIC" | string[]>([
     ["GATE_STAFF", "ORGANIZER", "ADMIN"],
   ],
   ["VerificationController.generateTicketQr", ["FAN", "ADMIN"]],
+  ["WalletController.balances", ["FAN", "ADMIN"]],
 ]);
 
 describe("controller route security coverage", () => {

@@ -21,19 +21,35 @@ services:
       - key: FANPASS_ENABLE_DEMO_AUTH
         value: "false"
       - key: FANPASS_ENABLE_PAYMENTS
-        value: "false"
+        value: "true"
       - key: FANPASS_REQUIRE_PAYMENT_AUTHORIZATION
-        value: "false"
+        value: "true"
       - key: FANPASS_ASYNC_OWNERSHIP_SETTLEMENT
         value: "true"
       - key: OWNERSHIP_ADAPTER
-        value: mock
+        value: testnet
+      - key: FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES
+        value: "true"
+      - key: FANPASS_CHAIN_PROOF_SYNC_OUTBOX
+        value: "false"
+      - key: FANPASS_TICKET_CONTRACT_ADDRESS
+        sync: false
+      - key: TESTNET_RPC_URL
+        sync: false
+      - key: TESTNET_OPERATOR_PRIVATE_KEY
+        sync: false
+      - key: FANPASS_WALLET_RPC_URL
+        sync: false
+      - key: FANPASS_WALLET_CHAIN_ID
+        value: "11155111"
+      - key: FANPASS_USDC_CONTRACT_ADDRESS
+        value: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
       - key: FANPASS_TRUST_PROXY_HOPS
         value: "1"
       - key: SESSION_TTL_SECONDS
         value: "28800"
       - key: QR_TTL_SECONDS
-        value: "300"
+        value: "30"
       - key: RATE_LIMIT_GENERAL_PER_MINUTE
         value: "600"
       - key: RATE_LIMIT_AUTH_PER_MINUTE
@@ -63,6 +79,10 @@ services:
       - key: PRIVY_APP_ID
         sync: false
       - key: PRIVY_VERIFICATION_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
         sync: false
   - type: web
     name: fanpass-console-staging

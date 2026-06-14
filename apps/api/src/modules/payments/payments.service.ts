@@ -109,7 +109,15 @@ export class PaymentsService {
         order.id,
         this.amountMinor(order.price),
       );
-      return this.mapPayment(existing);
+      const repaired = await this.ensureProviderPaymentIntent(
+        existing,
+        {
+          eventId: order.eventId,
+          ticketTypeId: order.ticketTypeId,
+        },
+        "PAYMENT_INTENT_REPAIRED",
+      );
+      return this.mapPayment(repaired);
     }
 
     const payment = await this.prisma.$transaction(async (tx) => {
@@ -145,42 +153,13 @@ export class PaymentsService {
       return created;
     });
 
-    const providerResult = await this.createProviderPaymentIntent(payment);
-    const updated = await this.prisma.payment.update({
-      where: {
-        id: payment.id,
-      },
-      data: {
-        stripePaymentIntentId: providerResult.id,
-        clientSecret: providerResult.clientSecret,
-        status: providerResult.status,
-        captureStatus: providerResult.captureStatus,
-      },
-    });
-    await this.outbox.markCompleted(
-      this.paymentIntentSideEffectKey(payment.id),
+    const updated = await this.ensureProviderPaymentIntent(
+      payment,
       {
-        paymentId: updated.id,
-        orderId: updated.orderId,
         eventId: order.eventId,
         ticketTypeId: order.ticketTypeId,
-        stripePaymentIntentId: providerResult.id,
-        status: providerResult.status,
-        captureStatus: providerResult.captureStatus,
       },
-    );
-    await this.audit.record(
-      updated.userId,
       "PAYMENT_INTENT_CREATED",
-      "payment",
-      updated.id,
-      {
-        orderId: updated.orderId,
-        amount: updated.amount,
-        currency: updated.currency,
-        stripePaymentIntentId: updated.stripePaymentIntentId,
-        stripeMode: this.stripeConfigured() ? "stripe" : "mock",
-      },
     );
 
     return this.mapPayment(updated);
@@ -275,25 +254,23 @@ export class PaymentsService {
         order: true,
       },
     });
-    if (payment.stripePaymentIntentId) {
+    if (payment.stripePaymentIntentId && payment.clientSecret?.trim()) {
       return this.paymentJobPayload(payment);
     }
-    const providerResult = await this.createProviderPaymentIntent(payment);
-    const updated = await this.prisma.payment.update({
-      where: {
-        id: payment.id,
+    const updated = await this.ensureProviderPaymentIntent(
+      payment,
+      {
+        eventId: payment.order?.eventId ?? null,
+        ticketTypeId: payment.order?.ticketTypeId ?? null,
       },
-      data: {
-        stripePaymentIntentId: providerResult.id,
-        clientSecret: providerResult.clientSecret,
-        status: providerResult.status,
-        captureStatus: providerResult.captureStatus,
-      },
-      include: {
-        order: true,
-      },
+      payment.stripePaymentIntentId
+        ? "PAYMENT_INTENT_REPAIRED"
+        : "PAYMENT_INTENT_CREATED",
+    );
+    return this.paymentJobPayload({
+      ...updated,
+      order: payment.order,
     });
-    return this.paymentJobPayload(updated);
   }
 
   async processCaptureJob(
@@ -644,6 +621,63 @@ export class PaymentsService {
       status: intent.status,
       captureStatus: this.captureStatusForIntent(intent.status),
     };
+  }
+
+  private async ensureProviderPaymentIntent(
+    payment: Payment,
+    orderContext: {
+      eventId: string | null;
+      ticketTypeId: string | null;
+    },
+    auditAction: "PAYMENT_INTENT_CREATED" | "PAYMENT_INTENT_REPAIRED",
+  ) {
+    if (
+      payment.stripePaymentIntentId &&
+      payment.clientSecret?.trim()
+    ) {
+      return payment;
+    }
+
+    const providerResult = payment.stripePaymentIntentId
+      ? await this.reconcileProviderPaymentIntent(payment)
+      : await this.createProviderPaymentIntent(payment);
+    const updated = await this.prisma.payment.update({
+      where: {
+        id: payment.id,
+      },
+      data: {
+        stripePaymentIntentId: providerResult.id,
+        clientSecret: providerResult.clientSecret,
+        status: providerResult.status,
+        captureStatus: providerResult.captureStatus,
+      },
+    });
+    await this.outbox.markCompleted(
+      this.paymentIntentSideEffectKey(payment.id),
+      {
+        paymentId: updated.id,
+        orderId: updated.orderId,
+        eventId: orderContext.eventId,
+        ticketTypeId: orderContext.ticketTypeId,
+        stripePaymentIntentId: providerResult.id,
+        status: providerResult.status,
+        captureStatus: providerResult.captureStatus,
+      },
+    );
+    await this.audit.record(
+      updated.userId,
+      auditAction,
+      "payment",
+      updated.id,
+      {
+        orderId: updated.orderId,
+        amount: updated.amount,
+        currency: updated.currency,
+        stripePaymentIntentId: updated.stripePaymentIntentId,
+        stripeMode: this.stripeConfigured() ? "stripe" : "mock",
+      },
+    );
+    return updated;
   }
 
   private async captureProviderPaymentIntent(

@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomUUID } from "crypto";
-import { isProductionLikeEnvironment } from "../../config/security-config";
+import {
+  allowsPrivateKeyTestnetWrites,
+  isProductionLikeEnvironment,
+} from "../../config/security-config";
 
 export interface OwnershipReceipt {
   adapter: "mock" | "testnet";
@@ -122,9 +125,9 @@ export class OwnershipService {
     if (this.config.get<string>("OWNERSHIP_ADAPTER") !== "testnet") {
       return new MockOwnershipAdapter();
     }
-    if (this.productionLike()) {
+    if (this.productionLike() && !this.privateKeyTestnetWritesAllowed()) {
       throw new Error(
-        "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments until real chain ownership settlement runs only through the durable async saga",
+        "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments unless FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES=true is explicitly set outside production",
       );
     }
     return new TestnetOwnershipAdapter(this.config);
@@ -135,6 +138,16 @@ export class OwnershipService {
       NODE_ENV: this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV,
       FANPASS_ENV:
         this.config.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+    });
+  }
+
+  private privateKeyTestnetWritesAllowed() {
+    return allowsPrivateKeyTestnetWrites({
+      FANPASS_ENV:
+        this.config.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+      FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES:
+        this.config.get<string>("FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES") ??
+        process.env.FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES,
     });
   }
 }
