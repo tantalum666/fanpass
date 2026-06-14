@@ -11,13 +11,37 @@ const apiEnvPath = path.join(
   process.env.FANPASS_PRIVY_LOCAL_API_ENV ?? "apps/api/.env",
 );
 const expectedAppId = process.env.FANPASS_EXPECTED_PRIVY_APP_ID?.trim() ?? "";
-const iosAppId = process.env.FANPASS_PRIVY_APP_ID?.trim() ?? "";
-const appClientId = process.env.FANPASS_PRIVY_APP_CLIENT_ID?.trim() ?? "";
+const iosLocalConfigPath = path.join(
+  rootDir,
+  process.env.FANPASS_PRIVY_LOCAL_IOS_CONFIG ??
+    "apps/ios/FanPass/Config/LocalSecrets.xcconfig",
+);
 const errors = [];
 
 const env = readEnvFile(apiEnvPath);
 const appId = env.PRIVY_APP_ID ?? "";
 const verificationKey = normalizeEnvValue(env.PRIVY_VERIFICATION_KEY ?? "");
+const iosLocalConfig = readXcconfigFile(iosLocalConfigPath);
+const iosAppIdFromEnvironment =
+  process.env.FANPASS_PRIVY_APP_ID?.trim() ?? "";
+const appClientIdFromEnvironment =
+  process.env.FANPASS_PRIVY_APP_CLIENT_ID?.trim() ?? "";
+const iosAppId =
+  iosAppIdFromEnvironment || iosLocalConfig.FANPASS_PRIVY_APP_ID || "";
+const appClientId =
+  appClientIdFromEnvironment ||
+  iosLocalConfig.FANPASS_PRIVY_APP_CLIENT_ID ||
+  "";
+const iosPublicConfigSource = iosAppIdFromEnvironment
+  ? "environment"
+  : iosLocalConfig.FANPASS_PRIVY_APP_ID
+    ? "local-xcconfig"
+    : "missing";
+const appClientIdSource = appClientIdFromEnvironment
+  ? "environment"
+  : iosLocalConfig.FANPASS_PRIVY_APP_CLIENT_ID
+    ? "local-xcconfig"
+    : "missing";
 
 validateApiEnv();
 validateIosPublicConfig();
@@ -51,6 +75,13 @@ console.log(
         buildSettingsInjectedOutsideSourceControl: Boolean(
           iosAppId && appClientId,
         ),
+        publicConfigSource: iosPublicConfigSource,
+        appClientIdSource,
+        localOverrideFile: path.relative(rootDir, iosLocalConfigPath),
+        localOverrideFileExists: fs.existsSync(iosLocalConfigPath),
+        localOverrideIgnoredBySourceControl: fs.existsSync(iosLocalConfigPath)
+          ? isIgnored(iosLocalConfigPath)
+          : null,
         checkedInXcconfigsRemainPlaceholderOnly: xcconfigsPlaceholderOnly(),
         bundleIdsCovered: projectDefinesBundleIds(),
         xcodeBuildSettingNames: [
@@ -98,6 +129,12 @@ function validateApiEnv() {
 }
 
 function validateIosPublicConfig() {
+  if (fs.existsSync(iosLocalConfigPath) && !isIgnored(iosLocalConfigPath)) {
+    errors.push(
+      `${relative(iosLocalConfigPath)} must be ignored by source control`,
+    );
+  }
+
   if (!iosAppId) {
     errors.push(
       "FANPASS_PRIVY_APP_ID must be provided through the environment for local iOS builds",
@@ -116,6 +153,10 @@ function validateIosPublicConfig() {
     );
   } else if (!/^client-[A-Za-z0-9_-]{20,}$/.test(appClientId)) {
     errors.push("FANPASS_PRIVY_APP_CLIENT_ID must look like a Privy client id");
+  } else if (containsProviderSecretMarker(appClientId)) {
+    errors.push(
+      "FANPASS_PRIVY_APP_CLIENT_ID must not contain secret-like material",
+    );
   }
 
   if (!xcconfigsPlaceholderOnly()) {
@@ -141,6 +182,30 @@ function readEnvFile(filePath) {
       continue;
     }
     const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) {
+      continue;
+    }
+    result[match[1]] = stripQuotes(match[2].trim());
+  }
+  return result;
+}
+
+function readXcconfigFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+  const result = {};
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (
+      !trimmed ||
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("#include")
+    ) {
+      continue;
+    }
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     if (!match) {
       continue;
     }
@@ -214,10 +279,15 @@ function isIgnored(filePath) {
     }
     const rules = fs.readFileSync(gitignore, "utf8").split(/\r?\n/);
     const basename = path.basename(filePath);
+    const relativePath = relative(filePath);
     return rules.some(
       (rule) =>
-        rule.trim() === basename ||
-        (rule.trim() === ".env.*" && basename.startsWith(".env.")),
+        !rule.trim().startsWith("!") &&
+        (rule.trim() === basename ||
+          rule.trim() === relativePath ||
+          (rule.trim().endsWith("/") &&
+            relativePath.startsWith(rule.trim())) ||
+          (rule.trim() === ".env.*" && basename.startsWith(".env."))),
     );
   }
 }

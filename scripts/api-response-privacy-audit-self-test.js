@@ -100,8 +100,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/gate-assignments/route.ts",
-        consoleGateAssignmentRoute({ includeMarkers: false }),
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff({ includeMarkers: false }),
       ),
   },
   {
@@ -191,16 +191,7 @@ function writePassingFixture(fixtureRoot) {
     "apps/api/src/modules/payments/payments.controller.ts",
     paymentsController(),
   );
-  writeFixtureFile(
-    fixtureRoot,
-    "apps/dashboard/app/api/console/privy-session/route.ts",
-    consoleSessionRoute(),
-  );
-  writeFixtureFile(
-    fixtureRoot,
-    "apps/dashboard/app/api/console/gate-assignments/route.ts",
-    consoleGateAssignmentRoute(),
-  );
+  writeFixtureFile(fixtureRoot, "apps/dashboard/server/console-bff.ts", consoleBff());
   writeFixtureFile(
     fixtureRoot,
     "docs/API_RESPONSE_PRIVACY_MATRIX.md",
@@ -257,25 +248,32 @@ export class PaymentsController {
 `;
 }
 
-function consoleSessionRoute() {
-  return `
-export async function POST() {
-  return Response.json({ ok: true });
-}
-`;
-}
-
-function consoleGateAssignmentRoute(options = {}) {
+function consoleBff(options = {}) {
   const includeMarkers = options.includeMarkers !== false;
   return `
 ${includeMarkers ? "import { consoleAccessToken } from '../console-session';" : ""}
 ${includeMarkers ? "import { redactConsoleGateAssignmentResponse } from './redaction';" : ""}
 
-export async function POST() {
-  ${includeMarkers ? "consoleAccessToken();" : ""}
+function handlePrivySessionPost() {}
+function handlePrivySessionDelete() {}
+function handlePrivySessionOptions() {}
+function handleOperations() {}
+function handleCreateEvent() {}
+function handleCreateTicketType() {}
+
+function handleCreateGateAssignment() {
+  ${includeMarkers ? "consoleAccessToken(cookieSource(request));" : ""}
   const response = { inviteToken: "fixture-token" };
   return Response.json(${includeMarkers ? "redactConsoleGateAssignmentResponse(response)" : "response"});
 }
+
+function handleRotateInvite() {
+  ${includeMarkers ? "consoleAccessToken(cookieSource(request));" : ""}
+  const payload = { inviteToken: "fixture-token" };
+  return Response.json(${includeMarkers ? "redactConsoleGateAssignmentResponse(payload)" : "payload"});
+}
+
+function handleDeactivateGateAssignment() {}
 `;
 }
 
@@ -303,16 +301,58 @@ function matrix(options = {}) {
       "Webhook fixture.",
     ],
     [
-      "apps/dashboard/app/api/console/privy-session/route.ts:POST",
+      "apps/dashboard/server/console-bff.ts:handlePrivySessionPost",
       "POST /api/console/privy-session",
       options.sessionClassification ?? "AUTH_SESSION",
       "Console session fixture.",
     ],
     [
-      "apps/dashboard/app/api/console/gate-assignments/route.ts:POST",
+      "apps/dashboard/server/console-bff.ts:handlePrivySessionDelete",
+      "DELETE /api/console/privy-session",
+      "AUTH_SESSION",
+      "Console session delete fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handlePrivySessionOptions",
+      "OPTIONS /api/console/privy-session",
+      "AUTH_SESSION",
+      "Console session preflight fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleOperations",
+      "GET /api/console/operations",
+      "ORGANIZER_REDACTED",
+      "Console operations fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleCreateEvent",
+      "POST /api/console/events",
+      "ORGANIZER_REDACTED",
+      "Console event fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleCreateTicketType",
+      "POST /api/console/events/:eventId/ticket-types",
+      "ORGANIZER_REDACTED",
+      "Console ticket type fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleCreateGateAssignment",
       "POST /api/console/gate-assignments",
       "ORGANIZER_SECRET_ONCE",
       "Console one-time secret fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleRotateInvite",
+      "POST /api/console/gate-assignments/:assignmentId/invites",
+      "ORGANIZER_SECRET_ONCE",
+      "Console one-time invite rotation fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleDeactivateGateAssignment",
+      "POST /api/console/gate-assignments/:assignmentId/deactivate",
+      "ORGANIZER_REDACTED",
+      "Console assignment deactivation fixture.",
     ],
   );
   return [

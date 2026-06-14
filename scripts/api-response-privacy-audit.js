@@ -7,6 +7,10 @@ const rootDir = process.env.FANPASS_API_PRIVACY_AUDIT_ROOT
   : path.resolve(__dirname, "..");
 const apiSrcDir = path.join(rootDir, "apps/api/src");
 const dashboardApiDir = path.join(rootDir, "apps/dashboard/app/api");
+const dashboardBffPath = path.join(
+  rootDir,
+  "apps/dashboard/server/console-bff.ts",
+);
 const matrixPath = path.join(rootDir, "docs/API_RESPONSE_PRIVACY_MATRIX.md");
 const controllerFiles = listSourceFiles(apiSrcDir).filter((file) =>
   file.endsWith(".controller.ts"),
@@ -50,6 +54,9 @@ for (const absoluteFile of controllerFiles) {
 }
 for (const absoluteFile of dashboardRouteFiles) {
   auditNextRoute(absoluteFile);
+}
+if (fs.existsSync(dashboardBffPath)) {
+  auditConsoleBff(dashboardBffPath);
 }
 
 const matrix = parseMatrix();
@@ -171,11 +178,52 @@ function auditNextRoute(absoluteFile) {
   }
 }
 
+function auditConsoleBff(absoluteFile) {
+  const relativeFile = normalizePath(path.relative(rootDir, absoluteFile));
+  const contents = fs.readFileSync(absoluteFile, "utf8");
+  const handlers = [
+    ["handlePrivySessionPost", "POST /api/console/privy-session"],
+    ["handlePrivySessionDelete", "DELETE /api/console/privy-session"],
+    ["handlePrivySessionOptions", "OPTIONS /api/console/privy-session"],
+    ["handleOperations", "GET /api/console/operations"],
+    ["handleCreateEvent", "POST /api/console/events"],
+    [
+      "handleCreateTicketType",
+      "POST /api/console/events/:eventId/ticket-types",
+    ],
+    ["handleCreateGateAssignment", "POST /api/console/gate-assignments"],
+    [
+      "handleRotateInvite",
+      "POST /api/console/gate-assignments/:assignmentId/invites",
+    ],
+    [
+      "handleDeactivateGateAssignment",
+      "POST /api/console/gate-assignments/:assignmentId/deactivate",
+    ],
+  ];
+
+  for (const [methodName, route] of handlers) {
+    if (!contents.includes(`function ${methodName}`)) {
+      errors.push(`${relativeFile}:${methodName} is missing.`);
+      continue;
+    }
+    discoveredHandlers.set(`${relativeFile}:${methodName}`, {
+      surface: "consoleBff",
+      fileContents: contents,
+      route,
+      publicRoute: false,
+      roles: [],
+    });
+  }
+}
+
 function validateClassification(handler, discovered, classification) {
   if (discovered.surface === "nest") {
     validateNestClassification(handler, discovered, classification);
   } else if (discovered.surface === "next") {
     validateNextClassification(handler, discovered, classification);
+  } else if (discovered.surface === "consoleBff") {
+    validateConsoleBffClassification(handler, discovered, classification);
   }
   if (
     classification === "PROVIDER_INGRESS" &&
@@ -201,7 +249,8 @@ function validateClassification(handler, discovered, classification) {
   if (
     classification === "AUTH_SESSION" &&
     !handler.includes("/auth/") &&
-    !handler.startsWith("apps/dashboard/app/api/console/privy-session/")
+    !handler.startsWith("apps/dashboard/app/api/console/privy-session/") &&
+    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivySession")
   ) {
     errors.push(
       `${handler} is classified as AUTH_SESSION outside the auth controller.`,
@@ -270,6 +319,48 @@ function validateNextClassification(handler, discovered, classification) {
   }
 }
 
+function validateConsoleBffClassification(handler, discovered, classification) {
+  if (classification.startsWith("PUBLIC_")) {
+    errors.push(
+      `${handler} is a Console BFF handler and must not be classified as public.`,
+    );
+  }
+  if (
+    classification === "AUTH_SESSION" &&
+    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivySession")
+  ) {
+    errors.push(
+      `${handler} is classified as AUTH_SESSION outside the Console session bridge.`,
+    );
+  }
+  if (classification === "ORGANIZER_SECRET_ONCE") {
+    if (
+      !handler.startsWith(
+        "apps/dashboard/server/console-bff.ts:handleCreateGateAssignment",
+      ) &&
+      !handler.startsWith("apps/dashboard/server/console-bff.ts:handleRotateInvite")
+    ) {
+      errors.push(
+        `${handler} is classified as ORGANIZER_SECRET_ONCE outside the Console gate-assignment boundary.`,
+      );
+    }
+    if (!discovered.fileContents.includes("consoleAccessToken(cookieSource(request))")) {
+      errors.push(
+        `${handler} returns organizer one-time secret data but does not use consoleAccessToken().`,
+      );
+    }
+    if (
+      !discovered.fileContents.includes(
+        "redactConsoleGateAssignmentResponse(payload)",
+      )
+    ) {
+      errors.push(
+        `${handler} returns organizer one-time secret data but does not use the Console gate-assignment redactor.`,
+      );
+    }
+  }
+}
+
 function parseMatrix() {
   const matrix = new Map();
   const contents = fs.readFileSync(matrixPath, "utf8");
@@ -277,7 +368,8 @@ function parseMatrix() {
     const line = rawLine.trim();
     if (
       !line.startsWith("| `apps/api/src/") &&
-      !line.startsWith("| `apps/dashboard/app/api/")
+      !line.startsWith("| `apps/dashboard/app/api/") &&
+      !line.startsWith("| `apps/dashboard/server/")
     ) {
       continue;
     }

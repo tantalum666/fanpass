@@ -10,6 +10,17 @@ const cases = [];
 cases.push(runCase("accepts secret-safe local Privy config", makeFixture(), 0));
 
 {
+  const fixture = makeFixture({
+    omitIosAppId: true,
+    omitClientId: true,
+    useLocalOverride: true,
+  });
+  cases.push(
+    runCase("accepts ignored local iOS xcconfig override", fixture, 0),
+  );
+}
+
+{
   const fixture = makeFixture({ iosAppId: "cmps_other" });
   cases.push(
     runCase("rejects mismatched iOS Privy app id injection", fixture, 1),
@@ -99,7 +110,7 @@ function makeFixture(options = {}) {
 
   fs.writeFileSync(
     rootPath(root, ".gitignore"),
-    ".env\n.env.*\n!.env.example\n",
+    ".env\n.env.*\n!.env.example\napps/ios/FanPass/Config/LocalSecrets.xcconfig\n",
   );
 
   const { publicKey } = crypto.generateKeyPairSync("ec", {
@@ -127,6 +138,18 @@ function makeFixture(options = {}) {
         "FANPASS_API_BASE_URL = https:/$()/example.invalid",
         "FANPASS_PRIVY_APP_ID =",
         "FANPASS_PRIVY_APP_CLIENT_ID =",
+        '#include? "LocalSecrets.xcconfig"',
+        "",
+      ].join("\n"),
+    );
+  }
+
+  if (options.useLocalOverride) {
+    fs.writeFileSync(
+      rootPath(root, "apps/ios/FanPass/Config/LocalSecrets.xcconfig"),
+      [
+        "FANPASS_PRIVY_APP_ID = cmps_fixture",
+        "FANPASS_PRIVY_APP_CLIENT_ID = client-fixturePublicValue1234567890",
         "",
       ].join("\n"),
     );

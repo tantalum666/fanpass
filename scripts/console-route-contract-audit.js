@@ -1,100 +1,21 @@
 const fs = require("fs");
 const path = require("path");
-const ts = require("typescript");
 
 const rootDir = process.env.FANPASS_CONSOLE_ROUTE_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_CONSOLE_ROUTE_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
-const consoleApiDir = path.join(rootDir, "apps/dashboard/app/api/console");
-const consoleApiHelper = "apps/dashboard/lib/api.ts";
-const consoleLoginComponent = "apps/dashboard/app/console-login-form.tsx";
+const consoleBff = "apps/dashboard/server/console-bff.ts";
+const consoleAuthHelper = "apps/dashboard/lib/console-auth.ts";
+const consoleLoginComponent = "apps/dashboard/src/ConsoleApp.tsx";
+const gateAssignmentRedactor =
+  "apps/dashboard/lib/gate-assignment-response.ts";
 const errors = [];
 
-const expectedRoutes = new Map([
-  [
-    "apps/dashboard/app/api/console/privy-session/route.ts",
-    {
-      methods: new Set(["POST", "DELETE", "OPTIONS"]),
-      requiredSnippets: [
-        "/auth/privy/sync",
-        "assertConsoleMutationOrigin(request)",
-        "consoleMutationCorsHeaders(request)",
-        "ConsoleMutationOriginError",
-        'session.role !== "ORGANIZER" && session.role !== "ADMIN"',
-        "result.cookies.set(CONSOLE_ACCESS_TOKEN_COOKIE, accessToken",
-        "httpOnly: true",
-        'sameSite: "lax"',
-        "secure: isProductionLikeConsole()",
-        'path: "/"',
-        "maxAge: maxAgeSeconds(session.expiresAt)",
-        "result.cookies.delete(CONSOLE_ACCESS_TOKEN_COOKIE)",
-        "new NextResponse(null, { status: 204, headers: corsHeaders })",
-      ],
-      forbiddenSnippets: [
-        "accessToken: accessToken",
-        "email: session.email",
-        "privyId: session.privyId",
-        "walletAddress: session.walletAddress",
-      ],
-    },
-  ],
-  [
-    "apps/dashboard/app/api/console/gate-assignments/route.ts",
-    {
-      methods: new Set(["POST"]),
-      requiredSnippets: [
-        "assertConsoleMutationOrigin(request)",
-        "ConsoleMutationOriginError",
-        "consoleAccessToken(",
-        "ConsoleAuthRequiredError",
-        "!eventId || !gate || !staffName || !staffEmail",
-        "/alpha/gate-assignments",
-        "Authorization: `Bearer ${accessToken}`",
-        '"Content-Type": "application/json"',
-        'cache: "no-store"',
-        "redactConsoleGateAssignmentResponse(payload)",
-      ],
-      forbiddenSnippets: ["assignment: payload"],
-    },
-  ],
-  [
-    "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
-    {
-      methods: new Set(["POST"]),
-      requiredSnippets: [
-        "assertConsoleMutationOrigin(request)",
-        "ConsoleMutationOriginError",
-        "consoleAccessToken(",
-        "ConsoleAuthRequiredError",
-        "normalizedAssignmentId",
-        "encodeURIComponent(",
-        "/invites",
-        "Authorization: `Bearer ${accessToken}`",
-        'cache: "no-store"',
-        "redactConsoleGateAssignmentResponse(payload)",
-      ],
-      forbiddenSnippets: ["assignment: payload"],
-    },
-  ],
-]);
-
-const routeFiles = listSourceFiles(consoleApiDir)
-  .filter((file) => file.endsWith("/route.ts"))
-  .map((absoluteFile) => normalizePath(path.relative(rootDir, absoluteFile)))
-  .sort();
-
-for (const routeFile of routeFiles) {
-  auditRouteFile(routeFile);
-}
-
-for (const expectedRoute of expectedRoutes.keys()) {
-  if (!routeFiles.includes(expectedRoute)) {
-    errors.push(`${expectedRoute} is missing from FanPass Console routes.`);
-  }
-}
-
-auditConsoleApiHelper();
+auditConsoleBff();
+auditConsoleAuthHelper();
 auditConsoleLoginComponent();
+auditGateAssignmentRedactor();
+auditNoLegacyNextRoutes();
 
 if (errors.length > 0) {
   console.error(errors.map((error) => `- ${error}`).join("\n"));
@@ -105,66 +26,86 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      checkedConsoleRoutes: routeFiles.length,
-      checkedConsoleAuthHelper: consoleApiHelper,
+      checkedConsoleBff: consoleBff,
+      checkedConsoleAuthHelper: consoleAuthHelper,
       checkedConsoleLoginComponent: consoleLoginComponent,
-      routeHandlers: Object.fromEntries(
-        routeFiles.map((routeFile) => [
-          routeFile,
-          [...exportedRouteMethods(routeFile)],
-        ]),
-      ),
+      checkedConsoleRedactor: gateAssignmentRedactor,
+      routeHandlers: {
+        "/api/console/privy-session": ["POST", "DELETE", "OPTIONS"],
+        "/api/console/operations": ["GET"],
+        "/api/console/events": ["POST"],
+        "/api/console/events/:eventId/ticket-types": ["POST"],
+        "/api/console/gate-assignments": ["POST"],
+        "/api/console/gate-assignments/:assignmentId/invites": ["POST"],
+        "/api/console/gate-assignments/:assignmentId/deactivate": ["POST"],
+      },
     },
     null,
     2,
   ),
 );
 
-function auditConsoleLoginComponent() {
-  const contents = fs.readFileSync(
-    path.join(rootDir, consoleLoginComponent),
-    "utf8",
-  );
+function auditConsoleBff() {
+  const contents = readFile(consoleBff);
   const requiredSnippets = [
-    '"use client"',
-    'fetch("/api/console/privy-session"',
-    'method: "POST"',
+    'createServer(async (request, response) => {',
+    'runtime: "vite-node-bff"',
+    'pathname === "/api/console/privy-session"',
+    'method === "POST"',
+    'method === "DELETE"',
+    'method === "OPTIONS"',
+    'pathname === "/api/console/operations"',
+    'pathname === "/api/console/events"',
+    'handleCreateTicketType(request, response, ticketTypeMatch[1])',
+    'pathname === "/api/console/gate-assignments"',
+    'handleRotateInvite(request, response, inviteMatch[1])',
+    'handleDeactivateGateAssignment(request, response, deactivateMatch[1])',
+    "assertConsoleMutationOrigin(originRequest)",
+    "consoleMutationCorsHeaders(originRequest)",
+    "/auth/privy/sync",
+    'session.role !== "ORGANIZER" && session.role !== "ADMIN"',
+    "consoleSessionCookie(accessToken, session.expiresAt)",
+    "clearConsoleSessionCookie()",
+    "consoleAccessToken(cookieSource(request))",
+    "/alpha/gate-assignments",
+    "Authorization: `Bearer ${accessToken}`",
     '"Content-Type": "application/json"',
-    "body: JSON.stringify({ accessToken: token })",
     'cache: "no-store"',
-    'setAccessToken("")',
-    "window.location.reload()",
+    "redactConsoleGateAssignmentResponse(payload)",
+    "normalizedAssignmentId",
+    "encodeURIComponent(",
+    "/invites",
+    '"X-Content-Type-Options"',
+    '"nosniff"',
+    '"X-Frame-Options"',
+    '"DENY"',
+    '"Cross-Origin-Opener-Policy"',
+    '"same-origin"',
+    '"Strict-Transport-Security"',
+    '"Content-Security-Policy"',
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
   ];
-  for (const snippet of requiredSnippets) {
-    if (!contents.includes(snippet)) {
-      errors.push(
-        `${consoleLoginComponent} is missing required login boundary: ${snippet}`,
-      );
-    }
-  }
+  requireSnippets(consoleBff, contents, requiredSnippets);
 
   const forbiddenSnippets = [
+    "assignment: payload",
+    "accessToken: accessToken",
+    "email: session.email",
+    "privyId: session.privyId",
+    "walletAddress: session.walletAddress",
     "localStorage",
     "sessionStorage",
     "document.cookie",
-    "console.log",
-    "console.error",
     "@privy-io/react-auth",
   ];
-  for (const snippet of forbiddenSnippets) {
-    if (contents.includes(snippet)) {
-      errors.push(
-        `${consoleLoginComponent} contains forbidden login boundary: ${snippet}`,
-      );
-    }
-  }
+  rejectSnippets(consoleBff, contents, forbiddenSnippets);
 }
 
-function auditConsoleApiHelper() {
-  const contents = fs.readFileSync(
-    path.join(rootDir, consoleApiHelper),
-    "utf8",
-  );
+function auditConsoleAuthHelper() {
+  const contents = readFile(consoleAuthHelper);
   const requiredSnippets = [
     'export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token"',
     "process.env.FANPASS_CONSOLE_ACCESS_TOKEN",
@@ -172,8 +113,11 @@ function auditConsoleApiHelper() {
     "process.env.FANPASS_CONSOLE_ORIGIN",
     "process.env.FANPASS_CONSOLE_URL",
     "process.env.FANPASS_CONSOLE_AUTH_ORIGIN",
+    "process.env.VITE_CONSOLE_AUTH_BASE_URL",
+    "process.env.VITE_CONSOLE_BASE_URL",
     "process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL",
-    "await consoleCookieAccessToken()",
+    "process.env.NEXT_PUBLIC_CONSOLE_BASE_URL",
+    "const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader)",
     "export function assertConsoleMutationOrigin(request: Request)",
     "export function consoleMutationCorsHeaders(",
     'request.headers.get("origin")',
@@ -189,21 +133,22 @@ function auditConsoleApiHelper() {
     "/auth/demo-session",
     'cache: "no-store"',
     "Authorization: `Bearer ${accessToken}`",
-    "return cookieStore.get(CONSOLE_ACCESS_TOKEN_COOKIE)?.value ?? null",
+    "CONSOLE_ACCESS_TOKEN_COOKIE) ?? null",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    "Max-Age",
+    "Secure",
     'nodeEnv === "production"',
     'fanpassEnv === "production"',
     'fanpassEnv === "staging"',
   ];
-  for (const snippet of requiredSnippets) {
-    if (!contents.includes(snippet)) {
-      errors.push(
-        `${consoleApiHelper} is missing required auth boundary: ${snippet}`,
-      );
-    }
-  }
+  requireSnippets(consoleAuthHelper, contents, requiredSnippets);
 
   const configuredIndex = contents.indexOf("if (configuredAccessToken)");
-  const cookieIndex = contents.indexOf("await consoleCookieAccessToken()");
+  const cookieIndex = contents.indexOf(
+    "const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader)",
+  );
   const productionIndex = contents.indexOf("if (isProductionLikeConsole())");
   const demoIndex = contents.indexOf("/auth/demo-session");
   if (
@@ -218,99 +163,85 @@ function auditConsoleApiHelper() {
     )
   ) {
     errors.push(
-      `${consoleApiHelper} must resolve configured token, then cookie token, then block production-like demo fallback before requesting /auth/demo-session.`,
+      `${consoleAuthHelper} must resolve configured token, then cookie token, then block production-like demo fallback before requesting /auth/demo-session.`,
     );
   }
 
   if (contents.includes("NEXT_PUBLIC_CONSOLE_ACCESS_TOKEN")) {
     errors.push(
-      `${consoleApiHelper} must not read public client-exposed Console access token env vars.`,
+      `${consoleAuthHelper} must not read public client-exposed Console access token env vars.`,
     );
   }
 }
 
-function auditRouteFile(routeFile) {
-  const expected = expectedRoutes.get(routeFile);
-  if (!expected) {
-    errors.push(
-      `${routeFile} is a new Console route. Add it to scripts/console-route-contract-audit.js and docs/API_RESPONSE_PRIVACY_MATRIX.md.`,
-    );
-    return;
-  }
+function auditConsoleLoginComponent() {
+  const contents = readFile(consoleLoginComponent);
+  const requiredSnippets = [
+    'fetch("/api/console/privy-session"',
+    'method: "POST"',
+    '"Content-Type": "application/json"',
+    "body: JSON.stringify({ accessToken: token })",
+    'cache: "no-store"',
+    'setAccessToken("")',
+    "await onSessionReady()",
+  ];
+  requireSnippets(consoleLoginComponent, contents, requiredSnippets);
 
-  const contents = fs.readFileSync(path.join(rootDir, routeFile), "utf8");
-  const methods = exportedRouteMethods(routeFile);
-  for (const method of methods) {
-    if (!expected.methods.has(method)) {
-      errors.push(`${routeFile} exports unexpected ${method} handler.`);
-    }
+  const forbiddenSnippets = [
+    "localStorage",
+    "sessionStorage",
+    "document.cookie",
+    "console.log",
+    "console.error",
+    "@privy-io/react-auth",
+  ];
+  rejectSnippets(consoleLoginComponent, contents, forbiddenSnippets);
+}
+
+function auditGateAssignmentRedactor() {
+  const contents = readFile(gateAssignmentRedactor);
+  requireSnippets(gateAssignmentRedactor, contents, [
+    "redactConsoleGateAssignmentResponse",
+    "inviteToken",
+    "requiredString(record.id",
+    "requiredString(record.gate",
+    "requiredString(record.staffName",
+  ]);
+}
+
+function auditNoLegacyNextRoutes() {
+  const legacyApiDir = path.join(rootDir, "apps/dashboard/app/api");
+  if (fs.existsSync(legacyApiDir)) {
+    errors.push(
+      "apps/dashboard/app/api must not exist after the Console Next runtime exit; add new BFF routes to apps/dashboard/server/console-bff.ts.",
+    );
   }
-  for (const method of expected.methods) {
-    if (!methods.has(method)) {
-      errors.push(`${routeFile} is missing expected ${method} handler.`);
-    }
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(rootDir, "apps/dashboard/package.json"), "utf8"),
+  );
+  if (packageJson.dependencies?.next || packageJson.devDependencies?.next) {
+    errors.push(
+      "apps/dashboard/package.json must not include next after the Console production runtime exit.",
+    );
   }
-  for (const snippet of expected.requiredSnippets) {
+}
+
+function requireSnippets(file, contents, snippets) {
+  for (const snippet of snippets) {
     if (!contents.includes(snippet)) {
-      errors.push(
-        `${routeFile} is missing required route boundary: ${snippet}`,
-      );
+      errors.push(`${file} is missing required Console boundary: ${snippet}`);
     }
   }
-  for (const snippet of expected.forbiddenSnippets) {
+}
+
+function rejectSnippets(file, contents, snippets) {
+  for (const snippet of snippets) {
     if (contents.includes(snippet)) {
-      errors.push(`${routeFile} contains forbidden route boundary: ${snippet}`);
+      errors.push(`${file} contains forbidden Console boundary: ${snippet}`);
     }
   }
-  if (contents.includes("return response.json(")) {
-    errors.push(
-      `${routeFile} must not directly return upstream response.json().`,
-    );
-  }
 }
 
-function exportedRouteMethods(routeFile) {
-  const absoluteFile = path.join(rootDir, routeFile);
-  const contents = fs.readFileSync(absoluteFile, "utf8");
-  const source = ts.createSourceFile(
-    absoluteFile,
-    contents,
-    ts.ScriptTarget.Latest,
-    true,
-  );
-  const methods = new Set();
-  for (const statement of source.statements) {
-    if (!ts.isFunctionDeclaration(statement) || !statement.name) {
-      continue;
-    }
-    if (!hasExportModifier(statement)) {
-      continue;
-    }
-    const methodName = statement.name.getText(source);
-    if (/^[A-Z]+$/.test(methodName)) {
-      methods.add(methodName);
-    }
-  }
-  return methods;
-}
-
-function hasExportModifier(statement) {
-  return statement.modifiers?.some(
-    (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
-  );
-}
-
-function listSourceFiles(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  return entries.flatMap((entry) => {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      return listSourceFiles(fullPath);
-    }
-    return [fullPath];
-  });
-}
-
-function normalizePath(filePath) {
-  return filePath.split(path.sep).join("/");
+function readFile(relativePath) {
+  return fs.readFileSync(path.join(rootDir, relativePath), "utf8");
 }

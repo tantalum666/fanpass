@@ -53,18 +53,18 @@ Start local services:
 npm run prototype:start
 ```
 
-The start script stops any existing local API/Console screens, clears stale `apps/dashboard/.next` output, starts both dev servers, and only exits successfully after:
+The start script stops any existing local API/Console screens, builds the Vite/Node BFF Console, starts both services, and only exits successfully after:
 
 - `http://localhost:4000/health` responds;
 - `http://localhost:3000` renders `FanPass Console`.
 
-If `localhost:3000` shows a Next.js runtime overlay such as `Cannot find module './901.js'`, run:
+If `localhost:3000` does not render the Console, run:
 
 ```bash
 npm run prototype:start
 ```
 
-That clears the stale Next cache and restarts both services.
+That restarts both services from a fresh local build.
 
 ## Local Security Runtime Checks
 

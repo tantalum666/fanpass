@@ -23,8 +23,6 @@ stop_screen fanpass-dashboard
 stop_port 4000
 stop_port 3000
 
-rm -rf "$ROOT_DIR/apps/dashboard/.next"
-
 screen -dmS fanpass-api bash -lc "cd '$ROOT_DIR' && npm run dev -w @fanpass/api"
 screen -dmS fanpass-dashboard bash -lc "cd '$ROOT_DIR' && npm run dev -w @fanpass/dashboard"
 

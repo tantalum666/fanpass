@@ -1,0 +1,26 @@
+{
+  "version": "v4",
+  "note": "Cleaned version with no stray decorative background lines. Use V4 as source of truth.",
+  "colors": {
+    "night": "#020617",
+    "surface": "#0B1224",
+    "elevatedSurface": "#111827",
+    "pulseCyan": "#46E8FF",
+    "electricViolet": "#7C3AED",
+    "neonMagenta": "#F43FDA",
+    "verifiedGreen": "#22C55E",
+    "textPrimary": "#F8FAFC",
+    "textSecondary": "#AAB4C5",
+    "border": "#23314A"
+  },
+  "gradients": {
+    "brand": "linear-gradient(135deg, #46E8FF 0%, #7C3AED 45%, #F43FDA 100%)",
+    "background": "radial-gradient(circle at 18% 8%, #2E1065 0%, #07152A 48%, #020617 100%)"
+  },
+  "usageRules": [
+    "Do not add decorative diagonal curves behind logo, brand sheet, or ticket card.",
+    "Keep NFC/proof waves inside dedicated UI components only.",
+    "Do not let chart lines or proof graphics cross over text.",
+    "Use logo mark without extra visual metaphors for app icon and navigation."
+  ]
+}

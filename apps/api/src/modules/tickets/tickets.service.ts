@@ -27,6 +27,8 @@ export interface TicketProofHistoryItem {
   timestamp: string;
   description: string;
   safeTicketRef: string;
+  proofReference?: string;
+  externalUrl?: string;
 }
 
 @Injectable()
@@ -126,6 +128,7 @@ export class TicketsService {
         auditLogs: auditLogs.map((log) => ({
           action: log.action,
           createdAt: log.createdAt.toISOString(),
+          metadata: log.metadataJson,
         })),
         latestCheckinAt: ticket.checkins[0]?.checkedInAt.toISOString(),
       });
@@ -140,6 +143,7 @@ export class TicketsService {
       .map((log) => ({
         action: log.action,
         createdAt: log.createdAt,
+        metadata: log.metadata,
       }));
     const latestCheckinAt = this.store.checkins.find(
       (checkin) => checkin.ticketId === id,
@@ -297,7 +301,11 @@ export class TicketsService {
     transferCount: number;
     eventTitle: string;
     ticketTypeName: string;
-    auditLogs: Array<{ action: string; createdAt: string }>;
+    auditLogs: Array<{
+      action: string;
+      createdAt: string;
+      metadata?: unknown;
+    }>;
     latestCheckinAt?: string;
   }): { items: TicketProofHistoryItem[] } {
     const safeTicketRef = this.safeTicketRef(input.id);
@@ -312,6 +320,7 @@ export class TicketsService {
     const redeemedAt =
       input.latestCheckinAt ??
       this.auditTimestamp(input.auditLogs, "TICKET_REDEEMED");
+    const latestOwnership = this.latestOwnershipProof(input.auditLogs);
 
     const items: TicketProofHistoryItem[] = [
       {
@@ -352,15 +361,90 @@ export class TicketsService {
         safeTicketRef,
       },
     ];
+    if (latestOwnership) {
+      items.push({
+        id: "chain-proof",
+        label: "On-chain proof",
+        state: latestOwnership.adapter === "testnet" ? "Sepolia" : "Local",
+        timestamp: latestOwnership.createdAt,
+        description:
+          latestOwnership.adapter === "testnet"
+            ? "Ticket lifecycle proof was written to the configured Sepolia contract and can be checked on the block explorer."
+            : "Ticket lifecycle proof is using the local ownership adapter.",
+        safeTicketRef,
+        proofReference: latestOwnership.proofReference,
+        externalUrl: latestOwnership.externalUrl,
+      });
+    }
 
     return { items };
   }
 
   private auditTimestamp(
-    logs: Array<{ action: string; createdAt: string }>,
+    logs: Array<{ action: string; createdAt: string; metadata?: unknown }>,
     action: string,
   ) {
     return logs.find((log) => log.action === action)?.createdAt;
+  }
+
+  private latestOwnershipProof(
+    logs: Array<{ action: string; createdAt: string; metadata?: unknown }>,
+  ) {
+    for (const log of logs) {
+      const metadata = this.recordMetadata(log.metadata);
+      const adapter = this.optionalMetadataString(metadata, "ownershipAdapter");
+      const ownershipRef = this.optionalMetadataString(metadata, "ownershipRef");
+      const transactionHash = this.optionalMetadataString(
+        metadata,
+        "transactionHash",
+      );
+      if (!adapter && !ownershipRef && !transactionHash) {
+        continue;
+      }
+      return {
+        adapter: adapter ?? "unknown",
+        createdAt: log.createdAt,
+        proofReference:
+          transactionHash !== null
+            ? `tx ${this.shortHex(transactionHash)}`
+            : ownershipRef !== null
+              ? `proof ${this.shortOwnershipRef(ownershipRef)}`
+              : "proof pending",
+        externalUrl:
+          adapter === "testnet" && transactionHash !== null
+            ? `https://sepolia.etherscan.io/tx/${transactionHash}`
+            : undefined,
+      };
+    }
+    return null;
+  }
+
+  private recordMetadata(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+    return value as Record<string, unknown>;
+  }
+
+  private optionalMetadataString(
+    metadata: Record<string, unknown>,
+    key: string,
+  ) {
+    const value = metadata[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+  }
+
+  private shortHex(value: string) {
+    return /^0x[a-fA-F0-9]{8,}$/.test(value)
+      ? `${value.slice(0, 8)}...${value.slice(-6)}`
+      : this.safeTicketRef(value);
+  }
+
+  private shortOwnershipRef(value: string) {
+    return value
+      .split(":")
+      .map((part) => (part.startsWith("0x") ? this.shortHex(part) : part))
+      .join(":");
   }
 
   private lifecycleDescription(

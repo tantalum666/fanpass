@@ -10,7 +10,7 @@ const cases = [
     label: "creates staging tenant/staff draft",
     provider: "staff-tenant-staging",
     snapshotSource: "staff-tenant-staging-policy-boundaries",
-    fileCount: 13,
+    fileCount: 12,
     nextValidator: "npm run security:staff-tenant:staging-evidence",
   },
   {

@@ -73,7 +73,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       replaceFixtureText(
         fixtureRoot,
-        "apps/dashboard/app/api/console/gate-assignments/route.ts",
+        "apps/dashboard/server/console-bff.ts",
         "redactConsoleGateAssignmentResponse(payload)",
         "payload",
       ),
@@ -201,12 +201,7 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "apps/api/src/main.ts", mainTs());
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/api/console/gate-assignments/route.ts",
-    consoleRoute(),
-  );
-  writeFixtureFile(
-    fixtureRoot,
-    "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
+    "apps/dashboard/server/console-bff.ts",
     `${consoleRoute()}\nencodeURIComponent(normalizedAssignmentId);\n`,
   );
   writeFixtureFile(
@@ -344,8 +339,10 @@ message: "Too many staff assignment requests";
 
 function consoleRoute() {
   return `
+function handleCreateGateAssignment() {}
+function handleRotateInvite() {}
 ConsoleAuthRequiredError;
-const accessToken = await consoleAccessToken();
+const accessToken = await consoleAccessToken(cookieSource(request));
 fetch(url, {
   headers: { Authorization: \`Bearer \${accessToken}\` },
   cache: "no-store",

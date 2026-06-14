@@ -144,7 +144,7 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/api/console/privy-session/route.ts",
+    "apps/dashboard/server/console-bff.ts",
     'export async function POST() { return fetch("https://fixture/auth/privy/sync"); }\n',
   );
   writeFixtureFile(

@@ -1,0 +1,15 @@
+<svg width="420" height="104" viewBox="0 0 420 104" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass wordmark</title>
+  <desc id="desc">FanPass wordmark in a clear system display style.</desc>
+  <defs>
+    <linearGradient id="wordAccent" x1="7" y1="15" x2="411" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F8FB"/>
+      <stop offset="0.58" stop-color="#D8E7FF"/>
+      <stop offset="1" stop-color="#33D6FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="420" height="104" rx="22" fill="#07080C"/>
+  <text x="30" y="69" fill="url(#wordAccent)" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="700" letter-spacing="0">FanPass</text>
+  <path d="M302 25H383" stroke="#8B5CF6" stroke-width="3" stroke-linecap="round" opacity="0.72"/>
+  <path d="M346 78H389" stroke="#27E0A3" stroke-width="3" stroke-linecap="round" opacity="0.82"/>
+</svg>

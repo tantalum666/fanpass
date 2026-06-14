@@ -102,8 +102,8 @@ for marker in \
   fi
 done
 
-if ! grep -Fq "walkthrough recording remains open" "$OUTPUT_DIR/manifest.md"; then
-  echo "Expected manifest to keep walkthrough recording open" >&2
+if ! grep -Fq "walkthrough recording is owner-skipped" "$OUTPUT_DIR/manifest.md"; then
+  echo "Expected manifest to keep walkthrough recording owner-skipped" >&2
   exit 1
 fi
 

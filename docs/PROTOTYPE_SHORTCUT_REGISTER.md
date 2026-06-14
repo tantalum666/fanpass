@@ -72,7 +72,7 @@ Every entry must include risk, owner, replacement path, release gate, and eviden
 - Risk: Manual copy delivery is operationally fragile and is not a production tenant or staff onboarding policy.
 - Replacement Path: Choose an approved invite delivery channel, connect real Privy SDK login, define tenant/staff roster policy, and keep plain invite tokens one-time only with hash-only storage.
 - Release Gate: External Beta staff onboarding requires real Privy-linked staff identity, approved invite delivery policy, and deployed runtime checks.
-- Evidence: `docs/ALPHA_SECURITY_REVIEW.md` Security Passes 24-27; `apps/api/src/modules/alpha/alpha-persistence.service.ts`; `apps/dashboard/app/page.tsx`.
+- Evidence: `docs/ALPHA_SECURITY_REVIEW.md` Security Passes 24-27; `apps/api/src/modules/alpha/alpha-persistence.service.ts`; `apps/dashboard/src/ConsoleApp.tsx`.
 
 ## PS-008 - Placeholder Mobile Environment Values
 

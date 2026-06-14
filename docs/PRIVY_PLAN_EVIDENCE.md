@@ -52,7 +52,7 @@ The saved JSON may be embedded in command output, but it must include one JSON o
         "sha256": "<current sha256>"
       },
       {
-        "file": "apps/dashboard/app/api/console/privy-session/route.ts",
+        "file": "apps/dashboard/server/console-bff.ts",
         "sha256": "<current sha256>"
       },
       {

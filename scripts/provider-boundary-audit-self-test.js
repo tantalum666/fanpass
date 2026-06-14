@@ -59,7 +59,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/privy-login.tsx",
+        "apps/dashboard/src/privy-login.tsx",
         'import { usePrivy } from "@privy-io/react-auth";\nexport function PrivyLogin() { return usePrivy(); }\n',
       ),
   },
@@ -347,8 +347,9 @@ function writePassingFixture(fixtureRoot) {
       {
         name: "@fanpass/dashboard",
         dependencies: {
-          next: "15.5.18",
           "socket.io-client": "4.8.3",
+          "@vitejs/plugin-react": "5.1.1",
+          vite: "7.2.6",
         },
       },
       null,
@@ -411,8 +412,9 @@ function writePassingFixture(fixtureRoot) {
             name: "@fanpass/dashboard",
             version: "0.1.0",
             dependencies: {
-              next: "15.5.18",
               "socket.io-client": "4.8.3",
+              "@vitejs/plugin-react": "5.1.1",
+              vite: "7.2.6",
             },
           },
           "packages/shared": {
@@ -460,7 +462,7 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/orderbook-live-panel.tsx",
+    "apps/dashboard/src/OrderbookLivePanel.tsx",
     'import { io } from "socket.io-client";\nexport function OrderbookLivePanel() { return String(Boolean(io)); }\n',
   );
   writeFixtureFile(
@@ -642,8 +644,12 @@ export class SideEffectWorkerService {
 
   dispatch(job) {
     switch (job.type) {
+      case "OWNERSHIP_ISSUE":
+        return this.ownership.issueTicket(job);
       case "${ownershipFinalizeType}":
         return this.orderbook.finalizeOwnershipTransfer(job);
+      case "OWNERSHIP_REDEEM":
+        return this.ownership.redeemTicket(job);
     }
     this.outbox.enqueueStandalone({ type: "${ownershipFinalizeType}", idempotencyKey: "ownership-finalize:" });
   }

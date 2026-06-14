@@ -10,7 +10,7 @@ const policySnapshotFiles = [
   "apps/api/src/modules/auth/privy-token.service.ts",
   "apps/api/src/modules/auth/auth.service.ts",
   "apps/api/src/modules/auth/auth.controller.ts",
-  "apps/dashboard/app/api/console/privy-session/route.ts",
+  "apps/dashboard/server/console-bff.ts",
   "apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift",
   "scripts/privy-plan-evidence-audit.js",
   "scripts/privy-webhook-optionality-audit.js",

@@ -1,0 +1,10 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass NFC wave</title>
+  <desc id="desc">NFC signal wave asset for scan and tap interactions.</desc>
+  <rect width="240" height="240" rx="52" fill="#07080C"/>
+  <path d="M83 71C105 84 119 102 119 122C119 142 105 160 83 173" stroke="#F7F8FB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M111 45C149 68 172 95 172 122C172 149 149 176 111 199" stroke="#33D6FF" stroke-width="10" stroke-linecap="round"/>
+  <path d="M142 25C195 56 227 89 227 122C227 155 195 188 142 219" stroke="#8B5CF6" stroke-width="8" stroke-linecap="round" opacity="0.82"/>
+  <path d="M42 95H70C76.6274 95 82 100.373 82 107V137C82 143.627 76.6274 149 70 149H42C35.3726 149 30 143.627 30 137V107C30 100.373 35.3726 95 42 95Z" fill="#1A2130" stroke="#27E0A3" stroke-width="3"/>
+  <path d="M46 122L55 131L70 113" stroke="#27E0A3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

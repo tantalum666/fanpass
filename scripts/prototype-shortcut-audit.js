@@ -70,7 +70,7 @@ const evidenceMarkers = [
     id: "PS-007",
     markers: [
       "apps/api/src/modules/alpha/alpha-persistence.service.ts",
-      "apps/dashboard/app/page.tsx",
+      "apps/dashboard/src/ConsoleApp.tsx",
     ],
   },
   {

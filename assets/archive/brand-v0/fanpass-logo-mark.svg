@@ -1,0 +1,37 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass logo mark</title>
+  <desc id="desc">Original F-shaped digital ticket mark with NFC signal and verified pass geometry.</desc>
+  <defs>
+    <linearGradient id="passFill" x1="42" y1="28" x2="215" y2="229" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#33D6FF"/>
+      <stop offset="0.48" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#27E0A3"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="50" y1="31" x2="205" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.82"/>
+      <stop offset="0.45" stop-color="#33D6FF" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#27E0A3" stop-opacity="0.48"/>
+    </linearGradient>
+    <filter id="glow" x="6" y="2" width="244" height="250" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="18"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.2 0 0 0 0 0.84 0 0 0 0 1 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="#07080C"/>
+  <path d="M47 83C47 63.1177 63.1177 47 83 47H178.5C198.382 47 214.5 63.1177 214.5 83V94.5C203.178 94.5 194 103.678 194 115C194 126.322 203.178 135.5 214.5 135.5V173C214.5 192.882 198.382 209 178.5 209H83C63.1177 209 47 192.882 47 173V83Z" fill="#101722"/>
+  <path d="M47 83C47 63.1177 63.1177 47 83 47H178.5C198.382 47 214.5 63.1177 214.5 83V94.5C203.178 94.5 194 103.678 194 115C194 126.322 203.178 135.5 214.5 135.5V173C214.5 192.882 198.382 209 178.5 209H83C63.1177 209 47 192.882 47 173V83Z" stroke="url(#edge)" stroke-width="3"/>
+  <g filter="url(#glow)">
+    <path d="M83 66H174C181.732 66 188 72.268 188 80V91C188 98.732 181.732 105 174 105H110V122H159C166.732 122 173 128.268 173 136V145C173 152.732 166.732 159 159 159H110V187C110 194.732 103.732 201 96 201H83C75.268 201 69 194.732 69 187V80C69 72.268 75.268 66 83 66Z" fill="url(#passFill)"/>
+    <path d="M132 81H172M132 141H157" stroke="#F7F8FB" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+    <path d="M88 80V186" stroke="#07080C" stroke-width="9" stroke-linecap="round" opacity="0.35"/>
+  </g>
+  <path d="M153 80C167.5 88.5 176.5 102.5 176.5 119C176.5 135.5 167.5 149.5 153 158" stroke="#F7F8FB" stroke-width="7" stroke-linecap="round" opacity="0.9"/>
+  <path d="M168 68C188.5 80.5 201 98 201 119C201 140 188.5 157.5 168 170" stroke="#33D6FF" stroke-width="5" stroke-linecap="round" opacity="0.78"/>
+  <path d="M147 179L157 189L180 164" stroke="#27E0A3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

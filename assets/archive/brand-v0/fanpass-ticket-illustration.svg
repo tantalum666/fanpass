@@ -1,0 +1,39 @@
+<svg width="720" height="420" viewBox="0 0 720 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass ticket illustration</title>
+  <desc id="desc">Abstract verified digital ticket illustration with pass gradient, NFC wave, and ownership trail.</desc>
+  <defs>
+    <linearGradient id="ticketBody" x1="112" y1="74" x2="596" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A2130"/>
+      <stop offset="1" stop-color="#0D111A"/>
+    </linearGradient>
+    <linearGradient id="ticketEdge" x1="95" y1="55" x2="610" y2="371" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#33D6FF"/>
+      <stop offset="0.48" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#27E0A3"/>
+    </linearGradient>
+    <filter id="ticketShadow" x="54" y="38" width="612" height="360" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="22"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.46 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="720" height="420" rx="44" fill="#07080C"/>
+  <path d="M106 294C224 204 306 101 358 39" stroke="#33D6FF" stroke-width="3" stroke-linecap="round" opacity="0.24"/>
+  <path d="M555 62C481 132 422 244 379 383" stroke="#8B5CF6" stroke-width="3" stroke-linecap="round" opacity="0.24"/>
+  <g filter="url(#ticketShadow)">
+    <path d="M86 134C86 101.967 111.967 76 144 76H560C592.033 76 618 101.967 618 134V165C598.67 165 583 180.67 583 200C583 219.33 598.67 235 618 235V286C618 318.033 592.033 344 560 344H144C111.967 344 86 318.033 86 286V235C105.33 235 121 219.33 121 200C121 180.67 105.33 165 86 165V134Z" fill="url(#ticketBody)" stroke="url(#ticketEdge)" stroke-width="3"/>
+    <path d="M185 139H383" stroke="#F7F8FB" stroke-width="18" stroke-linecap="round"/>
+    <path d="M185 184H312" stroke="#A7AFBD" stroke-width="12" stroke-linecap="round"/>
+    <path d="M185 252H445" stroke="#293241" stroke-width="10" stroke-linecap="round"/>
+    <path d="M185 286H371" stroke="#293241" stroke-width="10" stroke-linecap="round"/>
+    <path d="M475 137C507 156 527 186 527 221C527 256 507 286 475 305" stroke="#F7F8FB" stroke-width="12" stroke-linecap="round" opacity="0.9"/>
+    <path d="M515 114C565 144 596 182 596 221C596 260 565 298 515 328" stroke="#33D6FF" stroke-width="8" stroke-linecap="round" opacity="0.78"/>
+    <circle cx="486" cy="261" r="36" fill="#27E0A3" fill-opacity="0.15" stroke="#27E0A3" stroke-width="2"/>
+    <path d="M469 260L482 273L506 246" stroke="#27E0A3" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -78,7 +78,7 @@ cat >"$MANIFEST" <<EOF
 
 Captured at: $STAMP
 
-Status: local evidence bundle captured; walkthrough recording remains open until a human-reviewed recording artifact exists.
+Status: local evidence bundle captured; walkthrough recording is owner-skipped for current Beta foundation.
 
 ## Local-only scope
 

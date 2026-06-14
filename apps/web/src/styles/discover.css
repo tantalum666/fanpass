@@ -1,0 +1,146 @@
+/* Discover editorial marketplace proportions and recommendation rails. */
+
+@media (min-width: 1181px) {
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .premium-marketplace {
+    position: relative !important;
+    display: block !important;
+    min-height: 302px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-hero,
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-copy {
+    min-height: 302px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-hero {
+    width: calc(100% - 326px) !important;
+    height: 302px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-copy {
+    max-width: 360px !important;
+    padding: 28px 34px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-copy h1 {
+    font-size: clamp(68px, 5.1vw, 92px) !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-copy p {
+    max-width: 330px !important;
+    font-size: 20px !important;
+    line-height: 1.02 !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .rating-line {
+    margin-top: 10px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .hero-actions {
+    grid-template-columns: 132px 84px !important;
+    margin-top: 18px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .hero-actions button {
+    min-height: 38px !important;
+    border-radius: 5px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .editorial-checkout {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 316px !important;
+    min-height: 302px !important;
+    padding: 10px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .seat-list {
+    gap: 5px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .seat-list button {
+    min-height: 42px !important;
+    padding: 7px 8px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .concept-summary {
+    gap: 5px !important;
+    margin-top: 7px !important;
+    padding-top: 8px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .concept-summary button {
+    min-height: 34px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) > .section-title {
+    margin-top: 12px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .event-card,
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .event-card-body {
+    min-height: 188px !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .discover-chip-row,
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .discover-secondary-title,
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .discover-secondary-grid {
+    width: calc(100% - 325px) !important;
+  }
+
+  .discover-view:not(.terminal-concept):not(.pulse-concept) .discover-secondary-title {
+    margin-top: 12px !important;
+  }
+}
+
+.discover-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.discover-chip-row button {
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  padding: 0 17px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.discover-chip-row button:first-child {
+  border-color: rgba(244, 63, 218, 0.42);
+  background: linear-gradient(135deg, rgba(244, 63, 218, 0.8), rgba(244, 63, 218, 0.48));
+}
+
+.discover-secondary-grid .event-card {
+  min-height: 156px;
+}
+
+.discover-secondary-grid .event-card-body {
+  min-height: 156px;
+}
+
+@media (max-width: 720px) {
+  .discover-chip-row,
+  .discover-secondary-title,
+  .discover-secondary-grid {
+    width: 100%;
+  }
+
+  .discover-chip-row {
+    gap: 7px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .discover-chip-row button {
+    flex: 0 0 auto;
+  }
+}

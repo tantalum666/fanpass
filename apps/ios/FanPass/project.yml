@@ -26,6 +26,7 @@ targets:
       - path: FanPass
         excludes:
           - Features/Scanner
+          - "**/README.md"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app
       DEVELOPMENT_TEAM: $(FANPASS_APPLE_TEAM_ID)
@@ -66,6 +67,10 @@ targets:
         excludes:
           - FanPassOrderbookRealtimeClient.swift
       - FanPass/Shared
+      - path: FanPass/DesignSystem
+        excludes:
+          - README.md
+      - FanPass/MockData
       - FanPass/Features/Scanner
     dependencies:
       - package: Privy

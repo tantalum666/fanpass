@@ -8,8 +8,9 @@ const rootDir = process.env.FANPASS_PROVIDER_AUDIT_ROOT
 const sourceRoots = [
   "apps/api/src",
   "apps/console-auth/app",
-  "apps/dashboard/app",
   "apps/dashboard/lib",
+  "apps/dashboard/server",
+  "apps/dashboard/src",
   "apps/ios/FanPass/FanPass",
   "apps/ios/FanPass/FanPassOps",
   "packages/shared/src",
@@ -76,7 +77,7 @@ const allowedProviderMatches = [
     label: "Socket.IO browser client",
     pattern:
       /\bfrom\s+["']socket\.io-client["']|\brequire\(["']socket\.io-client["']\)|\bimport\(["']socket\.io-client["']\)/,
-    allowedFiles: ["apps/dashboard/app/orderbook-live-panel.tsx"],
+    allowedFiles: ["apps/dashboard/src/OrderbookLivePanel.tsx"],
   },
   {
     label: "Core NFC",
@@ -591,8 +592,12 @@ function validateOwnershipAsyncSagaBoundary() {
   );
 
   for (const marker of [
+    'case "OWNERSHIP_ISSUE"',
     'case "OWNERSHIP_SETTLEMENT_FINALIZE"',
+    'case "OWNERSHIP_REDEEM"',
     'type: "OWNERSHIP_SETTLEMENT_FINALIZE"',
+    "this.ownership.issueTicket(",
+    "this.ownership.redeemTicket(",
     "this.outbox.enqueueStandalone",
     "this.orderbook.finalizeOwnershipTransfer",
     "ownership-finalize:",

@@ -24,7 +24,7 @@ console.log(
     {
       ok: true,
       api: "Helmet headers, powered-by disabled, body limits, and route rate limits configured",
-      console: "Next headers, CSP, permissions policy, and powered-by disabled",
+      console: "Vite/Node BFF headers, CSP, permissions policy, and powered-by disabled",
       runtimeEvidence:
         "local/staging runtime and staging evidence checks remain wired",
     },
@@ -78,10 +78,9 @@ function auditApiSecurityConfig() {
 }
 
 function auditConsoleConfig() {
-  const contents = readFile("apps/dashboard/next.config.ts");
-  requireMarkers("apps/dashboard/next.config.ts", contents, [
-    "poweredByHeader: false",
-    "async headers()",
+  const contents = readFile("apps/dashboard/server/console-bff.ts");
+  requireMarkers("apps/dashboard/server/console-bff.ts", contents, [
+    "applySecurityHeaders(response)",
     '"X-Content-Type-Options"',
     '"nosniff"',
     '"X-Frame-Options"',
@@ -100,6 +99,10 @@ function auditConsoleConfig() {
     "form-action 'self'",
     "object-src 'none'",
   ]);
+  const packageJson = JSON.parse(readFile("apps/dashboard/package.json"));
+  if (packageJson.dependencies?.next || packageJson.devDependencies?.next) {
+    errors.push("FanPass Console header policy must not depend on Next.");
+  }
 }
 
 function auditRuntimeCheckers() {

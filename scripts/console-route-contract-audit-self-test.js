@@ -11,24 +11,20 @@ const auditScript = path.join(
 
 const cases = [
   {
-    label: "accepts documented Console route and auth-helper contracts",
+    label: "accepts documented Console BFF and auth-helper contracts",
     expected: "pass",
     mutate: () => {},
   },
   {
-    label: "rejects missing expected Console routes",
+    label: "rejects missing Console BFF",
     expected: "fail",
     mutate: (fixtureRoot) =>
-      fs.rmSync(
-        path.join(
-          fixtureRoot,
-          "apps/dashboard/app/api/console/privy-session/route.ts",
-        ),
-        { force: true },
-      ),
+      fs.rmSync(path.join(fixtureRoot, "apps/dashboard/server/console-bff.ts"), {
+        force: true,
+      }),
   },
   {
-    label: "rejects unexpected new Console route handlers",
+    label: "rejects legacy Next route handlers",
     expected: "fail",
     mutate: (fixtureRoot) =>
       writeFixtureFile(
@@ -43,21 +39,21 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/privy-session/route.ts",
-        privySessionRoute().replace(
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
           'session.role !== "ORGANIZER" && session.role !== "ADMIN"',
           'session.role !== "ORGANIZER"',
         ),
       ),
   },
   {
-    label: "rejects session bridge that leaks sensitive session fields",
+    label: "rejects session bridge leaking sensitive session fields",
     expected: "fail",
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/privy-session/route.ts",
-        privySessionRoute().replace(
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
           "expiresAt: session.expiresAt,",
           "expiresAt: session.expiresAt,\n    email: session.email,",
         ),
@@ -69,8 +65,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/privy-session/route.ts",
-        privySessionRoute().replace("httpOnly: true,", "httpOnly: false,"),
+        "apps/dashboard/lib/console-auth.ts",
+        consoleAuthHelper().replace('"HttpOnly",', '"CookieOnly",'),
       ),
   },
   {
@@ -79,11 +75,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/privy-session/route.ts",
-        privySessionRoute().replaceAll(
-          "  assertConsoleMutationOrigin(request);\n",
-          "",
-        ),
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replaceAll("assertConsoleMutationOrigin(originRequest)", ""),
       ),
   },
   {
@@ -92,9 +85,9 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/gate-assignments/route.ts",
-        gateAssignmentRoute().replace(
-          "const accessToken = await consoleAccessToken();",
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replaceAll(
+          "const accessToken = await consoleAccessToken(cookieSource(request));",
           'const accessToken = "fixture";',
         ),
       ),
@@ -105,8 +98,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/gate-assignments/route.ts",
-        gateAssignmentRoute().replace(
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
           "assignment: redactConsoleGateAssignmentResponse(payload),",
           "assignment: payload,",
         ),
@@ -118,8 +111,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
-        inviteRotationRoute().replace(
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
           "${encodeURIComponent(normalizedAssignmentId)}/invites",
           "${normalizedAssignmentId}/invites",
         ),
@@ -131,8 +124,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/lib/api.ts",
-        consoleApiHelper({ demoBeforeProduction: true }),
+        "apps/dashboard/lib/console-auth.ts",
+        consoleAuthHelper({ demoBeforeProduction: true }),
       ),
   },
   {
@@ -141,8 +134,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/lib/api.ts",
-        consoleApiHelper({ includePublicTokenEnv: true }),
+        "apps/dashboard/lib/console-auth.ts",
+        consoleAuthHelper({ includePublicTokenEnv: true }),
       ),
   },
   {
@@ -151,7 +144,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/console-login-form.tsx",
+        "apps/dashboard/src/ConsoleApp.tsx",
         consoleLoginComponent().replace(
           'fetch("/api/console/privy-session", {',
           'fetch("/api/debug-session", {',
@@ -164,7 +157,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/console-login-form.tsx",
+        "apps/dashboard/src/ConsoleApp.tsx",
         consoleLoginComponent().replace(
           'setAccessToken("");',
           'localStorage.setItem("fanpass_console_access_token", token);',
@@ -177,10 +170,28 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "apps/dashboard/app/console-login-form.tsx",
+        "apps/dashboard/src/ConsoleApp.tsx",
         consoleLoginComponent().replace(
           'import { FormEvent, useState } from "react";',
           'import { FormEvent, useState } from "react";\nimport { usePrivy } from "@privy-io/react-auth";',
+        ),
+      ),
+  },
+  {
+    label: "rejects Next dependency returning to dashboard package",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/package.json",
+        JSON.stringify(
+          {
+            dependencies: {
+              next: "15.3.2",
+            },
+          },
+          null,
+          2,
         ),
       ),
   },
@@ -217,16 +228,7 @@ const results = cases.map((testCase) => {
 
 const failures = results.filter((result) => !result.ok);
 if (failures.length > 0) {
-  console.error(
-    JSON.stringify(
-      {
-        ok: false,
-        failures,
-      },
-      null,
-      2,
-    ),
-  );
+  console.error(JSON.stringify({ ok: false, failures }, null, 2));
   process.exit(1);
 }
 
@@ -246,40 +248,34 @@ console.log(
 );
 
 function writePassingFixture(fixtureRoot) {
+  writeFixtureFile(fixtureRoot, "apps/dashboard/server/console-bff.ts", consoleBff());
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/api/console/privy-session/route.ts",
-    privySessionRoute(),
+    "apps/dashboard/lib/console-auth.ts",
+    consoleAuthHelper(),
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/api/console/gate-assignments/route.ts",
-    gateAssignmentRoute(),
+    "apps/dashboard/lib/gate-assignment-response.ts",
+    gateAssignmentRedactor(),
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
-    inviteRotationRoute(),
-  );
-  writeFixtureFile(
-    fixtureRoot,
-    "apps/dashboard/lib/api.ts",
-    consoleApiHelper(),
-  );
-  writeFixtureFile(
-    fixtureRoot,
-    "apps/dashboard/app/console-login-form.tsx",
+    "apps/dashboard/src/ConsoleApp.tsx",
     consoleLoginComponent(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/dashboard/package.json",
+    JSON.stringify({ dependencies: { react: "19.1.0" } }, null, 2),
   );
 }
 
 function consoleLoginComponent() {
   return `
-"use client";
-
 import { FormEvent, useState } from "react";
 
-export function ConsoleLoginForm() {
+export function ConsoleLoginForm({ onSessionReady }: { onSessionReady: () => Promise<void> }) {
   const [accessToken, setAccessToken] = useState("");
 
   async function submitSession(event: FormEvent<HTMLFormElement>) {
@@ -288,14 +284,12 @@ export function ConsoleLoginForm() {
     setAccessToken("");
     const response = await fetch("/api/console/privy-session", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: token }),
       cache: "no-store",
     });
     if (response.ok) {
-      window.location.reload();
+      await onSessionReady();
     }
   }
 
@@ -304,161 +298,127 @@ export function ConsoleLoginForm() {
 `;
 }
 
-function privySessionRoute() {
+function consoleBff() {
   return `
-import { NextResponse } from "next/server";
+import { createServer } from "node:http";
 import {
+  API_BASE_URL,
   CONSOLE_ACCESS_TOKEN_COOKIE,
   ConsoleMutationOriginError,
   assertConsoleMutationOrigin,
-  consoleMutationCorsHeaders,
-} from "../../../../lib/api";
-
-export async function POST(request: Request) {
-  const corsHeaders = consoleMutationCorsHeaders(request);
-  assertConsoleMutationOrigin(request);
-  const accessToken = "fixture-access-token";
-  const response = await fetch("http://fixture/auth/privy/sync", {
-    cache: "no-store",
-  });
-  const session = await response.json();
-  if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
-    return NextResponse.json({ ok: false }, { status: 403, headers: corsHeaders });
-  }
-  const result = NextResponse.json(
-    {
-      ok: true,
-      userId: session.userId,
-      displayName: session.displayName,
-      role: session.role,
-      expiresAt: session.expiresAt,
-    },
-    { headers: corsHeaders },
-  );
-  result.cookies.set(CONSOLE_ACCESS_TOKEN_COOKIE, accessToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProductionLikeConsole(),
-    path: "/",
-    maxAge: maxAgeSeconds(session.expiresAt),
-  });
-  return result;
-}
-
-export async function DELETE(request: Request) {
-  const corsHeaders = consoleMutationCorsHeaders(request);
-  assertConsoleMutationOrigin(request);
-  const result = NextResponse.json({ ok: true }, { headers: corsHeaders });
-  result.cookies.delete(CONSOLE_ACCESS_TOKEN_COOKIE);
-  return result;
-}
-
-export async function OPTIONS(request: Request) {
-  const corsHeaders = consoleMutationCorsHeaders(request);
-  assertConsoleMutationOrigin(request);
-  return new NextResponse(null, { status: 204, headers: corsHeaders });
-}
-
-function maxAgeSeconds(expiresAt: string | null) {
-  return expiresAt ? 60 : 55 * 60;
-}
-
-function isProductionLikeConsole() {
-  return false;
-}
-`;
-}
-
-function gateAssignmentRoute() {
-  return `
-import { NextResponse } from "next/server";
-import {
-  ConsoleAuthRequiredError,
-  ConsoleMutationOriginError,
-  assertConsoleMutationOrigin,
+  clearConsoleSessionCookie,
   consoleAccessToken,
-} from "../../../../lib/api";
-import { redactConsoleGateAssignmentResponse } from "../../../../lib/gate-assignment-response";
+  consoleMutationCorsHeaders,
+  consoleSessionCookie,
+} from "../lib/console-auth.js";
+import { redactConsoleGateAssignmentResponse } from "../lib/gate-assignment-response.js";
 
-export async function POST(request: Request) {
-  assertConsoleMutationOrigin(request);
+createServer(async (request, response) => {
+  console.log(JSON.stringify({ runtime: "vite-node-bff" }));
+});
+
+async function routeRequest(request, response, pathname, method) {
+  if (pathname === "/api/console/privy-session") {
+    if (method === "POST") return handlePrivySessionPost(request, response);
+    if (method === "DELETE") return handlePrivySessionDelete(request, response);
+    if (method === "OPTIONS") return handlePrivySessionOptions(request, response);
+  }
+  if (pathname === "/api/console/operations") return handleOperations(request, response);
+  if (pathname === "/api/console/events") return handleCreateEvent(request, response);
+  if (pathname === "/api/console/gate-assignments") return handleCreateGateAssignment(request, response);
+  return handleCreateTicketType(request, response, ticketTypeMatch[1]) ||
+    handleCreateGateAssignment(request, response) ||
+    handleRotateInvite(request, response, inviteMatch[1]) ||
+    handleDeactivateGateAssignment(request, response, deactivateMatch[1]);
+}
+
+async function handlePrivySessionPost(request, response) {
+  const originRequest = requestToFetchRequest(request);
+  const corsHeaders = consoleMutationCorsHeaders(originRequest);
+  assertConsoleMutationOrigin(originRequest);
+  const accessToken = "fixture-access-token";
+  const upstream = await fetch(\`\${API_BASE_URL}/auth/privy/sync\`, { cache: "no-store" });
+  const session = await upstream.json();
+  if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
+    return sendJson(response, 403, { ok: false });
+  }
+  response.setHeader("Set-Cookie", consoleSessionCookie(accessToken, session.expiresAt));
+  return sendJson(response, 200, {
+    ok: true,
+    userId: session.userId,
+    displayName: session.displayName,
+    role: session.role,
+    expiresAt: session.expiresAt,
+  });
+}
+
+function handlePrivySessionDelete(request, response) {
+  const originRequest = requestToFetchRequest(request);
+  const corsHeaders = consoleMutationCorsHeaders(originRequest);
+  assertConsoleMutationOrigin(originRequest);
+  response.setHeader("Set-Cookie", clearConsoleSessionCookie());
+}
+
+function handlePrivySessionOptions(request, response) {
+  const originRequest = requestToFetchRequest(request);
+  const corsHeaders = consoleMutationCorsHeaders(originRequest);
+  assertConsoleMutationOrigin(originRequest);
+}
+
+async function handleCreateGateAssignment(request, response) {
+  const originRequest = requestToFetchRequest(request);
+  assertConsoleMutationOrigin(originRequest);
   const eventId = "evt_fixture";
   const gate = "A1";
   const staffName = "Fixture Staff";
   const staffEmail = "fixture.staff@example.invalid";
-  if (!eventId || !gate || !staffName || !staffEmail) {
-    return NextResponse.json({ ok: false }, { status: 400 });
-  }
-  try {
-    const accessToken = await consoleAccessToken();
-    const response = await fetch("http://fixture/alpha/gate-assignments", {
-      method: "POST",
-      headers: {
-        Authorization: \`Bearer \${accessToken}\`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    });
-    const payload = await response.json();
-    return NextResponse.json({
-      ok: true,
-      assignment: redactConsoleGateAssignmentResponse(payload),
-    });
-  } catch (error) {
-    if (error instanceof ConsoleAuthRequiredError) {
-      return NextResponse.json({ ok: false }, { status: 401 });
-    }
-    throw error;
-  }
+  if (!eventId || !gate || !staffName || !staffEmail) return;
+  const accessToken = await consoleAccessToken(cookieSource(request));
+  const upstream = await fetch(\`\${API_BASE_URL}/alpha/gate-assignments\`, {
+    method: "POST",
+    headers: {
+      Authorization: \`Bearer \${accessToken}\`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  const payload = await upstream.json();
+  return sendJson(response, 200, {
+    ok: true,
+    assignment: redactConsoleGateAssignmentResponse(payload),
+  });
+}
+
+async function handleRotateInvite(request, response, assignmentIdParam) {
+  const originRequest = requestToFetchRequest(request);
+  assertConsoleMutationOrigin(originRequest);
+  const normalizedAssignmentId = assignmentIdParam.trim();
+  const accessToken = await consoleAccessToken(cookieSource(request));
+  const upstream = await fetch(\`\${API_BASE_URL}/alpha/gate-assignments/\${encodeURIComponent(normalizedAssignmentId)}/invites\`, {
+    method: "POST",
+    headers: {
+      Authorization: \`Bearer \${accessToken}\`,
+    },
+    cache: "no-store",
+  });
+  const payload = await upstream.json();
+  return sendJson(response, 200, {
+    ok: true,
+    assignment: redactConsoleGateAssignmentResponse(payload),
+  });
+}
+
+function applySecurityHeaders(response) {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-Frame-Options", "DENY");
+  response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  response.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  response.setHeader("Content-Security-Policy", "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
 }
 `;
 }
 
-function inviteRotationRoute() {
-  return `
-import { NextResponse } from "next/server";
-import {
-  ConsoleAuthRequiredError,
-  ConsoleMutationOriginError,
-  assertConsoleMutationOrigin,
-  consoleAccessToken,
-} from "../../../../../../lib/api";
-import { redactConsoleGateAssignmentResponse } from "../../../../../../lib/gate-assignment-response";
-
-export async function POST(request: Request, { params }: { params: { assignmentId?: string } }) {
-  assertConsoleMutationOrigin(request);
-  const normalizedAssignmentId = params.assignmentId?.trim() ?? "";
-  if (!normalizedAssignmentId) {
-    return NextResponse.json({ ok: false }, { status: 400 });
-  }
-  try {
-    const accessToken = await consoleAccessToken();
-    const response = await fetch(
-      \`http://fixture/alpha/gate-assignments/\${encodeURIComponent(normalizedAssignmentId)}/invites\`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: \`Bearer \${accessToken}\`,
-        },
-        cache: "no-store",
-      },
-    );
-    const payload = await response.json();
-    return NextResponse.json({
-      ok: true,
-      assignment: redactConsoleGateAssignmentResponse(payload),
-    });
-  } catch (error) {
-    if (error instanceof ConsoleAuthRequiredError) {
-      return NextResponse.json({ ok: false }, { status: 401 });
-    }
-    throw error;
-  }
-}
-`;
-}
-
-function consoleApiHelper(options = {}) {
+function consoleAuthHelper(options = {}) {
   const publicTokenEnv = options.includePublicTokenEnv
     ? "\nconst leaked = process.env.NEXT_PUBLIC_CONSOLE_ACCESS_TOKEN;\n"
     : "";
@@ -476,8 +436,6 @@ function consoleApiHelper(options = {}) {
     "",
   ].join("\n");
   return `
-import { cookies } from "next/headers";
-
 const API_BASE_URL = "http://fixture";
 export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token";
 const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
@@ -485,21 +443,19 @@ ${publicTokenEnv}
 export class ConsoleAuthRequiredError extends Error {}
 export class ConsoleMutationOriginError extends Error {}
 
-export async function consoleAccessToken() {
+export async function consoleAccessToken(source) {
   if (configuredAccessToken) {
     return configuredAccessToken;
   }
-
-  const cookieAccessToken = await consoleCookieAccessToken();
+  const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader);
   if (cookieAccessToken) {
     return cookieAccessToken;
   }
-
 ${options.demoBeforeProduction ? demoFallback + productionBlock : productionBlock + demoFallback}  throw new Error("unreachable");
 }
 
 export async function apiGet() {
-  const accessToken = await consoleAccessToken();
+  const accessToken = await consoleAccessToken({ cookieHeader: "" });
   return fetch(API_BASE_URL, {
     headers: {
       Authorization: \`Bearer \${accessToken}\`,
@@ -508,9 +464,8 @@ export async function apiGet() {
   });
 }
 
-async function consoleCookieAccessToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get(CONSOLE_ACCESS_TOKEN_COOKIE)?.value ?? null;
+export function consoleCookieAccessToken(cookieHeader) {
+  return parseCookies(cookieHeader).get(CONSOLE_ACCESS_TOKEN_COOKIE) ?? null;
 }
 
 export function assertConsoleMutationOrigin(request: Request) {
@@ -530,12 +485,12 @@ export function assertConsoleMutationOrigin(request: Request) {
 
 function consoleAllowedOrigins() {
   const origins = new Set<string>();
-  for (const value of String(process.env.FANPASS_CONSOLE_ORIGINS ?? "").split(",")) {
-    addAllowedOrigin(origins, value);
-  }
+  for (const value of String(process.env.FANPASS_CONSOLE_ORIGINS ?? "").split(",")) addAllowedOrigin(origins, value);
   addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_ORIGIN ?? "");
   addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_URL ?? "");
   addAllowedOrigin(origins, process.env.FANPASS_CONSOLE_AUTH_ORIGIN ?? "");
+  addAllowedOrigin(origins, process.env.VITE_CONSOLE_AUTH_BASE_URL ?? "");
+  addAllowedOrigin(origins, process.env.VITE_CONSOLE_BASE_URL ?? "");
   addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL ?? "");
   addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_BASE_URL ?? "");
   return origins;
@@ -544,9 +499,7 @@ function consoleAllowedOrigins() {
 export function consoleMutationCorsHeaders(request: Request) {
   const origin = request.headers.get("origin");
   const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
-  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) {
-    return {};
-  }
+  if (!normalizedOrigin || !consoleAllowedOrigins().has(normalizedOrigin)) return {};
   return {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers": "Content-Type",
@@ -556,25 +509,42 @@ export function consoleMutationCorsHeaders(request: Request) {
   };
 }
 
-function addAllowedOrigin(origins: Set<string>, value: string) {
+export function consoleSessionCookie(accessToken, expiresAt) {
+  return [
+    \`\${CONSOLE_ACCESS_TOKEN_COOKIE}=\${accessToken}\`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    "Max-Age=60",
+    "Secure",
+  ].join("; ");
+}
+
+function addAllowedOrigin(origins, value) {
   const normalized = normalizeOrigin(value.trim());
-  if (normalized) {
-    origins.add(normalized);
-  }
+  if (normalized) origins.add(normalized);
 }
-
-function normalizeOrigin(origin: string) {
-  if (!origin) {
-    return null;
-  }
-  return new URL(origin).origin;
-}
-
+function normalizeOrigin(origin) { return new URL(origin).origin; }
+function parseCookies() { return new Map(); }
 function isProductionLikeConsole() {
   const nodeEnv = String(process.env.NODE_ENV ?? "").toLowerCase();
   const fanpassEnv = String(process.env.FANPASS_ENV ?? "").toLowerCase();
   return nodeEnv === "production" || fanpassEnv === "production" || fanpassEnv === "staging";
 }
+`;
+}
+
+function gateAssignmentRedactor() {
+  return `
+export function redactConsoleGateAssignmentResponse(record) {
+  return {
+    id: requiredString(record.id, "assignment id"),
+    gate: requiredString(record.gate, "gate"),
+    staffName: requiredString(record.staffName, "staff name"),
+    inviteToken: record.inviteToken,
+  };
+}
+function requiredString(value, label) { return String(value || label); }
 `;
 }
 

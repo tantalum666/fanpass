@@ -1,0 +1,423 @@
+/* Ticket Detail control, rule, order, custody, and Proof & History panels. */
+
+.ticket-order-panel,
+.ticket-rule-panel,
+.ticket-control-strip,
+.ticket-custody-ledger,
+.proof-history-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.016)),
+    rgba(10, 13, 18, 0.9);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.28);
+}
+
+.ticket-detail-view[data-ticket-status="cancelled"] .proof-history-list b,
+.ticket-detail-view[data-ticket-status="refunded"] .proof-history-list b,
+.ticket-detail-view[data-ticket-status="expired"] .proof-history-list b {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.ticket-detail-view[data-ticket-status="listed"] .proof-history-list b,
+.ticket-detail-view[data-ticket-status="transfer-pending"] .proof-history-list b {
+  border-color: rgba(251, 191, 36, 0.28);
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.ticket-order-panel,
+.ticket-rule-panel,
+.proof-history-panel {
+  padding: 18px;
+}
+
+.ticket-control-strip {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(79, 232, 255, 0.11), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014)),
+    rgba(9, 12, 17, 0.92);
+}
+
+.ticket-control-strip article {
+  min-height: 94px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.ticket-control-strip span,
+.ticket-custody-ledger article > span {
+  display: block;
+  color: #8f9aaa;
+  font-size: 9px;
+  font-weight: 860;
+  text-transform: uppercase;
+}
+
+.ticket-control-strip strong,
+.ticket-custody-ledger article > strong {
+  display: block;
+  margin-top: 5px;
+  color: #f8fafc;
+  font-size: 15px;
+  line-height: 1.12;
+}
+
+.ticket-control-strip p,
+.ticket-custody-ledger p {
+  margin: 7px 0 0;
+  color: #aab5c4;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.ticket-rule-panel {
+  grid-column: 1 / 2;
+}
+
+.ticket-custody-ledger {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / 2;
+  padding: 18px;
+}
+
+.ticket-custody-ledger article {
+  position: relative;
+  border-top: 1px solid rgba(255, 255, 255, 0.075);
+  padding-top: 9px;
+  padding-left: 10px;
+}
+
+.ticket-custody-ledger article:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.ticket-custody-ledger article::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 2px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: #4fe8ff;
+}
+
+.ticket-custody-ledger article:first-of-type::before {
+  top: 1px;
+}
+
+.ticket-order-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  grid-column: 2 / 3;
+}
+
+.ticket-order-summary {
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 13px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(79, 232, 255, 0.1), transparent 42%),
+    rgba(0, 0, 0, 0.24);
+}
+
+.ticket-order-summary span,
+.ticket-order-states small,
+.ticket-order-steps span {
+  display: block;
+  color: #8f9aaa;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ticket-order-summary strong {
+  display: block;
+  margin-top: 6px;
+  color: #f8fafc;
+  font-size: 18px;
+  line-height: 1.08;
+}
+
+.ticket-order-summary p,
+.ticket-order-steps p {
+  margin: 7px 0 0;
+  color: #aab5c4;
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.ticket-order-states {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ticket-order-states > div {
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 11px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ticket-order-states strong {
+  display: block;
+  margin-top: 5px;
+  color: #f8fafc;
+  line-height: 1.1;
+}
+
+.ticket-order-provenance {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-order-provenance article {
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 11px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ticket-order-provenance span {
+  display: block;
+  color: #8f9aaa;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ticket-order-provenance strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fafc;
+  line-height: 1.1;
+}
+
+.ticket-order-provenance p {
+  margin: 7px 0 0;
+  color: #aab5c4;
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.ticket-order-provenance .order-tone-ready {
+  border-color: rgba(118, 246, 180, 0.18);
+}
+
+.ticket-order-provenance .order-tone-settled {
+  border-color: rgba(79, 232, 255, 0.2);
+}
+
+.ticket-order-provenance .order-tone-listed,
+.ticket-order-provenance .order-tone-pending {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.ticket-order-provenance .order-tone-blocked {
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+.ticket-order-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-order-steps article {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 11px 11px 11px 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ticket-order-steps article::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: #fbbf24;
+}
+
+.ticket-order-steps strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fafc;
+  line-height: 1.1;
+}
+
+.ticket-order-panel.order-tone-ready .panel-heading strong,
+.ticket-order-panel.order-tone-settled .panel-heading strong,
+.ticket-order-steps .order-tone-ready span,
+.ticket-order-steps .order-tone-settled span {
+  color: #76f6b4;
+}
+
+.ticket-order-panel.order-tone-listed .panel-heading strong,
+.ticket-order-steps .order-tone-listed span {
+  color: #fcd34d;
+}
+
+.ticket-order-panel.order-tone-blocked .panel-heading strong,
+.ticket-order-steps .order-tone-blocked span {
+  color: #fca5a5;
+}
+
+.ticket-order-steps .order-tone-ready::before,
+.ticket-order-steps .order-tone-settled::before {
+  background: #76f6b4;
+}
+
+.ticket-order-steps .order-tone-listed::before,
+.ticket-order-steps .order-tone-pending::before {
+  background: #fbbf24;
+}
+
+.ticket-order-steps .order-tone-blocked::before {
+  background: #f87171;
+}
+
+.ticket-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ticket-rule-grid div {
+  display: grid;
+  gap: 6px;
+  min-height: 96px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.ticket-rule-grid span,
+.proof-history-list span {
+  display: block;
+  color: #929cab;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ticket-rule-grid svg,
+.proof-history-list svg {
+  color: #55f19d;
+}
+
+.ticket-rule-grid strong {
+  display: block;
+  color: #f8fafc;
+  line-height: 1.18;
+}
+
+.ticket-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 14px;
+}
+
+.ticket-detail-actions button {
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.055);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 880;
+  cursor: pointer;
+}
+
+.ticket-detail-actions button:first-child {
+  color: #061015;
+  background: #f7f3eb;
+}
+
+.ticket-detail-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.proof-history-panel {
+  display: grid;
+  gap: 14px;
+  grid-column: 1 / -1;
+}
+
+.proof-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.proof-history-list article {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: start;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.proof-history-list strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fafc;
+}
+
+.proof-history-list p {
+  margin: 5px 0 0;
+  color: #aab5c4;
+  line-height: 1.42;
+}
+
+.proof-history-list b {
+  border: 1px solid rgba(85, 241, 157, 0.24);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #76f6b4;
+  background: rgba(85, 241, 157, 0.08);
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1180px) {
+  .ticket-rule-panel,
+  .ticket-order-panel,
+  .ticket-custody-ledger,
+  .proof-history-panel {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .ticket-control-strip,
+  .ticket-order-states,
+  .ticket-rule-grid,
+  .proof-history-list article,
+  .ticket-detail-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

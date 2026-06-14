@@ -1,6 +1,6 @@
 # Staff Tenant Staging Evidence
 
-FanPass has local staff invitation/linking policy checks, but production tenant and staff policy validation remains a Beta blocker until it is proven in a production-like staging environment with verified auth. Do not close this blocker with seeded local demo sessions, localhost evidence, raw invite tokens, raw Privy access tokens, or real personal data.
+FanPass has local staff invitation/linking policy checks, and production tenant/staff staging evidence passed on 2026-06-04. After the 2026-06-06 Console migration from Next to Vite/Node BFF, regenerate this evidence before relying on it for any new external release decision. Do not close or refresh this blocker with seeded local demo sessions, localhost evidence, raw invite tokens, raw Privy access tokens, or real personal data.
 
 Run future saved evidence through:
 
@@ -58,16 +58,12 @@ Required JSON shape:
         "sha256": "0667ea136a339018dec12be1d01ca281db4bca33769f565e2a14240d772a3ad4"
       },
       {
-        "file": "apps/dashboard/app/api/console/gate-assignments/route.ts",
-        "sha256": "7ede2fb722d002920a4154522fea5773c426d9965c9e22b60c7fdc75f78b9acc"
-      },
-      {
-        "file": "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
-        "sha256": "24d54dbe4daa8afd4d0abdd6344bf60d1f72c844c1f5244d7c687c20827befc0"
+        "file": "apps/dashboard/server/console-bff.ts",
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/dashboard/lib/gate-assignment-response.ts",
-        "sha256": "f162afca8798a4ec28c8ecbb17a0e0da0efd7cbb26ee894b72621a6f4c83645d"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",

@@ -13,7 +13,9 @@ The checked-in iOS configs must stay placeholder-only:
 
 Real public app IDs and app client IDs must be injected outside source control, and the evidence must prove the matching Privy dashboard apps were reviewed without exposing app secrets, verification keys, access tokens, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, or real user data.
 
-Before local OTP testing, run `npm run security:privy-local-config` with both `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` supplied through the shell. The preflight must show the iOS app id matches the API `PRIVY_APP_ID`, the build settings are injected outside source control, and no secret values were printed.
+Before local OTP testing, run `npm run security:privy-local-config` with both `FANPASS_PRIVY_APP_ID` and `FANPASS_PRIVY_APP_CLIENT_ID` supplied through the shell, or with those public values in ignored `apps/ios/FanPass/Config/LocalSecrets.xcconfig`. The preflight must show the iOS app id matches the API `PRIVY_APP_ID`, the build settings are injected outside source control, the local override file is ignored when present, and no secret values were printed.
+
+The XcodeGen project may be regenerated safely because checked-in `Config/*.xcconfig` files include `LocalSecrets.xcconfig` with an optional include. The checked-in files must still keep direct Privy values blank.
 
 ## Required Evidence
 

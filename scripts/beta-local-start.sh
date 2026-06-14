@@ -46,8 +46,6 @@ if [[ "${FANPASS_BETA_SKIP_DB_RESET:-false}" != "true" ]]; then
   DATABASE_URL="$DATABASE_URL" npm run alpha:db:reset
 fi
 
-rm -rf "$ROOT_DIR/apps/dashboard/.next"
-
 screen -dmS fanpass-beta-api bash -lc "
 cd '$ROOT_DIR' &&
 PORT='$API_PORT' \
@@ -63,7 +61,7 @@ FANPASS_CORS_ORIGINS='http://localhost:$CONSOLE_PORT,http://localhost:$API_PORT'
 QR_SIGNING_SECRET=replace-with-local-dev-secret \
 SESSION_SIGNING_SECRET=replace-with-local-session-secret \
 SESSION_TTL_SECONDS=28800 \
-QR_TTL_SECONDS=300 \
+QR_TTL_SECONDS=30 \
 RATE_LIMIT_GENERAL_PER_MINUTE=600 \
 RATE_LIMIT_AUTH_PER_MINUTE=30 \
 RATE_LIMIT_VERIFY_PER_MINUTE=120 \
@@ -111,9 +109,10 @@ screen -dmS fanpass-beta-console bash -lc "
 cd '$ROOT_DIR/apps/dashboard' &&
 FANPASS_ENV=local \
 FANPASS_API_BASE_URL='http://localhost:$API_PORT' \
-NEXT_PUBLIC_API_BASE_URL='http://localhost:$API_PORT' \
+VITE_API_BASE_URL='http://localhost:$API_PORT' \
 FANPASS_CONSOLE_USER_ID=usr_organizer_demo \
-npx next dev -p '$CONSOLE_PORT' >'$CONSOLE_LOG' 2>&1
+FANPASS_CONSOLE_PORT='$CONSOLE_PORT' \
+npm run dev >'$CONSOLE_LOG' 2>&1
 "
 
 printf 'Waiting for FanPass Console'

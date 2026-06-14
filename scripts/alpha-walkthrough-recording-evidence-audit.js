@@ -45,7 +45,7 @@ if (evidenceFiles.length === 0) {
   console.error(
     [
       "Usage: npm run alpha:walkthrough:recording:evidence -- <evidence-file...>",
-      "Validate saved human-reviewed Alpha walkthrough recording evidence before closing the recording task.",
+      "Validate optional saved human-reviewed Alpha walkthrough recording evidence before claiming review.",
     ].join("\n"),
   );
   process.exit(1);

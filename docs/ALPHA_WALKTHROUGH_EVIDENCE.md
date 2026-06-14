@@ -1,8 +1,8 @@
 # FanPass Alpha Walkthrough Evidence
 
-Status: evidence gate ready; walkthrough recording remains open.
+Status: optional evidence gate ready; walkthrough recording is owner-skipped for current Beta foundation.
 
-This file defines the evidence contract for the Alpha walkthrough recording task. It prevents the recording checklist item from being closed until the artifact set proves the frozen local script was followed without implying public Beta readiness.
+This file defines the optional evidence contract for an Alpha walkthrough recording if recording work is deliberately reintroduced. The owner removed the human-reviewed recording requirement from current Beta foundation blockers on 2026-06-04; this contract remains as a guardrail so any future recording cannot imply public Beta readiness without proof.
 
 ## Local-only recording scope
 
@@ -32,8 +32,8 @@ The closing scene must clearly state that the walkthrough proves only the local 
 - Future recording files must live under `outputs/alpha-walkthrough/`.
 - The artifact set should include a dated manifest that names the recording file, relevant screenshots, verification command outputs, and the exact local-only scope used.
 - Recording artifacts must not include shell environment variable dumps, bearer tokens, private keys, Stripe secrets, Privy secrets, production provider dashboards, or real user/event data.
-- `npm run alpha:walkthrough:capture` creates a local artifact bundle under `outputs/alpha-walkthrough/<timestamp>/` with command logs, a Console screenshot, and a manifest. This capture bundle supports the walkthrough task, but the task remains open until a human-reviewed recording artifact exists.
-- Saved human-review recording evidence must follow `docs/ALPHA_WALKTHROUGH_RECORDING_EVIDENCE.md` and pass `npm run alpha:walkthrough:recording:evidence -- <saved-json-output>` before the recording task can be closed.
+- `npm run alpha:walkthrough:capture` creates a local artifact bundle under `outputs/alpha-walkthrough/<timestamp>/` with command logs, a Console screenshot, and a manifest. This capture bundle remains useful if recording work is reintroduced, but it is not a release blocker by itself.
+- Saved human-review recording evidence must follow `docs/ALPHA_WALKTHROUGH_RECORDING_EVIDENCE.md` and pass `npm run alpha:walkthrough:recording:evidence -- <saved-json-output>` before any future recording artifact is claimed as reviewed.
 
 ## Verification evidence
 
@@ -62,7 +62,7 @@ Latest reviewed local capture bundle:
 - `outputs/alpha-walkthrough/20260604T122652Z/fanpass-console.png`
 - Command logs for demo script audit, walkthrough evidence audit, Beta foundation verifier, local start, local verify, Console visual check, and local stop are in the same bundle directory.
 
-The bundle passed the capture command's forbidden-marker scan and `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, keeps one-time invite tokens and raw email-shaped form values out of the Console screenshot, and keeps the human-reviewed recording task open.
+The bundle passed the capture command's forbidden-marker scan and `npm run security:evidence-redaction -- outputs/alpha-walkthrough/20260604T122652Z`, and keeps one-time invite tokens and raw email-shaped form values out of the Console screenshot.
 
 Saved artifacts under `outputs/` must also pass:
 
@@ -76,18 +76,18 @@ This repository-level scan covers walkthrough, staging runtime, CI, provider, iO
 
 - Do not record shell environment variables, `.env` files, bearer tokens, private keys, Stripe secrets, Privy secrets, or production provider dashboards.
 - Do not claim the recording proves production tenant/staff staging policy, signed Wallet passes, TestFlight, physical QR/NFC validation, chain custody, public dependency readiness, or public Beta readiness.
-- Do not move the Beta checklist item to complete until a real artifact set exists under `outputs/alpha-walkthrough/` and this evidence contract is updated intentionally.
+- Do not reintroduce a Beta recording requirement unless a real artifact set exists under `outputs/alpha-walkthrough/` and this evidence contract is updated intentionally.
 
 ## Closed for current closed-beta foundation
 
-- Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime. Signed-device OTP and production tenant/staff staging proof remain separate blockers.
+- Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime. Signed-device OTP remains a separate blocker.
 - Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, authorization cancellation, refund, reconciliation, duplicate webhook replay, and residual outbox-health evidence passed against Render staging.
 - Deployed HTTPS staging runtime evidence passed for the current Render API and Vercel Console surfaces.
+- Production tenant/staff staging evidence passed against Render/Vercel staging with verified Privy sessions and organizer isolation.
 - Current unresolved Next/PostCSS production dependency risk has owner-approved `closed-beta-only` acceptance evidence expiring on 2026-07-04.
 
 ## Remaining blockers
 
-- Production tenant/staff staging evidence
 - Signed iOS/TestFlight staging evidence
 - Public/real-user dependency clean audit or Console migration
 - Signed Apple Wallet `.pkpass`

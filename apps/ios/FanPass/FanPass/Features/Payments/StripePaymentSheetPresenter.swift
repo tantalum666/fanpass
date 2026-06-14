@@ -54,7 +54,8 @@ struct FanPassStripePaymentSheetPresenter: UIViewControllerRepresentable {
         )
 
         DispatchQueue.main.async {
-            paymentSheet.present(from: viewController) { result in
+            let presentingController = currentPresentingController(fallback: viewController)
+            paymentSheet.present(from: presentingController) { result in
                 switch result {
                 case .completed:
                     onResult(.completed)
@@ -73,3 +74,31 @@ struct FanPassStripePaymentSheetPresenter: UIViewControllerRepresentable {
     }
 }
 
+private func currentPresentingController(fallback: UIViewController) -> UIViewController {
+    let activeScene = UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .first { $0.activationState == .foregroundActive }
+
+    guard let rootViewController = activeScene?.windows.first(where: \.isKeyWindow)?.rootViewController else {
+        return fallback.fanPassTopMostViewController()
+    }
+
+    return rootViewController.fanPassTopMostViewController()
+}
+
+private extension UIViewController {
+    func fanPassTopMostViewController() -> UIViewController {
+        if let presentedViewController {
+            return presentedViewController.fanPassTopMostViewController()
+        }
+        if let navigationController = self as? UINavigationController,
+           let visibleViewController = navigationController.visibleViewController {
+            return visibleViewController.fanPassTopMostViewController()
+        }
+        if let tabBarController = self as? UITabBarController,
+           let selectedViewController = tabBarController.selectedViewController {
+            return selectedViewController.fanPassTopMostViewController()
+        }
+        return self
+    }
+}

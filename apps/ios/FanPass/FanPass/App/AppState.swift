@@ -38,12 +38,34 @@ final class AppState {
 
     func loginWithPrivyEmailCode(email: String, code: String) async throws {
         let privySession = try await privyAuthProvider.loginWithEmailCode(code, sentTo: email)
-        session = try await apiClient.syncPrivySession(
-            privyAccessToken: privySession.accessToken,
+        try await loginWithPrivyAccessToken(
+            privySession.accessToken,
             email: privySession.email,
             walletAddress: privySession.walletAddress
         )
-        apiClient = apiClient.withAccessToken(privySession.accessToken)
+    }
+
+    func loginWithPrivyOAuth(_ provider: PrivyOAuthLoginProvider) async throws {
+        let privySession = try await privyAuthProvider.loginWithOAuth(provider)
+        try await loginWithPrivyAccessToken(
+            privySession.accessToken,
+            email: privySession.email,
+            walletAddress: privySession.walletAddress
+        )
+    }
+
+    func loginWithPrivyAccessToken(
+        _ accessToken: String,
+        email: String? = nil,
+        walletAddress: String? = nil
+    ) async throws {
+        let fanPassSession = try await apiClient.syncPrivySession(
+            privyAccessToken: accessToken,
+            email: email,
+            walletAddress: walletAddress
+        )
+        session = fanPassSession.withAccessToken(fanPassSession.accessToken ?? accessToken)
+        apiClient = apiClient.withAccessToken(accessToken)
         authRequest = nil
     }
 

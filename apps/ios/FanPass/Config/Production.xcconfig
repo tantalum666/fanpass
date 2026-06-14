@@ -2,3 +2,4 @@ FANPASS_API_BASE_URL = https:/$()/replace-me-api.fanpass.invalid
 FANPASS_PRIVY_APP_ID =
 FANPASS_PRIVY_APP_CLIENT_ID =
 FANPASS_STRIPE_PUBLISHABLE_KEY =
+#include? "LocalSecrets.xcconfig"

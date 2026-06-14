@@ -1,8 +1,8 @@
 # API Response Privacy Matrix
 
-This matrix classifies every NestJS controller and FanPass Console route-handler response before Beta. It is intentionally route-level rather than DTO-level because the immediate release risk is accidental public, provider, local-debug, or one-time-secret exposure when route handlers drift.
+This matrix classifies every NestJS controller and FanPass Console BFF response before Beta. It is intentionally route-level rather than DTO-level because the immediate release risk is accidental public, provider, local-debug, or one-time-secret exposure when API/BFF handlers drift.
 
-Run `npm run security:api-privacy` after adding, removing, or changing API controller handlers, FanPass Console route handlers, or response exposure.
+Run `npm run security:api-privacy` after adding, removing, or changing API controller handlers, FanPass Console BFF handlers, or response exposure.
 
 ## Classification Rules
 
@@ -22,13 +22,17 @@ Run `npm run security:api-privacy` after adding, removing, or changing API contr
 
 ## FanPass Console Route Responses
 
-| Handler                                                                                | Route                                                      | Classification          | Notes                                                                  |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| `apps/dashboard/app/api/console/privy-session/route.ts:POST`                           | `POST /api/console/privy-session`                          | `AUTH_SESSION`          | Console Privy session bridge; stores the Privy token only in a cookie. |
-| `apps/dashboard/app/api/console/privy-session/route.ts:DELETE`                         | `DELETE /api/console/privy-session`                        | `AUTH_SESSION`          | Console session cookie clear response.                                 |
-| `apps/dashboard/app/api/console/privy-session/route.ts:OPTIONS`                        | `OPTIONS /api/console/privy-session`                       | `AUTH_SESSION`          | Origin-checked preflight for isolated Console Privy auth runtime.      |
-| `apps/dashboard/app/api/console/gate-assignments/route.ts:POST`                        | `POST /api/console/gate-assignments`                       | `ORGANIZER_SECRET_ONCE` | Server-authenticated assignment proxy; may return one invite token.    |
-| `apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts:POST` | `POST /api/console/gate-assignments/:assignmentId/invites` | `ORGANIZER_SECRET_ONCE` | Server-authenticated invite rotation proxy; returns one token once.    |
+| Handler                                                              | Route                                                                | Classification          | Notes                                                                     |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| `apps/dashboard/server/console-bff.ts:handlePrivySessionPost`        | `POST /api/console/privy-session`                                    | `AUTH_SESSION`          | Console Privy session bridge; stores the Privy token only in a cookie.    |
+| `apps/dashboard/server/console-bff.ts:handlePrivySessionDelete`      | `DELETE /api/console/privy-session`                                  | `AUTH_SESSION`          | Console session cookie clear response.                                    |
+| `apps/dashboard/server/console-bff.ts:handlePrivySessionOptions`     | `OPTIONS /api/console/privy-session`                                 | `AUTH_SESSION`          | Origin-checked preflight for isolated Console Privy auth runtime.         |
+| `apps/dashboard/server/console-bff.ts:handleOperations`              | `GET /api/console/operations`                                        | `ORGANIZER_REDACTED`    | Server-authenticated operations proxy; organizer view remains redacted.   |
+| `apps/dashboard/server/console-bff.ts:handleCreateEvent`             | `POST /api/console/events`                                           | `ORGANIZER_REDACTED`    | Server-authenticated event creation proxy.                                |
+| `apps/dashboard/server/console-bff.ts:handleCreateTicketType`        | `POST /api/console/events/:eventId/ticket-types`                     | `ORGANIZER_REDACTED`    | Server-authenticated ticket-type creation proxy.                          |
+| `apps/dashboard/server/console-bff.ts:handleCreateGateAssignment`    | `POST /api/console/gate-assignments`                                 | `ORGANIZER_SECRET_ONCE` | Server-authenticated assignment proxy; may return one invite token.       |
+| `apps/dashboard/server/console-bff.ts:handleRotateInvite`            | `POST /api/console/gate-assignments/:assignmentId/invites`           | `ORGANIZER_SECRET_ONCE` | Server-authenticated invite rotation proxy; returns one token once.       |
+| `apps/dashboard/server/console-bff.ts:handleDeactivateGateAssignment` | `POST /api/console/gate-assignments/:assignmentId/deactivate`        | `ORGANIZER_REDACTED`    | Server-authenticated assignment deactivation proxy; no invite token echo. |
 
 ## Controller Responses
 
@@ -48,6 +52,7 @@ Run `npm run security:api-privacy` after adding, removing, or changing API contr
 | `apps/api/src/modules/tickets/tickets.controller.ts:listTickets`                | `GET /tickets`                                                   | `ORGANIZER_REDACTED`    | Organizer-scoped inventory; default view must redact PII.                        |
 | `apps/api/src/modules/tickets/tickets.controller.ts:listOwnedTickets`           | `GET /tickets/owner/:ownerId`                                    | `FAN_PRIVATE`           | Fan-owned wallet read, with organizer/admin access only through protected roles. |
 | `apps/api/src/modules/tickets/tickets.controller.ts:issueTicket`                | `POST /tickets/issue`                                            | `ORGANIZER_REDACTED`    | Organizer/admin issuance response.                                               |
+| `apps/api/src/modules/tickets/tickets.controller.ts:getProofHistory`            | `GET /tickets/:id/proof-history`                                 | `FAN_PRIVATE`           | Fan-owned proof history; organizer/admin access remains protected.               |
 | `apps/api/src/modules/tickets/tickets.controller.ts:getTicket`                  | `GET /tickets/:id`                                               | `ORGANIZER_REDACTED`    | Organizer-scoped ticket detail.                                                  |
 | `apps/api/src/modules/orders/orders.controller.ts:getOrderbook`                 | `GET /orders/events/:eventId/ticket-types/:ticketTypeId/book`    | `PUBLIC_MARKET`         | Aggregated orderbook only; no owner or payment data.                             |
 | `apps/api/src/modules/orders/orders.controller.ts:listUserOrders`               | `GET /orders/users/:userId`                                      | `FAN_PRIVATE`           | Fan-owned order history; admin access is private.                                |
@@ -61,6 +66,7 @@ Run `npm run security:api-privacy` after adding, removing, or changing API contr
 | `apps/api/src/modules/payments/payments.controller.ts:webhook`                  | `POST /payments/webhook`                                         | `PROVIDER_INGRESS`      | Stripe webhook ingress; signed outside local mock mode.                          |
 | `apps/api/src/modules/verification/verification.controller.ts:generateQr`       | `POST /verification/qr`                                          | `FAN_PRIVATE`           | Fan/admin QR payload generation.                                                 |
 | `apps/api/src/modules/verification/verification.controller.ts:redeem`           | `POST /verification/redeem`                                      | `STAFF_PRIVATE`         | Gate-staff/admin redemption result.                                              |
+| `apps/api/src/modules/verification/verification.controller.ts:validateNfc`      | `POST /verification/nfc/validate`                                | `STAFF_PRIVATE`         | Gate-staff/admin NFC NDEF validation result; raw payloads must not be logged.    |
 | `apps/api/src/modules/verification/verification.controller.ts:checkinSummary`   | `GET /verification/events/:eventId/gates/:gate/checkins/summary` | `STAFF_PRIVATE`         | Gate assignment or organizer-scoped operational summary.                         |
 | `apps/api/src/modules/verification/verification.controller.ts:generateTicketQr` | `POST /verification/tickets/:ticketId/qr`                        | `FAN_PRIVATE`           | Fan/admin QR payload generation by ticket path.                                  |
 | `apps/api/src/modules/fan-access/fan-access.controller.ts:listTasks`            | `GET /fan-access/events/:eventId/tasks`                          | `PUBLIC_CATALOG`        | Public fan access task catalog.                                                  |

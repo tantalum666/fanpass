@@ -15,9 +15,9 @@ const implementationSnapshotFiles = [
   "apps/console-auth/next.config.ts",
   "apps/console-auth/package.json",
   "apps/console-auth/package-lock.json",
-  "apps/dashboard/app/api/console/privy-session/route.ts",
-  "apps/dashboard/app/console-login-form.tsx",
-  "apps/dashboard/lib/api.ts",
+  "apps/dashboard/server/console-bff.ts",
+  "apps/dashboard/src/ConsoleApp.tsx",
+  "apps/dashboard/lib/console-auth.ts",
   "apps/dashboard/package.json",
   "package.json",
   "package-lock.json",
@@ -191,7 +191,7 @@ try {
             source: "stale-console-sdk-isolation",
             files: [
               {
-                file: "apps/dashboard/app/api/console/privy-session/route.ts",
+                file: "apps/dashboard/server/console-bff.ts",
                 sha256: "0".repeat(64),
               },
               {
@@ -207,8 +207,8 @@ try {
       "implementationSnapshot.source must be privy-console-sdk-isolation-boundaries",
       "implementationSnapshot.files must include the current Console SDK isolation boundary files",
       "implementationSnapshot.files contains unexpected file unexpected/console-auth.tsx",
-      "implementationSnapshot.files apps/dashboard/app/api/console/privy-session/route.ts sha256 must match the current Console SDK isolation implementation",
-      "implementationSnapshot.files missing apps/dashboard/app/console-login-form.tsx",
+      "implementationSnapshot.files apps/dashboard/server/console-bff.ts sha256 must match the current Console SDK isolation implementation",
+      "implementationSnapshot.files missing apps/dashboard/src/ConsoleApp.tsx",
     ],
   );
 

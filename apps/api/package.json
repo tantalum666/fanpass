@@ -17,7 +17,9 @@
     "prisma:migrate": "prisma migrate dev",
     "alpha:seed": "ts-node prisma/seed-alpha.ts",
     "side-effects:work-once": "ts-node src/workers/side-effect-worker-once.ts",
-    "side-effects:health": "ts-node src/workers/side-effect-health-check.ts"
+    "side-effects:health": "ts-node src/workers/side-effect-health-check.ts",
+    "chain:sepolia-dev:ownership-smoke": "ts-node src/workers/sepolia-dev-ownership-smoke.ts",
+    "chain:sepolia-dev:outbox-smoke": "ts-node src/workers/sepolia-dev-outbox-proof-sync-smoke.ts"
   },
   "dependencies": {
     "@fanpass/shared": "*",

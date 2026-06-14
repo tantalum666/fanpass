@@ -20,7 +20,7 @@ final class NFCPayloadScanner: NSObject, ObservableObject {
 
     func begin(onPayload: @escaping (String) -> Void) {
         guard isAvailable else {
-            lastError = "NFC reading is unavailable on this device. Use QR or paste fallback."
+            lastError = Self.nfcUnavailableMessage
             return
         }
 
@@ -44,6 +44,14 @@ final class NFCPayloadScanner: NSObject, ObservableObject {
             }
             self.onPayload = nil
         }
+    }
+
+    private static var nfcUnavailableMessage: String {
+        #if DEBUG
+        return "NFC reading is unavailable on this device. Use QR instead."
+        #else
+        return "NFC reading is unavailable on this device. Use QR instead."
+        #endif
     }
 }
 

@@ -169,8 +169,9 @@ function providerAudit(options = {}) {
 const sourceRoots = [
   "apps/api/src",
   "apps/console-auth/app",
-  "apps/dashboard/app",
   "apps/dashboard/lib",
+  "apps/dashboard/server",
+  "apps/dashboard/src",
   "apps/ios/FanPass/FanPass",
   "apps/ios/FanPass/FanPassOps",
   "packages/shared/src",
@@ -187,7 +188,7 @@ const allowedProviderMatches = [
   { label: "Stripe iOS PaymentSheet", allowedFiles: ["apps/ios/FanPass/FanPass/Features/Payments/StripePaymentSheetPresenter.swift"] },
   { label: "Socket.IO Swift client", allowedFiles: ["apps/ios/FanPass/FanPass/Services/FanPassOrderbookRealtimeClient.swift"] },
   { label: "Socket.IO server", allowedFiles: ["apps/api/src/modules/orders/orderbook.gateway.ts"] },
-  { label: "Socket.IO browser client", allowedFiles: ["apps/dashboard/app/orderbook-live-panel.tsx"] },
+  { label: "Socket.IO browser client", allowedFiles: ["apps/dashboard/src/OrderbookLivePanel.tsx"] },
   { label: "Core NFC", allowedFiles: ["apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift"] },
   { label: "AVFoundation scanner", allowedFiles: ["apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift"] },`
       : ""

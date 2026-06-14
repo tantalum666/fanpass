@@ -477,7 +477,10 @@ function validateDebugPayloadBoundary() {
     );
   }
 
-  if (!isMarkerInsideDebugBlock(opsShell, 'OpsMetric(title: "Fallback"')) {
+  if (
+    opsShell.includes('OpsMetric(title: "Fallback"') &&
+    !isMarkerInsideDebugBlock(opsShell, 'OpsMetric(title: "Fallback"')
+  ) {
     errors.push(
       "FanPass Ops paste fallback metric must stay inside #if DEBUG.",
     );

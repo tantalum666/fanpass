@@ -162,10 +162,10 @@ Closed for current closed-beta foundation:
 - Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, refund, cancellation, reconciliation, replay, and outbox-health evidence passed against Render staging.
 - Deployed HTTPS staging runtime evidence exists for the current API and Console.
 - Current unresolved Next/PostCSS dependency risk is accepted only for closed external Beta until 2026-07-04.
+- Production tenant/staff staging evidence passed against Render/Vercel staging with verified Privy sessions and organizer isolation.
 
 Not proven for public or real-user Beta:
 
-- Production tenant/staff staging evidence.
 - Signed iOS/TestFlight staging evidence.
 - Public/real-user dependency clean audit or Console migration.
 - Signed Apple Wallet `.pkpass` output.
@@ -179,6 +179,8 @@ npm run beta:foundation:verify
 ```
 
 ## Recording Checklist
+
+Owner decision on 2026-06-04: a human-reviewed walkthrough recording is no longer a current Beta foundation blocker. Use this checklist only if recording work is deliberately reintroduced.
 
 Record only after the local stack is clean and verification passes:
 

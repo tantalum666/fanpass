@@ -78,7 +78,8 @@ struct FanPassAPIClient {
 
         return try await withAccessToken(privyAccessToken).post(
             "/auth/privy/sync",
-            body: PrivySyncRequest(name: name, email: email, walletAddress: walletAddress)
+            body: PrivySyncRequest(name: name, email: email, walletAddress: walletAddress),
+            retryOnTransientNetworkLoss: true
         )
     }
 
@@ -97,12 +98,17 @@ struct FanPassAPIClient {
             body: StaffInviteRequest(
                 inviteToken: inviteToken,
                 walletAddress: walletAddress
-            )
+            ),
+            retryOnTransientNetworkLoss: true
         )
     }
 
     func tickets(ownerId: String) async throws -> [FanPassTicket] {
         try await get("/tickets/owner/\(ownerId)")
+    }
+
+    func proofHistory(ticketId: String) async throws -> FanPassProofHistoryResponse {
+        try await get("/tickets/\(ticketId)/proof-history")
     }
 
     func orderbook(eventId: String, ticketTypeId: String) async throws -> OrderbookSnapshot {
@@ -137,7 +143,8 @@ struct FanPassAPIClient {
                 price: price,
                 ticketId: ticketId
             ),
-            headers: idempotencyKey.map { ["Idempotency-Key": $0] } ?? [:]
+            headers: idempotencyKey.map { ["Idempotency-Key": $0] } ?? [:],
+            retryOnTransientNetworkLoss: idempotencyKey != nil
         )
     }
 
@@ -149,8 +156,13 @@ struct FanPassAPIClient {
         return try await post(
             "/payments/intents",
             body: CreatePaymentIntentRequest(orderId: orderId),
-            headers: ["Idempotency-Key": idempotencyKey]
+            headers: ["Idempotency-Key": idempotencyKey],
+            retryOnTransientNetworkLoss: true
         )
+    }
+
+    func walletBalances() async throws -> FanPassWalletBalancesResponse {
+        try await get("/wallet/balances", retryOnTransientNetworkLoss: true)
     }
 
     func userOrders(userId: String) async throws -> [FanPassOrder] {
@@ -194,34 +206,72 @@ struct FanPassAPIClient {
 
     func redeem(payload: QRPayload, gate: String) async throws -> RedemptionResult {
         struct RedeemRequest: Encodable {
+            let v: Int?
+            let credentialId: String?
             let ticketId: String
             let eventId: String
+            let ticketTypeId: String?
             let ownerIdHash: String
             let nonce: String
             let issuedAt: String
             let expiresAt: String
+            let entryMode: String?
+            let kid: String?
             let signature: String
             let gate: String
         }
 
         let request = RedeemRequest(
+            v: payload.v,
+            credentialId: payload.credentialId,
             ticketId: payload.ticketId,
             eventId: payload.eventId,
+            ticketTypeId: payload.ticketTypeId,
             ownerIdHash: payload.ownerIdHash,
             nonce: payload.nonce,
             issuedAt: payload.issuedAt,
             expiresAt: payload.expiresAt,
+            entryMode: payload.entryMode,
+            kid: payload.kid,
             signature: payload.signature,
             gate: gate
         )
         return try await post("/verification/redeem", body: request)
     }
 
+    func validateNFC(ndefPayload: String, eventId: String, gate: String) async throws -> RedemptionResult {
+        struct ValidateNFCRequest: Encodable {
+            let eventId: String
+            let gate: String
+            let ndefPayload: String
+        }
+
+        return try await post(
+            "/verification/nfc/validate",
+            body: ValidateNFCRequest(eventId: eventId, gate: gate, ndefPayload: ndefPayload)
+        )
+    }
+
     func checkinSummary(eventId: String, gate: String) async throws -> CheckinSummary {
         try await get("/verification/events/\(eventId)/gates/\(gate)/checkins/summary")
     }
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
+    private func get<T: Decodable>(
+        _ path: String,
+        retryOnTransientNetworkLoss: Bool = false
+    ) async throws -> T {
+        do {
+            return try await performGet(path)
+        } catch {
+            guard retryOnTransientNetworkLoss, isTransientNetworkFailure(error) else {
+                throw error
+            }
+            try await Task.sleep(nanoseconds: 350_000_000)
+            return try await performGet(path)
+        }
+    }
+
+    private func performGet<T: Decodable>(_ path: String) async throws -> T {
         let url = baseURL.appending(path: path)
         var request = URLRequest(url: url)
         applyAuthorization(to: &request)
@@ -235,7 +285,24 @@ struct FanPassAPIClient {
     private func post<T: Decodable, Body: Encodable>(
         _ path: String,
         body: Body,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        retryOnTransientNetworkLoss: Bool = false
+    ) async throws -> T {
+        do {
+            return try await performPost(path, body: body, headers: headers)
+        } catch {
+            guard retryOnTransientNetworkLoss, isTransientNetworkFailure(error) else {
+                throw error
+            }
+            try await Task.sleep(nanoseconds: 350_000_000)
+            return try await performPost(path, body: body, headers: headers)
+        }
+    }
+
+    private func performPost<T: Decodable, Body: Encodable>(
+        _ path: String,
+        body: Body,
+        headers: [String: String]
     ) async throws -> T {
         let url = baseURL.appending(path: path)
         var request = URLRequest(url: url)
@@ -253,6 +320,16 @@ struct FanPassAPIClient {
         return data.isEmpty ? EmptyResponse() as! T : try decoder.decode(T.self, from: data)
     }
 
+    private func isTransientNetworkFailure(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return false
+        }
+        return nsError.code == NSURLErrorNetworkConnectionLost ||
+            nsError.code == NSURLErrorCannotConnectToHost ||
+            nsError.code == NSURLErrorTimedOut
+    }
+
     private func applyAuthorization(to request: inout URLRequest) {
         guard let accessToken, !accessToken.isEmpty else {
             return
@@ -266,6 +343,24 @@ struct FanPassAPIClient {
         }
         return .api(result: body.result, message: body.messageText)
     }
+}
+
+struct FanPassWalletBalancesResponse: Codable, Hashable {
+    let address: String?
+    let chainId: String?
+    let balances: [FanPassWalletBalance]
+}
+
+struct FanPassWalletBalance: Codable, Hashable, Identifiable {
+    let asset: String
+    let amount: String?
+    let rawAmount: String?
+    let decimals: Int
+    let contractAddress: String?
+    let status: String
+    let updatedAt: String
+
+    var id: String { asset }
 }
 
 struct EmptyResponse: Codable {}

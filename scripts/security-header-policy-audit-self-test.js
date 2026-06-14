@@ -63,7 +63,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       removeMarker(
         fixtureRoot,
-        "apps/dashboard/next.config.ts",
+        "apps/dashboard/server/console-bff.ts",
         '"Content-Security-Policy"',
       ),
   },
@@ -73,7 +73,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       removeMarker(
         fixtureRoot,
-        "apps/dashboard/next.config.ts",
+        "apps/dashboard/server/console-bff.ts",
         '"Cross-Origin-Opener-Policy"',
       ),
   },
@@ -83,7 +83,7 @@ const cases = [
     mutate: (fixtureRoot) =>
       removeMarker(
         fixtureRoot,
-        "apps/dashboard/next.config.ts",
+        "apps/dashboard/server/console-bff.ts",
         '"Strict-Transport-Security"',
       ),
   },
@@ -246,10 +246,9 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/dashboard/next.config.ts",
+    "apps/dashboard/server/console-bff.ts",
     [
-      "poweredByHeader: false,",
-      "async headers() {",
+      "applySecurityHeaders(response)",
       '"X-Content-Type-Options"',
       '"nosniff"',
       '"X-Frame-Options"',
@@ -269,6 +268,11 @@ function writePassingFixture(fixtureRoot) {
       "object-src 'none'",
       "",
     ].join("\n"),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/dashboard/package.json",
+    JSON.stringify({ dependencies: { react: "19.1.0" } }, null, 2),
   );
   writeFixtureFile(
     fixtureRoot,

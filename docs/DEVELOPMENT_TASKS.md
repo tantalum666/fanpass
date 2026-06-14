@@ -10,6 +10,7 @@
 - [x] Implement event and ticket-type endpoints.
 - [x] Implement mock ticket issuance.
 - [x] Implement signed QR generation and redemption.
+  - [x] Add versioned signed entry payload fields, base64url HMAC signatures, `kid`, owner hash, ticket type, expiry, and backward-compatible signature verification.
 - [x] Scaffold organizer dashboard, now positioned as `FanPass Console`.
 - [x] Scaffold Solidity contracts.
 - [x] Scaffold SwiftUI iOS source layout.
@@ -112,6 +113,12 @@
 
 ## Beta
 
+Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup work only and is tracked separately in `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`. It must not include Web NFC, must not replace native iOS/FanPass Ops/Console product boundaries, and must not close signed iOS/TestFlight, signed Apple Wallet `.pkpass`, physical QR/NFC, or release-grade chain custody evidence. The first landing page should be long-scroll but low-density: `less is more` means one strong idea per viewport, not a short page. Lead with trustworthy tickets, controlled resale, and transparent prices, not QR/scanner mechanics or web/iOS sync.
+
+- [x] Repair the iOS distribution boundary audit so removing the FanPass Ops paste fallback metric is accepted while any reintroduced metric remains `#if DEBUG`-gated.
+- [x] Keep FanPass Ops scanner paste-fallback wording out of release UI states and verify the audit plus FanPass/FanPassOps simulator builds.
+- [x] Restore FanPass Ops release staff invite linking through Privy email code login plus one-time invite acceptance and rerun the staff policy gate.
+- [ ] Complete signed iOS/TestFlight evidence and physical QR/NFC evidence with real HTTPS API/provider config and real-device captures.
 - [x] Freeze Alpha demo script for the local walkthrough.
 - [x] Add a repeatable audit for the frozen Alpha demo script.
 - [x] Add self-test coverage for Alpha demo script audit acceptance and rejection semantics.
@@ -170,8 +177,8 @@
 - [x] Add Stripe publishable-key leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [x] Add deployment/cloud credential leakage coverage to the iOS staging/TestFlight build evidence validator.
 - [x] Add CI secret masking command literal leakage coverage to the iOS staging/TestFlight build evidence validator.
-- [ ] Record an Alpha walkthrough using the frozen local script.
-  - Latest supporting local capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed capture, redaction, and screenshot review, but it is not a human-reviewed recording artifact.
+- [x] Record an Alpha walkthrough using the frozen local script.
+  - Owner removed the human-reviewed recording requirement from current Beta foundation blockers on 2026-06-04. Latest supporting local capture bundle: `outputs/alpha-walkthrough/20260604T122652Z/`. It passed capture, redaction, and screenshot review, but recording artifacts are optional unless this gate is deliberately reintroduced.
 - [x] Verify provider plan feasibility before locking Beta architecture.
   - [x] Document current Stripe/Privy low-cost plan findings in `docs/PROVIDER_COST_FEASIBILITY.md`.
   - [x] Add Privy dashboard plan evidence validator and self-test with `npm run security:privy-plan:evidence`.
@@ -219,7 +226,7 @@
 - [x] Extract backend Privy JWT verification into a narrow verifier service and lock the boundary in provider audits.
 - [x] Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console.
   - FanPass Ops now uses the Privy Swift SDK email OTP result for staff invite linking in the release path; manual Privy access-token entry remains debug-only and is enforced by `npm run security:staff-invite-policy`.
-  - FanPass uses the shared Privy Swift SDK email OTP provider and backend token-sync boundary, FanPass Ops uses the same provider for staff invite linking, and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime. This closes the SDK-login implementation task; signed-device OTP, mobile config, and production tenant/staff evidence remain separate release blockers.
+  - FanPass uses the shared Privy Swift SDK email OTP provider and backend token-sync boundary, FanPass Ops uses the same provider for staff invite linking, and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime. This closes the SDK-login implementation task; signed-device OTP and mobile config remain separate release blockers.
 - [x] Lock FanPass Console data access behind organizer/admin bearer auth and redact personal data by default.
 - [x] Add event-scoped organizer access rules for Console operations.
 - [x] Harden QR generation/redeem authority for Alpha sessions and scanner role checks.
@@ -227,6 +234,7 @@
   - [x] Fail fast in production-like runtimes when QR signing or Privy verification config is missing or unsafe.
   - [x] Add Prisma accepted nonce uniqueness for accepted check-ins.
   - [x] Add event/gate assignment checks for gate staff.
+  - [x] Add durable entry credential lifecycle storage for dynamic QR/NFC payload issue, refresh supersession, expiry, and consumption.
 - [x] Harden order settlement with idempotency, database constraints, and safe chain-call settlement states.
   - [x] Add unique Prisma trade constraints for one settled trade per buy order and sell order.
   - [x] Atomically claim OPEN buy/sell orders and the listed ticket before ownership transfer in Prisma settlement.
@@ -247,10 +255,12 @@
     - [x] Expose side-effect job status in Alpha operations for Console visibility.
     - [x] Add a real worker/retry loop before enabling testnet or production chain/payment side effects.
     - [x] Add repeatable worker verification for claim/process/complete behavior.
-    - [x] Add self-test coverage for side-effect worker verifier stale recovery and async ownership finalization semantics.
-    - [x] Add payment-specific outbox handlers after Stripe test mode is introduced.
-    - [x] Block production-like `OWNERSHIP_ADAPTER=testnet` startup/runtime usage until real chain ownership settlement runs only through the durable async saga.
-    - [x] Add automated chain operator key boundary audit for production-like testnet blocking, dynamic signer adapter loading, placeholder-only key examples, and KMS/multisig blocker documentation.
+  - [x] Add self-test coverage for side-effect worker verifier stale recovery and async ownership finalization semantics.
+  - [x] Add payment-specific outbox handlers after Stripe test mode is introduced.
+  - [x] Block production-like `OWNERSHIP_ADAPTER=testnet` startup/runtime usage until real chain ownership settlement runs only through the durable async saga.
+  - [x] Add opt-in outbox-backed chain proof-sync prewire for ticket issue and redemption while keeping local/default ownership on mock.
+  - [x] Add dev-only Sepolia outbox proof-sync smoke for `OWNERSHIP_ISSUE`, `OWNERSHIP_TRANSFER`, and `OWNERSHIP_REDEEM` through the side-effect worker.
+  - [x] Add automated chain operator key boundary audit for production-like testnet blocking, dynamic signer adapter loading, placeholder-only key examples, and KMS/multisig blocker documentation.
     - [x] Add two-step ownership transfer/finalization worker jobs so settlement finalization can retry without re-running the ownership provider transfer.
     - [x] Run the local Beta Prisma environment on async ownership settlement and verify API order flow through ownership transfer, settlement finalization, and payment capture.
     - [x] Add stale `PROCESSING` side-effect lock recovery so crashed worker jobs can retry through the durable outbox.
@@ -315,7 +325,8 @@
   - [x] Bind dependency risk evidence to the current advisory gate, risk validator, tooling audit, and dependency policy docs SHA-256 snapshot.
   - [x] Add full dependency tooling audit gate for Hardhat/contract-toolchain high-advisory containment.
   - [x] Add Console Next exit plan and public/real-user release rule so unresolved Next/PostCSS advisories do not become harder to remove later.
-  - Closed-beta-only owner risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`. This closes the dependency blocker only for closed external Beta. Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or a Console migration off Next's production runtime path.
+  - [x] Migrate the main FanPass Console off Next production runtime and close the root production dependency blocker with a clean audit.
+  - Closed-beta-only owner risk acceptance evidence passed at `outputs/dependency-risk/20260604T120654Z-closed-beta-risk-acceptance.json`, but it is now fallback historical context. As of 2026-06-06, `apps/dashboard` uses Vite React plus `apps/dashboard/server/console-bff.ts`, `npm run security:dependency-advisories` reports `releaseBlocker: null`, and the root production audit is clean.
 - [x] Complete end-to-end Privy product integration.
   - [x] Design and implement the backend Privy sync boundary so access-token verification is sufficient without Privy webhooks.
   - [x] Prevent first-time Privy users from claiming existing FanPass accounts by email.
@@ -353,7 +364,9 @@
   - [x] Add provider dependency-placement guard that locks Stripe and Socket.IO package drift to approved API/Console boundaries.
   - [x] Add provider lockfile-placement guard that rejects Stripe and Socket.IO workspace package-lock drift.
   - [x] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
-  - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The root production audit path remains limited to the known 2 moderate Next/PostCSS advisories; the isolated SDK runtime audit still reports 25 moderate advisories and must stay outside root workspaces.
+  - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. The main `apps/dashboard` Console has since migrated off Next to Vite React plus `apps/dashboard/server/console-bff.ts`, so the root production audit is clean; the isolated SDK runtime still has its own advisory surface and must stay outside root workspaces.
+  - Completed staging staff evidence exists at `outputs/staff-tenant/20260604T135635Z-staging-evidence.json` and passed `npm run security:staff-tenant:staging-evidence` plus repository evidence redaction. It proves verified staff invite acceptance, invite replay rejection, superseded invite rejection, linked-staff invite rotation rejection, deactivation revocation, inactive-assignment rotation rejection, assigned/unassigned Ops gate scoping, assigned-gate QR redemption, duplicate QR rejection, client-supplied scanner identity rejection, scoped check-in summary, deployed demo-session rejection, deployed Console unauthenticated mutation rejection, HttpOnly/Secure/SameSite Console session cookie creation, Console proxy one-time invite create/rotate redaction, verified fan-role Console rejection, second-organizer isolation, cross-organizer Console read rejection, cross-organizer staff assignment rejection, and cross-organizer invite rotation rejection. This closes the production tenant/staff staging evidence blocker for current Beta foundation.
+  - Deployed Console mutations accept the staging auth origin `https://fanpass-console-staging.vercel.app`; the dashboard origin `https://fanpass-dashboard.vercel.app` is not itself in the mutation-origin allowlist. Keep Vercel `FANPASS_CONSOLE_ORIGINS` aligned with the auth bridge origin before collecting future Console session evidence.
   - [x] Resolve Privy webhook sync for the current Beta foundation plan: keep webhooks optional/absent because production webhooks are plan-gated, and keep backend access-token sync as the supported product boundary.
   - Privy production webhooks remain intentionally unimplemented for the current low-cost Beta foundation path. `npm run security:privy-webhooks:optional` enforces the decision by rejecting webhook routes or `PRIVY_*WEBHOOK*` secret requirements before selected-plan support is verified.
 - [x] Integrate Stripe test mode PaymentIntents and webhooks.
@@ -384,12 +397,15 @@
 - [x] Add WebSocket orderbook updates.
   - [x] Wire FanPass Console market panel to the realtime orderbook feed.
   - [x] Wire FanPass iOS market screen to the realtime orderbook feed.
+  - [x] Add V4 iOS API provider/service-protocol foundation so events, wallet tickets, and signed QR refresh can swap from mock services to backend-backed services without rewriting SwiftUI views.
 - [x] Add Core NFC scanner prototype.
   - [x] Add physical FanPass Ops QR/NFC scanner evidence validator and self-test with `npm run security:ops-scanner:device-evidence`.
   - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the physical FanPass Ops scanner evidence validator.
   - [x] Add deployment/cloud credential leakage coverage to the physical FanPass Ops scanner evidence validator.
   - [x] Bind physical FanPass Ops scanner evidence to the current QR/NFC scanner, API redemption, auth, and fixture implementation SHA-256 snapshot.
   - [x] Add NFC NDEF tag fixture format document and audit for supported physical-tag payloads.
+  - [x] Add staff-only `/verification/nfc/validate` endpoint that normalizes NDEF Text/URI payloads and reuses signed-entry redemption checks.
+  - [x] Route FanPass Ops NFC captures through the NFC validation endpoint instead of treating NFC as local proof.
 - [x] Add Apple Wallet pass barcode prototype.
   - [x] Add signed Apple Wallet `.pkpass` evidence validator and self-test with `npm run security:apple-wallet:evidence`.
   - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the signed Apple Wallet evidence validator.
@@ -412,6 +428,14 @@
   - [x] Add physical-device QA checklist and audit for FanPass and FanPass Ops before external tester evidence is trusted.
   - [x] Add placeholder Apple signing settings to `project.yml` without committing team IDs, provisioning profile names, certificates, or private keys.
   - [x] Add Stripe test publishable-key runtime guard to the iOS distribution boundary audit.
+- [x] Add local smart-contract proof foundation.
+  - [x] Extend `FanPassTicket` with safe proof hashes, refunded state, lifecycle transfer blocking, and owner-only proof updates.
+  - [x] Extend `FanPassSoulbound` with Access Badge proof hashes, ERC5192-style locked behavior, and revocation state.
+  - [x] Extend `RedemptionRegistry` with duplicate-protected event/gate/credential redemption context.
+  - [x] Add local Hardhat deployment dry-run script for ticket proof, Access Badge, and redemption registry.
+  - [x] Expand Hardhat tests for ticket proof, lifecycle states, soulbound transfer blocking, badge revocation, redemption context, and duplicate rejection.
+  - A gated Sepolia dev-only deployment script now exists for fictional contract/ABI validation with a temporary hot key and gitignored local artifacts. This closes only the local/dev contract-foundation task. Chain custody, release-grade Sepolia deployment, multisig/timelock ownership, delegated signer/vault/KMS, and deployed backend proof-sync evidence remain separate blockers.
+  - The self-solvable dev-only chain pass is complete for current scope: Sepolia deployment, API ownership smoke, focused ABI tests, typecheck, provider-boundary audit, chain operator key audit, chain custody evidence self-test, evidence-redaction audit, full Beta foundation verifier, gitignore check, and `git diff --check` passed. This remains `custodyEvidence: false` and must not be used as public/real-user Beta evidence.
 
 ## Engineering Quality Gates
 

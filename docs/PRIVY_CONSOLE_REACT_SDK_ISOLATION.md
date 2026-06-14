@@ -1,6 +1,6 @@
 # Privy Console React SDK Isolation Evidence
 
-Status: isolated Console React SDK login complete for the local Beta foundation; external Beta still requires the remaining production tenant/staff, iOS/TestFlight, Wallet, scanner, chain custody, and dependency-risk decisions.
+Status: isolated Console React SDK login complete for the local Beta foundation. The main `apps/dashboard` Console has since migrated off Next to Vite React plus a Node BFF with a clean root production audit. External Beta still requires the remaining iOS/TestFlight, Wallet, scanner, and release-grade chain custody evidence.
 
 This file defines the required evidence before FanPass changes `@privy-io/react-auth` placement in the Console login UI. The current approved shape is the isolated `apps/console-auth` runtime, which obtains a Privy access token client-side and posts it only to `POST /api/console/privy-session`. The bridge syncs through the backend, requires organizer/admin role, and stores only the server session cookie in an HttpOnly cookie.
 
@@ -8,7 +8,7 @@ This file defines the required evidence before FanPass changes `@privy-io/react-
 
 The Privy React SDK is a broad browser dependency surface. Earlier local tests showed that adding it directly to the Console dependency tree increased production audit findings. Before the SDK is integrated, FanPass must prove either:
 
-- direct Console production dependency use does not increase production audit findings beyond the currently documented Next/PostCSS advisory state; or
+- direct Console production dependency use keeps the root production audit clean; or
 - the SDK is isolated behind a dedicated auth workspace/runtime boundary and is not part of the default FanPass Console production dependency audit path.
 
 ## Required Evidence
@@ -66,16 +66,16 @@ Evidence must not include:
     "source": "privy-console-sdk-isolation-boundaries",
     "files": [
       {
-        "file": "apps/dashboard/app/api/console/privy-session/route.ts",
-        "sha256": "5bdc707f2af7f4ebf8f0e2e5da10062f89334c42a148dde6af805bc82cf7772d"
+        "file": "apps/dashboard/server/console-bff.ts",
+        "sha256": "<current sha256>"
       },
       {
-        "file": "apps/dashboard/app/console-login-form.tsx",
-        "sha256": "520ccb7bb457cea588d9278ea8fba4aaaeca73f99379aad3e36bb4f387ae29f3"
+        "file": "apps/dashboard/src/ConsoleApp.tsx",
+        "sha256": "<current sha256>"
       },
       {
-        "file": "apps/dashboard/lib/api.ts",
-        "sha256": "ca57a802999aacd6ca4a63ba4b5006e00ae5ef60a2f0b4f8b11bc7244bfec2e0"
+        "file": "apps/dashboard/lib/console-auth.ts",
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/dashboard/package.json",

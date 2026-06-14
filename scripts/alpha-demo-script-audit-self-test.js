@@ -69,8 +69,8 @@ const cases = [
         fixtureRoot,
         "docs/ALPHA_DEMO_SCRIPT.md",
         alphaDemoScript().replace(
-          "Production tenant/staff staging evidence",
-          "Tenant policy is ready",
+          "Signed iOS/TestFlight staging evidence",
+          "Signed iOS evidence is ready",
         ),
       ),
   },
@@ -195,7 +195,6 @@ function alphaDemoScript() {
     "",
     "Not proven for external Beta:",
     "",
-    "- Production tenant/staff staging evidence.",
     "- Signed iOS/TestFlight staging evidence.",
     "- Public/real-user dependency clean audit or Console migration.",
     "- Signed Apple Wallet `.pkpass` output.",

@@ -15,10 +15,7 @@ const files = {
   alphaPersistence: "apps/api/src/modules/alpha/alpha-persistence.service.ts",
   alphaController: "apps/api/src/modules/alpha/alpha.controller.ts",
   main: "apps/api/src/main.ts",
-  consoleCreateRoute:
-    "apps/dashboard/app/api/console/gate-assignments/route.ts",
-  consoleRotateRoute:
-    "apps/dashboard/app/api/console/gate-assignments/[assignmentId]/invites/route.ts",
+  consoleBff: "apps/dashboard/server/console-bff.ts",
   consoleRedactor: "apps/dashboard/lib/gate-assignment-response.ts",
   opsShell: "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
   apiClient: "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
@@ -215,27 +212,23 @@ function validateApiRouteBoundaries() {
 }
 
 function validateConsoleProxyBoundaries() {
-  const createRoute = read(files.consoleCreateRoute);
-  const rotateRoute = read(files.consoleRotateRoute);
+  const consoleBff = read(files.consoleBff);
   const redactor = read(files.consoleRedactor);
 
-  for (const [label, route] of [
-    ["Console assignment create route", createRoute],
-    ["Console invite rotation route", rotateRoute],
+  for (const marker of [
+    "handleCreateGateAssignment",
+    "handleRotateInvite",
+    "consoleAccessToken(cookieSource(request))",
+    "ConsoleAuthRequiredError",
+    "Authorization: `Bearer ${accessToken}`",
+    'cache: "no-store"',
+    "redactConsoleGateAssignmentResponse(payload)",
   ]) {
-    for (const marker of [
-      "consoleAccessToken()",
-      "ConsoleAuthRequiredError",
-      "Authorization: `Bearer ${accessToken}`",
-      'cache: "no-store"',
-      "redactConsoleGateAssignmentResponse(payload)",
-    ]) {
-      if (!route.includes(marker)) {
-        errors.push(`${label} missing marker: ${marker}`);
-      }
+    if (!consoleBff.includes(marker)) {
+      errors.push(`Console BFF staff proxy missing marker: ${marker}`);
     }
   }
-  if (!rotateRoute.includes("encodeURIComponent(")) {
+  if (!consoleBff.includes("encodeURIComponent(")) {
     errors.push("Console invite rotation route must encode assignment ids");
   }
   for (const marker of [

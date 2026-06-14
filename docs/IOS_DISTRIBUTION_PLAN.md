@@ -59,12 +59,13 @@ FanPass:
 - No NFC entitlement.
 - Push notifications are optional later.
 - Associated Domains are optional later for universal links.
-- Apple Wallet pass presentation can be added after a signed `.pkpass` backend exists.
+- Apple Wallet pass presentation can be added after a signed `.pkpass` backend exists. Near-term Wallet scope is barcode-based signed passes; NFC/tap-to-reader Wallet entry requires separate Apple entitlement/access and should be treated as future venue/enterprise work.
+- Near-term entry presentation is a dynamic, short-lived QR displayed by the fan app, not a user-carried NFC/RFID tag.
 
 FanPass Ops:
 
 - Camera permission for QR scanning.
-- NFC Tag Reading capability for Core NFC NDEF scanning.
+- NFC Tag Reading capability for Core NFC NDEF scanning as an internal fixture/prototype path.
 - No consumer wallet, market, or organizer controls.
 - Device testing is required because simulator cannot validate camera hardware or NFC reading.
 
@@ -117,8 +118,8 @@ FanPass:
 FanPass Ops:
 
 - Gate staff can sign in and only access assigned event/gate.
-- QR scan accepts first valid payload and rejects replay.
-- NFC scan reads a supported NDEF tag into the same redemption path.
+- QR scan accepts first valid dynamic fan-phone payload and rejects replay.
+- NFC scan reads a supported NDEF fixture tag into the same redemption path for internal validation only; users are not expected to carry NFC/RFID tags for admission.
 - Unsupported NFC devices show a clear fallback.
 - Accepted/rejected counts update.
 - Paste fallback is hidden or debug-gated before external testers unless explicitly risk-accepted.
@@ -137,10 +138,11 @@ Shared:
 
 ## Beta Blockers
 
-- Apple Developer account and signing assets are not configured in this repo.
+- Apple Developer account access is now available as of 2026-06-10, but local signing assets are not configured yet. `security find-identity -v -p codesigning` returned zero valid code-signing identities on the local machine.
 - Environment-specific iOS API configuration is not implemented yet.
 - `FanPass Ops` NFC prototype has not been tested on a physical iPhone with an NDEF tag.
 - Apple Wallet `.pkpass` signing is not implemented.
+- NFC/contactless Apple Wallet ticket presentation is not in current scope. It requires special Apple entitlement/access, compatible reader protocol, and likely organization-level Apple Developer Program status plus Apple approval/agreements; it is different from standard QR/barcode `.pkpass` support.
 - Privy Swift SDK login is wired locally for FanPass and FanPass Ops through placeholder public app/client IDs only; real dashboard evidence and non-placeholder staging/beta app configuration are still open.
 - Real Privy mobile app configuration evidence is not saved yet. Future evidence must pass `npm run security:privy-mobile-app-config:evidence -- <saved-json-output>` with deployment credential and CI masking-command redaction proof before non-placeholder app/client IDs are trusted for staging, beta, or TestFlight-style builds.
 - Stripe client UI and real Stripe test-mode webhook validation are not complete.
@@ -160,7 +162,57 @@ Shared:
 - Completed local Privy Swift SDK wiring for FanPass and FanPass Ops through `FanPassPrivyAuthProvider`; keep checked-in iOS Privy app/client IDs empty until saved Privy dashboard evidence approves real public values.
 - Completed Privy mobile app configuration evidence validator and self-test: `docs/PRIVY_MOBILE_APP_CONFIG_EVIDENCE.md` and `npm run security:privy-mobile-app-config:evidence:self-test`.
 - Add Apple Wallet pass signing service after Apple Developer certificates are available.
+- For Wallet, build standard signed QR/barcode `.pkpass` first. Do not block TestFlight on NFC Wallet tap-to-reader support.
 - Add TestFlight build/archive commands to the runbook after signing is configured.
+
+## 2026-06-10 TestFlight / Physical QR-NFC Push
+
+The owner confirmed Apple Developer account access and redirected priority from web/management concepts to iOS TestFlight plus physical QR/NFC validation.
+
+Current local verification:
+
+- Xcode 26.5 is selected at `/Applications/Xcode.app/Contents/Developer`.
+- Xcode schemes exist for `FanPass` and `FanPassOps`.
+- `npm run security:ios-distribution-boundaries` passed.
+- `npm run security:ios-physical-device-qa` passed.
+- `npm run security:nfc-ndef-fixture` passed.
+- `FanPass` Debug simulator build passed with `CODE_SIGNING_ALLOWED=NO`.
+- `FanPassOps` Debug simulator build passed with `CODE_SIGNING_ALLOWED=NO`.
+- `FanPass` Beta generic iOS archive compile passed with `CODE_SIGNING_ALLOWED=NO`; archive metadata correctly shows empty signing identity/team because it was intentionally unsigned.
+- `FanPassOps` Beta generic iOS archive compile passed with `CODE_SIGNING_ALLOWED=NO`; archive metadata correctly shows empty signing identity/team because it was intentionally unsigned.
+- No physical iPhone was connected when checked with `xcrun devicectl list devices`.
+
+Evidence drafts generated for the next real capture pass:
+
+- iOS/TestFlight draft: `outputs/ios-staging-build/20260610T-testflight-draft.json`
+- Physical QR/NFC draft: `outputs/ops-scanner/20260610T-physical-qr-nfc-draft.json`
+
+New local archive helper:
+
+```bash
+FANPASS_APPLE_TEAM_ID="<team id>" \
+FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER="<FanPass App Store or development profile name>" \
+FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER="<FanPass Ops App Store or development profile name>" \
+FANPASS_API_BASE_URL="https://<staging-or-beta-api>" \
+FANPASS_PRIVY_APP_ID="<public Privy app id>" \
+FANPASS_PRIVY_APP_CLIENT_ID="<public Privy app client id>" \
+FANPASS_STRIPE_PUBLISHABLE_KEY="pk_test_<redacted>" \
+npm run ios:archive:beta
+```
+
+The helper writes archives and logs under ignored `outputs/ios-archives/`. It requires an HTTPS non-placeholder API URL and caller-supplied signing variables. It does not write Apple team ids, provisioning profile names, Privy values, Stripe keys, or export options into source control.
+
+Next required external setup:
+
+- Sign in to Xcode with the Apple Developer account.
+- Create or confirm App Store Connect apps and bundle IDs for `com.fanpass.app` and `com.fanpass.ops`.
+- Enable NFC Tag Reading only for the `FanPass Ops` identifier.
+- Create/download Apple Development and Apple Distribution signing identities.
+- Create/download development and App Store/TestFlight provisioning profiles for both apps.
+- Keep real Team ID/profile names outside source control and inject them with environment variables.
+- Replace placeholder staging/beta API values only through build settings or external configuration for signed builds; checked-in configs should remain secret-free.
+- Complete Privy mobile app config evidence before trusting real public Privy app/client IDs in staging or beta.
+- Use a real iPhone, dynamic QR, and a physical NFC-compatible NDEF fixture tag to complete `ops-scanner` evidence; simulator, paste fallback, localhost API, raw payload screenshots, or non-NDEF RFID cards cannot close the physical QR/NFC blocker.
 
 ## Security Position
 

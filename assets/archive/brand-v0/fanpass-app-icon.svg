@@ -1,0 +1,37 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass app icon concept</title>
+  <desc id="desc">Deep navy, violet, and cyan iOS app icon with centered FanPass mark.</desc>
+  <defs>
+    <radialGradient id="iconBg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(286 176) rotate(53.2033) scale(1010.2)">
+      <stop stop-color="#2E1B5A"/>
+      <stop offset="0.42" stop-color="#0B3D59"/>
+      <stop offset="1" stop-color="#07080C"/>
+    </radialGradient>
+    <linearGradient id="iconMark" x1="286" y1="243" x2="751" y2="781" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#33D6FF"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#27E0A3"/>
+    </linearGradient>
+    <filter id="iconGlow" x="176" y="150" width="702" height="748" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="42"/>
+      <feGaussianBlur stdDeviation="42"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.2 0 0 0 0 0.84 0 0 0 0 1 0 0 0 0.32 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#iconBg)"/>
+  <path d="M110 754C260 628 342 420 390 120" stroke="#33D6FF" stroke-width="7" stroke-linecap="round" opacity="0.18"/>
+  <path d="M874 226C695 355 602 552 566 899" stroke="#8B5CF6" stroke-width="8" stroke-linecap="round" opacity="0.18"/>
+  <g filter="url(#iconGlow)">
+    <path d="M225 363C225 286.785 286.785 225 363 225H648C724.215 225 786 286.785 786 363V403C742.922 403 708 437.922 708 481C708 524.078 742.922 559 786 559V661C786 737.215 724.215 799 648 799H363C286.785 799 225 737.215 225 661V363Z" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="10"/>
+    <path d="M337 292H640C669.823 292 694 316.177 694 346V382C694 411.823 669.823 436 640 436H450V501H598C627.823 501 652 525.177 652 555V588C652 617.823 627.823 642 598 642H450V736H392C362.177 736 338 711.823 338 682L337 292Z" fill="url(#iconMark)"/>
+    <path d="M535 348H631M535 568H593" stroke="#F7F8FB" stroke-width="38" stroke-linecap="round" opacity="0.92"/>
+    <path d="M610 347C664 379 697 429 697 489C697 549 664 599 610 631" stroke="#F7F8FB" stroke-width="25" stroke-linecap="round" opacity="0.9"/>
+    <path d="M675 299C753 352 799 418 799 489C799 560 753 626 675 679" stroke="#33D6FF" stroke-width="18" stroke-linecap="round" opacity="0.78"/>
+    <path d="M584 725L626 767L721 664" stroke="#27E0A3" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

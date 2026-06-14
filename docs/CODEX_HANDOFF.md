@@ -6069,6 +6069,19 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Important boundary: this deploy proves route availability, not a live authenticated USDC balance. A real wallet balance check still requires an authenticated FanPass/Privy session from the app or a safe test bearer path. Do not claim live USDC balance evidence until that authenticated call succeeds and is recorded without exposing tokens.
 - Remaining open after deploy: authenticated Account -> Wallet live balance read, live Stripe PaymentSheet authorization plus webhook settlement, live USDC transfer/crypto settlement, physical phone install/retest if needed, scanner redemption evidence, TestFlight evidence, signed Wallet evidence, and release-grade chain custody evidence.
 
+## After Latest FanPass iPhone Install and Worktree Triage on 2026-06-14
+
+- Before implementation, `docs/CODEX_HANDOFF.md` was read first, then every Markdown file under the workspace was read in full including hidden/ignored/generated/vendor Markdown while excluding `.git`: 2,956 files, 605,469 lines, 27,893,984 bytes, SHA-256 `63d98c73e6db274fa087b0db3eeb0f4b36f1b634a27ce876ccd4dfdf40f913f0`.
+- Build iOS Apps guidance was checked. XcodeBuildMCP has only simulator tools enabled in this session, so physical-device install used `xcodebuild` and `xcrun devicectl`.
+- Connected physical device was detected as the existing paired iPhone 16 Pro Max `tantalum`. `xcodebuild -showdestinations` listed it as an eligible iOS destination for the `FanPass` scheme.
+- Built the latest local working tree for physical device with the `FanPass` scheme, `Beta` configuration, command-line automatic signing override, and derived data under `outputs/ios-device-build/FanPassBetaLatest`.
+- Build result: `** BUILD SUCCEEDED **`. The only warning was the existing interface-orientations/full-screen warning.
+- The app was signed locally with the existing Apple Development identity and Xcode-managed wildcard provisioning profile, then installed to the connected iPhone with `xcrun devicectl device install app`.
+- Launch result: `xcrun devicectl device process launch ... com.fanpass.app` reported `Launched application with com.fanpass.app bundle identifier.`
+- Installed executable SHA-256: `43b17434719b0b3c7384b8ec9591fe365e58dfaf80540c765ffe78ce2a6ad083`; bundle version was `1.0` (`1`).
+- Cleanup/triage: the temporary physical-device DerivedData directory `outputs/ios-device-build/FanPassBetaLatest` was removed after install. Remaining dirty worktree items are source/docs/assets/scripts from prior FanPass work, not this turn's build cache. Continue by committing validated source groups or explicitly leaving them as user-owned work; do not delete or revert them blindly.
+- Boundary: this is local development-device install evidence only. It is not TestFlight, App Store, signed Wallet evidence, authenticated USDC balance evidence, live Stripe settlement evidence, scanner redemption evidence, or release-grade chain custody evidence.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

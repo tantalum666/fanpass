@@ -2,6 +2,32 @@
 
 Date: 2026-05-27
 
+Update after iOS Release-Boundary Audit Repair on 2026-06-11:
+
+- Fixed the iOS distribution boundary audit so it accepts the safer current FanPass Ops shell state where the paste fallback metric is absent, while still rejecting that metric if it is reintroduced outside `#if DEBUG`.
+- Kept scanner paste-fallback wording behind `#if DEBUG`; release paths now use QR/NFC-only wording for ready, NFC-unavailable, and invalid-payload states.
+- Verified the known Render staging API health endpoint is currently reachable after an initial free-tier cold-start timeout.
+- Generated fresh non-passing drafts for iOS signed-build and Ops scanner device evidence after the scanner/audit boundary changes: `outputs/ios-staging-build/20260611T-ios-staging-build-draft.json` and `outputs/ops-scanner/20260611T-ops-scanner-device-draft.json`.
+- Verification passed: `npm run security:ios-distribution-boundaries:self-test`, `npm run security:ios-distribution-boundaries`, `npm run security:ios-physical-device-qa`, `npm run security:nfc-ndef-fixture`, `npm run security:privy-mobile-app-config:evidence:self-test`, `npm run security:stripe-testmode:evidence:self-test`, and FanPass/FanPassOps Debug simulator builds with `CODE_SIGNING_ALLOWED=NO`.
+- Remaining status: this restores local release-boundary checks but does not close TestFlight, physical QR/NFC, real Privy mobile app config, signed Wallet, or release-grade chain custody evidence.
+
+Update after Dynamic QR 30-Second Refresh Pass on 2026-06-10:
+
+- Limited dynamic QR credential lifetime to 30 seconds. Backend payload generation defaults to 30 seconds and caps overconfigured `QR_TTL_SECONDS` values at 30 seconds; environment validation rejects configured values above 30.
+- Updated local/example/staging API env files and local verification scripts to use `QR_TTL_SECONDS=30` so test and staging-like flows do not accidentally keep the older five-minute QR window.
+- Added iOS QR sheet auto-refresh before expiry and Web Ticket Detail entry-credential auto-refresh from `expiresAt - 5s` with a 25-second maximum wait.
+- Added tests proving default and overconfigured QR TTLs produce 30-second payloads, and that invalid TTL config is rejected.
+- Remaining status: QR presentation is now fresher and screenshot lifetime is shorter, but backend admission state remains the only authority. Physical QR/NFC evidence and signed TestFlight readiness still require their saved evidence validators.
+
+Update after QR/NFC Admission Race Hardening on 2026-06-10:
+
+- Hardened the backend gate decision against the same-ticket simultaneous-entry risk. FanPass API is the synchronous authority for live admission; chain/outbox writes remain asynchronous proof and must not decide whether a person is admitted at the gate.
+- Added dynamic entry credential lifecycle behavior in the verification service: issued credentials are persisted, older active credentials for the same ticket are superseded on refresh, accepted credentials are consumed, stale/expired/superseded credentials are rejected, and QR/NFC transports share the same signed entry redemption path.
+- Added memory/demo in-flight redemption claims by both nonce and ticket id so two concurrent requests for the same ticket cannot both pass while an ownership side effect is still pending. Concurrent duplicate attempts are recorded as rejected check-ins for gate audit.
+- Strengthened the Prisma path with ticket-level atomic claiming from `ACTIVE` or `TRANSFERRED` to `REDEEMED`, unique accepted nonce, and unique accepted ticket id on accepted check-ins. Unique-constraint races map to `DUPLICATE` rather than leaking database errors.
+- Added API tests for same-payload concurrent replay, same-ticket/different-signed-nonce concurrent replay, NFC NDEF URI redemption, refreshed-code revocation, wrong-event NFC rejection, gate assignment enforcement, listed-ticket blocking, and production QR signing-secret enforcement. Verification passed API focused tests, full API tests, API typecheck, API build, Prisma format/generate, and diff check for the touched backend files.
+- Remaining status: this materially reduces duplicate-entry/replay risk in backend-local validation. It does not close physical QR/NFC validation, signed TestFlight readiness, Apple Wallet evidence, or release-grade chain custody evidence until the corresponding saved evidence validators pass.
+
 Update after Security Pass 1 on 2026-05-27:
 
 - Added signed local session tokens for API access.
@@ -2404,3 +2430,10 @@ Follow-up after release evidence draft helper on 2026-06-04:
 1. Save signed iOS/TestFlight, Apple Wallet, physical QR/NFC, and chain custody evidence.
 2. Re-review route coverage for role guards, ownership checks, event-scoped organizer access, and gate assignment access before real users.
 3. Keep the root production audit clean and block any reintroduction of Next or equivalent production dependency risk through the Beta verifier.
+
+Follow-up after iOS release-boundary and Ops staff-linking repair on 2026-06-11:
+
+- Repaired the iOS release boundary after the paste-fallback metric audit drifted from the safer current Ops shell. Release scanner copy now avoids paste-fallback wording, and the audit still rejects any reintroduced fallback metric outside DEBUG.
+- Restored FanPass Ops staff invite linking through the release Privy email-code path plus one-time invite acceptance API; transient Privy/invite state is cleared after linking.
+- Verification passed for the iOS distribution boundary self-test/audit, iOS physical-device QA static audit, NFC fixture audit, staff invite policy audit, FanPass/FanPassOps simulator Debug builds, and the full `npm run beta:foundation:verify`.
+- Remaining security blockers are unchanged: signed iOS/TestFlight evidence, signed Wallet evidence, physical QR/NFC evidence, and release-grade chain custody evidence.

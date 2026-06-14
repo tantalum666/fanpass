@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG
+import UIKit
+#endif
 
 struct AuthView: View {
     @Environment(AppState.self) private var appState
@@ -82,7 +85,7 @@ struct AuthView: View {
                                 .textFieldStyle(.roundedBorder)
 
                                 if mode == .privyEmail && !appState.privyAuthProvider.isAvailable {
-                                    Text("Privy login is unavailable in this build.")
+                                    Text("Email login is temporarily unavailable.")
                                         .font(.footnote.weight(.semibold))
                                         .foregroundStyle(FanPassTheme.amber)
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,6 +112,7 @@ struct AuthView: View {
                                     }
                                     .buttonStyle(.bordered)
                                     .disabled(isSendingCode || !isValidEmail || !appState.privyAuthProvider.isAvailable)
+
                                 }
 
                                 Button {
@@ -125,10 +129,21 @@ struct AuthView: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(isSubmitting || !canSubmit)
 
+                                #if DEBUG
+                                Button {
+                                    usePastedPrivyToken()
+                                } label: {
+                                    Label("Use clipboard session", systemImage: "doc.on.clipboard")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(isSubmitting)
+                                #endif
+
                                 Button {
                                     continueDemo()
                                 } label: {
-                                    Label("Continue as demo fan", systemImage: "person.crop.circle.badge.checkmark")
+                                    Label("Continue browsing", systemImage: "person.crop.circle.badge.checkmark")
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.bordered)
@@ -188,7 +203,11 @@ struct AuthView: View {
                     )
                 }
             } catch {
+                #if DEBUG
+                errorMessage = "\(mode.failureMessage) \(error.localizedDescription)"
+                #else
                 errorMessage = mode.failureMessage
+                #endif
             }
             isSubmitting = false
         }
@@ -203,7 +222,11 @@ struct AuthView: View {
                 try await appState.sendPrivyEmailCode(email: email.trimmingCharacters(in: .whitespacesAndNewlines))
                 hasRequestedPrivyCode = true
             } catch {
-                errorMessage = "Could not send this Privy code."
+                #if DEBUG
+                errorMessage = "Could not send this code. \(error.localizedDescription)"
+                #else
+                errorMessage = "Could not send this code."
+                #endif
             }
             isSendingCode = false
         }
@@ -217,11 +240,33 @@ struct AuthView: View {
             do {
                 try await appState.continueAsDemoFan()
             } catch {
-                errorMessage = "Could not start the demo fan session."
+                errorMessage = "Could not continue."
             }
             isSubmitting = false
         }
     }
+
+    #if DEBUG
+    private func usePastedPrivyToken() {
+        let token = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !token.isEmpty else {
+            errorMessage = "No session token found on the clipboard."
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+
+        Task {
+            do {
+                try await appState.loginWithPrivyAccessToken(token)
+            } catch {
+                errorMessage = "Could not use clipboard session. \(error.localizedDescription)"
+            }
+            isSubmitting = false
+        }
+    }
+    #endif
 }
 
 private enum AuthMode: String, CaseIterable, Identifiable {
@@ -235,7 +280,7 @@ private enum AuthMode: String, CaseIterable, Identifiable {
         switch self {
         case .register: "Register"
         case .login: "Sign in"
-        case .privyEmail: "Privy"
+        case .privyEmail: "Email code"
         }
     }
 
@@ -251,7 +296,7 @@ private enum AuthMode: String, CaseIterable, Identifiable {
         switch self {
         case .register: "Could not create this account."
         case .login: "No fan account was found for this email."
-        case .privyEmail: "Could not verify this Privy code."
+        case .privyEmail: "Could not verify this code."
         }
     }
 }

@@ -3,12 +3,9 @@ import SwiftUI
 
 @main
 struct FanPassApp: App {
-    @State private var appState = AppState()
-
     var body: some Scene {
         WindowGroup {
-            AppShellView()
-                .environment(appState)
+            FanPassV4AppShellView()
                 .onOpenURL { url in
                     _ = StripeAPI.handleURLCallback(with: url)
                 }

@@ -30,7 +30,6 @@ const requiredMarkers = [
   "Scene 6 - FanPass Ops Entry",
   "Scene 7 - Security Boundary Close",
   "Local settlement completes through durable outbox jobs without real Stripe or chain credentials.",
-  "Production tenant/staff staging evidence",
   "Signed iOS/TestFlight staging evidence",
   "Public/real-user dependency clean audit or Console migration",
   "Signed Apple Wallet `.pkpass` output",

@@ -42,15 +42,15 @@ const cases = [
       ),
   },
   {
-    label: "rejects premature recording task closeout",
+    label: "rejects missing owner-skipped recording task closeout",
     expected: "fail",
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
         "docs/DEVELOPMENT_TASKS.md",
         developmentTasks().replace(
-          "- [ ] Record an Alpha walkthrough using the frozen local script.",
           "- [x] Record an Alpha walkthrough using the frozen local script.",
+          "- [ ] Record an Alpha walkthrough using the frozen local script.",
         ),
       ),
   },
@@ -173,7 +173,7 @@ function alphaWalkthroughEvidence() {
   return [
     "# FanPass Alpha Walkthrough Evidence",
     "",
-    "Status: evidence gate ready; walkthrough recording remains open.",
+    "Status: optional evidence gate ready; walkthrough recording is owner-skipped for current Beta foundation.",
     "",
     "## Local-only recording scope",
     "",
@@ -212,7 +212,6 @@ function alphaWalkthroughEvidence() {
     "",
     "## Remaining blockers",
     "",
-    "- Production tenant/staff staging evidence",
     "- Signed iOS/TestFlight staging evidence",
     "- Public/real-user dependency clean audit or Console migration",
     "- Signed Apple Wallet `.pkpass`",
@@ -231,7 +230,7 @@ function developmentTasks() {
     "- [x] Freeze Alpha demo script for the local walkthrough.",
     "- [x] Add repeatable Alpha walkthrough recording evidence gate before closing the local walkthrough task.",
     "- [x] Add repeatable Alpha walkthrough capture automation and self-test for local artifact bundles.",
-    "- [ ] Record an Alpha walkthrough using the frozen local script.",
+    "- [x] Record an Alpha walkthrough using the frozen local script.",
     "",
   ].join("\n");
 }

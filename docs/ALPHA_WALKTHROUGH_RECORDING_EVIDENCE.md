@@ -1,8 +1,8 @@
 # FanPass Alpha Walkthrough Recording Evidence
 
-Status: saved recording review evidence gate ready; human-reviewed recording artifact remains open.
+Status: optional saved recording review evidence gate ready; human-reviewed recording artifact is owner-skipped for current Beta foundation.
 
-This file defines the saved JSON evidence contract for closing the Alpha walkthrough recording task. The local capture bundle under `outputs/alpha-walkthrough/20260604T122652Z/` can support review, but it is not the recording artifact.
+This file defines the saved JSON evidence contract for future Alpha walkthrough recording review if recording work is deliberately reintroduced. The owner removed the human-reviewed recording requirement from current Beta foundation blockers on 2026-06-04. The local capture bundle under `outputs/alpha-walkthrough/20260604T122652Z/` can support review, but it is not the recording artifact.
 
 ## Required saved evidence
 
@@ -84,4 +84,4 @@ The snapshot must be regenerated after the demo script, walkthrough evidence con
 
 - Do not include real emails, wallet addresses, QR nonces, signed QR payloads, bearer tokens, provider secrets, Stripe keys, Privy secrets, deployment credentials, database URLs, private keys, Apple signing material, device identifiers, or production credentials.
 - Do not claim the recording proves production tenant/staff staging policy, signed Wallet passes, TestFlight, physical QR/NFC device validation, chain custody, clean public dependency posture, or public Beta readiness.
-- Do not close the `Record an Alpha walkthrough using the frozen local script` task until a real human-reviewed recording artifact exists and its saved review JSON passes this validator.
+- Do not use this optional validator to claim public or real-user Beta readiness. If recording work is reintroduced, do not claim the recording is reviewed until a real human-reviewed recording artifact exists and its saved review JSON passes this validator.

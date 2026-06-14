@@ -1,0 +1,140 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "name": "FanPass Clean V4 Brand Tokens",
+  "version": "v4",
+  "updated": "2026-06-05",
+  "source": "FanPass_VI_Redesign_V4/docs/fanpass-brand-tokens-v4.json",
+  "note": "Clean V4 is the single source of truth. Do not reintroduce decorative background lines or redesign the logo.",
+  "colors": {
+    "brand": {
+      "night": { "value": "#020617", "type": "color" },
+      "surface": { "value": "#0B1224", "type": "color" },
+      "elevatedSurface": { "value": "#111827", "type": "color" },
+      "pulseCyan": { "value": "#46E8FF", "type": "color" },
+      "electricViolet": { "value": "#7C3AED", "type": "color" },
+      "neonMagenta": { "value": "#F43FDA", "type": "color" },
+      "verifiedGreen": { "value": "#22C55E", "type": "color" },
+      "textPrimary": { "value": "#F8FAFC", "type": "color" },
+      "textSecondary": { "value": "#AAB4C5", "type": "color" },
+      "border": { "value": "#23314A", "type": "color" }
+    },
+    "semantic": {
+      "backgroundDefault": { "value": "#020617", "type": "color" },
+      "backgroundSubtle": { "value": "#07152A", "type": "color" },
+      "surfaceDefault": { "value": "#0B1224", "type": "color" },
+      "surfaceElevated": { "value": "#111827", "type": "color" },
+      "surfaceOverlay": { "value": "#111827D9", "type": "color" },
+      "contentPrimary": { "value": "#F8FAFC", "type": "color" },
+      "contentSecondary": { "value": "#AAB4C5", "type": "color" },
+      "contentTertiary": { "value": "#64748B", "type": "color" },
+      "actionPrimary": { "value": "#7C3AED", "type": "color" },
+      "actionSecondary": { "value": "#46E8FF", "type": "color" },
+      "success": { "value": "#22C55E", "type": "color" },
+      "warning": { "value": "#F59E0B", "type": "color" },
+      "danger": { "value": "#EF4444", "type": "color" },
+      "borderDefault": { "value": "#23314A", "type": "color" },
+      "borderFocus": { "value": "#46E8FF", "type": "color" }
+    }
+  },
+  "gradients": {
+    "brand": {
+      "type": "linear-gradient",
+      "angle": 135,
+      "stops": [
+        { "color": "#46E8FF", "position": 0 },
+        { "color": "#7C3AED", "position": 45 },
+        { "color": "#F43FDA", "position": 100 }
+      ]
+    },
+    "background": {
+      "type": "radial-gradient",
+      "shape": "circle",
+      "position": "18% 8%",
+      "stops": [
+        { "color": "#2E1065", "position": 0 },
+        { "color": "#07152A", "position": 48 },
+        { "color": "#020617", "position": 100 }
+      ]
+    },
+    "scanPulse": {
+      "type": "linear-gradient",
+      "angle": 90,
+      "stops": [
+        { "color": "#46E8FF", "position": 0 },
+        { "color": "#22C55E", "position": 100 }
+      ]
+    }
+  },
+  "typography": {
+    "fontFamilies": {
+      "ui": "-apple-system, BlinkMacSystemFont, SF Pro Text, system-ui, sans-serif",
+      "display": "SF Pro Display, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "mono": "SF Mono, ui-monospace, Menlo, monospace"
+    },
+    "scale": {
+      "display": { "fontSize": 40, "lineHeight": 46, "fontWeight": 600 },
+      "largeTitle": { "fontSize": 34, "lineHeight": 40, "fontWeight": 600 },
+      "title1": { "fontSize": 28, "lineHeight": 34, "fontWeight": 600 },
+      "title2": { "fontSize": 24, "lineHeight": 30, "fontWeight": 600 },
+      "title3": { "fontSize": 20, "lineHeight": 26, "fontWeight": 600 },
+      "headline": { "fontSize": 17, "lineHeight": 22, "fontWeight": 600 },
+      "body": { "fontSize": 16, "lineHeight": 22, "fontWeight": 400 },
+      "callout": { "fontSize": 15, "lineHeight": 20, "fontWeight": 400 },
+      "caption": { "fontSize": 12, "lineHeight": 16, "fontWeight": 500 },
+      "monoNumber": { "fontSize": 15, "lineHeight": 20, "fontWeight": 500, "fontFamily": "mono" }
+    }
+  },
+  "spacing": {
+    "2xs": { "value": 2, "type": "dimension" },
+    "xs": { "value": 4, "type": "dimension" },
+    "sm": { "value": 8, "type": "dimension" },
+    "md": { "value": 12, "type": "dimension" },
+    "lg": { "value": 16, "type": "dimension" },
+    "xl": { "value": 20, "type": "dimension" },
+    "2xl": { "value": 24, "type": "dimension" },
+    "3xl": { "value": 32, "type": "dimension" },
+    "4xl": { "value": 40, "type": "dimension" },
+    "5xl": { "value": 48, "type": "dimension" },
+    "6xl": { "value": 64, "type": "dimension" }
+  },
+  "radius": {
+    "xs": { "value": 6, "type": "dimension" },
+    "sm": { "value": 8, "type": "dimension" },
+    "md": { "value": 12, "type": "dimension" },
+    "lg": { "value": 16, "type": "dimension" },
+    "xl": { "value": 24, "type": "dimension" },
+    "2xl": { "value": 32, "type": "dimension" }
+  },
+  "shadows": {
+    "none": { "shadows": [] },
+    "card": { "shadows": [{ "x": 0, "y": 10, "blur": 30, "spread": 0, "color": "#00000033" }] },
+    "ticket": { "shadows": [{ "x": 0, "y": 24, "blur": 70, "spread": 0, "color": "#00000066" }] },
+    "signal": { "shadows": [{ "x": 0, "y": 0, "blur": 24, "spread": 0, "color": "#46E8FF26" }] }
+  },
+  "chartColors": {
+    "primary": "#46E8FF",
+    "secondary": "#7C3AED",
+    "highlight": "#F43FDA",
+    "success": "#22C55E",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+    "grid": "#23314A",
+    "label": "#AAB4C5"
+  },
+  "ticketStatusColors": {
+    "verifiedTicket": { "background": "#063746", "foreground": "#46E8FF", "border": "#46E8FF" },
+    "nfcReady": { "background": "#2A135E", "foreground": "#D8C8FF", "border": "#7C3AED" },
+    "secureResale": { "background": "#09351D", "foreground": "#22C55E", "border": "#22C55E" },
+    "proofHistory": { "background": "#020617", "foreground": "#F8FAFC", "border": "#23314A" },
+    "pending": { "background": "#3A2608", "foreground": "#F59E0B", "border": "#F59E0B" },
+    "rejected": { "background": "#3B0B0B", "foreground": "#EF4444", "border": "#EF4444" },
+    "redeemed": { "background": "#172033", "foreground": "#AAB4C5", "border": "#23314A" }
+  },
+  "usageRules": [
+    "Do not redesign the FanPass logo or app icon.",
+    "Do not add decorative diagonal curves behind logo, brand sheet, ticket cards, text, QR codes, charts, buttons, or prices.",
+    "Keep NFC/proof waves inside dedicated UI components only.",
+    "Do not let chart lines or proof graphics cross over text.",
+    "Use logo mark without extra visual metaphors for app icon and navigation."
+  ]
+}

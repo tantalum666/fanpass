@@ -8,6 +8,29 @@ This document defines the supported NFC test-tag payload format for `FanPass Ops
 
 NFC is a transport for a FanPass signed entry payload. Backend authority remains FanPass API signature verification, nonce replay rejection, authenticated scanner identity, and gate assignment enforcement. NFC payloads must enter the same redemption path as QR scans.
 
+For live admission, FanPass API ticket state is the synchronous source of truth. A tag or QR can only request redemption; it is not proof of entry by itself. The backend must atomically accept at most one redemption per ticket, consume the accepted dynamic entry credential, reject stale/superseded/expired credentials, and record duplicate/rejected attempts for gate audit. Chain writes and proof sync are asynchronous evidence paths and must not be treated as the gate decision.
+
+This is an internal reader-fixture contract, not the intended fan admission experience. Fans must not be expected to carry a separate NFC/RFID tag for entry. The current TestFlight/MVP admission path should be phone-to-phone dynamic QR: the fan iPhone displays a short-lived signed entry payload as QR, and the `FanPass Ops` iPhone scans it. iPhone-to-iPhone NFC presentation is not part of the current Core NFC reader implementation and should be treated as a future Apple-entitlement/terminal-protocol workstream, not a near-term blocker.
+
+## RFID Compatibility
+
+`RFID` is a broad hardware label and is not automatically compatible with this fixture. The current `FanPass Ops` implementation uses `NFCNDEFReaderSession`, so a physical test card/sticker must be readable as an NFC NDEF tag.
+
+Usable for this fixture:
+
+- NFC Forum-compatible tags that can store an NDEF Text or URI record.
+- 13.56 MHz tags supported by iPhone Core NFC and writable with an NDEF record.
+- NTAG216 is preferred for the current debug URI size; NTAG215 may work for shorter signed payloads; NTAG213 may be too small for realistic payloads.
+
+Not sufficient for this fixture:
+
+- LF 125 kHz RFID cards/fobs.
+- UHF RFID tags.
+- Access-control cards that expose only a proprietary identifier and cannot store an NDEF record.
+- Cards that an iPhone/NFC writing app cannot detect or cannot format/write as NDEF.
+
+Quick field check: use a known NFC writer app such as NFC Tools on an iPhone. If the app can read the card and write an NDEF Text or URI record containing the `fanpass://entry?payload=...` test URI, the card can be used for this fixture. If the app cannot detect it or cannot write NDEF, it cannot test the current FanPass Ops NFC path.
+
 ## Supported NDEF Records
 
 Use one of these NDEF record types for internal QA tags:
@@ -38,9 +61,10 @@ Physical NFC QA must use:
 
 - a signed `FanPass Ops` build installed on a real iPhone;
 - a real HTTPS staging or beta API URL, not localhost and not a placeholder `.invalid` URL;
-- a physical NDEF tag written with a staging-only FanPass signed entry payload;
+- a physical NDEF tag written with a staging-only FanPass signed entry payload; for current testing this means a physical NFC-compatible NDEF tag, not a generic non-NDEF RFID card;
 - a gate staff session from verified auth, not client-supplied scanner identity;
 - duplicate replay coverage for the same NFC payload;
+- same-ticket race coverage where two scans for the same ticket, including different signed nonces if available, produce one accepted redemption and duplicate/invalid rejection for the rest;
 - an unsupported tag or unsupported device behavior check.
 
 The debug paste fallback remains debug-only. External TestFlight or physical-device evidence must not use paste fallback as the NFC proof.

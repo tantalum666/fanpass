@@ -375,7 +375,7 @@ private struct PaymentCheckoutSheet: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text("Payment authorization")
                                         .font(.headline)
-                                    Text("Stripe PaymentIntent prepared")
+                                    Text("Stripe authorization prepared")
                                         .font(.subheadline)
                                         .foregroundStyle(FanPassTheme.muted)
                                 }
@@ -458,19 +458,19 @@ private struct PaymentCheckoutSheet: View {
 
     private var stripeReadiness: StripeReadiness {
         guard let publishableKey = FanPassEnvironment.stripePublishableKey else {
-            return .blocked("Add a Stripe test publishable key through FANPASS_STRIPE_PUBLISHABLE_KEY before presenting PaymentSheet.")
+            return .blocked("Stripe checkout is unavailable in this build.")
         }
 
         guard let clientSecret = draft.payment.clientSecret,
               !clientSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
-            return .blocked("The backend did not return a PaymentIntent client secret.")
+            return .blocked("Payment authorization could not be prepared.")
         }
 
         guard !clientSecret.hasPrefix("pi_mock"),
               !clientSecret.lowercased().contains("_mock")
         else {
-            return .blocked("The API is using local mock payments. Start it with Stripe test secrets before presenting PaymentSheet.")
+            return .blocked("Payment provider is not available right now.")
         }
 
         return .ready(clientSecret: clientSecret, publishableKey: publishableKey)
@@ -502,7 +502,7 @@ private enum StripeReadiness: Equatable {
     var message: String {
         switch self {
         case .ready:
-            "PaymentSheet is configured for Stripe test mode. The payment method collection remains inside Stripe's native SDK UI."
+            "Stripe checkout is ready. Payment method collection remains inside Stripe's secure UI."
         case let .blocked(message):
             message
         }

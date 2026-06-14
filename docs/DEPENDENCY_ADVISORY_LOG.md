@@ -1,5 +1,31 @@
 # FanPass Dependency Advisory Log
 
+## 2026-06-06 - Console Next production-runtime exit completed
+
+Commands:
+
+```bash
+scripts/with-node-22.sh npm install
+scripts/with-node-22.sh npm run security:audit:prod -- --json
+scripts/with-node-22.sh npm run security:dependency-advisories
+scripts/with-node-22.sh npm run build -w apps/dashboard
+```
+
+Result:
+
+- The primary FanPass Console at `apps/dashboard` no longer depends on Next.
+- Console now builds as Vite React static assets and serves through `apps/dashboard/server/console-bff.ts`.
+- Production audit is clean: `0` low, moderate, high, or critical production advisories.
+- `npm run security:dependency-advisories` reports `releaseBlocker: null`.
+- `next@latest` still declares `postcss: 8.4.31`; the blocker was closed by removing Next from the primary production runtime path rather than by waiting for a safe patched Next path.
+- `apps/console-auth` remains an intentionally isolated Privy React SDK runtime outside root workspaces and outside the default production audit path.
+
+Decision:
+
+- The public/real-user dependency blocker for the root production path is closed.
+- Do not re-add Next to `apps/dashboard` unless a new security review and production audit both pass.
+- Keep `npm run security:dependency-advisories` and `npm run security:dependency-risk:evidence:self-test` in the Beta foundation verifier so future dependency drift is caught.
+
 Date: 2026-05-29
 
 Command:

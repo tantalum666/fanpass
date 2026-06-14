@@ -7,8 +7,9 @@ const rootDir = process.env.FANPASS_PRIVY_WEBHOOK_AUDIT_ROOT
 
 const sourceRoots = [
   "apps/api/src",
-  "apps/dashboard/app",
   "apps/dashboard/lib",
+  "apps/dashboard/server",
+  "apps/dashboard/src",
   "apps/ios/FanPass/FanPass",
   "apps/ios/FanPass/FanPassOps",
 ];
@@ -78,9 +79,7 @@ function validateAccessTokenSyncBoundaries() {
   const authService = readProjectFile(
     "apps/api/src/modules/auth/auth.service.ts",
   );
-  const consoleSession = readProjectFile(
-    "apps/dashboard/app/api/console/privy-session/route.ts",
-  );
+  const consoleSession = readProjectFile("apps/dashboard/server/console-bff.ts");
   const apiClient = readProjectFile(
     "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
   );

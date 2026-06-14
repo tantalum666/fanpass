@@ -186,6 +186,16 @@ const cases = [
       ),
   },
   {
+    label: "accepts Ops shell without paste fallback metric",
+    expected: "pass",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+        opsShell({ includeFallbackMetric: false }),
+      ),
+  },
+  {
     label: "rejects missing debug payload documentation marker",
     expected: "fail",
     mutate: (fixtureRoot) => {
@@ -569,9 +579,10 @@ return "Waiting for QR or NFC"
 
 function opsShell(options = {}) {
   const debugWrap = options.debugWrap !== false;
+  const includeFallbackMetric = options.includeFallbackMetric !== false;
   return `
 OpsMetric(title: "Mode", value: "QR")
-${debug(debugWrap, 'OpsMetric(title: "Fallback", value: "Paste")')}
+${includeFallbackMetric ? debug(debugWrap, 'OpsMetric(title: "Fallback", value: "Paste")') : ""}
 OpsMetric(title: "NFC", value: "Beta")
 `;
 }

@@ -14,6 +14,14 @@ Seed a non-passing draft with the current iOS distribution/config SHA-256 snapsh
 npm run release:evidence:draft -- ios-build --out outputs/ios-staging-build/<draft-file>.json
 ```
 
+After local Apple signing identities and profiles are installed, create caller-supplied signed archives without committing Apple or provider configuration:
+
+```bash
+npm run ios:archive:beta
+```
+
+The command is backed by `scripts/ios-beta-archive.sh` and requires environment variables for Apple team/profile values, HTTPS API URL, and public provider config. Archive logs are written under ignored `outputs/ios-archives/` and must still be redacted before any evidence file is saved.
+
 The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real signed-build, physical-device or TestFlight, and HTTPS staging/beta facts replace every placeholder and the saved file passes the validator above.
 
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, Privy tokens, Stripe secrets, Stripe publishable keys, Apple certificates, private keys, provisioning profiles, device identifiers, database URLs, provider secrets, deployment/cloud credentials, CI secret masking command literals, production credentials, or real personal data.

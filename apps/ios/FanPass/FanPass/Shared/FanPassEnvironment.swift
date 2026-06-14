@@ -2,6 +2,7 @@ import Foundation
 
 enum FanPassEnvironment {
     static let stripeReturnURL = "fanpass-payments://stripe-redirect"
+    static let privyOAuthURLScheme = "fanpass-payments"
 
     struct PrivyConfiguration: Equatable {
         let appId: String

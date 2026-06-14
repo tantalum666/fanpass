@@ -17,7 +17,7 @@ const verifier = readRequired(verifierPath);
 
 const requiredEvidenceMarkers = [
   "# FanPass Alpha Walkthrough Evidence",
-  "Status: evidence gate ready; walkthrough recording remains open",
+  "Status: optional evidence gate ready; walkthrough recording is owner-skipped for current Beta foundation",
   "Local-only recording scope",
   "Seven-scene coverage",
   "Scene 1 - Product Boundary",
@@ -40,7 +40,6 @@ const requiredEvidenceMarkers = [
   "Do not use Stripe secrets",
   "Do not use Privy secrets",
   "Remaining blockers",
-  "Production tenant/staff staging evidence",
   "Signed iOS/TestFlight staging evidence",
   "Public/real-user dependency clean audit or Console migration",
   "Signed Apple Wallet `.pkpass`",
@@ -89,11 +88,11 @@ if (!tasks.includes(captureAutomationTask)) {
   );
 }
 
-const openRecordingTask =
-  "- [ ] Record an Alpha walkthrough using the frozen local script.";
-if (!tasks.includes(openRecordingTask)) {
+const ownerSkippedRecordingTask =
+  "- [x] Record an Alpha walkthrough using the frozen local script.";
+if (!tasks.includes(ownerSkippedRecordingTask)) {
   errors.push(
-    `${tasksPath} must keep the Alpha walkthrough recording task open until actual recording evidence is captured`,
+    `${tasksPath} must mark the Alpha walkthrough recording task owner-skipped for the current Beta foundation`,
   );
 }
 
@@ -123,7 +122,7 @@ console.log(
       file: evidencePath,
       requiredMarkers: requiredEvidenceMarkers.length,
       forbiddenMarkers: forbiddenEvidenceMarkers.length,
-      recordingTask: "open",
+      recordingTask: "owner-skipped",
     },
     null,
     2,

@@ -224,7 +224,7 @@ function evidenceMarkers(id) {
     "PS-006": ["docs/IOS_DISTRIBUTION_PLAN.md", ".pkpass"],
     "PS-007": [
       "apps/api/src/modules/alpha/alpha-persistence.service.ts",
-      "apps/dashboard/app/page.tsx",
+      "apps/dashboard/src/ConsoleApp.tsx",
     ],
     "PS-008": [
       "apps/ios/FanPass/Config",

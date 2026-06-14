@@ -1,6 +1,12 @@
 # FanPass Brand VI
 
+> Superseded on 2026-06-05 by Clean V4. Use `FanPass_VI_Redesign_V4/` and `docs/brand/FanPass_VI_Clean_V4_Audit.md` as the source of truth. Do not redesign the V4 logo or app icon.
+
 Version: 0.2
+
+Status: superseded by Clean V4 in `FanPass_VI_Redesign_V4/`.
+
+Do not use this v0.2 document as the active visual direction for new UI work. It remains only as historical context for earlier prototype styling.
 
 Figma:
 
@@ -12,7 +18,7 @@ Current page: `FanPass VI v0.2`
 
 Version 0.1 is deprecated. It was closer to a UI token sheet than a complete VI system.
 
-Version 0.2 is the working brand direction. It deliberately separates brand identity from prototype UI. iOS screenshots are engineering QA artifacts only; they are not VI references.
+Version 0.2 is no longer the working brand direction. The active visual identity direction is Clean V4 in `FanPass_VI_Redesign_V4/` and `docs/brand/FanPass_VI_Clean_V4_Audit.md`.
 
 ## Brand Idea
 

@@ -100,7 +100,7 @@ function validateProviderSurfaceBoundaries() {
       "apps/ios/FanPass/FanPass/Services/FanPassOrderbookRealtimeClient.swift",
     ],
     ["Socket.IO server", "apps/api/src/modules/orders/orderbook.gateway.ts"],
-    ["Socket.IO browser client", "apps/dashboard/app/orderbook-live-panel.tsx"],
+    ["Socket.IO browser client", "apps/dashboard/src/OrderbookLivePanel.tsx"],
     [
       "Core NFC",
       "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
@@ -125,8 +125,9 @@ function validateProviderSurfaceBoundaries() {
   for (const sourceRoot of [
     "apps/api/src",
     "apps/console-auth/app",
-    "apps/dashboard/app",
     "apps/dashboard/lib",
+    "apps/dashboard/server",
+    "apps/dashboard/src",
     "apps/ios/FanPass/FanPass",
     "apps/ios/FanPass/FanPassOps",
     "packages/shared/src",

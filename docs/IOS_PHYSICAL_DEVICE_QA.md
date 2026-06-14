@@ -24,6 +24,8 @@ Do not use real personal data, production credentials, production Stripe or Priv
 - Auth appears only when a private action requires it.
 - No staff scanner, gate, inventory, audit, admin, NFC, or Camera permission prompt appears in the consumer app.
 - Wallet, marketplace, fan access, profile, and checkout actions require an authenticated session.
+- Entry presentation for near-term testing is a dynamic, short-lived QR shown on the fan's phone; do not design the consumer flow around users carrying separate NFC/RFID tags.
+- Dynamic QR expires after 30 seconds and should auto-refresh before expiry while the entry-code sheet is visible. If auto-refresh fails, the app should show a refresh failure state and the backend must reject expired/superseded credentials.
 - Payment UI uses the Stripe iOS PaymentSheet presenter boundary only when a test publishable key and staging PaymentIntent are available.
 - Wallet barcode remains a prototype unless saved Apple Wallet signed-pass evidence passes `npm run security:apple-wallet:evidence -- <saved-json-output>`.
 
@@ -31,7 +33,8 @@ Do not use real personal data, production credentials, production Stripe or Priv
 
 - Gate staff can sign in with verified auth and only see assigned event/gate access.
 - QR camera scanning accepts the first valid staging payload and rejects duplicate replay.
-- NFC reads a supported physical NDEF tag into the same backend redemption path as QR.
+- Same-ticket race coverage is required: two scans for the same ticket, including different signed nonces when a code has been copied/refreshed, must result in exactly one accepted backend redemption and the rest rejected as duplicate/invalid. Do not rely on UI disabled states, scanner throttling, chain settlement, or client clocks as the gate authority.
+- NFC reads a supported physical NDEF tag into the same backend redemption path as QR. This is for internal fixture validation only; the tag must be NFC-compatible and NDEF-readable/writable, and generic RFID cards that cannot store/read NDEF are not sufficient for this check.
 - Unsupported NFC devices or unsupported tags show a clear failure state.
 - Accepted and rejected counts update after scan results.
 - Scanner identity comes from the verified auth session; client-supplied staff or scanner ids are rejected.

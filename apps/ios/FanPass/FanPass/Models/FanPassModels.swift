@@ -11,10 +11,22 @@ struct UserSession: Codable, Hashable {
 
     var isFan: Bool { role == "FAN" }
 
+    func withAccessToken(_ token: String?) -> UserSession {
+        UserSession(
+            userId: userId,
+            displayName: displayName,
+            email: email,
+            role: role,
+            walletAddress: walletAddress,
+            accessToken: token,
+            expiresAt: expiresAt
+        )
+    }
+
     static let demoFan = UserSession(
         userId: "usr_fan_demo",
-        displayName: "Demo Fan",
-        email: "fan@fanpass.test",
+        displayName: "Fan Account",
+        email: "fan@example.com",
         role: "FAN",
         walletAddress: "0x0000000000000000000000000000000000002001",
         accessToken: nil,
@@ -24,7 +36,7 @@ struct UserSession: Codable, Hashable {
     static let gateStaff = UserSession(
         userId: "usr_gate_demo",
         displayName: "Gate Staff",
-        email: "gate@fanpass.test",
+        email: "gate@example.com",
         role: "GATE_STAFF",
         walletAddress: nil,
         accessToken: nil,
@@ -68,13 +80,33 @@ struct FanPassTicket: Codable, Identifiable, Hashable {
     let transferCount: Int
 }
 
+struct FanPassProofHistoryResponse: Codable, Hashable {
+    let items: [FanPassProofHistoryItem]
+}
+
+struct FanPassProofHistoryItem: Codable, Identifiable, Hashable {
+    let id: String
+    let label: String
+    let state: String
+    let timestamp: String
+    let description: String
+    let safeTicketRef: String
+    let proofReference: String?
+    let externalUrl: String?
+}
+
 struct QRPayload: Codable, Hashable {
+    let v: Int?
+    let credentialId: String?
     let ticketId: String
     let eventId: String
+    let ticketTypeId: String?
     let ownerIdHash: String
     let nonce: String
     let issuedAt: String
     let expiresAt: String
+    let entryMode: String?
+    let kid: String?
     let signature: String
 }
 

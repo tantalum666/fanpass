@@ -164,6 +164,11 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
+    "apps/api/src/modules/side-effects/ticket-ownership-side-effects.service.ts",
+    ticketOwnershipSideEffectsService(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
     "apps/api/src/modules/side-effects/side-effect-worker.service.ts",
     workerService(),
   );
@@ -265,12 +270,32 @@ export class SettlementSideEffectsService {
 `;
 }
 
+function ticketOwnershipSideEffectsService() {
+  return `
+export class TicketOwnershipSideEffectsService {
+  issueTicket() {
+    this.outbox.enqueue(writer, { type: "OWNERSHIP_ISSUE", idempotencyKey: this.issueSideEffectKey(localTicketId) });
+    return this.usesOutboxProofSync();
+  }
+  redeemTicket() {
+    this.outbox.enqueue(writer, { type: "OWNERSHIP_REDEEM", idempotencyKey: this.redeemSideEffectKey(ticketId, tokenId) });
+    return this.usesOutboxProofSync();
+  }
+  issueSideEffectKey(localTicketId) { return \`ownership-issue:\${localTicketId}\`; }
+  redeemSideEffectKey(ticketId, tokenId) { return \`ownership-redeem:\${ticketId}:\${tokenId ?? "missing-token"}\`; }
+  usesOutboxProofSync() { return "FANPASS_CHAIN_PROOF_SYNC_OUTBOX"; }
+}
+`;
+}
+
 function workerService() {
   return `
 export class SideEffectWorkerService {
   dispatch(job) {
     switch(job.type) {
+      case "OWNERSHIP_ISSUE": this.ownership.issueTicket(payload); break;
       case "OWNERSHIP_TRANSFER": break;
+      case "OWNERSHIP_REDEEM": this.ownership.redeemTicket(payload); break;
       case "OWNERSHIP_SETTLEMENT_FINALIZE": break;
     }
     this.outbox.enqueueStandalone({ idempotencyKey: this.ownershipSettlementFinalizeKey(buyOrderId, sellOrderId) });
@@ -307,6 +332,10 @@ export class PaymentsService {
 
 function workerSpec() {
   return `
+it("claims and completes an ownership issue side-effect", () => {});
+expect("ownership-issue:tkt_demo_new").toBeTruthy();
+it("claims and completes an ownership redeem side-effect", () => {});
+expect("ownership-redeem:tkt_demo_001:1").toBeTruthy();
 it("finalizes ownership settlement without re-running the provider transfer", () => {});
 expect("payment-capture:pay_demo:trd_demo").toBeTruthy();
 expect("payment-cancel:pay_auth:ownership_transfer_failed").toBeTruthy();

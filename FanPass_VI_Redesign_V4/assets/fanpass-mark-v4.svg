@@ -1,0 +1,24 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<title id="title">FanPass Logo Mark V4</title><desc id="desc">A clean abstract F-shaped digital pass mark for FanPass.</desc>
+
+  <defs>
+    <linearGradient id="fpCore" x1="46" y1="30" x2="213" y2="225" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#46E8FF"/>
+      <stop offset="0.42" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#F43FDA"/>
+    </linearGradient>
+    <linearGradient id="fpHighlight" x1="82" y1="48" x2="193" y2="83" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.58"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="fpGlow" x="30" y="20" width="204" height="226" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#7C3AED" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#fpGlow)">
+    <path d="M70 57C70 43.193 81.193 32 95 32H199C210.157 32 216.634 44.62 210.14 53.692L193.54 76.872C186.79 86.295 175.914 91.881 164.324 91.881H113.5V117.2H162.9C174.034 117.2 180.522 129.77 174.078 138.85L158.94 160.184C152.197 169.687 141.272 175.33 129.623 175.33H113.5V205.5C113.5 219.307 102.307 230.5 88.5 230.5H70V57Z" fill="url(#fpCore)"/>
+    <path d="M92 49.5H187.5C192.643 49.5 195.658 55.29 192.666 59.474L184.1 71.452C180.372 76.666 174.356 79.756 167.946 79.756H109.2C99.699 79.756 92 72.057 92 62.556V49.5Z" fill="url(#fpHighlight)" opacity="0.42"/>
+    <path d="M92 121.5H155.8C160.982 121.5 164.001 127.368 160.93 131.543L154.42 140.392C150.66 145.502 144.69 148.514 138.346 148.514H109.2C99.699 148.514 92 140.815 92 131.314V121.5Z" fill="url(#fpHighlight)" opacity="0.18"/>
+  </g>
+
+</svg>

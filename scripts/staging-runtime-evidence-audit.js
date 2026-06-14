@@ -14,7 +14,7 @@ const implementationSnapshotFiles = [
   "apps/api/src/common/fanpass-socket-io.adapter.ts",
   "apps/api/src/modules/alpha/alpha.controller.ts",
   "apps/api/src/modules/side-effects/side-effect-health.service.ts",
-  "apps/dashboard/next.config.ts",
+  "apps/dashboard/server/console-bff.ts",
   "scripts/security-runtime-staging-check.sh",
   "scripts/staging-runtime-evidence-audit.js",
   "scripts/security-runtime-staging-local-dry-run.sh",

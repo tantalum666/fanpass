@@ -1,0 +1,24 @@
+<svg width="620" height="168" viewBox="0 0 620 168" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass horizontal lockup</title>
+  <desc id="desc">FanPass mark and wordmark horizontal brand lockup.</desc>
+  <defs>
+    <linearGradient id="markFill" x1="34" y1="24" x2="135" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#33D6FF"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#27E0A3"/>
+    </linearGradient>
+    <linearGradient id="textFill" x1="182" y1="45" x2="575" y2="127" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F8FB"/>
+      <stop offset="1" stop-color="#CFEFFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="620" height="168" rx="34" fill="#07080C"/>
+  <path d="M32 55C32 40.0883 44.0883 28 59 28H116C130.912 28 143 40.0883 143 55V63C134.716 63 128 69.7157 128 78C128 86.2843 134.716 93 143 93V113C143 127.912 130.912 140 116 140H59C44.0883 140 32 127.912 32 113V55Z" fill="#121722" stroke="#293241" stroke-width="2"/>
+  <path d="M55 44H110C115.523 44 120 48.4772 120 54V59C120 64.5228 115.523 69 110 69H77V82H104C109.523 82 114 86.4772 114 92V97C114 102.523 109.523 107 104 107H77V124H65C59.4772 124 55 119.523 55 114V44Z" fill="url(#markFill)"/>
+  <path d="M92 56H109M92 94H102" stroke="#F7F8FB" stroke-width="6" stroke-linecap="round" opacity="0.92"/>
+  <path d="M107 55C117 62 123 72 123 84C123 96 117 106 107 113" stroke="#F7F8FB" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M119 47C133 56 141 69 141 84C141 99 133 112 119 121" stroke="#33D6FF" stroke-width="3" stroke-linecap="round" opacity="0.76"/>
+  <path d="M101 123L107 129L122 113" stroke="#27E0A3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="178" y="100" fill="url(#textFill)" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="62" font-weight="700" letter-spacing="0">FanPass</text>
+  <text x="181" y="129" fill="#A7AFBD" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="500" letter-spacing="0">Real Tickets. Fair Resale. Verified Entry.</text>
+</svg>

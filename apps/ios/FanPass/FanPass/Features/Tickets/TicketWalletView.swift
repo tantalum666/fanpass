@@ -52,7 +52,7 @@ struct TicketWalletView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedPayload) { payload in
-            TicketQRSheet(payload: payload)
+            TicketQRSheet(initialPayload: payload)
         }
         .task(id: appState.session?.userId) {
             await load()
@@ -196,9 +196,19 @@ extension QRPayload: Identifiable {
 }
 
 struct TicketQRSheet: View {
-    let payload: QRPayload
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
+    @State private var payload: QRPayload
     @State private var copied = false
+    @State private var isRefreshing = false
+    @State private var refreshError: String?
+
+    init(initialPayload: QRPayload) {
+        _payload = State(initialValue: initialPayload)
+    }
+
+    private let refreshLeadTime: TimeInterval = 5
+    private let maxRefreshDelay: TimeInterval = 25
 
     var body: some View {
         NavigationStack {
@@ -217,6 +227,7 @@ struct TicketQRSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             LabeledContent("Ticket", value: payload.ticketId)
                             LabeledContent("Expires", value: payload.expiresAt)
+                            LabeledContent("Refresh", value: isRefreshing ? "Refreshing" : "Auto before expiry")
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("Signature")
                                     .font(.caption)
@@ -225,6 +236,11 @@ struct TicketQRSheet: View {
                                     .font(.caption.monospaced())
                                     .foregroundStyle(FanPassTheme.slate)
                                     .textSelection(.enabled)
+                            }
+                            if let refreshError {
+                                Text(refreshError)
+                                    .font(.caption)
+                                    .foregroundStyle(FanPassTheme.amber)
                             }
                         }
                     }
@@ -278,6 +294,55 @@ struct TicketQRSheet: View {
                 }
             }
         }
+        .task(id: payload.ticketId) {
+            await autoRefreshLoop()
+        }
+    }
+
+    @MainActor
+    private func autoRefreshLoop() async {
+        while !Task.isCancelled {
+            let delay = refreshDelay()
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if Task.isCancelled {
+                return
+            }
+            await refreshPayload()
+        }
+    }
+
+    private func refreshDelay() -> TimeInterval {
+        guard let expiryDate = parseISODate(payload.expiresAt) else {
+            return maxRefreshDelay
+        }
+
+        return min(maxRefreshDelay, max(1, expiryDate.timeIntervalSinceNow - refreshLeadTime))
+    }
+
+    @MainActor
+    private func refreshPayload() async {
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        do {
+            payload = try await appState.apiClient.qrPayload(ticketId: payload.ticketId)
+            refreshError = nil
+            copied = false
+        } catch {
+            refreshError = "Could not refresh automatically. Try again before entry."
+        }
+    }
+
+    private func parseISODate(_ value: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: value) {
+            return date
+        }
+
+        let fallback = ISO8601DateFormatter()
+        fallback.formatOptions = [.withInternetDateTime]
+        return fallback.date(from: value)
     }
 
     #if DEBUG

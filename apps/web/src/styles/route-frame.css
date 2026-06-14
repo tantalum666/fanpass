@@ -1,0 +1,81 @@
+/* App route frame.
+   Keep every sidebar destination inside one stable product shell even while feature
+   views keep their own internal composition. */
+
+.route-frame {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  width: min(100%, var(--content)) !important;
+  max-width: var(--content) !important;
+  margin: 0 !important;
+}
+
+.route-frame > .command-strip,
+.route-frame > .product-view {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.route-frame > .command-strip {
+  margin-bottom: 0 !important;
+}
+
+.route-frame > .product-view {
+  min-width: 0;
+}
+
+.route-frame > .product-view:is(
+  .discover-view,
+  .feature-workspace,
+  .pulse-concept,
+  .terminal-concept,
+  .event-view,
+  .checkout-view,
+  .ticket-detail-view,
+  .resale-listing-view
+) {
+  color: #f8fafc;
+}
+
+.route-frame > .feature-workspace,
+.route-frame > .pulse-concept,
+.route-frame > .terminal-concept,
+.route-frame > .event-view,
+.route-frame > .checkout-view,
+.route-frame > .ticket-detail-view,
+.route-frame > .resale-listing-view {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
+    transparent;
+}
+
+.route-frame > .pulse-concept,
+.route-frame > .terminal-concept {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+@media (min-width: 901px) {
+  .app-shell {
+    padding-left: calc(var(--sidebar) + 18px) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .route-frame {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .route-frame > .command-strip,
+  .route-frame > .product-view {
+    width: 100% !important;
+  }
+}

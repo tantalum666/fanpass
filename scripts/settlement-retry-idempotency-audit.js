@@ -15,6 +15,9 @@ const outbox = readProjectFile(
 const settlementSideEffects = readProjectFile(
   "apps/api/src/modules/side-effects/settlement-side-effects.service.ts",
 );
+const ticketOwnershipSideEffects = readProjectFile(
+  "apps/api/src/modules/side-effects/ticket-ownership-side-effects.service.ts",
+);
 const worker = readProjectFile(
   "apps/api/src/modules/side-effects/side-effect-worker.service.ts",
 );
@@ -32,6 +35,7 @@ const providerFeasibility = readProjectFile(
 
 validatePackageAndCompositeGate();
 validateOutboxRetryIdempotency();
+validateTicketOwnershipProofSyncKeys();
 validateSettlementSideEffectKeys();
 validateWorkerRetryDispatch();
 validatePaymentProviderKeys();
@@ -47,7 +51,9 @@ console.log(
     {
       ok: true,
       durableRetryKeys: [
+        "ownership-issue:{localTicketId}",
         "ownership-transfer:{buyOrderId}:{sellOrderId}",
+        "ownership-redeem:{ticketId}:{tokenId}",
         "ownership-finalize:{buyOrderId}:{sellOrderId}",
         "payment-capture:{paymentId}:{tradeId}",
         "payment-cancel:{paymentId}:{reason}",
@@ -97,6 +103,25 @@ function validateOutboxRetryIdempotency() {
   }
 }
 
+function validateTicketOwnershipProofSyncKeys() {
+  for (const marker of [
+    'type: "OWNERSHIP_ISSUE"',
+    'type: "OWNERSHIP_REDEEM"',
+    "issueSideEffectKey(",
+    "return `ownership-issue:${localTicketId}`;",
+    "redeemSideEffectKey(",
+    'return `ownership-redeem:${ticketId}:${tokenId ?? "missing-token"}`;',
+    "FANPASS_CHAIN_PROOF_SYNC_OUTBOX",
+    "usesOutboxProofSync()",
+  ]) {
+    if (!ticketOwnershipSideEffects.includes(marker)) {
+      errors.push(
+        `TicketOwnershipSideEffectsService must keep deterministic proof-sync marker: ${marker}`,
+      );
+    }
+  }
+}
+
 function validateSettlementSideEffectKeys() {
   for (const marker of [
     'type: "OWNERSHIP_TRANSFER"',
@@ -123,8 +148,12 @@ function validateSettlementSideEffectKeys() {
 
 function validateWorkerRetryDispatch() {
   const markers = [
+    'case "OWNERSHIP_ISSUE"',
     'case "OWNERSHIP_TRANSFER"',
+    'case "OWNERSHIP_REDEEM"',
     'case "OWNERSHIP_SETTLEMENT_FINALIZE"',
+    "this.ownership.issueTicket(",
+    "this.ownership.redeemTicket(",
     "this.outbox.enqueueStandalone",
     "this.ownershipSettlementFinalizeKey(",
     "return `ownership-finalize:${buyOrderId}:${sellOrderId}`;",
@@ -169,6 +198,10 @@ function validatePaymentProviderKeys() {
 
 function validateCoverageAndDocs() {
   for (const marker of [
+    "claims and completes an ownership issue side-effect",
+    "ownership-issue:tkt_demo_new",
+    "claims and completes an ownership redeem side-effect",
+    "ownership-redeem:tkt_demo_001:1",
     "finalizes ownership settlement without re-running the provider transfer",
     "payment-capture:pay_demo:trd_demo",
     "payment-cancel:pay_auth:ownership_transfer_failed",

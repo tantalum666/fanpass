@@ -2,6 +2,10 @@
 
 FanPass local Beta uses mock ownership by default and blocks production-like `OWNERSHIP_ADAPTER=testnet` until real chain custody is operationally safe. Do not close ASR-014 or pilot chain blockers with localhost mocks, raw operator keys, unreviewed hot-wallet ownership, or screenshots containing copyable transaction/private-key material.
 
+Selected future evidence path: Sepolia + Safe multisig owner + OpenZeppelin Relayer with Turnkey signer. The setup guide is `docs/technical/FanPass_Sepolia_Safe_Relayer_Setup_V4.md`.
+
+Temporary Sepolia development deployments are allowed only under `docs/technical/FanPass_Sepolia_Dev_Hotkey_Runbook_V4.md`. A dev-only hot key deployment must remain labeled `custodyEvidence: false` and cannot close this evidence gate.
+
 Run future saved evidence through:
 
 ```bash
@@ -139,6 +143,7 @@ Release rule:
 - `implementationSnapshot.source` must be `chain-custody-ownership-outbox-boundaries`, and `implementationSnapshot.files` must match the current SHA-256 snapshot for the ownership adapter, production-like testnet guard, side-effect outbox, worker, health gate, Prisma outbox schema, chain operator audit, provider boundary audit, settlement idempotency audit, and side-effect verifier. Regenerate chain custody evidence after any of those files changes.
 - The signer must be a vault/KMS or delegated signer, and the app must not receive raw private-key material.
 - Contract ownership must not remain with a single hot key. Multisig ownership and a timelock or admin delay must be configured before pilot chain enablement.
-- Chain calls must run through the durable side-effect outbox, with transfer/finalization, stale recovery, idempotent retry, and healthy residual outbox proof.
+- Chain calls must run through the durable side-effect outbox, with ticket issue, ownership transfer, ticket redemption, settlement finalization, stale recovery, idempotent retry, and healthy residual outbox proof.
 - Rotation, signer disablement, incident response, monitoring, and pause/rollback procedures must be documented before enabling real chain ownership side effects.
+- The current operational runbook is `docs/technical/FanPass_Chain_Custody_Runbook_V4.md`; update it before collecting evidence if signer/provider assumptions change.
 - `deploymentCredentialsAvailable` must be `false`, `redaction.deploymentCredentialsRedacted` must be `true`, and `redaction.ciSecretMaskingCommandsRedacted` must be `true`; saved chain custody evidence must not contain deployment/cloud credential assignments, JSON fields such as AWS keys, Vercel tokens, GitHub tokens, Netlify tokens, or Cloudflare API credentials, or CI masking commands with literal values.

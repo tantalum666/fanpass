@@ -1,0 +1,16 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FanPass verified badge</title>
+  <desc id="desc">Verified badge with shield, ticket edge, and check mark.</desc>
+  <defs>
+    <linearGradient id="badgeFill" x1="52" y1="33" x2="173" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#33D6FF"/>
+      <stop offset="0.52" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#27E0A3"/>
+    </linearGradient>
+  </defs>
+  <rect width="220" height="220" rx="48" fill="#07080C"/>
+  <path d="M110 26L169 48V99C169 142 145 176 110 194C75 176 51 142 51 99V48L110 26Z" fill="#101722" stroke="url(#badgeFill)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M82 111L101 130L142 86" stroke="#27E0A3" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M145 62C159 75 166 90 166 106" stroke="#33D6FF" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
+  <path d="M55 78C69 78 80 67 80 53" stroke="#8B5CF6" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+</svg>

@@ -2,6 +2,17 @@
 
 FanPass currently treats Apple Wallet as prototype barcode metadata only. Do not mark the Wallet blocker closed until a real signed `.pkpass` flow has been validated on a physical iPhone without committing Apple certificates, private keys, bearer tokens, provider secrets, deployment/cloud credentials, Stripe publishable keys, database URLs, or real personal data.
 
+## Product And Apple Program Boundary
+
+There are two distinct Wallet paths:
+
+- Standard Apple Wallet pass: a signed `.pkpass` event ticket with a barcode such as QR, Aztec, PDF417, or Code128. This requires an Apple Developer Program account, a Pass Type ID, a Pass Type ID certificate, backend pass generation/signing, and physical-iPhone add-to-Wallet validation. It does not require the Apple Developer Enterprise Program. App distribution still uses normal App Store/TestFlight review if the app includes the add-to-Wallet flow, but each generated pass is not an App Store app binary.
+- NFC/contactless Wallet ticket: a pass or in-app credential that can be presented by holding the iPhone near a reader, like the Ticketmaster-style "hold near reader" experience. This is a separate higher-bar path that requires Apple-issued special entitlement/access, a compatible terminal/reader protocol, and usually organization-level Apple Developer Program membership plus Apple agreements/approval. Treat this as future venue/enterprise work, not the near-term TestFlight blocker.
+
+Do not confuse Apple Wallet passes with Apple Pay payment cards. Screenshots and social posts may say "Apple Pay" colloquially, but FanPass ticket storage should be described as Apple Wallet / PassKit unless an actual Apple Pay payment flow is involved.
+
+Near-term FanPass scope: implement signed `.pkpass` with QR barcode first, then verify that `FanPass Ops` can scan the Wallet-displayed barcode through the existing QR redemption path. Do not promise NFC/tap-to-reader Wallet entry until Apple entitlement, organization eligibility, terminal protocol, and saved evidence are all in place.
+
 Run future saved evidence through:
 
 ```bash
