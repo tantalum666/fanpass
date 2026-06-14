@@ -81,6 +81,7 @@ enum FanPassV4 {
         var ticketTypes: [TicketType]
         var fanTasks: [FanTask]
         var marketSummary: MarketSummary
+        var isBackendBacked: Bool = false
 
         var dateLine: String {
             startTime.formatted(date: .abbreviated, time: .shortened)

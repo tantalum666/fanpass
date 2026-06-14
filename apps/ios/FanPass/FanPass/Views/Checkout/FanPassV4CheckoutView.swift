@@ -222,6 +222,9 @@ struct FanPassV4CheckoutView: View {
         if !hasLiveAPISessionForStripe {
             return "Use Sign in / Sign up before Stripe checkout."
         }
+        if !hasBackendCheckoutCatalogItem {
+            return "Stripe checkout requires an API-listed event and seat tier."
+        }
         if viewModel.ticketType.supply == 0 {
             return "Online checkout for this ticket category is unavailable."
         }
@@ -234,6 +237,7 @@ struct FanPassV4CheckoutView: View {
             canBuyTickets &&
             hasAPIBearerSession &&
             hasLiveAPISessionForStripe &&
+            hasBackendCheckoutCatalogItem &&
             viewModel.ticketType.supply > 0
     }
 
@@ -278,6 +282,11 @@ struct FanPassV4CheckoutView: View {
             viewModel.errorMessage = "Use Sign in / Sign up before Stripe checkout."
             return
         }
+        guard hasBackendCheckoutCatalogItem else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "This event is a local review listing. Choose an API-listed event before Stripe checkout."
+            return
+        }
         guard viewModel.ticketType.supply > 0 else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "Online checkout for this ticket category is unavailable."
@@ -303,6 +312,12 @@ struct FanPassV4CheckoutView: View {
             return false
         }
         return backend.session?.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines) != "local-review-token"
+    }
+
+    private var hasBackendCheckoutCatalogItem: Bool {
+        viewModel.event.isBackendBacked &&
+            viewModel.ticketType.eventId == viewModel.event.id &&
+            !viewModel.ticketType.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var hasAPIBearerSession: Bool {

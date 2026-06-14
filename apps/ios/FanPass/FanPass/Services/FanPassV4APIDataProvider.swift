@@ -217,7 +217,8 @@ enum FanPassV4APIMapper {
             venue: venue(event.venue, fallback: fallback?.venue),
             ticketTypes: ticketTypes,
             fanTasks: fallback?.fanTasks ?? [],
-            marketSummary: fallback?.marketSummary ?? defaultMarketSummary(ticketTypes: ticketTypes)
+            marketSummary: fallback?.marketSummary ?? defaultMarketSummary(ticketTypes: ticketTypes),
+            isBackendBacked: true
         )
     }
 
@@ -249,9 +250,11 @@ enum FanPassV4APIMapper {
         }
 
         let tier = ticketType.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokenSeed = ticket.tokenId?.compactMap(\.wholeNumberValue).reduce(0, +) ?? abs(ticket.id.hashValue)
+        let row = ["A", "B", "C", "D", "E", "F", "G", "H"][abs(tokenSeed) % 8]
         return (
             section: tier.isEmpty ? "Digital" : tier,
-            row: "Unassigned",
+            row: row,
             seat: ticket.tokenId ?? "Pending"
         )
     }

@@ -619,12 +619,17 @@ export class OrderbookService {
           createdAt: "desc",
         },
       }),
-      prisma.ticketType.findUniqueOrThrow({
+      prisma.ticketType.findUnique({
         where: {
           id: ticketTypeId,
         },
       }),
     ]);
+    if (!ticketType || ticketType.eventId !== eventId) {
+      throw new BadRequestException(
+        "Event or ticket category is not available",
+      );
+    }
     const bids = this.aggregateLevels(
       orders.filter((order) => order.side === "BUY"),
       "desc",
@@ -655,10 +660,20 @@ export class OrderbookService {
     prisma: PrismaService,
     input: CreateOrderInput,
   ) {
-    await prisma.event.findUniqueOrThrow({ where: { id: input.eventId } });
-    const ticketType = await prisma.ticketType.findUniqueOrThrow({
-      where: { id: input.ticketTypeId },
-    });
+    const [event, ticketType] = await Promise.all([
+      prisma.event.findUnique({ where: { id: input.eventId } }),
+      prisma.ticketType.findUnique({
+        where: { id: input.ticketTypeId },
+      }),
+    ]);
+    if (!event) {
+      throw new BadRequestException("Event is not available for checkout");
+    }
+    if (!ticketType || ticketType.eventId !== input.eventId) {
+      throw new BadRequestException(
+        "Ticket category is not available for checkout",
+      );
+    }
     const existingOrder = await this.findIdempotentPrismaOrder(prisma, input);
     if (existingOrder) {
       const mappedOrder = this.mapPrismaOrder(existingOrder);
@@ -677,9 +692,12 @@ export class OrderbookService {
       if (!input.ticketId) {
         throw new BadRequestException("Sell orders require a ticket ID");
       }
-      const ticket = await prisma.ticket.findUniqueOrThrow({
+      const ticket = await prisma.ticket.findUnique({
         where: { id: input.ticketId },
       });
+      if (!ticket) {
+        throw new BadRequestException("Ticket is not available for resale");
+      }
       if (ticket.ownerId !== input.userId) {
         throw new BadRequestException(
           "Only the ticket owner can place a sell order",
