@@ -162,20 +162,22 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  if (
-    config.get<string>("FANPASS_ENV") === "staging" &&
-    config.get<string>("FANPASS_DATA_SOURCE") === "prisma"
-  ) {
-    const result = await upsertPublicEvents(app.get(PrismaService));
-    console.log(JSON.stringify(result));
-  }
-
   const port = readIntegerConfig(config, "PORT", 4000);
   await app.listen(port);
   const environmentLabel = productionLike ? "production-like" : "local";
   console.log(
     `FanPass API listening on http://localhost:${port} (${environmentLabel})`,
   );
+  if (
+    config.get<string>("FANPASS_ENV") === "staging" &&
+    config.get<string>("FANPASS_DATA_SOURCE") === "prisma"
+  ) {
+    void upsertPublicEvents(app.get(PrismaService))
+      .then((result) => console.log(JSON.stringify(result)))
+      .catch((error: unknown) => {
+        console.error("Public event upsert failed", error);
+      });
+  }
 }
 
 bootstrap().catch((error) => {
