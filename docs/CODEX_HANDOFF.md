@@ -6109,6 +6109,30 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
 - Not done yet in this pass: no authenticated live Stripe PaymentSheet authorization/webhook settlement, no physical iPhone install of these newest UI fixes yet, no authenticated USDC balance read, no scanner redemption evidence, no TestFlight build, no signed Wallet evidence, and no release-grade chain-custody evidence.
 
+## After Stripe/Wallet UI Fix Deploy and Physical iPhone Install on 2026-06-14
+
+- This turn resumed again after automatic context compaction, so `docs/CODEX_HANDOFF.md` was read first, then only non-ignored Markdown was enumerated/read/hashed per the compaction rule: 98 files, audit SHA-256 `cd0d7eadd3326d448123073ec0e1be2cf4d33885a7c1f5919a91d5303f6f53bb`.
+- The Stripe and iOS guidance files were re-read before continuing the in-progress device build/install work.
+- API deployment:
+  - Commit `430ad16c13822723ab4277d346f5dd886c6c5447` (`Harden Stripe presenter and wallet ticket UI`) was pushed to `origin/codex/beta-foundation-hosted-ci`.
+  - Render service `fanpass-api-staging` was manually deployed with that commit. Deploy id `dep-d8n8bnj7uimc739kj8j0` succeeded and became live.
+  - Post-deploy probes returned `/health` HTTP 200, unauthenticated `/wallet/balances` HTTP 401, and unauthenticated `POST /payments/intents` HTTP 401. This proves the staging API routes are mounted and auth-protected, not that a real user payment or wallet balance has completed.
+- Physical iPhone install:
+  - Built `FanPass` with scheme `FanPass`, configuration `Beta`, existing local automatic development signing, and temporary derived data at `outputs/ios-device-build/FanPassBetaStripeWallet`.
+  - Build result: `** BUILD SUCCEEDED **`; warnings were the existing AppIntents metadata warning and interface-orientations/full-screen warning.
+  - Installed the build to the connected physical iPhone with `xcrun devicectl device install app` and launched `com.fanpass.app` successfully.
+  - Installed executable SHA-256: `99b16c9bc65a928bc4ee293dda7df27b1bd4ba6c263ef87f61f33abd3b2f46a6`; bundle version `1.0` (`1`).
+  - The built app contains the staging API URL and public Privy/Stripe test configuration from local ignored xcconfig; do not print full public provider IDs/keys in user-facing reports unless explicitly required.
+- Current Stripe diagnosis after this pass:
+  - Backend route availability is not the current suspected issue: `/payments/intents` is live and protected on staging.
+  - The latest code hardens iOS PaymentSheet presentation timing and updates the Stripe API version used by the backend.
+  - Remaining proof gap is an authenticated end-to-end checkout run on device that opens PaymentSheet, authorizes a test card, lets backend webhook/worker settlement issue the ticket, and records the result without leaking bearer tokens or provider secrets.
+- Current Wallet boundary after this pass:
+  - Wallet address copy is implemented when the backend returns an address.
+  - Private-key export remains intentionally unavailable because the current Privy iOS SDK exposes wallet address/creation/signing APIs but no public private-key export API. FanPass must not fabricate or display a private key.
+- Temporary physical-device derived data should be removed after evidence capture/commit if it is no longer needed. Do not remove source or user-owned worktree changes blindly.
+- Still open: authenticated live Stripe PaymentSheet authorization plus webhook settlement, authenticated Account -> Wallet USDC balance read, scanner redemption evidence, TestFlight build, signed Wallet evidence, live USDC transfer/crypto settlement, and release-grade chain-custody evidence.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
