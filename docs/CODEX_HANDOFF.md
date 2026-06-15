@@ -6282,6 +6282,14 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Verification passed: `arduino-cli compile --fqbn arduino:renesas_uno:unor4wifi hardware/fanpass_turnstile`. The local machine did not expose an Arduino USB serial port in `arduino-cli board list`, so the updated sketch was not uploaded to physical hardware in this pass.
 - Boundary: this remains local Arduino bench behavior only. It is not FanPass Ops iPhone scanner evidence, backend redemption evidence, TestFlight evidence, or release QR/NFC evidence.
 
+## After Arduino LCD Diagnostic and 2s Sensor Arm Delay on 2026-06-15
+
+- Owner reported the LCD still showed no visible content and asked for ultrasonic detection to start 2 seconds after QR scan/open.
+- `hardware/fanpass_turnstile/fanpass_turnstile.ino` now waits 2 seconds after servo open before arming the ultrasonic hold/close logic. During that delay, the LCD/serial status shows `GATE OPEN` with a `Sensor in N` countdown.
+- Added an I2C startup scan and LCD self-test. On boot the sketch prints detected I2C devices, initializes the LCD, and writes `LCD ONLINE` plus the detected address before showing the ready screen.
+- The updated sketch compiled and uploaded successfully to the connected Arduino UNO R4 WiFi at `/dev/cu.usbmodem3CDC75EF93AC2`.
+- Serial monitor output confirmed `I2C device found at 0x27`, `I2C LCD found at 0x27`, and LCD write calls for `LCD ONLINE` and `FanPass Gate`. If the physical LCD still appears blank, the likely remaining causes are display-side issues such as contrast potentiometer position, backlight/power, LCD module fault, or module/library electrical compatibility rather than the Arduino failing to find the I2C backpack.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

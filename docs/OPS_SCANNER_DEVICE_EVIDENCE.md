@@ -40,7 +40,8 @@ Observed local behavior:
 - LCD state text covers ready, verifying pass, valid pass, gate open, 5cm object-held, no-object countdown, closing, invalid pass, and no-QR-data states.
 - Servo movement and ultrasonic pass-through detection both work in the local bench setup.
 - Current bench policy opens the servo gate for any QR payload received over TTL or Wiegand.
-- The ultrasonic hold range is now 5cm. After a QR scan opens the servo gate, the gate remains open while an object is detected within 5cm; when no object is detected continuously for 4 seconds, the LCD shows the closing countdown and the servo closes.
+- The ultrasonic hold range is now 5cm. After a QR scan opens the servo gate, the sketch waits 2 seconds before arming ultrasonic detection. The gate remains open while an object is detected within 5cm; when no object is detected continuously for 4 seconds after the sensor is armed, the LCD shows the closing countdown and the servo closes.
+- Startup LCD diagnostics scan the I2C bus, print detected addresses to Serial, and show an `LCD ONLINE` self-test before the ready screen. A local serial capture confirmed the LCD backpack was detected at `0x27` and LCD write calls were issued.
 
 Known gaps:
 

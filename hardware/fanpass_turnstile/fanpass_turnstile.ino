@@ -27,6 +27,7 @@ const unsigned long HEARTBEAT_INTERVAL_MS = 15000;
 const unsigned long DISTANCE_LOG_INTERVAL_MS = 500;
 const unsigned long DECODE_FALLBACK_DELAY_MS = 450;
 const unsigned long SCAN_COOLDOWN_MS = 1200;
+const unsigned long SENSOR_ARM_DELAY_MS = 2000;
 const int PASS_DISTANCE_CM = 5;
 
 // Gate policy for the bench prototype:
@@ -72,6 +73,7 @@ void setup() {
   Serial1.begin(9600);
 
   Wire.begin();
+  scanI2cBus();
   setupLcd();
 
   lastDecodePinState = digitalRead(EP8280_DECODE_PIN);
@@ -269,6 +271,7 @@ void handleScan(String payload) {
   showLine("PASS VALID", "Gate opening");
   delay(300);
   openGate();
+  waitBeforeSensorArmed();
   showLine("GATE OPEN", "Watching 5cm");
 
   bool objectDetected = holdGateUntilClear();
@@ -303,6 +306,23 @@ bool isAuthorized(String payload) {
 bool isDecodeFallbackPayload(String payload) {
   payload.trim();
   return payload == "EP8280:DECODE_PIN";
+}
+
+void waitBeforeSensorArmed() {
+  unsigned long start = millis();
+  int lastShownSecond = -1;
+
+  while (millis() - start < SENSOR_ARM_DELAY_MS) {
+    unsigned long remainingMs = SENSOR_ARM_DELAY_MS - (millis() - start);
+    int remainingSeconds = (int)((remainingMs + 999) / 1000);
+
+    if (remainingSeconds != lastShownSecond) {
+      lastShownSecond = remainingSeconds;
+      showLine("GATE OPEN", "Sensor in " + String(remainingSeconds));
+    }
+
+    delay(80);
+  }
 }
 
 bool holdGateUntilClear() {
@@ -377,6 +397,7 @@ void setupLcd() {
   byte addr = findI2cLcdAddress();
   if (addr == 0) {
     Serial.println("No I2C LCD found. Continuing with Serial output only.");
+    Serial.println("Check LCD VCC/GND, SDA/SCL pins, backpack address, and contrast potentiometer.");
     return;
   }
 
@@ -386,6 +407,8 @@ void setupLcd() {
 
   Serial.print("I2C LCD found at 0x");
   Serial.println(addr, HEX);
+  showLine("LCD ONLINE", "Addr 0x" + String(addr, HEX));
+  delay(1200);
 }
 
 void printHeartbeat() {
@@ -426,6 +449,27 @@ byte findI2cLcdAddress() {
   }
 
   return 0;
+}
+
+void scanI2cBus() {
+  int found = 0;
+
+  Serial.println("Scanning I2C bus...");
+  for (byte addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      found++;
+      Serial.print("I2C device found at 0x");
+      if (addr < 0x10) {
+        Serial.print("0");
+      }
+      Serial.println(addr, HEX);
+    }
+  }
+
+  if (found == 0) {
+    Serial.println("No I2C devices found.");
+  }
 }
 
 void showReady() {
