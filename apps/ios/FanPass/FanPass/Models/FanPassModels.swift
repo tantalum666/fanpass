@@ -106,7 +106,6 @@ struct FanPassChainProofResponse: Codable, Hashable {
     let event: Event
     let proof: Proof
     let transaction: Transaction?
-    let contractActivity: Transaction?
     let checkedAt: String
     let message: String
 

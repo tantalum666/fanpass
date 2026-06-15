@@ -74,13 +74,6 @@ export interface TicketChainProofResponse {
     blockTimestamp: string | null;
     explorerUrl: string;
   } | null;
-  contractActivity: {
-    hash: string;
-    status: "success" | "failed" | "pending" | "not_found";
-    blockNumber: number | null;
-    blockTimestamp: string | null;
-    explorerUrl: string;
-  } | null;
   checkedAt: string;
   message: string;
 }
@@ -571,14 +564,9 @@ export class TicketsService {
           message: "The configured FanPass ticket contract has no bytecode on the selected chain.",
         };
       }
-      const contractActivity = await this.latestContractActivity(
-        rpcUrl,
-        contractAddress,
-      );
       if (!tokenId || !/^\d+$/.test(tokenId)) {
         return {
           ...base,
-          contractActivity,
           status: "no_chain_record",
           message:
             "FanPass API queried Sepolia, but this ticket does not have a numeric token id to check on-chain.",
@@ -639,13 +627,14 @@ export class TicketsService {
         proof.policyHashMatches,
         proof.metadataHashMatches,
       ].every((value) => value === true);
+      const transactionMatches =
+        transaction !== null &&
+        (transaction.status === "success" || transaction.status === "pending");
       const linked =
         walletMatches === true &&
         eventMatches &&
         proofMatches &&
-        (transaction === null ||
-          transaction.status === "success" ||
-          transaction.status === "pending");
+        transactionMatches;
 
       return {
         ...base,
@@ -662,10 +651,11 @@ export class TicketsService {
         },
         proof,
         transaction,
-        contractActivity,
         message: linked
           ? "Sepolia owner, event, ticket proof, wallet, and transaction metadata match this FanPass ticket."
-          : "FanPass API queried Sepolia, but one or more ticket, wallet, event, proof, or transaction checks did not match.",
+          : transaction === null
+            ? "FanPass API did not find a Sepolia transaction hash for this ticket, and the chain token currently referenced by the ticket record did not fully match."
+            : "FanPass API queried Sepolia, but one or more ticket, wallet, event, proof, or transaction checks did not match.",
       };
     } catch (error) {
       if (
@@ -727,7 +717,6 @@ export class TicketsService {
         transferCount: null,
       },
       transaction: null,
-      contractActivity: null,
       checkedAt,
       message: "No Sepolia record has been resolved for this ticket yet.",
     };
@@ -775,37 +764,6 @@ export class TicketsService {
       blockTimestamp,
       explorerUrl: `https://sepolia.etherscan.io/tx/${transactionHash}`,
     };
-  }
-
-  private async latestContractActivity(
-    rpcUrl: string,
-    contractAddress: string,
-  ): Promise<TicketChainProofResponse["contractActivity"]> {
-    try {
-      const latestBlockHex = await this.rpcCall<string>(
-        rpcUrl,
-        "eth_blockNumber",
-        [],
-      );
-      const latestBlock = Number.parseInt(latestBlockHex, 16);
-      const fromBlock = Math.max(latestBlock - 50_000, 0);
-      const logs = await this.rpcCall<
-        Array<{ transactionHash?: string; blockNumber?: string }>
-      >(rpcUrl, "eth_getLogs", [
-        {
-          address: contractAddress,
-          fromBlock: `0x${fromBlock.toString(16)}`,
-          toBlock: "latest",
-        },
-      ]);
-      const latestLog = logs.at(-1);
-      if (!latestLog?.transactionHash) {
-        return null;
-      }
-      return this.transactionProof(rpcUrl, latestLog.transactionHash);
-    } catch {
-      return null;
-    }
   }
 
   private async ethCall(rpcUrl: string, to: string, data: string) {

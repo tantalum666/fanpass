@@ -307,20 +307,6 @@ struct FanPassV4TicketDetailView: View {
                                 destination: externalURL
                             )
                         }
-                        if let contractURL = chainContractURL(chainProofResponse) {
-                            sepoliaExplorerLink(
-                                title: "Open Sepolia contract",
-                                subtitle: shortIdentifier(chainProofResponse.contractAddress, head: 10, tail: 6, fallback: "Contract"),
-                                destination: contractURL
-                            )
-                        }
-                        if let activityURL = chainContractActivityURL(chainProofResponse) {
-                            sepoliaExplorerLink(
-                                title: "Open latest contract tx",
-                                subtitle: shortExplorerLabel(for: activityURL),
-                                destination: activityURL
-                            )
-                        }
                     }
                 } else {
                     chainProofPlaceholder
@@ -408,24 +394,6 @@ struct FanPassV4TicketDetailView: View {
                     value: "No tx attached",
                     subtitle: "FanPass API did not find a Sepolia transaction hash for this ticket.",
                     kind: .warning
-                )
-            }
-            if let contractAddress = response.contractAddress {
-                sepoliaRecordRow(
-                    icon: "link.circle.fill",
-                    title: "Contract",
-                    value: shortIdentifier(contractAddress, head: 10, tail: 6, fallback: "Contract"),
-                    subtitle: "Chain \(response.chainId ?? "unknown") queried through FanPass API.",
-                    kind: .info
-                )
-            }
-            if let activity = response.contractActivity {
-                sepoliaRecordRow(
-                    icon: "clock.arrow.circlepath",
-                    title: "Latest contract activity",
-                    value: shortIdentifier(activity.hash, head: 10, tail: 8, fallback: "No tx"),
-                    subtitle: "\(activity.status.capitalized), block \(activity.blockNumber.map(String.init) ?? "pending"), \(activity.blockTimestamp ?? "timestamp pending").",
-                    kind: activity.status == "success" ? .success : .warning
                 )
             }
         }
@@ -525,28 +493,6 @@ struct FanPassV4TicketDetailView: View {
 
     private func chainTransactionURL(_ response: FanPassChainProofResponse) -> URL? {
         guard let explorerUrl = response.transaction?.explorerUrl,
-              let url = URL(string: explorerUrl),
-              url.host?.contains("etherscan.io") == true,
-              url.path.contains("/tx/")
-        else {
-            return nil
-        }
-        return url
-    }
-
-    private func chainContractURL(_ response: FanPassChainProofResponse) -> URL? {
-        guard let explorerUrl = response.contractExplorerUrl,
-              let url = URL(string: explorerUrl),
-              url.host?.contains("etherscan.io") == true,
-              url.path.contains("/address/")
-        else {
-            return nil
-        }
-        return url
-    }
-
-    private func chainContractActivityURL(_ response: FanPassChainProofResponse) -> URL? {
-        guard let explorerUrl = response.contractActivity?.explorerUrl,
               let url = URL(string: explorerUrl),
               url.host?.contains("etherscan.io") == true,
               url.path.contains("/tx/")

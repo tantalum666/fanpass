@@ -453,6 +453,9 @@ Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock tur
     - iOS ticket detail now consumes this endpoint directly; mock services do not fabricate chain proof, and Etherscan links are derived only from API response URLs.
     - Simulator-only FanPass Beta build/install completed on `FanPass-iPhone-17`; physical iPhone was intentionally not updated for this pass.
     - This remains dev-chain evidence only and does not close release-grade chain custody.
+  - [ ] Reconcile staging DB ticket/chain associations for ticket-detail Sepolia proof.
+    - Current observed mismatch: screenshot ticket `tkt_9bc51141-f81d-4018-bec0-9c244c0fb9b8` / token `4` / `evt_weekend_demo` does not match corrected tx `0xf0cf2618087e4796d8302874f29eeee081bec0682da7ba0fa1b4848755745b08`, which minted token `9` for wallet `0x06550dF72404d67cbAd007b59A677aD930D24721` and chain event id `305149746902572516` (`evt_aurora`).
+    - Fix requires Neon/staging DB access or an authenticated repair path; UI/API now intentionally show only ticket-specific chain records and do not display contract-level activity.
 
 ## Engineering Quality Gates
 
