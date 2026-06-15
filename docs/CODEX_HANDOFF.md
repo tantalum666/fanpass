@@ -6290,6 +6290,14 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - The updated sketch compiled and uploaded successfully to the connected Arduino UNO R4 WiFi at `/dev/cu.usbmodem3CDC75EF93AC2`.
 - Serial monitor output confirmed `I2C device found at 0x27`, `I2C LCD found at 0x27`, and LCD write calls for `LCD ONLINE` and `FanPass Gate`. If the physical LCD still appears blank, the likely remaining causes are display-side issues such as contrast potentiometer position, backlight/power, LCD module fault, or module/library electrical compatibility rather than the Arduino failing to find the I2C backpack.
 
+## After Arduino NFC Decode Fallback on 2026-06-15
+
+- Owner connected EP8280 Pin3 / Wiegand DATA1 to Arduino D4 but still did not see NFC open the gate.
+- Serial diagnosis showed EP8280 Pin7 decode-success changed during the NFC/card test, but there was still no TTL payload and no Wiegand DATA0/DATA1 packet observed by Arduino. This means the reader is detecting a card/code event, but the current wiring/configuration is not delivering a readable NFC UID or payload to the sketch.
+- `hardware/fanpass_turnstile/fanpass_turnstile.ino` now includes raw Wiegand pulse counters and reports `WIEGAND PROBE d0=... d1=...` plus an LCD `WG PULSE` state if either data line toggles.
+- For bench demo behavior only, `ALLOW_DECODE_FALLBACK_OPEN` is now enabled. If the EP8280 only toggles Pin7 with no data, the LCD shows `NFC/CARD SEEN` and the servo gate opens, then follows the existing 2-second sensor-arm, 5cm hold, and 4-second no-object close logic.
+- Boundary: Pin7 fallback proves only that the scan engine detected something. It does not prove NFC UID reading, NDEF payload reading, FanPass ticket validation, replay rejection, or backend authority.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

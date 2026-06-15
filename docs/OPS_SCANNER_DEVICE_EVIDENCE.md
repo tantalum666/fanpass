@@ -42,6 +42,8 @@ Observed local behavior:
 - Current bench policy opens the servo gate for any QR payload received over TTL or Wiegand.
 - The ultrasonic hold range is now 5cm. After a QR scan opens the servo gate, the sketch waits 2 seconds before arming ultrasonic detection. The gate remains open while an object is detected within 5cm; when no object is detected continuously for 4 seconds after the sensor is armed, the LCD shows the closing countdown and the servo closes.
 - Startup LCD diagnostics scan the I2C bus, print detected addresses to Serial, and show an `LCD ONLINE` self-test before the ready screen. A local serial capture confirmed the LCD backpack was detected at `0x27` and LCD write calls were issued.
+- Wiegand diagnostics now count raw DATA0/DATA1 pulses and report `WIEGAND PROBE` over Serial plus `WG PULSE` on the LCD when either line toggles.
+- EP8280 Pin7 decode-success fallback is enabled for the bench demo. If the reader detects a card/code but provides no TTL or Wiegand payload, the LCD shows `NFC/CARD SEEN` and opens the servo. This is a local hardware fallback only; it does not prove a readable NFC UID, NDEF payload, or FanPass ticket credential.
 
 Known gaps:
 

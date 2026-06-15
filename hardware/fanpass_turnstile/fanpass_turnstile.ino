@@ -28,15 +28,16 @@ const unsigned long DISTANCE_LOG_INTERVAL_MS = 500;
 const unsigned long DECODE_FALLBACK_DELAY_MS = 450;
 const unsigned long SCAN_COOLDOWN_MS = 1200;
 const unsigned long SENSOR_ARM_DELAY_MS = 2000;
+const unsigned long WIEGAND_PROBE_INTERVAL_MS = 300;
 const int PASS_DISTANCE_CM = 5;
 
 // Gate policy for the bench prototype:
 // Any QR payload received over TTL or Wiegand opens the gate. The EP8280 decode
-// pin fallback proves the scanner saw a code, but it does not contain QR text,
-// so it remains denied by default.
+// pin fallback proves the scanner saw a code/card but does not contain payload
+// text. It opens the gate in this bench demo only.
 const char REQUIRED_QR_MARKER[] = "FANPASS";
 const bool ALLOW_ANY_QR_FOR_TESTING = true;
-const bool ALLOW_DECODE_FALLBACK_OPEN = false;
+const bool ALLOW_DECODE_FALLBACK_OPEN = true;
 
 Servo gateServo;
 LiquidCrystal_I2C *lcd = nullptr;
@@ -53,7 +54,12 @@ unsigned long lastScanCompletedAt = 0;
 volatile uint64_t wiegandValue = 0;
 volatile byte wiegandBits = 0;
 volatile unsigned long lastWiegandPulseAt = 0;
+volatile unsigned long wiegandD0PulseCount = 0;
+volatile unsigned long wiegandD1PulseCount = 0;
 unsigned long lastWiegandHandledAt = 0;
+unsigned long lastWiegandD0Reported = 0;
+unsigned long lastWiegandD1Reported = 0;
+unsigned long lastWiegandProbeAt = 0;
 
 void setup() {
   pinMode(EP8280_DECODE_PIN, INPUT_PULLUP);
@@ -84,12 +90,14 @@ void setup() {
 void loop() {
   readScanner();
   readWiegand();
+  reportWiegandProbe();
   readDecodeSignal();
   handleDecodeFallback();
   printHeartbeat();
 }
 
 void onWiegandD0() {
+  wiegandD0PulseCount++;
   if (wiegandBits < 64) {
     wiegandValue <<= 1;
     wiegandBits++;
@@ -98,12 +106,51 @@ void onWiegandD0() {
 }
 
 void onWiegandD1() {
+  wiegandD1PulseCount++;
   if (wiegandBits < 64) {
     wiegandValue <<= 1;
     wiegandValue |= 1;
     wiegandBits++;
     lastWiegandPulseAt = millis();
   }
+}
+
+void reportWiegandProbe() {
+  if (millis() - lastWiegandProbeAt < WIEGAND_PROBE_INTERVAL_MS) {
+    return;
+  }
+
+  lastWiegandProbeAt = millis();
+
+  unsigned long d0Count;
+  unsigned long d1Count;
+  byte bits;
+  unsigned long pulseAt;
+
+  noInterrupts();
+  d0Count = wiegandD0PulseCount;
+  d1Count = wiegandD1PulseCount;
+  bits = wiegandBits;
+  pulseAt = lastWiegandPulseAt;
+  interrupts();
+
+  if (d0Count == lastWiegandD0Reported && d1Count == lastWiegandD1Reported) {
+    return;
+  }
+
+  lastWiegandD0Reported = d0Count;
+  lastWiegandD1Reported = d1Count;
+
+  Serial.print("WIEGAND PROBE d0=");
+  Serial.print(d0Count);
+  Serial.print(" d1=");
+  Serial.print(d1Count);
+  Serial.print(" bits=");
+  Serial.print(bits);
+  Serial.print(" idle_ms=");
+  Serial.println(millis() - pulseAt);
+
+  showLine("WG PULSE", "D0 " + String(d0Count) + " D1 " + String(d1Count));
 }
 
 void readWiegand() {
@@ -248,7 +295,7 @@ void handleScan(String payload) {
   Serial.println(payload);
 
   if (isDecodeFallbackPayload(payload)) {
-    showLine("SCAN DETECTED", "Waiting data");
+    showLine("NFC/CARD SEEN", "Gate check");
   } else {
     showLine("VERIFYING PASS", shortText(payload));
   }
@@ -256,7 +303,7 @@ void handleScan(String payload) {
 
   if (!isAuthorized(payload)) {
     if (isDecodeFallbackPayload(payload)) {
-      showLine("NO QR DATA", "Scan again");
+      showLine("NO SCAN DATA", "Scan again");
     } else {
       showLine("ACCESS DENIED", "Invalid pass");
     }
