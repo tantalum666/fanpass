@@ -18,6 +18,42 @@ The draft intentionally uses `ok: false` and placeholders. It cannot close this 
 
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, QR signing secrets, private keys, Stripe secrets, Stripe publishable keys, Privy secrets, provider secrets, deployment/cloud credentials, database URLs, raw signed payloads, raw nonces, real ticket holder data, or device identifiers.
 
+## 2026-06-15 Arduino / EP8280 Bench Prototype
+
+Status: local hardware prototype working for QR content; not release evidence.
+
+A separate bench mock turnstile now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. The current hardware stack is:
+
+- Arduino UNO R4 WiFi.
+- EP8280 NFC/QR scan engine connected through the 8-pin connector.
+- EP8280 Pin1 `POW_IN` and Pin2 `GND` on the breadboard power rails.
+- EP8280 Pin4 serial transmit path to Arduino `D0/RX1` for TTL QR content.
+- EP8280 Pin7 decode-success output to Arduino `D2` for diagnostics/fallback detection.
+- I2C LCD for gate status.
+- HC-SR04 ultrasonic sensor for pass-through detection.
+- One micro servo on Arduino `D9` for the gate arm.
+
+Observed local behavior:
+
+- EP8280 QR scan can emit real QR text over TTL; Arduino logs `EP8280 BYTE ...` and `SCAN: <payload>`.
+- Pin7 decode-success also toggles on successful decode, but the Arduino code now waits for TTL QR text first and treats Pin7-only scans as `NO QR DATA` unless the explicit testing flag is changed.
+- LCD state text covers ready, verifying pass, valid pass, gate open, 5cm object-held, no-object countdown, closing, invalid pass, and no-QR-data states.
+- Servo movement and ultrasonic pass-through detection both work in the local bench setup.
+- Current bench policy opens the servo gate for any QR payload received over TTL or Wiegand.
+- The ultrasonic hold range is now 5cm. After a QR scan opens the servo gate, the gate remains open while an object is detected within 5cm; when no object is detected continuously for 4 seconds, the LCD shows the closing countdown and the servo closes.
+
+Known gaps:
+
+- EP8280 NFC card/tag behavior has not been made to work yet; the current working path is QR over TTL.
+- The bench setup is powered from Arduino/breadboard rails and may brown out under scanner/servo load until a separate regulated 5V supply is added.
+- No enclosure, two-servo lane, production turnstile controller, backend API redemption, HTTPS staging configuration, real signed FanPass credential, or replay rejection is connected to this Arduino prototype.
+
+Evidence boundary:
+
+- This bench prototype is useful for local hardware learning and future fixture ideas only.
+- It does not satisfy `ops-scanner` physical-device evidence because the release gate still requires FanPass Ops on a real iPhone, HTTPS API configuration, camera QR scan, physical NFC NDEF tag read, duplicate replay rejection, backend gate assignment enforcement, scanner identity from verified auth, and validator-passing redacted evidence.
+- Do not use Arduino serial logs, LCD/servo behavior, or EP8280 Pin7 decode-success as substitutes for FanPass API signature verification, nonce replay rejection, TestFlight evidence, Apple Wallet evidence, or chain custody evidence.
+
 Required JSON shape:
 
 ```json
