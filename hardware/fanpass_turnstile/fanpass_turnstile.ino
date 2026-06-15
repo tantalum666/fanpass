@@ -4,8 +4,10 @@
 
 // FanPass mock turnstile wiring:
 // EP8280 TX/DATA OUT -> Arduino D0/RX1
-// EP8280 RX/DATA IN  -> not connected for this first test
+// EP8280 RX/DATA IN  -> Arduino D1/TX1 when sending CMD_ settings
 // EP8280 decode LED   -> D2 optional fallback
+// EP8280 WG_DATA0     -> D3 when testing Wiegand mode
+// EP8280 WG_DATA1     -> D4 when testing Wiegand mode
 // Servo signal       -> D9
 // Ultrasonic TRIG    -> D6
 // Ultrasonic ECHO    -> D7
@@ -33,8 +35,8 @@ const int PASS_DISTANCE_CM = 5;
 
 // Gate policy for the bench prototype:
 // Any QR payload received over TTL or Wiegand opens the gate. The EP8280 decode
-// pin fallback proves the scanner saw a code/card but does not contain payload
-// text. It opens the gate in this bench demo only.
+// pin fallback proves the scanner reported decode success but does not contain
+// payload text. It opens the gate in this bench demo only.
 const char REQUIRED_QR_MARKER[] = "FANPASS";
 const bool ALLOW_ANY_QR_FOR_TESTING = true;
 const bool ALLOW_DECODE_FALLBACK_OPEN = true;
@@ -43,6 +45,7 @@ Servo gateServo;
 LiquidCrystal_I2C *lcd = nullptr;
 
 String scanBuffer = "";
+String hostCommandBuffer = "";
 unsigned long lastScannerByteAt = 0;
 unsigned long lastHeartbeatAt = 0;
 int lastDecodePinState = HIGH;
@@ -88,12 +91,50 @@ void setup() {
 }
 
 void loop() {
+  readHostCommands();
   readScanner();
   readWiegand();
   reportWiegandProbe();
   readDecodeSignal();
   handleDecodeFallback();
   printHeartbeat();
+}
+
+void readHostCommands() {
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+
+    if (c == '\r' || c == '\n') {
+      sendHostCommand();
+      continue;
+    }
+
+    if (hostCommandBuffer.length() < 120) {
+      hostCommandBuffer += c;
+    } else {
+      hostCommandBuffer = "";
+      Serial.println("HOST CMD too long; cleared.");
+    }
+  }
+}
+
+void sendHostCommand() {
+  hostCommandBuffer.trim();
+  if (hostCommandBuffer.length() == 0) {
+    return;
+  }
+
+  if (!hostCommandBuffer.startsWith("CMD_")) {
+    Serial.print("HOST ignored non-CMD input: ");
+    Serial.println(hostCommandBuffer);
+    hostCommandBuffer = "";
+    return;
+  }
+
+  Serial.print("HOST -> EP8280: ");
+  Serial.println(hostCommandBuffer);
+  Serial1.print(hostCommandBuffer);
+  hostCommandBuffer = "";
 }
 
 void onWiegandD0() {
@@ -213,7 +254,7 @@ void readScanner() {
     if (c == '\r' || c == '\n') {
       if (scanBuffer.length() > 0) {
         decodeFallbackPending = false;
-        handleScan(scanBuffer);
+        handleScannerLine(scanBuffer);
         scanBuffer = "";
       }
       continue;
@@ -233,9 +274,30 @@ void readScanner() {
   // after incoming bytes as the end of one scan.
   if (scanBuffer.length() > 0 && millis() - lastScannerByteAt > 180) {
     decodeFallbackPending = false;
-    handleScan(scanBuffer);
+    handleScannerLine(scanBuffer);
     scanBuffer = "";
   }
+}
+
+void handleScannerLine(String payload) {
+  payload.trim();
+  if (payload.length() == 0) {
+    return;
+  }
+
+  if (isDeviceCommandResponse(payload)) {
+    Serial.print("EP8280 CMD RESPONSE: ");
+    Serial.println(payload);
+    showLine("CMD RESPONSE", shortText(payload));
+    return;
+  }
+
+  handleScan(payload);
+}
+
+bool isDeviceCommandResponse(String payload) {
+  payload.trim();
+  return payload.startsWith("CMD_") || payload == "OK" || payload == "ERROR";
 }
 
 void readDecodeSignal() {
@@ -295,7 +357,7 @@ void handleScan(String payload) {
   Serial.println(payload);
 
   if (isDecodeFallbackPayload(payload)) {
-    showLine("NFC/CARD SEEN", "Gate check");
+    showLine("SCAN SEEN", "No data");
   } else {
     showLine("VERIFYING PASS", shortText(payload));
   }
