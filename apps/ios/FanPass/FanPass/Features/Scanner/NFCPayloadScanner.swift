@@ -65,22 +65,22 @@ extension NFCPayloadScanner: NFCNDEFReaderSessionDelegate {
             return
         }
 
-        finish(error: "NFC scan ended before a valid FanPass payload was read.")
+        finish(error: "NFC scan ended before a valid FanPass entry code was read.")
     }
 
     func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
         for message in messages {
             for record in message.records {
                 if let payload = payloadString(from: record) {
-                    session.alertMessage = "FanPass payload captured."
+                    session.alertMessage = "FanPass entry code captured."
                     finish(payload: payload)
                     return
                 }
             }
         }
 
-        session.invalidate(errorMessage: "This tag does not contain a FanPass entry payload.")
-        finish(error: "This NFC tag did not contain a readable FanPass payload.")
+        session.invalidate(errorMessage: "This tag does not contain a FanPass entry code.")
+        finish(error: "This NFC tag did not contain a readable FanPass entry code.")
     }
 
     private func payloadString(from record: NFCNDEFPayload) -> String? {

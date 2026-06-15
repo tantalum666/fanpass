@@ -75,7 +75,7 @@ struct FanAccessView: View {
             } else if tasks.isEmpty {
                 AuthRequiredPanel(
                     title: "Tasks are unavailable",
-                    message: "The local API is not returning fan access tasks.",
+                    message: "Fan Access tasks are temporarily unavailable.",
                     actionTitle: "Retry",
                     action: { Task { await load() } }
                 )
@@ -100,7 +100,7 @@ struct FanAccessView: View {
         if appState.session == nil {
             return "Sign in to earn priority access."
         }
-        return score?.entitlementStatus == "ELIGIBLE" ? "Eligible for priority draw" : "Build score for priority access"
+        return score?.entitlementStatus == "ELIGIBLE" ? "Eligible for priority draw" : "Earn points for priority access"
     }
 
     private func submit(_ task: FanTask) {

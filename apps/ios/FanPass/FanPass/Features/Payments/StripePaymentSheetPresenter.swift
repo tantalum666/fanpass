@@ -10,7 +10,7 @@ enum FanPassStripeCheckoutResult: Equatable {
     var message: String {
         switch self {
         case .completed:
-            "Payment authorization completed. Waiting for backend webhook settlement."
+            "Payment authorization completed. Waiting for payment settlement."
         case .canceled:
             "Payment authorization was canceled."
         case let .failed(message):
@@ -143,7 +143,7 @@ struct FanPassStripePaymentSheetPresenter: UIViewControllerRepresentable {
         ) {
             guard retriesRemaining > 0 else {
                 clearRequest()
-                onResult(.failed("Stripe checkout could not open. Try again after the current screen finishes loading."))
+                onResult(.failed("Card checkout could not open. Try again after the current screen finishes loading."))
                 return
             }
 

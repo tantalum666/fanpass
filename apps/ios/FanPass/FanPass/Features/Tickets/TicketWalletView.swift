@@ -228,15 +228,6 @@ struct TicketQRSheet: View {
                             LabeledContent("Ticket", value: payload.ticketId)
                             LabeledContent("Expires", value: payload.expiresAt)
                             LabeledContent("Refresh", value: isRefreshing ? "Refreshing" : "Auto before expiry")
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text("Signature")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(String(payload.signature.prefix(32)) + "...")
-                                    .font(.caption.monospaced())
-                                    .foregroundStyle(FanPassTheme.slate)
-                                    .textSelection(.enabled)
-                            }
                             if let refreshError {
                                 Text(refreshError)
                                     .font(.caption)
@@ -254,7 +245,7 @@ struct TicketQRSheet: View {
                                 Text("Apple Wallet barcode")
                                     .font(.headline)
                                 Spacer()
-                                StatusPill(text: "Prototype", color: FanPassTheme.amber)
+                                StatusPill(text: "Ready", color: FanPassTheme.mint)
                             }
 
                             LabeledContent("Format", value: payload.walletBarcode.format)
@@ -276,7 +267,7 @@ struct TicketQRSheet: View {
                     Button {
                         copyPayload()
                     } label: {
-                        Label(copied ? "Copied" : "Copy entry payload", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        Label(copied ? "Copied" : "Copy entry code", systemImage: copied ? "checkmark" : "doc.on.doc")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)

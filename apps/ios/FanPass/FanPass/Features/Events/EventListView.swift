@@ -17,7 +17,7 @@ struct EventListView: View {
                     } else if loadingState == .failed {
                         AuthRequiredPanel(
                             title: "Events are unavailable",
-                            message: "The local API is not responding.",
+                            message: "Events could not load. Please try again.",
                             actionTitle: "Retry",
                             action: { Task { await load() } }
                         )

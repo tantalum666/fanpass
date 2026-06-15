@@ -80,7 +80,7 @@ final class FanPassBackendContext {
             do {
                 try await syncPrivySession(privySession, message: "Signed in with email code.")
             } catch {
-                authMessage = "Sign-in verified, but account sync failed: \(error.localizedDescription)"
+                authMessage = "Signed in, but account setup could not finish: \(error.localizedDescription)"
             }
         } catch {
             authMessage = "Sign-in failed: \(error.localizedDescription)"
@@ -93,7 +93,7 @@ final class FanPassBackendContext {
             do {
                 try await syncPrivySession(privySession, message: "Signed in with \(provider.title).")
             } catch {
-                authMessage = "Sign-in verified, but account sync failed: \(error.localizedDescription)"
+                authMessage = "Signed in, but account setup could not finish: \(error.localizedDescription)"
             }
         } catch {
             authMessage = "\(provider.title) sign-in failed: \(error.localizedDescription)"
@@ -245,8 +245,8 @@ enum BackendConnectionState: String {
 
     var title: String {
         switch self {
-        case .online: "API online"
-        case .degraded: "Local fallback"
+        case .online: "Connected"
+        case .degraded: "Limited connection"
         case .offline: "Offline"
         }
     }

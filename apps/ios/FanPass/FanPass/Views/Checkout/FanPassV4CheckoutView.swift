@@ -213,27 +213,27 @@ struct FanPassV4CheckoutView: View {
 
     private var stripeReadinessMessage: String {
         if FanPassEnvironment.stripePublishableKey == nil {
-            return "Stripe checkout is unavailable in this build."
+            return "Card checkout is temporarily unavailable."
         }
         if !backend.isAuthenticated {
-            return "Sign in before Stripe checkout."
+            return "Sign in before card checkout."
         }
         if !canBuyTickets {
-            return "This signed-in account is \(backend.user.role.title). Buy tickets with a fan account; staff access belongs in FanPass Ops."
+            return "This signed-in account is \(backend.user.role.title). Buy tickets with a fan account."
         }
         if !hasAPIBearerSession {
-            return "Your sign-in session needs to be refreshed before Stripe checkout."
+            return "Your sign-in session needs to be refreshed before card checkout."
         }
         if !hasLiveAPISessionForStripe {
-            return "Use Sign in / Sign up before Stripe checkout."
+            return "Sign in again before card checkout."
         }
         if !hasBackendCheckoutCatalogItem {
-            return "Stripe checkout requires an API-listed event and seat tier."
+            return "Card checkout is not available for this ticket yet."
         }
         if viewModel.ticketType.supply == 0 {
             return "Online checkout for this ticket category is unavailable."
         }
-        return "Stripe checkout opens a secure payment authorization. Ticket assignment waits for settlement."
+        return "Card checkout opens secure payment authorization. Your ticket is assigned after payment settles."
     }
 
     private var isStripeReady: Bool {
@@ -253,7 +253,7 @@ struct FanPassV4CheckoutView: View {
         }
         guard canBuyTickets else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "This account is \(backend.user.role.title). Crypto checkout requires a fan account; staff access belongs in FanPass Ops."
+            viewModel.errorMessage = "This account is \(backend.user.role.title). Crypto checkout requires a fan account."
             return
         }
         showingCryptoSheet = true
@@ -269,27 +269,27 @@ struct FanPassV4CheckoutView: View {
         }
         guard canBuyTickets else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "This account is \(backend.user.role.title). Stripe checkout requires a fan account; staff accounts should use FanPass Ops."
+            viewModel.errorMessage = "This account is \(backend.user.role.title). Card checkout requires a fan account."
             return
         }
         guard hasAPIBearerSession else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "Your sign-in session needs to be refreshed before Stripe checkout."
+            viewModel.errorMessage = "Your sign-in session needs to be refreshed before card checkout."
             return
         }
         guard FanPassEnvironment.stripePublishableKey != nil else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "Stripe checkout is unavailable in this build."
+            viewModel.errorMessage = "Card checkout is temporarily unavailable."
             return
         }
         guard hasLiveAPISessionForStripe else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "Use Sign in / Sign up before Stripe checkout."
+            viewModel.errorMessage = "Sign in again before card checkout."
             return
         }
         guard hasBackendCheckoutCatalogItem else {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = "This event is a local review listing. Choose an API-listed event before Stripe checkout."
+            viewModel.errorMessage = "Card checkout is not available for this event yet."
             return
         }
         guard viewModel.ticketType.supply > 0 else {
@@ -355,11 +355,11 @@ struct FanPassV4CheckoutView: View {
             checkoutOutcome = .success(
                 ticket: ticket,
                 title: "Payment successful",
-                message: "Your ticket has been added to Tickets. Entry credentials become available when backend settlement returns the final ticket record."
+                message: "Your ticket has been added to Tickets. Entry QR becomes available after payment settles."
             )
         case .canceled:
             checkoutOutcome = .cancelled(
-                message: "Stripe checkout was cancelled. No ticket was assigned."
+                message: "Card checkout was cancelled. No ticket was assigned."
             )
         case let .failed(message):
             checkoutOutcome = .failed(
@@ -534,19 +534,19 @@ private struct CryptoPaymentSheet: View {
                 ])
 
                 FPPolicyNotice(
-                    title: "Crypto checkout boundary",
+                    title: "Payment quote",
                     message: "A locked quote includes the asset, rate, receiving address, amount, and expiry before wallet approval.",
                     kind: .info
                 )
 
                 if quotePrepared {
                     FPConfirmationCard(
-                        title: "Quote preview ready",
+                        title: "Quote ready",
                         message: "Wallet approval starts after the payment address and \(selectedAsset.title) amount are locked."
                     )
                 }
 
-                FPPrimaryButton(title: quotePrepared ? "Quote preview ready" : "Preview \(selectedAsset.title) quote", systemImage: "lock.shield.fill") {
+                FPPrimaryButton(title: quotePrepared ? "Quote ready" : "Get \(selectedAsset.title) quote", systemImage: "lock.shield.fill") {
                     quotePrepared = true
                 }
                 FPSecondaryButton(title: "Close", systemImage: "xmark.circle.fill") {
@@ -587,7 +587,7 @@ struct FanPassV4PurchaseSuccessView: View {
         FanPassV4Scaffold(title: "Purchase complete", subtitle: "Your verified ticket has been assigned.") {
             FPConfirmationCard(
                 title: "Verified ticket ready",
-                message: "\(event.title) • \(ticketType.name)\nTicket ownership and Proof & History are prepared in the background for this account."
+                message: "\(event.title) • \(ticketType.name)\nYour ticket is ready in your account."
             )
 
             NavigationLink {

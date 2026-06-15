@@ -180,7 +180,7 @@ struct FanPassV4TicketDetailView: View {
     private var entryReadinessCard: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.lg) {
-                FPSectionHeader(title: "Entry readiness", subtitle: "Backend remains the source of truth")
+                FPSectionHeader(title: "Entry QR", subtitle: "Refreshes automatically every 30 seconds")
                 if ticket.status.allowsEntryCode {
                     entryQRCodePanel
                     FPSecondaryButton(
@@ -250,7 +250,7 @@ struct FanPassV4TicketDetailView: View {
 
     private var ticketRules: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Ticket rules", subtitle: "Typed lifecycle constraints")
+            FPSectionHeader(title: "Ticket rules", subtitle: "Entry and resale rules")
             FPConceptRowList(rows: [
                 .init(id: "type", icon: FPIcons.tickets, title: ticket.ticketType.name, subtitle: "Face value \(ticket.ticketType.priceLabel)", value: ticket.status.title),
                 .init(id: "transfer", icon: "arrow.left.arrow.right", title: "Transfer rule", subtitle: ticket.ticketType.transferRule.summary, value: "\(ticket.transferCount)/\(ticket.ticketType.transferRule.maxTransferCount)"),
@@ -304,13 +304,13 @@ struct FanPassV4TicketDetailView: View {
         case .loaded:
             FPStateBanner(
                 title: "No Sepolia result",
-                message: "FanPass API returned no chain status for this ticket.",
+                message: "Blockchain details are not ready for this ticket.",
                 kind: .warning
             )
         case .failed:
             FPStateBanner(
                 title: "Sepolia lookup unavailable",
-                message: chainProofErrorMessage ?? "FanPass API could not query this ticket on Sepolia.",
+                message: chainProofErrorMessage ?? "Blockchain details are temporarily unavailable.",
                 kind: .warning,
                 actionTitle: "Retry"
             ) {
@@ -483,9 +483,9 @@ struct FanPassV4TicketDetailView: View {
         case "no_chain_record":
             return "No Sepolia token record is available for this ticket."
         case "not_configured":
-            return "Sepolia lookup is not fully configured."
+            return "Blockchain details are not ready yet."
         case "rpc_unavailable":
-            return "Sepolia lookup is temporarily unavailable."
+            return "Blockchain details are temporarily unavailable."
         default:
             return response.message
         }
@@ -560,7 +560,7 @@ struct FanPassV4TicketDetailView: View {
     private func refreshChainProof() async {
         guard backend.isAuthenticated else {
             chainProofResponse = nil
-            chainProofErrorMessage = "Sign in before querying this ticket on Sepolia."
+            chainProofErrorMessage = "Sign in to view blockchain details."
             chainProofLoadState = .failed
             return
         }
@@ -614,7 +614,7 @@ struct FanPassV4TicketDetailView: View {
             credentialError = nil
             credentialRefreshRemainingSeconds = 30
         } catch {
-            credentialError = "Entry QR could not refresh from FanPass API. Try again."
+            credentialError = "Entry QR could not refresh. Try again."
         }
     }
 
@@ -622,7 +622,7 @@ struct FanPassV4TicketDetailView: View {
     private var ticketPrimaryActions: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                FPSectionHeader(title: "Ticket actions", subtitle: "Sell or review this event's market")
+                FPSectionHeader(title: "Ticket actions", subtitle: "Sell this ticket or open the market")
                 if ticket.status.allowsResale {
                     NavigationLink {
                         FanPassV4ListTicketView(ticket: ticket)
@@ -658,7 +658,7 @@ struct FanPassV4TicketDetailView: View {
 
     private var supportHandoff: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Support and handoff")
+            FPSectionHeader(title: "Support")
             HStack(spacing: FPSpacing.md) {
                 FPSecondaryButton(title: "Rules", systemImage: "doc.text.fill") { sheet = .rules }
                 FPSecondaryButton(title: "Support", systemImage: "questionmark.circle.fill") { sheet = .support }
@@ -725,13 +725,13 @@ private struct TicketSheetView: View {
             FPConceptRowList(rows: [
                 .init(id: "transfer", icon: "arrow.left.arrow.right", title: "Transfer", subtitle: ticket.ticketType.transferRule.summary, value: "Rule"),
                 .init(id: "entry", icon: FPIcons.qr, title: "Entry", subtitle: "One accepted admission per ticket.", value: "Single", kind: .success),
-                .init(id: "wallet", icon: FPIcons.wallet, title: "Apple Wallet", subtitle: "Standard pass route is separate from NFC tap-to-reader.", value: "Future")
+                .init(id: "wallet", icon: FPIcons.wallet, title: "Apple Wallet", subtitle: "Add-to-wallet support is coming soon.", value: "Soon")
             ])
         case .support:
             FPConceptRowList(rows: [
-                .init(id: "ref", icon: FPIcons.tickets, title: "Safe ticket reference", subtitle: ticket.shortId, value: "Masked"),
-                .init(id: "issue", icon: "exclamationmark.bubble.fill", title: "Report an issue", subtitle: "Support receives safe metadata only.", value: "Open", kind: .info),
-                .init(id: "privacy", icon: "lock.shield.fill", title: "Privacy", subtitle: "No raw provider, wallet, or credential internals.", value: "Protected", kind: .success)
+                .init(id: "ref", icon: FPIcons.tickets, title: "Ticket reference", subtitle: ticket.shortId, value: "Ready"),
+                .init(id: "issue", icon: "exclamationmark.bubble.fill", title: "Report an issue", subtitle: "Share this ticket reference with support.", value: "Open", kind: .info),
+                .init(id: "privacy", icon: "lock.shield.fill", title: "Privacy", subtitle: "Only essential account details are used.", value: "Protected", kind: .success)
             ])
         }
     }

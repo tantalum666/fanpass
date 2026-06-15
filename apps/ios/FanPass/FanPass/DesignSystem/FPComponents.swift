@@ -492,7 +492,7 @@ struct FPTicketCard: View {
                 }
 
                 HStack(alignment: .center, spacing: FPSpacing.md) {
-                    FPProofHistoryRow(title: "Proof & History", subtitle: "Verifiable ownership and resale rules.", status: .success)
+                    FPProofHistoryRow(title: "Ticket checks", subtitle: "Ownership and resale rules.", status: .success)
                 }
 
                 Text("Ticket ID: \(ticketId)  •  Resale allowed under organizer rules")

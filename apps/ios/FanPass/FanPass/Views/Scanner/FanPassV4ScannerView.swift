@@ -54,7 +54,7 @@ struct FanPassV4ScannerView: View {
             }
 
             FPSurfaceCard {
-                Text("Scanner decisions come from FanPass API state. Use an assigned staff device before event entry.")
+                Text("Use an assigned staff device before event entry.")
                     .font(FPTypography.callout)
                     .foregroundStyle(FPColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -178,7 +178,7 @@ struct FanPassV4NFCScanResultView: View {
                         .font(FPTypography.headline)
                         .foregroundStyle(FPColors.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("NFC reads a short-lived credential without exposing raw ticket data.")
+                    Text("NFC checks the ticket without showing private details.")
                         .font(FPTypography.caption)
                         .foregroundStyle(FPColors.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)

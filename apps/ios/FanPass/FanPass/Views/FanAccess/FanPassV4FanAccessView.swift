@@ -71,7 +71,7 @@ struct FanPassV4FanAccessView: View {
             }
 
             if viewModel.lastCompletedTask != nil {
-                FPStateBanner(title: "Fan Access task completed", message: "Your task moved into the completed state and is ready for organizer review.", kind: .success)
+                FPStateBanner(title: "Fan Access task completed", message: "Your task was completed and is ready for organizer approval.", kind: .success)
             }
 
             FPSectionHeader(title: "Rewards")
@@ -87,7 +87,7 @@ struct FanPassV4FanAccessView: View {
                     Text(viewModel.badge.benefit)
                         .font(FPTypography.callout)
                         .foregroundStyle(FPColors.textSecondary)
-                    FPProofHistoryRow(title: "Proof & History", subtitle: "Technical note: SBT-style non-transferable credential.", status: .success)
+                    FPProofHistoryRow(title: "Access Badge", subtitle: "Non-transferable event credential.", status: .success)
                 }
             }
         }

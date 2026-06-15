@@ -236,7 +236,7 @@ enum FanPassV4 {
         var title: String {
             switch self {
             case .available: "Available"
-            case .inReview: "In review"
+            case .inReview: "Pending approval"
             case .approved: "Approved"
             case .rejected: "Rejected"
             }
@@ -260,7 +260,7 @@ enum FanPassV4 {
         var title: String {
             switch self {
             case .locked: "Locked"
-            case .inReview: "In review"
+            case .inReview: "Pending approval"
             case .earned: "Earned"
             case .expired: "Expired"
             }

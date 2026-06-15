@@ -408,7 +408,7 @@ enum FanPassV4APIMapper {
     }
 
     private static func proofActorLabel(_ state: String) -> String {
-        state.lowercased() == "redacted" ? "FanPass proof" : "Backend proof"
+        state.lowercased() == "redacted" ? "FanPass" : "FanPass"
     }
 
     private static func proofTimestamp(_ value: String) -> Date {

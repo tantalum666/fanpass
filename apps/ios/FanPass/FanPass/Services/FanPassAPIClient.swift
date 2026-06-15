@@ -9,7 +9,7 @@ extension APIClientError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            "Invalid API response."
+            "Something went wrong. Please try again."
         case let .api(_, message):
             message
         }

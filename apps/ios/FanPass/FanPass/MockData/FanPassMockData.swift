@@ -210,7 +210,7 @@ enum FanPassMockData {
     static func fanTasks(eventId: String) -> [FanPassV4.FanTask] {
         [
             .init(id: "\(eventId)_task_share", eventId: eventId, title: "Follow event updates", description: "Join the official event update list in FanPass.", points: 20, verificationMethod: "Automatic check", status: .approved),
-            .init(id: "\(eventId)_task_quiz", eventId: eventId, title: "Complete event quiz", description: "Answer three event questions to earn early access points.", points: 35, verificationMethod: "Organizer review", status: .available),
+            .init(id: "\(eventId)_task_quiz", eventId: eventId, title: "Complete event quiz", description: "Answer three event questions to earn early access points.", points: 35, verificationMethod: "Organizer approval", status: .available),
             .init(id: "\(eventId)_task_checkin", eventId: eventId, title: "Venue arrival pledge", description: "Confirm your planned arrival window to help reduce gate queues.", points: 15, verificationMethod: "Self confirmation", status: .available)
         ]
     }

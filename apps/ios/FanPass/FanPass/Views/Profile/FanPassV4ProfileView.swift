@@ -196,13 +196,13 @@ struct FanPassV4ProfileView: View {
 
     private var orders: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Orders and receipts", subtitle: "Safe order references; no provider internals")
+            FPSectionHeader(title: "Orders and receipts", subtitle: "Order references and receipts")
             FPConceptMiniTimeline(rows: [
                 .init(id: "ord1", icon: "receipt.fill", title: "ORD-AUR-1024", subtitle: "Aurora Nights • payment captured • ticket issued", value: "HK$1,348", kind: .success),
                 .init(id: "ord2", icon: "arrow.uturn.backward.circle.fill", title: "ORD-FIN-0441", subtitle: "City Finals • refund completed", value: "Refunded", kind: .neutral),
                 .init(id: "ord3", icon: FPIcons.error, title: "ORD-LAB-0990", subtitle: "Reservation expired before authorization", value: "Expired", kind: .warning)
             ])
-            FPStateBanner(title: "Receipt detail", message: "Order detail screens show safe references, fees, refunds, and ticket outcome without exposing provider internals.", kind: .info)
+            FPStateBanner(title: "Receipt detail", message: "Order detail screens show references, fees, refunds, and ticket outcome.", kind: .info)
         }
     }
 
@@ -222,9 +222,9 @@ struct FanPassV4ProfileView: View {
             FPSectionHeader(title: "Security and privacy")
             FPConceptRowList(rows: [
                 .init(id: "login", icon: "lock.shield.fill", title: "Sign-in protection", subtitle: "Email code and account session controls.", value: "Enabled", kind: .success),
-                .init(id: "sessions", icon: "iphone.gen3", title: "Sessions and devices", subtitle: "Review active sessions and sign out safely.", value: backend.session == nil ? "0" : "1"),
-                .init(id: "privacy", icon: "eye.slash.fill", title: "Sensitive data", subtitle: "Raw tokens, ticket identity data, QR payloads, and payment internals never render.", value: "Hidden", kind: .success),
-                .init(id: "delete", icon: "trash.fill", title: "Delete account", subtitle: "Requires confirmation and support handoff.", value: "Locked", kind: .danger)
+                .init(id: "sessions", icon: "iphone.gen3", title: "Sessions and devices", subtitle: "Manage active sessions and sign out.", value: backend.session == nil ? "0" : "1"),
+                .init(id: "privacy", icon: "eye.slash.fill", title: "Privacy", subtitle: "Sensitive account and payment details stay private.", value: "Protected", kind: .success),
+                .init(id: "delete", icon: "trash.fill", title: "Delete account", subtitle: "Requires confirmation.", value: "Locked", kind: .danger)
             ])
         }
     }
@@ -332,7 +332,7 @@ struct FanPassV4ProfileView: View {
             )
             FPConceptRowList(rows: [
                 .init(id: "wallet", icon: FPIcons.wallet, title: "Wallet", subtitle: walletAddressLabel, value: walletStatusValue, kind: walletKind),
-                .init(id: "provider", icon: "shield.lefthalf.filled", title: "Provider support", subtitle: "The current Privy iOS SDK exposes wallet creation, address, and signing APIs, but no public private-key export API.", value: "Unavailable", kind: .warning),
+                .init(id: "provider", icon: "shield.lefthalf.filled", title: "Wallet support", subtitle: "Private key export is not available in FanPass.", value: "Unavailable", kind: .warning),
                 .init(id: "status", icon: "lock.fill", title: "Export status", subtitle: "Private keys are not displayed or fabricated inside FanPass.", value: "Blocked", kind: .neutral)
             ])
             FPSecondaryButton(title: copiedWalletAddress ? "Address copied" : "Copy wallet address", systemImage: copiedWalletAddress ? "checkmark" : "doc.on.doc.fill") {
@@ -426,7 +426,7 @@ struct FanPassV4ProfileView: View {
             return "Reading \(asset) from the configured chain."
         }
         if walletBalanceError != nil && balance == nil {
-            return "Balance API is unavailable for this build."
+            return "Balances are temporarily unavailable."
         }
         switch balance?.status {
         case "ok":
@@ -437,7 +437,7 @@ struct FanPassV4ProfileView: View {
         case "wallet_missing":
             return "No linked wallet address on this account."
         case "not_configured":
-            return "Backend \(asset) balance source is not configured."
+            return "\(asset) balances are temporarily unavailable."
         case "rpc_unavailable":
             return "Chain RPC is unavailable. Try again later."
         default:
@@ -480,9 +480,9 @@ struct FanPassV4ProfileView: View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Help and support")
             FPConceptRowList(rows: [
-                .init(id: "orders", icon: "receipt.fill", title: "Order help", subtitle: "Use safe order references when contacting support.", value: "Open", kind: .info),
+                .init(id: "orders", icon: "receipt.fill", title: "Order help", subtitle: "Use order references when contacting support.", value: "Open", kind: .info),
                 .init(id: "tickets", icon: FPIcons.tickets, title: "Ticket help", subtitle: "Resolve entry, transfer, and resale questions.", value: "Guide"),
-                .init(id: "contact", icon: "message.fill", title: "Contact support", subtitle: "Send a support request without exposing payment internals.", value: "Start", kind: .success)
+                .init(id: "contact", icon: "message.fill", title: "Contact support", subtitle: "Send a support request.", value: "Start", kind: .success)
             ])
         }
     }
@@ -766,17 +766,17 @@ private extension FanPassV4ProfileView {
     func walletBalanceSyncMessage(for error: Error) -> String {
         if case let APIClientError.api(_, message) = error {
             if message.localizedCaseInsensitiveContains("Cannot GET /wallet/balances") {
-                return "Wallet balance API is not deployed on the current FanPass API. Deploy the latest API and try again."
+                return "Wallet balances are temporarily unavailable. Try again later."
             }
-            return message.isEmpty ? "Balance API returned an error." : message
+            return message.isEmpty ? "Balances could not be refreshed." : message
         }
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain {
             switch nsError.code {
             case NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut, NSURLErrorCannotConnectToHost:
-                return "Network connection to the FanPass API was interrupted. Try again."
+                return "Network connection was interrupted. Try again."
             default:
-                return "FanPass API is unreachable right now."
+                return "FanPass is unreachable right now."
             }
         }
         return "Balances could not be refreshed right now."

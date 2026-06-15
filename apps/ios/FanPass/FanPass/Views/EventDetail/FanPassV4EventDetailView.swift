@@ -68,7 +68,7 @@ struct FanPassV4EventDetailView: View {
                         if ticketType.supply == 0 {
                             FPStateBanner(
                                 title: "Online checkout unavailable",
-                                message: "This ticket category is not available for online checkout yet. You can still review price context and organizer rules.",
+                                message: "This ticket category is not available for online checkout yet. You can still view prices and organizer rules.",
                                 kind: .warning
                             )
                         }
@@ -145,7 +145,7 @@ struct FanPassV4EventDetailView: View {
 
     private var authGateMessage: String {
         if backend.isAuthenticated {
-            return "This signed-in account is \(backend.user.role.title). Purchases require a fan account; staff access stays in FanPass Ops."
+            return "This signed-in account is \(backend.user.role.title). Purchases require a fan account."
         }
         return "Browse is open. Checkout, ticket ownership, and entry access require a signed-in fan account."
     }

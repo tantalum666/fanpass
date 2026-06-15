@@ -135,7 +135,7 @@ struct ScannerView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Entry payload")
+                        Text("Entry code")
                             .font(.headline)
                         Text(payloadHint)
                             .font(.caption.weight(.semibold))
@@ -143,11 +143,11 @@ struct ScannerView: View {
                     }
                     Spacer()
                     StatusPill(text: "QR", color: FanPassTheme.accent)
-                    StatusPill(text: nfcScanner.isAvailable ? "NFC ready" : "NFC fallback", color: nfcScanner.isAvailable ? FanPassTheme.mint : FanPassTheme.amber)
+                    StatusPill(text: nfcScanner.isAvailable ? "NFC ready" : "QR available", color: nfcScanner.isAvailable ? FanPassTheme.mint : FanPassTheme.amber)
                 }
 
                 #if DEBUG
-                TextField("Manual QR payload", text: $qrText, axis: .vertical)
+                TextField("Manual QR code", text: $qrText, axis: .vertical)
                     .lineLimit(5, reservesSpace: true)
                     .textFieldStyle(.roundedBorder)
                 #endif
@@ -241,7 +241,7 @@ struct ScannerView: View {
             return "Waiting for QR or NFC"
             #endif
         }
-        return "Payload ready for redemption"
+        return "Entry code ready"
     }
 
     private func startInitialCaptureIfNeeded() {
@@ -354,7 +354,7 @@ struct ScannerView: View {
             autoRedeemPayload = nil
             await loadSummary()
         } catch {
-            scanState = .failure(code: "ERROR", message: "The scanner could not reach the verification service.")
+            scanState = .failure(code: "ERROR", message: "Could not verify this entry. Try again.")
             qrText = ""
             capturedTransport = nil
             autoRedeemPayload = nil
@@ -365,14 +365,14 @@ struct ScannerView: View {
 
     private func localReviewScanState(for payload: QRPayload) -> ScanState {
         guard let expiresAt = isoFormatter.date(from: payload.expiresAt) else {
-            return .failure(code: "INVALID_PAYLOAD", message: "The local review QR is missing a valid expiry.")
+            return .failure(code: "INVALID_PAYLOAD", message: "This QR code is missing a valid expiry.")
         }
         guard expiresAt > Date() else {
             return .failure(code: "EXPIRED", message: "Ask the fan app to refresh the QR code.")
         }
         let credentialId = payload.credentialId ?? payload.nonce
         guard !redeemedLocalCredentialIds.contains(credentialId) else {
-            return .failure(code: "DUPLICATE", message: "Use a freshly refreshed 30s QR code.")
+            return .failure(code: "DUPLICATE", message: "Ask the attendee to refresh their QR code.")
         }
         redeemedLocalCredentialIds.insert(credentialId)
         return .accepted(ticketId: payload.ticketId)
@@ -391,7 +391,7 @@ struct ScannerView: View {
     }
 
     private var invalidPayloadMessage: String {
-        return "The entry payload is not valid FanPass QR JSON."
+        return "This entry code is not valid."
     }
 }
 
@@ -415,7 +415,7 @@ private enum ScanState: Equatable {
         case .ready:
             "Ready"
         case .captured:
-            "Payload captured"
+            "Entry code captured"
         case .checking:
             "Checking ticket"
         case .accepted:
@@ -434,7 +434,7 @@ private enum ScanState: Equatable {
         case .captured:
             "Redeem when the attendee is at the gate."
         case .checking:
-            "Verifying signature, ticket ownership, and one-time nonce."
+            "Checking ticket ownership and entry status."
         case let .accepted(ticketId):
             "Ticket \(ticketId) can enter. The scanner is ready for the next attendee."
         case let .failure(code, message):
@@ -500,9 +500,9 @@ private enum ScanState: Equatable {
         case "EXPIRED":
             "The entry code is outside its valid time window."
         case "INVALID_SIGNATURE":
-            "The entry code signature could not be verified."
+            "The entry code could not be verified."
         case "INVALID_PAYLOAD":
-            "The scanner could not read this payload."
+            "The scanner could not read this entry code."
         case "OWNER_MISMATCH":
             "The code no longer matches the current ticket owner."
         case "NOT_ACTIVE":

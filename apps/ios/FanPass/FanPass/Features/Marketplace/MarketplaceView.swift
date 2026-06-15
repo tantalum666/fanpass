@@ -183,7 +183,7 @@ struct MarketplaceView: View {
             if appState.session == nil {
                 AuthRequiredPanel(
                     title: "Orders are private",
-                    message: "Sign in to review or cancel your open orders.",
+                    message: "Sign in to manage or cancel your open orders.",
                     actionTitle: "Sign in",
                     action: { _ = appState.requireAuth(.market) }
                 )

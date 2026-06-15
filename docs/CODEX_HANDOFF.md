@@ -6258,6 +6258,15 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Simulator-only install completed on `FanPass-iPhone-17` and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `3aeaf1bb1ed9a57ca8aa886fd61ac6eda01567eef594b23904845e1ecbca19b2`. No physical iPhone install was performed.
 - Boundary: this is an iOS presentation and refresh-timing change only. It does not change Render API, Vercel, Neon, TestFlight, or staging DB ticket/chain associations.
 
+## After User-Facing iOS Copy Cleanup on 2026-06-15
+
+- Owner asked to scan the whole app for testing/internal wording and remove user-inappropriate copy, specifically after seeing `Backend remains the source of truth` under the ticket QR section.
+- The iOS app Swift string scan targeted user-facing wording containing terms such as backend/API/source-of-truth/local/mock/payload/raw/internal/handoff/proof-history/prototype/review. Internal route names, environment guards, mock ids, and API constants were left intact when not rendered to users.
+- User-facing copy was cleaned across ticket detail, blockchain details, market/resale, checkout/payment, profile/account, fan access, scanner/NFC, legacy event/market screens, and older ticket wallet surfaces. Examples: ticket QR subtitle now says it refreshes every 30 seconds, `Proof & History` surface labels became `Ticket checks` or `Access Badge`, scanner `payload/signature/nonce` wording became `entry code` wording, `FanPass API/backend/local review/API-listed` errors became normal user messages, and the old ticket wallet no longer renders a signature fragment.
+- Verification passed `git diff --check` and `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBetaCopyClean CODE_SIGNING_ALLOWED=NO build`.
+- Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `92c8e55ce95cd25c18ecd99b1d565d83a7bb764e675ed907ab6a03fcf928a633`. No physical iPhone install was performed.
+- Boundary: this is an iOS copy/presentation cleanup only. It does not change Render API, Vercel, Neon, TestFlight, payment settlement, scanner redemption, or staging DB ticket/chain associations.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

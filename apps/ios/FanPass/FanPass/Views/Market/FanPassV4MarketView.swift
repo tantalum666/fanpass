@@ -175,10 +175,10 @@ struct FanPassV4MarketView: View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Market windows and guardrails")
             FPConceptRowList(rows: [
-                .init(id: "reserved", icon: "timer", title: "Reserved listing", subtitle: "A buyer review temporarily reserves one resale ticket.", value: "05:00", kind: .warning),
+                .init(id: "reserved", icon: "timer", title: "Reserved listing", subtitle: "A buyer temporarily reserves one resale ticket.", value: "05:00", kind: .warning),
                 .init(id: "unavailable", icon: FPIcons.error, title: "Listing unavailable", subtitle: "Another buyer matched it or seller cancelled.", value: "Closed", kind: .danger),
                 .init(id: "cap", icon: "lock.shield.fill", title: "Cap validation", subtitle: "Seller cannot submit a price above organizer rules.", value: "Enforced", kind: .success),
-                .init(id: "proof", icon: FPIcons.proof, title: "Proof summary", subtitle: "Safe lifecycle facts only; no raw wallet or provider ids.", value: "Safe", kind: .neutral)
+                .init(id: "proof", icon: FPIcons.verified, title: "Ticket checks", subtitle: "Seller and ticket status are checked before purchase.", value: "Checked", kind: .neutral)
             ])
         }
     }
@@ -1290,7 +1290,7 @@ struct FanPassV4ResaleReviewView: View {
     @State private var confirmed = false
 
     var body: some View {
-        FanPassV4Scaffold(title: "Review resale order", subtitle: listing.ticket.event.title) {
+        FanPassV4Scaffold(title: "Confirm resale order", subtitle: listing.ticket.event.title) {
             FPTicketCard(
                 eventTitle: listing.ticket.event.title,
                 metadata: "\(listing.ticket.event.dateLine) • \(listing.ticket.event.venue.name)",
@@ -1305,10 +1305,10 @@ struct FanPassV4ResaleReviewView: View {
             FPConceptRowList(rows: [
                 .init(id: "price", icon: "tag.fill", title: "Resale price", subtitle: "Shown before secure checkout.", value: listing.priceLabel, kind: .info),
                 .init(id: "fee", icon: "creditcard.fill", title: "Estimated fee", subtitle: "Transparent before confirmation.", value: MoneyFormatter.format(listing.feeEstimate, currency: listing.currency)),
-                .init(id: "proof", icon: FPIcons.proof, title: "Proof summary", subtitle: "Safe seller and ticket lifecycle facts only.", value: "Safe", kind: .success)
+                .init(id: "proof", icon: FPIcons.verified, title: "Ticket checks", subtitle: "Seller and ticket status are checked before purchase.", value: "Checked", kind: .success)
             ])
             if reserved {
-                FPStateBanner(title: "Listing reserved", message: "This resale ticket is reserved while you review the order.", kind: .warning)
+                FPStateBanner(title: "Listing reserved", message: "This resale ticket is held while you confirm the order.", kind: .warning)
             }
             if confirmed {
                 FPConfirmationCard(title: "Resale order confirmed", message: "The ticket transfer is reflected in Tickets after settlement.")
@@ -1356,7 +1356,7 @@ struct FanPassV4ListTicketView: View {
     }
 
     var body: some View {
-        FanPassV4Scaffold(title: "List ticket", subtitle: "Seller flow with cap validation and payout estimate.") {
+        FanPassV4Scaffold(title: "List ticket", subtitle: "Set a price inside organizer rules.") {
             FPTicketCard(
                 eventTitle: selectedTicket.event.title,
                 metadata: "\(selectedTicket.event.dateLine) • \(selectedTicket.ticketType.name)",
@@ -1371,10 +1371,10 @@ struct FanPassV4ListTicketView: View {
 
             FPSurfaceCard {
                 VStack(alignment: .leading, spacing: FPSpacing.md) {
-                    FPSectionHeader(title: "Price review", subtitle: "Choose a price inside organizer rules")
+                    FPSectionHeader(title: "Listing price", subtitle: "Choose a price inside organizer rules")
                     FPConceptRowList(rows: [
                         .init(id: "face", icon: "tag", title: "Face value", subtitle: "Original organizer price.", value: selectedTicket.ticketType.priceLabel),
-                        .init(id: "suggested", icon: "sparkles", title: "Suggested resale", subtitle: "Based on safe market context.", value: selectedTicket.event.marketSummary.suggestedResalePriceLabel, kind: .info),
+                        .init(id: "suggested", icon: "sparkles", title: "Suggested resale", subtitle: "Based on current market context.", value: selectedTicket.event.marketSummary.suggestedResalePriceLabel, kind: .info),
                         .init(id: "cap", icon: "lock.shield.fill", title: "Organizer cap", subtitle: selectedTicket.ticketType.transferRule.summary, value: MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency), kind: .warning)
                     ])
                     Stepper(
