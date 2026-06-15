@@ -125,12 +125,6 @@ private enum TicketFilter: String, CaseIterable, Hashable {
     }
 }
 
-private enum ProofLoadState {
-    case local
-    case api
-    case fallback
-}
-
 private enum ChainProofLoadState {
     case idle
     case loading
@@ -142,21 +136,14 @@ struct FanPassV4TicketDetailView: View {
     @Environment(FanPassBackendContext.self) private var backend
     @Environment(FanPassRootViewModel.self) private var appViewModel
     let ticket: FanPassV4.Ticket
-    @State private var proofHistory: [FanPassV4.ProofHistoryItem]
-    @State private var proofLoadState: ProofLoadState = .local
     @State private var chainProofResponse: FanPassChainProofResponse?
     @State private var chainProofLoadState: ChainProofLoadState = .idle
     @State private var chainProofErrorMessage: String?
     @State private var sheet: TicketSheet?
-    @State private var proofExpanded = true
     @State private var qrCredential: String?
     @State private var credentialError: String?
     @State private var isRefreshingCredential = false
-
-    init(ticket: FanPassV4.Ticket) {
-        self.ticket = ticket
-        _proofHistory = State(initialValue: ticket.proofHistory)
-    }
+    @State private var credentialRefreshRemainingSeconds = 30
 
     var body: some View {
         FanPassV4Scaffold(title: "Ticket", subtitle: ticket.event.title) {
@@ -174,14 +161,11 @@ struct FanPassV4TicketDetailView: View {
 
             entryReadinessCard
             ticketPrimaryActions
-            controlGrid
             ticketRules
             onChainStatusCard
-            proofAndHistory
             supportHandoff
         }
         .task(id: ticket.id) {
-            await refreshProofHistory()
             await refreshChainProof()
         }
         .task(id: "\(ticket.id)-entry-credential") {
@@ -199,10 +183,6 @@ struct FanPassV4TicketDetailView: View {
                 FPSectionHeader(title: "Entry readiness", subtitle: "Backend remains the source of truth")
                 if ticket.status.allowsEntryCode {
                     entryQRCodePanel
-                    FPConceptRowList(rows: [
-                        .init(id: "state", icon: FPIcons.verified, title: "Entry credential ready", subtitle: "FanPass API remains the authority for gate acceptance.", value: "Ready", kind: .success),
-                        .init(id: "privacy", icon: "eye.slash.fill", title: "Credential payload hidden", subtitle: "Raw QR payload, nonce, and signature are never displayed on the ticket face.", value: "Hidden", kind: .success)
-                    ])
                     FPSecondaryButton(
                         title: isRefreshingCredential ? "Refreshing QR" : "Refresh QR",
                         systemImage: "arrow.clockwise"
@@ -227,13 +207,22 @@ struct FanPassV4TicketDetailView: View {
                     .padding(FPSpacing.md)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
                     .accessibilityLabel("Entry QR code")
-                FPStatusPill(
-                    title: "Entry QR",
-                    systemImage: FPIcons.qr,
-                    foreground: FPColors.pulseCyan,
-                    background: FPColors.pulseCyan.opacity(0.12),
-                    border: FPColors.pulseCyan.opacity(0.6)
-                )
+                HStack(spacing: FPSpacing.sm) {
+                    FPStatusPill(
+                        title: "Entry QR",
+                        systemImage: FPIcons.qr,
+                        foreground: FPColors.pulseCyan,
+                        background: FPColors.pulseCyan.opacity(0.12),
+                        border: FPColors.pulseCyan.opacity(0.6)
+                    )
+                    FPStatusPill(
+                        title: "Refresh in \(credentialRefreshRemainingSeconds)s",
+                        systemImage: "timer",
+                        foreground: FPColors.textSecondary,
+                        background: FPColors.surfaceGlass,
+                        border: FPColors.borderDivider
+                    )
+                }
             } else if isRefreshingCredential {
                 ProgressView()
                     .tint(FPColors.pulseCyan)
@@ -257,15 +246,6 @@ struct FanPassV4TicketDetailView: View {
             }
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private var controlGrid: some View {
-        FPConceptActionGrid(actions: [
-            .init(id: "wallet", title: "Wallet pass", systemImage: FPIcons.wallet, subtitle: "Signed pass path stays separate", kind: ticket.status.allowsEntryCode ? .info : .neutral),
-            .init(id: "transfer", title: "Transfer", systemImage: "paperplane.fill", subtitle: "Disabled by lifecycle state when needed", kind: ticket.status == .active ? .info : .warning),
-            .init(id: "resale", title: "List resale", systemImage: FPIcons.resale, subtitle: "Handoff to Market under caps", kind: ticket.status.allowsResale ? .success : .warning),
-            .init(id: "support", title: "Support", systemImage: "questionmark.circle.fill", subtitle: "Safe ticket ref only")
-        ])
     }
 
     private var ticketRules: some View {
@@ -577,67 +557,6 @@ struct FanPassV4TicketDetailView: View {
         return "\(value.prefix(head))...\(value.suffix(tail))"
     }
 
-    private var proofAndHistory: some View {
-        DisclosureGroup(isExpanded: $proofExpanded) {
-            VStack(spacing: FPSpacing.md) {
-                proofStateBanner
-                if proofHistory.isEmpty {
-                    FPEmptyStateView(title: "No proof history yet", message: "Ownership history appears after issue.", systemImage: FPIcons.proof)
-                } else {
-                    ForEach(proofHistory) { item in
-                        FPProofHistoryRow(title: item.title, subtitle: proofSubtitle(for: item), status: item.status)
-                    }
-                }
-            }
-            .padding(.top, FPSpacing.md)
-        } label: {
-            Text("Proof & History")
-                .font(FPTypography.title3)
-                .foregroundStyle(FPColors.textPrimary)
-        }
-        .padding(FPSpacing.lg)
-        .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private var proofStateBanner: some View {
-        switch proofLoadState {
-        case .api:
-            FPStateBanner(
-                title: "Backend proof loaded",
-                message: "Safe contract and lifecycle summaries are synced from FanPass API.",
-                kind: .success
-            )
-        case .fallback:
-            FPStateBanner(
-                title: "Proof fallback",
-                message: "Showing local ticket history until backend proof history is available.",
-                kind: .warning
-            )
-        case .local:
-            EmptyView()
-        }
-    }
-
-    private func refreshProofHistory() async {
-        guard backend.isAuthenticated else {
-            proofLoadState = .local
-            return
-        }
-        do {
-            let remoteProof = try await backend.ticketService().proofHistory(for: ticket)
-            proofHistory = remoteProof
-            proofLoadState = .api
-        } catch {
-            proofHistory = ticket.proofHistory
-            proofLoadState = .fallback
-        }
-    }
-
     private func refreshChainProof() async {
         guard backend.isAuthenticated else {
             chainProofResponse = nil
@@ -670,7 +589,10 @@ struct FanPassV4TicketDetailView: View {
         while !Task.isCancelled {
             await refreshEntryCredential()
             do {
-                try await Task.sleep(nanoseconds: 25_000_000_000)
+                for remaining in stride(from: 29, through: 0, by: -1) {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                    credentialRefreshRemainingSeconds = remaining
+                }
             } catch {
                 return
             }
@@ -690,14 +612,10 @@ struct FanPassV4TicketDetailView: View {
         do {
             qrCredential = try await backend.scannerService().refreshQRCredential(ticket: ticket)
             credentialError = nil
+            credentialRefreshRemainingSeconds = 30
         } catch {
             credentialError = "Entry QR could not refresh from FanPass API. Try again."
         }
-    }
-
-    private func proofSubtitle(for item: FanPassV4.ProofHistoryItem) -> String {
-        let detail = item.description.isEmpty ? item.actorLabel : item.description
-        return "\(item.actorLabel) • \(item.proofReference)\n\(detail)"
     }
 
     @ViewBuilder

@@ -6248,6 +6248,16 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `4c221393995c9906c5a154a69ec0c2a76ed596bfc689e83c0d4c771697bfc0d5`. No physical iPhone install was performed.
 - Boundary: this is a presentation cleanup only. It does not change the Render API, Vercel, Neon, or the underlying staging ticket/token/transaction mismatch.
 
+## After Ticket Detail QR and Proof Cleanup on 2026-06-15
+
+- Owner asked to remove the two explanatory rows under the entry QR, remove the four action cards, remove `Proof & History`, and show a 30-second QR refresh countdown because the QR auto-refresh window should be 30 seconds rather than 25 seconds.
+- `apps/ios/FanPass/FanPass/Views/Tickets/FanPassV4TicketsView.swift` now keeps the entry section focused on the QR, an `Entry QR` pill, a `Refresh in Ns` countdown pill, and the manual `Refresh QR` button. The `Entry credential ready` and `Credential payload hidden` rows were removed.
+- The ticket-detail four-card action grid (`Wallet pass`, `Transfer`, `List resale`, `Support`) and the `Proof & History` disclosure were removed from the ticket detail flow. The view also stopped fetching proof history for this screen, so the deleted UI does not trigger unnecessary proof-history work.
+- The QR credential loop now refreshes every 30 seconds and counts down once per second between refreshes.
+- Verification passed `git diff --check` and `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBetaTicketDetailTrimmed CODE_SIGNING_ALLOWED=NO build`.
+- Simulator-only install completed on `FanPass-iPhone-17` and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `3aeaf1bb1ed9a57ca8aa886fd61ac6eda01567eef594b23904845e1ecbca19b2`. No physical iPhone install was performed.
+- Boundary: this is an iOS presentation and refresh-timing change only. It does not change Render API, Vercel, Neon, TestFlight, or staging DB ticket/chain associations.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
