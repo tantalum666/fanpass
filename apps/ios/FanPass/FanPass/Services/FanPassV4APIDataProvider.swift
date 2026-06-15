@@ -136,6 +136,10 @@ struct FanPassV4APITicketService: FanPassV4TicketServicing {
         return response.items.map(FanPassV4APIMapper.proofHistoryItem)
     }
 
+    func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
+        try await apiClient.chainProof(ticketId: ticket.id)
+    }
+
     func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
         await MockTicketService().purchaseTicket(event: event, ticketType: ticketType, owner: owner)
     }

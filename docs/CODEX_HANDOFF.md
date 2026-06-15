@@ -12,6 +12,9 @@ Long-term `/goal`:
 
 Current work cursor:
 
+- Latest live instruction on 2026-06-15: for future Web/FanPass work, continue reading `docs/CODEX_HANDOFF.md` first and doing the required Markdown pass before implementation. After any completed work, update the relevant `.md` docs immediately. After context compaction/resume, run the Context Compaction Resume Protocol and do the non-ignored Markdown pass before continuing.
+- Local hardware progress on 2026-06-15: a bench `FanPass` mock turnstile prototype now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino` for Arduino UNO R4 WiFi plus EP8280 NFC/QR scan engine, I2C LCD, HC-SR04 ultrasonic sensor, and one micro servo. EP8280 is wired through the 8-pin connector in TTL mode and Pin7 decode-success fallback. The prototype can receive real QR content over Arduino `Serial1`, display gate status on LCD, authorize QR payloads containing `FANPASS`, move the servo gate, and use ultrasonic distance to mark a pass-through. This is useful local hardware learning/prototyping only; it is not signed iOS/TestFlight evidence, not FanPass Ops physical scanner evidence, not backend signature/replay/gate-assignment proof, and not NFC NDEF evidence.
+- Current EP8280 bench gaps: NFC card/tag behavior is not yet working on the EP8280 bench setup; Pin7 decode-success fallback is retained for diagnostics but no longer authorizes opening when TTL QR text is missing; power is temporarily from Arduino/breadboard rails and may be unstable under servo/scanner load; no separate 5V supply, enclosure, two-servo lane, or backend API integration is complete.
 - New live implementation redirect on 2026-06-10: the owner asked to put all generated concept flows into the native iOS side first. The current implementation pass has moved the fan-facing `Home`, `Explore`, `Market`, `Tickets`, and `Account` concepts plus the staff `FanPassOps` concept workflow into SwiftUI prototype screens. Treat this as concept-UI implementation, not signed/TestFlight, physical QR/NFC, Apple Wallet, or chain-custody evidence.
 - New live priority from the user on 2026-06-10: stop management concept generation for now and push iOS TestFlight plus physical QR/NFC validation. The user has obtained Apple Developer account access. Treat native iOS distribution and FanPass Ops real-device scanner evidence as the active workstream until redirected.
 - Immediate iOS facts from the 2026-06-10 pass:
@@ -6165,6 +6168,53 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - Verification passed API build, focused API tests (`orderbook-prisma-validation`, `payments.service`, `ownership.service`), XcodeBuildMCP FanPass Beta `build_run_sim` with `CODE_SIGNING_ALLOWED=NO`, and simulator UI automation through Home -> Market -> Buy -> Checkout.
   - The owner-provided Privy test fan account was used only interactively in simulator and not committed or documented with its code. After login, tapping Stripe from Aurora checkout opened Stripe PaymentSheet in test mode; runtime snapshot showed `TEST`, card number fields, and `Pay with Link`. Screenshot evidence: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_da171c4c-2a9a-4e85-9230-07922fdf84a6.jpg`.
 - Boundary: this proves the previous internal-server-error/local-review Stripe blocker is fixed and that PaymentSheet can be presented from an authenticated simulator session. It does not prove a completed card authorization, webhook/worker settlement, ticket issuance after settlement, authenticated Wallet USDC balance, phone install of this exact build, scanner redemption, TestFlight, signed Wallet, live USDC transfer, or release-grade chain custody.
+
+## After Latest FanPass and FanPassOps Simulator/iPhone Sync on 2026-06-15
+
+- Before checking/installing iOS builds, the required Markdown pass was repeated: all workspace Markdown excluding `.git` was enumerated/read/hashed, covering 2,956 files, 599,762 lines, 27,720,527 bytes, aggregate SHA-256 `5f1dd35e189fb2456b2a4758dd497fb9f36ceecea445f62267ba6547bfbc2d19`. `docs/CODEX_HANDOFF.md` was present at 6,189 lines with SHA-256 `487e00d9b62688e07e384f7932f24accdeaaba136d6bcf3eafcb5594ec7c5d4b`.
+- XcodeBuildMCP was checked first, but the session had no project/scheme/simulator defaults configured, so the sync used explicit `xcodebuild`, `xcrun simctl`, and `xcrun devicectl` commands.
+- Connected targets: simulator `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and physical iPhone 16 Pro Max `tantalum` (`0185F0DC-2EC1-5340-9999-B8EA666DC02C`).
+- `FanPass` simulator check found an installed executable SHA-256 `2352a4588fb8ac58099576b6676a3f68e6a02e8a0fb7b43d9dfaf7bd8cdfe838`; current Beta simulator build produced SHA-256 `4c9ee3af7afec851f22a179888ebedec53b787b2a60291a3ed6c8ba8014029a9`, so the simulator was not current. The new build was installed and launched on the simulator; post-install hash matched `4c9ee3af7afec851f22a179888ebedec53b787b2a60291a3ed6c8ba8014029a9`.
+- `FanPass` physical iPhone Beta build succeeded with local Apple Development signing and was installed/launched on the connected iPhone. Device build executable SHA-256 was `d8a7f3684c513fc32af17c4b10141ad6013b9af1f8a4ea813626102a4541840f`.
+- `FanPassOps` simulator check found an installed executable SHA-256 `bd128ab6a04bd536cdd63df439b3a9172353e2108e9becb85ee4b4a4983499f5`; current Beta simulator build produced SHA-256 `0e928777f6dbed36dc17d2173f817f0249bd224c2249bd0bd0d1cecfcaf78bac`, so the simulator was not current. The new build was installed and launched on the simulator; post-install hash matched `0e928777f6dbed36dc17d2173f817f0249bd224c2249bd0bd0d1cecfcaf78bac`.
+- `FanPassOps` physical iPhone Beta build succeeded with local Apple Development signing and the `com.fanpass.ops` provisioning profile, then installed/launched on the connected iPhone. Device build executable SHA-256 was `54916ed3ef6bd54f55e016ac3f4a1c905eecb8419e0af2acccc4d46878571a1f`.
+- Build warnings remained limited to the known AppIntents metadata-skipped warning and interface-orientations/full-screen warning. No source code changes were made during this sync.
+- Boundary: this proves the current local working-tree `FanPass` and `FanPassOps` Beta builds were installed and launched on the named simulator and local development iPhone. It is not TestFlight, App Store distribution, signed Wallet evidence, completed Stripe settlement evidence, authenticated Wallet/USDC evidence, scanner redemption evidence, or release-grade chain-custody evidence.
+
+## After Ticket Detail Sepolia Explorer UI on 2026-06-15
+
+- Before implementation, the full Markdown pass was repeated again after simulator/device build artifacts had added generated Markdown: 3,112 Markdown files excluding `.git`, 617,046 lines, 28,680,759 bytes, aggregate SHA-256 `8a47450874dee0931abd695d892d0b56ba839d7426139d6473dda2ff25fd4a68`. `docs/CODEX_HANDOFF.md` was present at 6,201 lines with SHA-256 `7ed1f0d59661cecd3d205875930e5b8b18d7eedd182a90743942f67698a68380`.
+- The current ticket detail screenshot showed `On-chain status` using FanPass API proof metadata from the local ownership adapter, with no public Sepolia transaction URL. That means the displayed ticket itself did not have an attached Sepolia transaction proof at that moment; do not claim that specific ticket is on-chain until API proof history returns a Sepolia tx URL.
+- Sepolia read-only RPC verification checked dev contract `FanPassTicket` at `0xc6629Ba2c181d41C8F9cC587E349F9d0049042e1`. The contract has bytecode, owner reads as the known dev signer address, and logs were present in the latest 50,000 blocks. The latest observed contract activity was a token `9` mint / proof update in tx `0xf0cf2618087e4796d8302874f29eeee081bec0682da7ba0fa1b4848755745b08` at block `11063778`, timestamp `2026-06-15T06:41:00Z` (`2026-06-15 14:41 HKT`). This remains Sepolia dev-only activity, not release chain-custody evidence.
+- `apps/ios/FanPass/FanPass/Views/Tickets/FanPassV4TicketsView.swift` now makes the ticket detail `On-chain status` card explicit:
+  - If FanPass API returns a Sepolia tx URL for the ticket, it shows the tx proof and an `Open ticket transaction` Etherscan link.
+  - If API returns only local adapter proof, it shows `No Sepolia tx` for the current ticket instead of `Explorer link pending`.
+  - It always provides `Open Sepolia contract` and `Open latest observed tx` links so reviewers can inspect the dev contract or recent observed activity on `https://sepolia.etherscan.io/`.
+- Verification passed: `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBetaSepoliaTicket CODE_SIGNING_ALLOWED=NO build` and `git diff --check`.
+- Simulator-only install completed on `FanPass-iPhone-17`; installed `FanPass` executable SHA-256 `071982429bd642f1f88b07263fa456e1618a49f1217a3192f815b6cfce2e59d2`. Per owner instruction, this build was not installed on the physical iPhone.
+- Boundary: this is a UI clarity and simulator-build update only. It does not prove a user ticket purchase was minted on Sepolia, does not close chain custody, and does not change backend API proof history semantics.
+
+## After Live Ticket Detail Sepolia Chain Proof on 2026-06-15
+
+- Owner follow-up rejected local/mock/static chain data in the ticket detail `On-chain status` card. The previous simulator-only UI that linked a fixed dev contract/latest observed tx is superseded by this pass.
+- Backend change:
+  - Added authenticated `GET /tickets/:id/chain-proof` for fans, organizers, and admins.
+  - The endpoint resolves the current ticket, owner wallet, event id, ticket type policy, token id, ownership tx metadata, and configured contract, then performs live Sepolia JSON-RPC reads.
+  - It checks contract bytecode, `ownerOf(tokenId)`, `eventIds(tokenId)`, `proofs(tokenId)`, `states(tokenId)`, `transferCounts(tokenId)`, the ticket transaction receipt, and recent contract activity via `eth_getLogs` over the latest 50,000 blocks.
+  - Response status is explicit: `linked`, `mismatch`, `no_chain_record`, `not_configured`, or `rpc_unavailable`. Missing/nonexistent token records now show as no chain record instead of a fabricated explorer link.
+  - Local/mock ownership adapter entries are no longer returned as `chain-proof` proof-history items.
+- iOS change:
+  - `FanPassAPIClient`, `FanPassV4TicketServicing`, the API provider, and session ticket wrapper now expose `chainProof(for:)`.
+  - `MockTicketService.chainProof(for:)` throws instead of inventing chain data.
+  - Ticket detail `On-chain status` now loads live API chain proof with explicit loading/error states and displays the current ticket token, wallet match, event binding, proof hashes, ticket tx, contract, and latest contract activity. Etherscan links are derived only from API response URLs.
+- Live Sepolia read-only verification during this pass checked contract `0xc6629Ba2c181d41C8F9cC587E349F9d0049042e1`: bytecode exists; latest block observed was `11063987`; 18 logs were found in the last 50,000 blocks; latest activity was tx `0xd6c1b59d48c4eb1cbf68333b3dbde67d70b04ab71a84b5dcbde97718a352677f` at block `11063981`, timestamp `2026-06-15T07:21:36.000Z`, receipt status success.
+- Verification passed:
+  - `scripts/with-node-22.sh npm run typecheck -w apps/api`
+  - `OWNERSHIP_ADAPTER=mock scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/tickets.service.spec.ts`
+  - `git diff --check`
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBetaLiveChainProof CODE_SIGNING_ALLOWED=NO build`
+- Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`. Built and installed executable SHA-256 both matched `24eab0d57b80e464280af8b2f840f7884a9569ec7cc1f56f1c2ce5de025fe42d`.
+- Boundary: this proves the app no longer uses local/mock/static data for ticket-detail chain status and that the dev contract currently has live Sepolia activity. It still does not close release-grade chain custody, Safe/multisig/timelock ownership, delegated signer custody, TestFlight, signed Wallet, completed Stripe settlement, authenticated Wallet/USDC evidence, or scanner redemption evidence.
 
 ## Next Engineering Tasks
 

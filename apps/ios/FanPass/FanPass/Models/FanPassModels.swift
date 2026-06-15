@@ -96,6 +96,58 @@ struct FanPassProofHistoryItem: Codable, Identifiable, Hashable {
     let externalUrl: String?
 }
 
+struct FanPassChainProofResponse: Codable, Hashable {
+    let status: String
+    let chainId: String?
+    let contractAddress: String?
+    let contractExplorerUrl: String?
+    let ticket: Ticket
+    let wallet: Wallet
+    let event: Event
+    let proof: Proof
+    let transaction: Transaction?
+    let contractActivity: Transaction?
+    let checkedAt: String
+    let message: String
+
+    struct Ticket: Codable, Hashable {
+        let id: String
+        let safeTicketRef: String
+        let tokenId: String?
+        let eventId: String
+        let ticketTypeId: String
+    }
+
+    struct Wallet: Codable, Hashable {
+        let expectedOwnerAddress: String?
+        let onChainOwnerAddress: String?
+        let matches: Bool?
+    }
+
+    struct Event: Codable, Hashable {
+        let expectedChainEventId: String
+        let onChainEventId: String?
+        let matches: Bool?
+    }
+
+    struct Proof: Codable, Hashable {
+        let ticketIdHashMatches: Bool?
+        let ticketTypeHashMatches: Bool?
+        let policyHashMatches: Bool?
+        let metadataHashMatches: Bool?
+        let state: String?
+        let transferCount: String?
+    }
+
+    struct Transaction: Codable, Hashable {
+        let hash: String
+        let status: String
+        let blockNumber: Int?
+        let blockTimestamp: String?
+        let explorerUrl: String
+    }
+}
+
 struct QRPayload: Codable, Hashable {
     let v: Int?
     let credentialId: String?

@@ -198,6 +198,13 @@ private struct FanPassV4SessionTicketService: FanPassV4TicketServicing {
         return try await base.proofHistory(for: ticket)
     }
 
+    func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
+        if pendingTickets.contains(where: { $0.id == ticket.id }) {
+            throw FanPassV4MockError.networkUnavailable
+        }
+        return try await base.chainProof(for: ticket)
+    }
+
     func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
         await base.purchaseTicket(event: event, ticketType: ticketType, owner: owner)
     }

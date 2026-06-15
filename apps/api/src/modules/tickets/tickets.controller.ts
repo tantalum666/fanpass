@@ -84,6 +84,16 @@ export class TicketsController {
     return this.tickets.getProofHistory(id, session);
   }
 
+  @Get(":id/chain-proof")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("FAN", "ORGANIZER", "ADMIN")
+  getChainProof(
+    @Param("id", FanPassIdParamPipe) id: string,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.tickets.getChainProof(id, session);
+  }
+
   @Get(":id")
   @UseGuards(FanPassAuthGuard)
   @Roles("ORGANIZER", "ADMIN")

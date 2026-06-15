@@ -115,6 +115,18 @@
 
 Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup work only and is tracked separately in `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`. It must not include Web NFC, must not replace native iOS/FanPass Ops/Console product boundaries, and must not close signed iOS/TestFlight, signed Apple Wallet `.pkpass`, physical QR/NFC, or release-grade chain custody evidence. The first landing page should be long-scroll but low-density: `less is more` means one strong idea per viewport, not a short page. Lead with trustworthy tickets, controlled resale, and transparent prices, not QR/scanner mechanics or web/iOS sync.
 
+Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock turnstile prototype now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. It is local learning/prototype work only and does not close any native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, backend-authority, or chain-custody release blocker.
+
+- [x] Build a local Arduino/EP8280 mock turnstile bench that reads real QR text over TTL, displays LCD status, moves one servo gate, and uses ultrasonic pass-through detection.
+- [x] Update the iOS FanPass ticket detail `On-chain status` card to distinguish a current ticket with no Sepolia transaction from dev contract activity, and add Sepolia Etherscan links for ticket tx, contract, and latest observed tx where available.
+  - [x] Wire EP8280 8-pin Pin4 TTL output to Arduino `D0/RX1` and confirm serial `EP8280 BYTE ...` plus `SCAN: <payload>` logs.
+  - [x] Wire EP8280 Pin7 decode-success output to Arduino `D2` as diagnostics/fallback and delay fallback so TTL QR text has priority.
+  - [x] Configure LCD states for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data.
+  - [x] Require real QR content containing `FANPASS` before opening the servo gate in the bench sketch.
+  - [ ] Add a separate regulated 5V supply for servo/scanner stability instead of relying on Arduino/breadboard rail power.
+  - [ ] Resolve EP8280 NFC card/tag behavior or document that the bench remains QR-only.
+  - [ ] Connect the hardware bench to real FanPass API redemption only if explicitly scoped later; until then it remains separate from release evidence.
+
 - [x] Repair the iOS distribution boundary audit so removing the FanPass Ops paste fallback metric is accepted while any reintroduced metric remains `#if DEBUG`-gated.
 - [x] Keep FanPass Ops scanner paste-fallback wording out of release UI states and verify the audit plus FanPass/FanPassOps simulator builds.
 - [x] Restore FanPass Ops release staff invite linking through Privy email code login plus one-time invite acceptance and rerun the staff policy gate.
@@ -436,6 +448,11 @@ Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup 
   - [x] Expand Hardhat tests for ticket proof, lifecycle states, soulbound transfer blocking, badge revocation, redemption context, and duplicate rejection.
   - A gated Sepolia dev-only deployment script now exists for fictional contract/ABI validation with a temporary hot key and gitignored local artifacts. This closes only the local/dev contract-foundation task. Chain custody, release-grade Sepolia deployment, multisig/timelock ownership, delegated signer/vault/KMS, and deployed backend proof-sync evidence remain separate blockers.
   - The self-solvable dev-only chain pass is complete for current scope: Sepolia deployment, API ownership smoke, focused ABI tests, typecheck, provider-boundary audit, chain operator key audit, chain custody evidence self-test, evidence-redaction audit, full Beta foundation verifier, gitignore check, and `git diff --check` passed. This remains `custodyEvidence: false` and must not be used as public/real-user Beta evidence.
+  - [x] Replace ticket-detail local/static chain display with live Sepolia lookup.
+    - Added API `GET /tickets/:id/chain-proof` to query the configured Sepolia contract and compare current ticket, event, owner wallet, proof hashes, transaction receipt, and recent contract activity.
+    - iOS ticket detail now consumes this endpoint directly; mock services do not fabricate chain proof, and Etherscan links are derived only from API response URLs.
+    - Simulator-only FanPass Beta build/install completed on `FanPass-iPhone-17`; physical iPhone was intentionally not updated for this pass.
+    - This remains dev-chain evidence only and does not close release-grade chain custody.
 
 ## Engineering Quality Gates
 

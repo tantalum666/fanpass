@@ -4,8 +4,9 @@ import {
   Injectable,
   Optional,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { DemoStore } from "../../common/demo-store";
 import { TicketRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
@@ -31,12 +32,79 @@ export interface TicketProofHistoryItem {
   externalUrl?: string;
 }
 
+export interface TicketChainProofResponse {
+  status:
+    | "linked"
+    | "no_chain_record"
+    | "not_configured"
+    | "rpc_unavailable"
+    | "mismatch";
+  chainId: string | null;
+  contractAddress: string | null;
+  contractExplorerUrl: string | null;
+  ticket: {
+    id: string;
+    safeTicketRef: string;
+    tokenId: string | null;
+    eventId: string;
+    ticketTypeId: string;
+  };
+  wallet: {
+    expectedOwnerAddress: string | null;
+    onChainOwnerAddress: string | null;
+    matches: boolean | null;
+  };
+  event: {
+    expectedChainEventId: string;
+    onChainEventId: string | null;
+    matches: boolean | null;
+  };
+  proof: {
+    ticketIdHashMatches: boolean | null;
+    ticketTypeHashMatches: boolean | null;
+    policyHashMatches: boolean | null;
+    metadataHashMatches: boolean | null;
+    state: string | null;
+    transferCount: string | null;
+  };
+  transaction: {
+    hash: string;
+    status: "success" | "failed" | "pending" | "not_found";
+    blockNumber: number | null;
+    blockTimestamp: string | null;
+    explorerUrl: string;
+  } | null;
+  contractActivity: {
+    hash: string;
+    status: "success" | "failed" | "pending" | "not_found";
+    blockNumber: number | null;
+    blockTimestamp: string | null;
+    explorerUrl: string;
+  } | null;
+  checkedAt: string;
+  message: string;
+}
+
+interface TicketChainLookupInput {
+  id: string;
+  tokenId: string | null;
+  eventId: string;
+  ticketTypeId: string;
+  transferable: boolean;
+  resaleCap: number | null;
+  maxTransferCount: number;
+  metadataUri: string | null;
+  ownerWalletAddress: string | null;
+  auditLogs: Array<{ action: string; createdAt: string; metadata?: unknown }>;
+}
+
 @Injectable()
 export class TicketsService {
   constructor(
     private readonly store: DemoStore,
     private readonly audit: AuditService,
     private readonly ticketOwnership: TicketOwnershipSideEffectsService,
+    @Optional() private readonly config?: ConfigService,
     @Optional() private readonly prisma?: PrismaService,
   ) {}
 
@@ -157,6 +225,78 @@ export class TicketsService {
       ticketTypeName: ticketType.name,
       auditLogs,
       latestCheckinAt,
+    });
+  }
+
+  async getChainProof(
+    id: string,
+    session?: FanPassSession,
+  ): Promise<TicketChainProofResponse> {
+    const prisma = this.prismaClient();
+    if (prisma) {
+      const ticket = await prisma.ticket.findUniqueOrThrow({
+        where: { id },
+        include: {
+          event: {
+            include: {
+              organizer: true,
+            },
+          },
+          ticketType: true,
+          owner: true,
+        },
+      });
+      this.assertPrismaProofAccess(ticket, session);
+      const auditLogs = await prisma.auditLog.findMany({
+        where: {
+          entityType: "ticket",
+          entityId: ticket.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 20,
+      });
+      return this.buildChainProof({
+        id: ticket.id,
+        tokenId: ticket.tokenId,
+        eventId: ticket.eventId,
+        ticketTypeId: ticket.ticketTypeId,
+        transferable: ticket.ticketType.transferable,
+        resaleCap: ticket.ticketType.resaleCap,
+        maxTransferCount: ticket.ticketType.maxTransferCount,
+        metadataUri: ticket.metadataUri,
+        ownerWalletAddress: ticket.owner.walletAddress,
+        auditLogs: auditLogs.map((log) => ({
+          action: log.action,
+          createdAt: log.createdAt.toISOString(),
+          metadata: log.metadataJson,
+        })),
+      });
+    }
+
+    const ticket = this.store.getTicket(id);
+    this.assertMemoryProofAccess(ticket, session);
+    const ticketType = this.store.getTicketType(ticket.ticketTypeId);
+    const owner = this.store.users.find((user) => user.id === ticket.ownerId);
+    const auditLogs = this.store.auditLogs
+      .filter((log) => log.entityType === "ticket" && log.entityId === id)
+      .map((log) => ({
+        action: log.action,
+        createdAt: log.createdAt,
+        metadata: log.metadata,
+      }));
+    return this.buildChainProof({
+      id: ticket.id,
+      tokenId: ticket.tokenId,
+      eventId: ticket.eventId,
+      ticketTypeId: ticket.ticketTypeId,
+      transferable: ticketType.transferable,
+      resaleCap: ticketType.resaleCap,
+      maxTransferCount: ticketType.maxTransferCount,
+      metadataUri: ticket.metadataUri,
+      ownerWalletAddress: owner?.walletAddress ?? null,
+      auditLogs,
     });
   }
 
@@ -361,16 +501,14 @@ export class TicketsService {
         safeTicketRef,
       },
     ];
-    if (latestOwnership) {
+    if (latestOwnership?.adapter === "testnet") {
       items.push({
         id: "chain-proof",
         label: "On-chain proof",
-        state: latestOwnership.adapter === "testnet" ? "Sepolia" : "Local",
+        state: "Sepolia",
         timestamp: latestOwnership.createdAt,
         description:
-          latestOwnership.adapter === "testnet"
-            ? "Ticket lifecycle proof was written to the configured Sepolia contract and can be checked on the block explorer."
-            : "Ticket lifecycle proof is using the local ownership adapter.",
+          "Ticket lifecycle proof was written to the configured Sepolia contract and can be checked on the block explorer.",
         safeTicketRef,
         proofReference: latestOwnership.proofReference,
         externalUrl: latestOwnership.externalUrl,
@@ -378,6 +516,447 @@ export class TicketsService {
     }
 
     return { items };
+  }
+
+  private async buildChainProof(
+    input: TicketChainLookupInput,
+  ): Promise<TicketChainProofResponse> {
+    const checkedAt = new Date().toISOString();
+    const latestOwnership = this.latestOwnershipProof(input.auditLogs);
+    const tokenId = input.tokenId ?? this.tokenIdFromOwnershipRef(
+      latestOwnership?.ownershipRef ?? null,
+    );
+    const contractAddress =
+      this.contractFromOwnershipRef(latestOwnership?.ownershipRef ?? null) ??
+      this.configAddress("FANPASS_TICKET_CONTRACT_ADDRESS");
+    const rpcUrl = this.firstConfigValue([
+      "TESTNET_RPC_URL",
+      "FANPASS_SEPOLIA_RPC_URL",
+      "FANPASS_WALLET_RPC_URL",
+    ]);
+    const chainId =
+      this.firstConfigValue(["TESTNET_CHAIN_ID", "FANPASS_WALLET_CHAIN_ID"]) ??
+      (rpcUrl ? "11155111" : null);
+    const contractExplorerUrl =
+      contractAddress && chainId === "11155111"
+        ? `https://sepolia.etherscan.io/address/${contractAddress}`
+        : null;
+    const base = this.chainProofBase(
+      input,
+      tokenId,
+      chainId,
+      contractAddress,
+      contractExplorerUrl,
+      checkedAt,
+    );
+
+    if (!rpcUrl || !contractAddress) {
+      return {
+        ...base,
+        status: "not_configured",
+        message:
+          "FanPass API does not have enough Sepolia configuration to query this ticket on-chain.",
+      };
+    }
+
+    try {
+      const code = await this.rpcCall<string>(rpcUrl, "eth_getCode", [
+        contractAddress,
+        "latest",
+      ]);
+      if (code === "0x") {
+        return {
+          ...base,
+          status: "no_chain_record",
+          message: "The configured FanPass ticket contract has no bytecode on the selected chain.",
+        };
+      }
+      const contractActivity = await this.latestContractActivity(
+        rpcUrl,
+        contractAddress,
+      );
+      if (!tokenId || !/^\d+$/.test(tokenId)) {
+        return {
+          ...base,
+          contractActivity,
+          status: "no_chain_record",
+          message:
+            "FanPass API queried Sepolia, but this ticket does not have a numeric token id to check on-chain.",
+        };
+      }
+
+      const [
+        ownerResult,
+        eventResult,
+        stateResult,
+        transferCountResult,
+        proofResult,
+        transaction,
+      ] = await Promise.all([
+        this.ethCall(rpcUrl, contractAddress, this.uint256Call("6352211e", tokenId)),
+        this.ethCall(rpcUrl, contractAddress, this.uint256Call("998f6ac0", tokenId)),
+        this.ethCall(rpcUrl, contractAddress, this.uint256Call("017a9105", tokenId)),
+        this.ethCall(rpcUrl, contractAddress, this.uint256Call("ed810d30", tokenId)),
+        this.ethCall(rpcUrl, contractAddress, this.uint256Call("9ddaf5aa", tokenId)),
+        this.transactionProof(rpcUrl, latestOwnership?.transactionHash ?? null),
+      ]);
+
+      const onChainOwnerAddress = this.decodeAddress(ownerResult);
+      const onChainEventId = this.decodeUint(eventResult);
+      const expectedChainEventId = this.chainEventId(input.eventId).toString();
+      const proofWords = this.decodeWords(proofResult, 4);
+      const expectedProof = this.expectedProofHashes(input);
+      const expectedOwnerAddress = this.normalizeAddress(
+        input.ownerWalletAddress,
+      );
+
+      const walletMatches =
+        expectedOwnerAddress && onChainOwnerAddress
+          ? expectedOwnerAddress.toLowerCase() ===
+            onChainOwnerAddress.toLowerCase()
+          : null;
+      const eventMatches = onChainEventId === expectedChainEventId;
+      const stateValue = this.decodeUint(stateResult);
+      const proof = {
+        ticketIdHashMatches: proofWords[0]
+          ? proofWords[0].toLowerCase() === expectedProof.ticketIdHash
+          : null,
+        ticketTypeHashMatches: proofWords[1]
+          ? proofWords[1].toLowerCase() === expectedProof.ticketTypeHash
+          : null,
+        policyHashMatches: proofWords[2]
+          ? proofWords[2].toLowerCase() === expectedProof.policyHash
+          : null,
+        metadataHashMatches: proofWords[3]
+          ? proofWords[3].toLowerCase() === expectedProof.metadataHash
+          : null,
+        state: stateValue === null ? null : this.ticketStateLabel(Number(stateValue)),
+        transferCount: this.decodeUint(transferCountResult),
+      };
+      const proofMatches = [
+        proof.ticketIdHashMatches,
+        proof.ticketTypeHashMatches,
+        proof.policyHashMatches,
+        proof.metadataHashMatches,
+      ].every((value) => value === true);
+      const linked =
+        walletMatches === true &&
+        eventMatches &&
+        proofMatches &&
+        (transaction === null ||
+          transaction.status === "success" ||
+          transaction.status === "pending");
+
+      return {
+        ...base,
+        status: linked ? "linked" : "mismatch",
+        wallet: {
+          expectedOwnerAddress,
+          onChainOwnerAddress,
+          matches: walletMatches,
+        },
+        event: {
+          expectedChainEventId,
+          onChainEventId,
+          matches: eventMatches,
+        },
+        proof,
+        transaction,
+        contractActivity,
+        message: linked
+          ? "Sepolia owner, event, ticket proof, wallet, and transaction metadata match this FanPass ticket."
+          : "FanPass API queried Sepolia, but one or more ticket, wallet, event, proof, or transaction checks did not match.",
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        /revert|nonexistent|not found|invalid token/i.test(error.message)
+      ) {
+        return {
+          ...base,
+          status: "no_chain_record",
+          message:
+            "FanPass API queried Sepolia, but the configured contract has no token record for this ticket.",
+        };
+      }
+      return {
+        ...base,
+        status: "rpc_unavailable",
+        message:
+          "FanPass API could not complete the Sepolia RPC check for this ticket.",
+      };
+    }
+  }
+
+  private chainProofBase(
+    input: TicketChainLookupInput,
+    tokenId: string | null,
+    chainId: string | null,
+    contractAddress: string | null,
+    contractExplorerUrl: string | null,
+    checkedAt: string,
+  ): TicketChainProofResponse {
+    return {
+      status: "no_chain_record",
+      chainId,
+      contractAddress,
+      contractExplorerUrl,
+      ticket: {
+        id: input.id,
+        safeTicketRef: this.safeTicketRef(input.id),
+        tokenId,
+        eventId: input.eventId,
+        ticketTypeId: input.ticketTypeId,
+      },
+      wallet: {
+        expectedOwnerAddress: this.normalizeAddress(input.ownerWalletAddress),
+        onChainOwnerAddress: null,
+        matches: null,
+      },
+      event: {
+        expectedChainEventId: this.chainEventId(input.eventId).toString(),
+        onChainEventId: null,
+        matches: null,
+      },
+      proof: {
+        ticketIdHashMatches: null,
+        ticketTypeHashMatches: null,
+        policyHashMatches: null,
+        metadataHashMatches: null,
+        state: null,
+        transferCount: null,
+      },
+      transaction: null,
+      contractActivity: null,
+      checkedAt,
+      message: "No Sepolia record has been resolved for this ticket yet.",
+    };
+  }
+
+  private async transactionProof(
+    rpcUrl: string,
+    transactionHash: string | null,
+  ): Promise<TicketChainProofResponse["transaction"]> {
+    if (!transactionHash || !/^0x[a-fA-F0-9]{64}$/.test(transactionHash)) {
+      return null;
+    }
+    const receipt = await this.rpcCall<{
+      status?: string;
+      blockNumber?: string;
+    } | null>(rpcUrl, "eth_getTransactionReceipt", [transactionHash]);
+    if (!receipt) {
+      return {
+        hash: transactionHash,
+        status: "pending",
+        blockNumber: null,
+        blockTimestamp: null,
+        explorerUrl: `https://sepolia.etherscan.io/tx/${transactionHash}`,
+      };
+    }
+    const blockNumber =
+      typeof receipt.blockNumber === "string"
+        ? Number.parseInt(receipt.blockNumber, 16)
+        : null;
+    const block = receipt.blockNumber
+      ? await this.rpcCall<{ timestamp?: string } | null>(
+          rpcUrl,
+          "eth_getBlockByNumber",
+          [receipt.blockNumber, false],
+        )
+      : null;
+    const blockTimestamp =
+      typeof block?.timestamp === "string"
+        ? new Date(Number.parseInt(block.timestamp, 16) * 1000).toISOString()
+        : null;
+    return {
+      hash: transactionHash,
+      status: receipt.status === "0x1" ? "success" : "failed",
+      blockNumber,
+      blockTimestamp,
+      explorerUrl: `https://sepolia.etherscan.io/tx/${transactionHash}`,
+    };
+  }
+
+  private async latestContractActivity(
+    rpcUrl: string,
+    contractAddress: string,
+  ): Promise<TicketChainProofResponse["contractActivity"]> {
+    try {
+      const latestBlockHex = await this.rpcCall<string>(
+        rpcUrl,
+        "eth_blockNumber",
+        [],
+      );
+      const latestBlock = Number.parseInt(latestBlockHex, 16);
+      const fromBlock = Math.max(latestBlock - 50_000, 0);
+      const logs = await this.rpcCall<
+        Array<{ transactionHash?: string; blockNumber?: string }>
+      >(rpcUrl, "eth_getLogs", [
+        {
+          address: contractAddress,
+          fromBlock: `0x${fromBlock.toString(16)}`,
+          toBlock: "latest",
+        },
+      ]);
+      const latestLog = logs.at(-1);
+      if (!latestLog?.transactionHash) {
+        return null;
+      }
+      return this.transactionProof(rpcUrl, latestLog.transactionHash);
+    } catch {
+      return null;
+    }
+  }
+
+  private async ethCall(rpcUrl: string, to: string, data: string) {
+    return this.rpcCall<string>(rpcUrl, "eth_call", [{ to, data }, "latest"]);
+  }
+
+  private async rpcCall<T>(
+    rpcUrl: string,
+    method: string,
+    params: unknown[],
+  ): Promise<T> {
+    const response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`RPC request failed with ${response.status}`);
+    }
+    const body = (await response.json()) as {
+      result?: T;
+      error?: { message?: string };
+    };
+    if (body.error || body.result === undefined) {
+      throw new Error(body.error?.message ?? "RPC response missing result");
+    }
+    return body.result;
+  }
+
+  private uint256Call(selector: string, value: string) {
+    const numeric = BigInt(value);
+    return `0x${selector}${numeric.toString(16).padStart(64, "0")}`;
+  }
+
+  private decodeAddress(value: string) {
+    if (!/^0x[a-fA-F0-9]{64}$/.test(value)) {
+      return null;
+    }
+    return `0x${value.slice(-40)}`;
+  }
+
+  private decodeUint(value: string) {
+    if (!/^0x[a-fA-F0-9]{64}$/.test(value)) {
+      return null;
+    }
+    return BigInt(value).toString();
+  }
+
+  private decodeWords(value: string, count: number) {
+    if (!/^0x[a-fA-F0-9]+$/.test(value)) {
+      return [];
+    }
+    const body = value.slice(2);
+    return Array.from({ length: count }, (_, index) => {
+      const word = body.slice(index * 64, index * 64 + 64);
+      return word.length === 64 ? `0x${word}` : null;
+    });
+  }
+
+  private expectedProofHashes(input: TicketChainLookupInput) {
+    const policyHash = this.bytes32Hash(
+      [
+        "policy",
+        input.eventId,
+        input.ticketTypeId,
+        String(input.transferable),
+        String(input.resaleCap ?? 0),
+        String(input.maxTransferCount),
+      ].join(":"),
+    );
+    return {
+      ticketIdHash: this.bytes32Hash(`ticket:${input.id}`).toLowerCase(),
+      ticketTypeHash: this.bytes32Hash(
+        `ticket-type:${input.ticketTypeId}`,
+      ).toLowerCase(),
+      policyHash: policyHash.toLowerCase(),
+      metadataHash: this.bytes32Hash(
+        `metadata:${input.metadataUri ?? input.id}`,
+      ).toLowerCase(),
+    };
+  }
+
+  private chainEventId(eventId: string) {
+    if (/^\d+$/.test(eventId)) {
+      return BigInt(eventId);
+    }
+    return BigInt(
+      `0x${createHash("sha256").update(eventId).digest("hex").slice(0, 16)}`,
+    );
+  }
+
+  private bytes32Hash(value: string) {
+    return `0x${createHash("sha256").update(value).digest("hex")}`;
+  }
+
+  private tokenIdFromOwnershipRef(value: string | null) {
+    const tokenId = value?.split(":").at(-1);
+    return tokenId && /^\d+$/.test(tokenId) ? tokenId : null;
+  }
+
+  private contractFromOwnershipRef(value: string | null) {
+    const contract = value?.split(":")[0];
+    return this.normalizeAddress(contract);
+  }
+
+  private configAddress(key: string) {
+    return this.normalizeAddress(this.configValue(key));
+  }
+
+  private firstConfigValue(keys: string[]) {
+    for (const key of keys) {
+      const value = this.configValue(key);
+      if (value) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  private configValue(key: string) {
+    return this.config?.get<string>(key)?.trim() || process.env[key] || null;
+  }
+
+  private normalizeAddress(value: string | null | undefined) {
+    const trimmed = value?.trim();
+    if (!trimmed || !/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  private ticketStateLabel(value: number) {
+    switch (value) {
+      case 0:
+        return "Minted";
+      case 1:
+        return "Redeemed";
+      case 2:
+        return "Cancelled";
+      case 3:
+        return "Refunded";
+      default:
+        return null;
+    }
   }
 
   private auditTimestamp(
@@ -404,6 +983,8 @@ export class TicketsService {
       return {
         adapter: adapter ?? "unknown",
         createdAt: log.createdAt,
+        ownershipRef,
+        transactionHash,
         proofReference:
           transactionHash !== null
             ? `tx ${this.shortHex(transactionHash)}`

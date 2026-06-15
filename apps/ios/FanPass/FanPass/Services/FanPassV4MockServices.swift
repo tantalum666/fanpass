@@ -29,6 +29,7 @@ protocol FanPassV4TicketServicing {
     func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus?) async -> [FanPassV4.Ticket]
     func ticket(id: String) async -> FanPassV4.Ticket?
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem]
+    func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse
     func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket
     func addToWallet(ticket: FanPassV4.Ticket) async -> FanPassV4.Ticket
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing
@@ -92,6 +93,10 @@ struct MockTicketService: FanPassV4TicketServicing {
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {
         ticket.proofHistory
+    }
+
+    func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
+        throw FanPassV4MockError.networkUnavailable
     }
 
     func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
