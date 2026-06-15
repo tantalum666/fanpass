@@ -225,7 +225,7 @@ function validateApps(relativePath, apps) {
   }
   const byName = new Map(apps.map((app) => [app.name, app]));
   for (const [name, bundleId] of [
-    ["FanPass", "com.fanpass.app"],
+    ["FanPass", "fun.fanpass.app"],
     ["FanPass Ops", "com.fanpass.ops"],
   ]) {
     const app = byName.get(name);

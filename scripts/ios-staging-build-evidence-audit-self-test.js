@@ -399,7 +399,7 @@ function fanPassApp() {
   return {
     name: "FanPass",
     scheme: "FanPass",
-    bundleId: "com.fanpass.app",
+    bundleId: "fun.fanpass.app",
     archiveSucceeded: true,
     signedWithAppleTeam: true,
     distributionChannel: "development-device",

@@ -38,7 +38,7 @@ The evidence must prove:
 - the actual Privy dashboard was reviewed;
 - the checked environment is `staging` or `beta`;
 - both native apps are covered:
-  - `FanPass` with bundle id `com.fanpass.app`;
+  - `FanPass` with bundle id `fun.fanpass.app`;
   - `FanPass Ops` with bundle id `com.fanpass.ops`;
 - both apps have a Privy app ID and app client ID configured;
 - public app/client IDs are either redacted or clearly treated as public non-secret values;
@@ -135,7 +135,7 @@ Evidence must not include:
   "apps": [
     {
       "name": "FanPass",
-      "bundleId": "com.fanpass.app",
+      "bundleId": "fun.fanpass.app",
       "appIdConfigured": true,
       "appClientIdConfigured": true,
       "appIdPublicOrRedacted": true,

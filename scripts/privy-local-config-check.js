@@ -327,7 +327,7 @@ function projectDefinesBundleIds() {
   }
   const contents = fs.readFileSync(projectFile, "utf8");
   return (
-    contents.includes("PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app") &&
+    contents.includes("PRODUCT_BUNDLE_IDENTIFIER: fun.fanpass.app") &&
     contents.includes("PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.ops") &&
     contents.includes("FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)") &&
     contents.includes("FanPassPrivyAppClientID: $(FANPASS_PRIVY_APP_CLIENT_ID)")

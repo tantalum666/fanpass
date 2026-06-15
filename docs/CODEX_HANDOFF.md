@@ -6267,6 +6267,13 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `92c8e55ce95cd25c18ecd99b1d565d83a7bb764e675ed907ab6a03fcf928a633`. No physical iPhone install was performed.
 - Boundary: this is an iOS copy/presentation cleanup only. It does not change Render API, Vercel, Neon, TestFlight, payment settlement, scanner redemption, or staging DB ticket/chain associations.
 
+## After FanPass Main Bundle ID Change on 2026-06-15
+
+- Owner registered the main fan app App ID as `fun.fanpass.app` after Apple reported `com.fanpass.app` unavailable. Keep `com.fanpass.ops` for the staff/Ops app.
+- Updated the native iOS FanPass target bundle id in `apps/ios/FanPass/project.yml`, `apps/ios/FanPass/FanPass.xcodeproj/project.pbxproj`, and the FanPass generated Info.plist URL type name from `com.fanpass.app` to `fun.fanpass.app`.
+- Updated local release/Privy/evidence validators and templates to expect `fun.fanpass.app` for FanPass and `com.fanpass.ops` for FanPass Ops.
+- App Store Connect setup should now create/select the main FanPass app with bundle id `fun.fanpass.app`. Existing local simulator/device installs under `com.fanpass.app` are obsolete and should be replaced by builds signed/installed with the new bundle id.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.

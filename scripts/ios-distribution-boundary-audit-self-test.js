@@ -469,7 +469,7 @@ function projectYml(options = {}) {
 targets:
   FanPass:
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app${signingSettings}
+      PRODUCT_BUNDLE_IDENTIFIER: fun.fanpass.app${signingSettings}
     sources:
       - path: FanPass
         excludes:

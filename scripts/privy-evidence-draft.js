@@ -151,7 +151,7 @@ function buildDraft(draftKind, checkedAtIso) {
         files: snapshot(mobileSnapshotFiles),
       },
       apps: [
-        mobileAppDraft("FanPass", "com.fanpass.app"),
+        mobileAppDraft("FanPass", "fun.fanpass.app"),
         mobileAppDraft("FanPass Ops", "com.fanpass.ops"),
       ],
       configuration: {

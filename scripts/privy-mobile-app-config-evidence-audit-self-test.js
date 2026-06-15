@@ -162,7 +162,7 @@ try {
         }),
       ),
     ),
-    ["FanPass bundleId must be com.fanpass.app"],
+    ["FanPass bundleId must be fun.fanpass.app"],
   );
 
   expectFail(
@@ -319,7 +319,7 @@ function createEvidence(overrides = {}) {
 }
 
 function createApp(name, overrides = {}) {
-  const bundleId = name === "FanPass" ? "com.fanpass.app" : "com.fanpass.ops";
+  const bundleId = name === "FanPass" ? "fun.fanpass.app" : "com.fanpass.ops";
   return {
     name,
     bundleId,

@@ -229,7 +229,7 @@ function buildDraft(draftKind, checkedAtIso) {
         deploymentCredentialsAvailable: false,
       },
       apps: [
-        iosBuildAppDraft("FanPass", "FanPass", "com.fanpass.app", {
+        iosBuildAppDraft("FanPass", "FanPass", "fun.fanpass.app", {
           cameraPermissionPresent: false,
           nfcEntitlementPresent: false,
           staffControlsPresent: false,

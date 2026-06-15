@@ -161,7 +161,7 @@ function makeFixture(options = {}) {
       "targets:",
       "  FanPass:",
       "    settings:",
-      "      PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app",
+      "      PRODUCT_BUNDLE_IDENTIFIER: fun.fanpass.app",
       "    info:",
       "      properties:",
       "        FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)",

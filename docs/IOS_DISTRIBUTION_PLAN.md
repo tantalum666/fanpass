@@ -15,7 +15,7 @@ This plan covers native iOS distribution for two separate apps:
 
 | App         | Current bundle id | Current scheme | Role                                           |
 | ----------- | ----------------- | -------------- | ---------------------------------------------- |
-| FanPass     | `com.fanpass.app` | `FanPass`      | Consumer discovery, wallet, market, fan access |
+| FanPass     | `fun.fanpass.app` | `FanPass`      | Consumer discovery, wallet, market, fan access |
 | FanPass Ops | `com.fanpass.ops` | `FanPassOps`   | Gate scan, redemption, NFC prototype           |
 
 The current bundle ids are acceptable for local development. Before the first App Store Connect upload, decide whether to keep them or switch to longer-lived ids owned by the final Apple Developer account, because bundle ids become difficult to change after distribution history exists.
@@ -205,7 +205,7 @@ The helper writes archives and logs under ignored `outputs/ios-archives/`. It re
 Next required external setup:
 
 - Sign in to Xcode with the Apple Developer account.
-- Create or confirm App Store Connect apps and bundle IDs for `com.fanpass.app` and `com.fanpass.ops`.
+- Create or confirm App Store Connect apps and bundle IDs for `fun.fanpass.app` and `com.fanpass.ops`.
 - Enable NFC Tag Reading only for the `FanPass Ops` identifier.
 - Create/download Apple Development and Apple Distribution signing identities.
 - Create/download development and App Store/TestFlight provisioning profiles for both apps.

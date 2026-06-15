@@ -28,7 +28,7 @@ targets:
           - Features/Scanner
           - "**/README.md"
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.app
+      PRODUCT_BUNDLE_IDENTIFIER: fun.fanpass.app
       DEVELOPMENT_TEAM: $(FANPASS_APPLE_TEAM_ID)
       CODE_SIGN_STYLE: Manual
       PROVISIONING_PROFILE_SPECIFIER: $(FANPASS_FANPASS_PROVISIONING_PROFILE_SPECIFIER)
@@ -54,7 +54,7 @@ targets:
         FanPassStripePublishableKey: $(FANPASS_STRIPE_PUBLISHABLE_KEY)
         UILaunchScreen: {}
         CFBundleURLTypes:
-          - CFBundleURLName: com.fanpass.app
+          - CFBundleURLName: fun.fanpass.app
             CFBundleURLSchemes:
               - fanpass-payments
   FanPassOps:
