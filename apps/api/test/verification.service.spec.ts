@@ -1,5 +1,5 @@
 import { createHmac } from "crypto";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DemoStore } from "../src/common/demo-store";
 import { AuditService } from "../src/modules/audit/audit.service";
@@ -268,7 +268,7 @@ describe("VerificationService", () => {
     expect(store.checkins).toEqual([]);
   });
 
-  it("rejects gate staff at unassigned gates before recording a check-in", async () => {
+  it("allows gate staff to redeem valid QR payloads at any gate", async () => {
     const payload = await verification.createPayload("tkt_demo_001");
 
     await expect(
@@ -276,17 +276,25 @@ describe("VerificationService", () => {
         userId: "usr_gate_demo",
         role: "GATE_STAFF",
       }),
-    ).rejects.toThrow(ForbiddenException);
-    expect(store.checkins).toEqual([]);
+    ).resolves.toMatchObject({
+      eventId: "evt_weekend_demo",
+      result: "ACCEPTED",
+      ticketId: "tkt_demo_001",
+    });
+    expect(store.checkins).toMatchObject([{ gate: "A2", result: "ACCEPTED" }]);
   });
 
-  it("rejects gate summaries for unassigned gate staff", async () => {
+  it("allows gate staff to view summaries for any gate", async () => {
     await expect(
       verification.checkinSummary("evt_weekend_demo", "A2", {
         userId: "usr_gate_demo",
         role: "GATE_STAFF",
       }),
-    ).rejects.toThrow(ForbiddenException);
+    ).resolves.toMatchObject({
+      eventId: "evt_weekend_demo",
+      gate: "A2",
+      total: 0,
+    });
   });
 
   it("blocks entry code generation for listed tickets", async () => {

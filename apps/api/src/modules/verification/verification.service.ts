@@ -1008,10 +1008,14 @@ export class VerificationService {
 
   private assertMemoryGateAssignment(
     eventId: string,
-    gate: string,
+    _gate: string,
     session: FanPassSession | undefined,
   ) {
-    if (!session || session.role === "ADMIN") {
+    if (
+      !session ||
+      session.role === "ADMIN" ||
+      session.role === "GATE_STAFF"
+    ) {
       return;
     }
     if (session.role === "ORGANIZER") {
@@ -1027,28 +1031,20 @@ export class VerificationService {
       }
       throw new ForbiddenException("Organizer is not assigned to this event");
     }
-    if (session.role !== "GATE_STAFF") {
-      throw new ForbiddenException("Gate access is not assigned");
-    }
-    const assignment = this.store.gateAssignments.find(
-      (candidate) =>
-        candidate.eventId === eventId &&
-        candidate.gate === gate &&
-        candidate.staffUserId === session.userId &&
-        candidate.active,
-    );
-    if (!assignment) {
-      throw new ForbiddenException("Gate staff is not assigned to this gate");
-    }
+    throw new ForbiddenException("Gate access is not assigned");
   }
 
   private async assertPrismaGateAccess(
     prisma: PrismaService,
     eventId: string,
-    gate: string,
+    _gate: string,
     session: FanPassSession | undefined,
   ) {
-    if (!session || session.role === "ADMIN") {
+    if (
+      !session ||
+      session.role === "ADMIN" ||
+      session.role === "GATE_STAFF"
+    ) {
       return;
     }
     if (session.role === "ORGANIZER") {
@@ -1065,20 +1061,7 @@ export class VerificationService {
       }
       throw new ForbiddenException("Organizer is not assigned to this event");
     }
-    if (session.role !== "GATE_STAFF") {
-      throw new ForbiddenException("Gate access is not assigned");
-    }
-    const assignment = await prisma.gateAssignment.findFirst({
-      where: {
-        eventId,
-        gate,
-        staffUserId: session.userId,
-        active: true,
-      },
-    });
-    if (!assignment) {
-      throw new ForbiddenException("Gate staff is not assigned to this gate");
-    }
+    throw new ForbiddenException("Gate access is not assigned");
   }
 
   private prismaClient() {
