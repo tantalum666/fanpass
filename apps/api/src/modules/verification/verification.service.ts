@@ -173,6 +173,13 @@ export class VerificationService {
         "QR payload does not match current ticket ownership",
       );
     }
+    if (ticket.status === "REDEEMED") {
+      this.recordCheckin(payload, scannerUserId, gate, "DUPLICATE");
+      this.throwRedemptionFailure(
+        "DUPLICATE",
+        "Ticket has already been redeemed",
+      );
+    }
     try {
       this.tickets.assertCanRedeem(ticket);
     } catch (error) {
@@ -190,32 +197,21 @@ export class VerificationService {
       this.recordCheckin(payload, scannerUserId, gate, "DUPLICATE");
       throw error;
     }
-    let checkin: ReturnType<typeof this.recordCheckin>;
-    try {
-      const ownership = await this.ticketOwnership.redeemTicket({
-        ticketId: ticket.id,
-        tokenId: ticket.tokenId,
-      });
-      ticket.status = "REDEEMED";
-      this.consumedNonces.add(payload.nonce);
-      this.consumeMemoryCredential(payload.credentialId);
-      checkin = this.recordCheckin(
-        payload,
-        scannerUserId,
-        gate,
-        "ACCEPTED",
-      );
-      this.audit.record(scannerUserId, "TICKET_REDEEMED", "ticket", ticket.id, {
-        gate,
-        nonce: payload.nonce,
-        ownershipAdapter: ownership.adapter,
-        ownershipRef: ownership.ownershipRef,
-        transactionHash: ownership.transactionHash,
-      });
-    } catch (error) {
-      this.releaseMemoryRedemptionClaim(payload);
-      throw error;
-    }
+    ticket.status = "REDEEMED";
+    this.consumedNonces.add(payload.nonce);
+    this.consumeMemoryCredential(payload.credentialId);
+    const checkin = this.recordCheckin(payload, scannerUserId, gate, "ACCEPTED");
+    this.dispatchOwnershipRedeem({
+      ticketId: ticket.id,
+      tokenId: ticket.tokenId,
+    });
+    this.audit.record(scannerUserId, "TICKET_REDEEMED", "ticket", ticket.id, {
+      gate,
+      nonce: payload.nonce,
+      ownershipAdapter: "deferred",
+      ownershipRef: `pending:ownership-redeem:${ticket.id}`,
+      transactionHash: null,
+    });
     this.releaseMemoryRedemptionClaim(payload);
 
     return {
@@ -519,6 +515,19 @@ export class VerificationService {
         "QR payload does not match current ticket ownership",
       );
     }
+    if (ticket.status === "REDEEMED") {
+      await this.recordPrismaCheckin(
+        prisma,
+        payload,
+        scannerUserId,
+        gate,
+        "DUPLICATE",
+      );
+      this.throwRedemptionFailure(
+        "DUPLICATE",
+        "Ticket has already been redeemed",
+      );
+    }
 
     try {
       this.tickets.assertCanRedeem(ticket);
@@ -550,12 +559,15 @@ export class VerificationService {
       gate,
       redeemTicket,
     );
+    if (!this.ticketOwnership.usesOutboxProofSync()) {
+      this.dispatchOwnershipRedeem(redeemTicket);
+    }
 
     return {
       ticketId: ticket.id,
       eventId: ticket.eventId,
       result: "ACCEPTED",
-      redeemedAt: result.checkedInAt.toISOString(),
+      redeemedAt: result.checkin.checkedInAt.toISOString(),
     };
   }
 
@@ -611,9 +623,17 @@ export class VerificationService {
           );
         }
 
-        const ownership = await this.ticketOwnership.redeemTicket(redeemTicket, {
-          writer: tx,
-        });
+        const ownership = this.ticketOwnership.usesOutboxProofSync()
+          ? await this.ticketOwnership.redeemTicket(redeemTicket, {
+              writer: tx,
+            })
+          : {
+              adapter: "deferred",
+              status: "PENDING",
+              tokenId: ticket.tokenId ?? "pending",
+              ownershipRef: `pending:ownership-redeem:${ticket.id}`,
+              transactionHash: null,
+            };
         const checkin = await tx.checkin.create({
           data: {
             id: `chk_${randomUUID()}`,
@@ -645,7 +665,7 @@ export class VerificationService {
             },
           },
         });
-        return checkin;
+        return { checkin, ownership };
       });
     } catch (error) {
       if (this.isUniqueConstraintViolation(error)) {
@@ -683,6 +703,19 @@ export class VerificationService {
       });
     }
     return parsed;
+  }
+
+  private dispatchOwnershipRedeem(input: {
+    ticketId: string;
+    tokenId: string | null;
+  }) {
+    void this.ticketOwnership.redeemTicket(input).catch((error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Ownership redeem failed";
+      console.error(
+        `Ownership redeem side effect failed for ${input.ticketId}: ${message}`,
+      );
+    });
   }
 
   private normalizeNdefPayload(value: string) {
