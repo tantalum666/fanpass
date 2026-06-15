@@ -6216,6 +6216,19 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`. Built and installed executable SHA-256 both matched `24eab0d57b80e464280af8b2f840f7884a9569ec7cc1f56f1c2ce5de025fe42d`.
 - Boundary: this proves the app no longer uses local/mock/static data for ticket-detail chain status and that the dev contract currently has live Sepolia activity. It still does not close release-grade chain custody, Safe/multisig/timelock ownership, delegated signer custody, TestFlight, signed Wallet, completed Stripe settlement, authenticated Wallet/USDC evidence, or scanner redemption evidence.
 
+## After Live Chain Proof Staging API Deploy on 2026-06-15
+
+- Owner reported the simulator still showed `Sepolia lookup unavailable` with `Cannot GET /tickets/tkt_9bc51141-f81d-4018-bec0-9c244c0fb9b8/chain-proof`.
+- Diagnosis: the simulator app was already calling the new endpoint, but the Render staging API had not yet deployed commit `302bce1` containing `GET /tickets/:id/chain-proof`. The 404 was an environment/deploy mismatch, not an iOS request-path bug.
+- Verification before deploy passed API typecheck, API build, `OWNERSHIP_ADAPTER=mock` focused ticket service tests, and `git diff --check`.
+- Commit `302bce1` (`Query live Sepolia ticket proof`) was pushed to `origin/codex/beta-foundation-hosted-ci`.
+- Render manual deploy `dep-d8nqjg28qa3s73fcv8kg` for service `fanpass-api-staging` (`srv-d8dh521o3t8c73eidcv0`) succeeded.
+- Post-deploy probes:
+  - `GET https://fanpass-api-staging.onrender.com/health` returned HTTP 200.
+  - Unauthenticated `GET https://fanpass-api-staging.onrender.com/tickets/tkt_9bc51141-f81d-4018-bec0-9c244c0fb9b8/chain-proof` now returns HTTP 401 `Authentication is required`, proving the route is mounted and auth-protected instead of missing with `Cannot GET`.
+- Relaunched simulator app `com.fanpass.app` on `FanPass-iPhone-17` after deploy. No physical iPhone install was performed in this deploy pass.
+- Boundary: authenticated in-app chain proof still depends on the simulator retaining/signing in with a valid FanPass/Privy session. This deploy fixes the missing staging route; it does not by itself prove a specific authenticated user ticket is linked on-chain.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
