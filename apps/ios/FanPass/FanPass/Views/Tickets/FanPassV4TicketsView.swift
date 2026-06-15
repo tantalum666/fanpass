@@ -282,9 +282,9 @@ struct FanPassV4TicketDetailView: View {
     private var onChainStatusCard: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                FPSectionHeader(title: "On-chain status", subtitle: "Live Sepolia lookup from FanPass API")
+                FPSectionHeader(title: "Blockchain details", subtitle: "Sepolia")
                 if let chainProofResponse {
-                    HStack(alignment: .top, spacing: FPSpacing.md) {
+                    HStack(alignment: .center, spacing: FPSpacing.md) {
                         FPStatusPill(
                             title: chainProofStatusTitle(chainProofResponse.status),
                             systemImage: chainProofStatusKind(chainProofResponse.status).icon,
@@ -294,20 +294,12 @@ struct FanPassV4TicketDetailView: View {
                         )
                         Spacer(minLength: 0)
                     }
-                    Text(chainProofResponse.message)
+                    Text(chainProofSummary(chainProofResponse))
                         .font(FPTypography.callout)
                         .foregroundStyle(FPColors.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    sepoliaRecordList(response: chainProofResponse)
-                    VStack(spacing: FPSpacing.sm) {
-                        if let externalURL = chainTransactionURL(chainProofResponse) {
-                            sepoliaExplorerLink(
-                                title: "Open ticket transaction",
-                                subtitle: shortExplorerLabel(for: externalURL),
-                                destination: externalURL
-                            )
-                        }
-                    }
+                    blockchainDetails(response: chainProofResponse)
+                    chainActivity(response: chainProofResponse)
                 } else {
                     chainProofPlaceholder
                 }
@@ -322,7 +314,7 @@ struct FanPassV4TicketDetailView: View {
             HStack(spacing: FPSpacing.md) {
                 ProgressView()
                     .tint(FPColors.pulseCyan)
-                Text("Querying Sepolia for this ticket, event, wallet, proof, and transaction.")
+                Text("Loading Sepolia details for this ticket.")
                     .font(FPTypography.callout)
                     .foregroundStyle(FPColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -349,79 +341,26 @@ struct FanPassV4TicketDetailView: View {
         }
     }
 
-    private func sepoliaRecordList(response: FanPassChainProofResponse) -> some View {
-        VStack(spacing: FPSpacing.sm) {
-            sepoliaRecordRow(
-                icon: response.ticket.tokenId == nil ? "number.circle.fill" : FPIcons.verified,
-                title: "Current ticket",
-                value: response.ticket.tokenId.map { "Token #\($0)" } ?? "No token",
-                subtitle: "Ticket \(response.ticket.safeTicketRef) links event \(response.ticket.eventId) and type \(response.ticket.ticketTypeId).",
-                kind: response.ticket.tokenId == nil ? .warning : .success
+    private func blockchainDetails(response: FanPassChainProofResponse) -> some View {
+        VStack(spacing: 0) {
+            blockchainDetailRow(
+                title: "Contract Address",
+                value: shortIdentifier(response.contractAddress, head: 6, tail: 4, fallback: "Unavailable"),
+                destination: chainContractURL(response)
             )
-            sepoliaRecordRow(
-                icon: "person.crop.circle.badge.checkmark",
-                title: "Wallet owner",
-                value: matchLabel(response.wallet.matches),
-                subtitle: "Expected \(shortIdentifier(response.wallet.expectedOwnerAddress, head: 10, tail: 6, fallback: "no wallet")); on-chain \(shortIdentifier(response.wallet.onChainOwnerAddress, head: 10, tail: 6, fallback: "not found")).",
-                kind: matchKind(response.wallet.matches)
+            blockchainDetailRow(
+                title: "Token ID",
+                value: response.ticket.tokenId.map { "#\($0)" } ?? "Not minted",
+                destination: chainTokenURL(response)
             )
-            sepoliaRecordRow(
-                icon: "music.note.list",
-                title: "Event binding",
-                value: matchLabel(response.event.matches),
-                subtitle: "Expected chain event \(response.event.expectedChainEventId); on-chain \(response.event.onChainEventId ?? "not found").",
-                kind: matchKind(response.event.matches)
+            blockchainDetailRow(title: "Token Standard", value: "ERC721")
+            blockchainDetailRow(title: "Chain", value: response.chainId == "11155111" ? "Sepolia" : "Chain \(response.chainId ?? "Unknown")")
+            blockchainDetailRow(
+                title: "Transaction",
+                value: response.transaction.map { shortIdentifier($0.hash, head: 8, tail: 6, fallback: "Attached") } ?? "Not attached",
+                destination: chainTransactionURL(response),
+                showDivider: false
             )
-            sepoliaRecordRow(
-                icon: "doc.text.magnifyingglass",
-                title: "Proof hashes",
-                value: proofMatchLabel(response.proof),
-                subtitle: "State \(response.proof.state ?? "unknown"); transfer count \(response.proof.transferCount ?? "unknown").",
-                kind: proofMatchKind(response.proof)
-            )
-            if let transaction = response.transaction {
-                sepoliaRecordRow(
-                    icon: "cube.transparent.fill",
-                    title: "Transaction",
-                    value: shortIdentifier(transaction.hash, head: 10, tail: 8, fallback: "No tx"),
-                    subtitle: "\(transaction.status.capitalized), block \(transaction.blockNumber.map(String.init) ?? "pending"), \(transaction.blockTimestamp ?? "timestamp pending").",
-                    kind: transaction.status == "success" ? .success : .warning
-                )
-            } else {
-                sepoliaRecordRow(
-                    icon: "exclamationmark.triangle.fill",
-                    title: "Transaction",
-                    value: "No tx attached",
-                    subtitle: "FanPass API did not find a Sepolia transaction hash for this ticket.",
-                    kind: .warning
-                )
-            }
-        }
-    }
-
-    private func sepoliaRecordRow(icon: String, title: String, value: String, subtitle: String, kind: FPStateKind) -> some View {
-        HStack(alignment: .top, spacing: FPSpacing.md) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(kind.foreground)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                HStack(alignment: .firstTextBaseline, spacing: FPSpacing.sm) {
-                    Text(title)
-                        .font(FPTypography.caption)
-                        .foregroundStyle(FPColors.textTertiary)
-                    Spacer(minLength: FPSpacing.sm)
-                    Text(value)
-                        .font(FPTypography.caption)
-                        .foregroundStyle(FPColors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                }
-                Text(subtitle)
-                    .font(FPTypography.caption)
-                    .foregroundStyle(FPColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
         .padding(FPSpacing.md)
         .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
@@ -431,14 +370,116 @@ struct FanPassV4TicketDetailView: View {
         }
     }
 
+    private func blockchainDetailRow(title: String, value: String, destination: URL? = nil, showDivider: Bool = true) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: FPSpacing.md) {
+                Text(title)
+                    .font(FPTypography.callout)
+                    .foregroundStyle(FPColors.textSecondary)
+                Spacer(minLength: FPSpacing.md)
+                if let destination {
+                    Link(destination: destination) {
+                        HStack(spacing: 4) {
+                            Text(value)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.78)
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(FPColors.pulseCyan)
+                } else {
+                    Text(value)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+            }
+            .font(FPTypography.callout)
+            .padding(.vertical, FPSpacing.sm)
+
+            if showDivider {
+                Rectangle()
+                    .fill(FPColors.borderDivider)
+                    .frame(height: 1)
+            }
+        }
+    }
+
+    private func chainActivity(response: FanPassChainProofResponse) -> some View {
+        VStack(alignment: .leading, spacing: FPSpacing.sm) {
+            Text("Activity")
+                .font(FPTypography.headline)
+                .foregroundStyle(FPColors.textPrimary)
+
+            if let transaction = response.transaction {
+                Link(destination: chainTransactionURL(response) ?? URL(string: "https://sepolia.etherscan.io/")!) {
+                    HStack(spacing: FPSpacing.md) {
+                        Image(systemName: activityIcon(response))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(FPColors.pulseCyan)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(activityTitle(response))
+                                .font(FPTypography.headline)
+                                .foregroundStyle(FPColors.textPrimary)
+                            Text("To \(activityRecipient(response))")
+                                .font(FPTypography.caption)
+                                .foregroundStyle(FPColors.textSecondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: FPSpacing.sm)
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(activityTime(transaction.blockTimestamp))
+                                .font(FPTypography.caption)
+                                .foregroundStyle(FPColors.textPrimary)
+                                .lineLimit(1)
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(FPColors.pulseCyan)
+                        }
+                    }
+                }
+                .padding(FPSpacing.md)
+                .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
+                        .stroke(FPColors.borderDivider, lineWidth: 1)
+                }
+            } else {
+                HStack(spacing: FPSpacing.md) {
+                    Image(systemName: "clock.badge.questionmark.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(FPColors.warningAmber)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No ticket transaction")
+                            .font(FPTypography.headline)
+                            .foregroundStyle(FPColors.textPrimary)
+                        Text("FanPass has not attached a Sepolia tx for this ticket.")
+                            .font(FPTypography.caption)
+                            .foregroundStyle(FPColors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(FPSpacing.md)
+                .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
+                        .stroke(FPColors.borderDivider, lineWidth: 1)
+                }
+            }
+        }
+    }
+
     private func chainProofStatusTitle(_ status: String) -> String {
         switch status {
-        case "linked": "Sepolia linked"
-        case "mismatch": "Sepolia mismatch"
-        case "no_chain_record": "No chain record"
-        case "not_configured": "Lookup incomplete"
-        case "rpc_unavailable": "RPC unavailable"
-        default: "Sepolia checked"
+        case "linked": "Verified"
+        case "mismatch": "Mismatch"
+        case "no_chain_record": "No record"
+        case "not_configured": "Pending"
+        case "rpc_unavailable": "Unavailable"
+        default: "Checked"
         }
     }
 
@@ -451,43 +492,22 @@ struct FanPassV4TicketDetailView: View {
         }
     }
 
-    private func matchLabel(_ value: Bool?) -> String {
-        switch value {
-        case true: "Matches"
-        case false: "Mismatch"
-        case nil: "Unchecked"
-        }
-    }
-
-    private func matchKind(_ value: Bool?) -> FPStateKind {
-        switch value {
-        case true: .success
-        case false: .danger
-        case nil: .warning
-        }
-    }
-
-    private func proofMatchLabel(_ proof: FanPassChainProofResponse.Proof) -> String {
-        let values = [
-            proof.ticketIdHashMatches,
-            proof.ticketTypeHashMatches,
-            proof.policyHashMatches,
-            proof.metadataHashMatches
-        ]
-        if values.allSatisfy({ $0 == true }) {
-            return "Matches"
-        }
-        if values.contains(false) {
-            return "Mismatch"
-        }
-        return "Unchecked"
-    }
-
-    private func proofMatchKind(_ proof: FanPassChainProofResponse.Proof) -> FPStateKind {
-        switch proofMatchLabel(proof) {
-        case "Matches": .success
-        case "Mismatch": .danger
-        default: .warning
+    private func chainProofSummary(_ response: FanPassChainProofResponse) -> String {
+        switch response.status {
+        case "linked":
+            return "This ticket has a matching Sepolia record."
+        case "mismatch":
+            return response.transaction == nil
+                ? "Ticket transaction is not attached yet."
+                : "Ticket metadata does not match the Sepolia record."
+        case "no_chain_record":
+            return "No Sepolia token record is available for this ticket."
+        case "not_configured":
+            return "Sepolia lookup is not fully configured."
+        case "rpc_unavailable":
+            return "Sepolia lookup is temporarily unavailable."
+        default:
+            return response.message
         }
     }
 
@@ -502,38 +522,52 @@ struct FanPassV4TicketDetailView: View {
         return url
     }
 
-    private func sepoliaExplorerLink(title: String, subtitle: String, destination: URL) -> some View {
-        Link(destination: destination) {
-            HStack(spacing: FPSpacing.sm) {
-                Image(systemName: "arrow.up.right.square.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(FPTypography.headline)
-                    Text(subtitle)
-                        .font(FPTypography.caption)
-                        .foregroundStyle(FPColors.textTertiary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: FPSpacing.sm)
-            }
-            .foregroundStyle(FPColors.textPrimary)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .padding(.horizontal, FPSpacing.lg)
-            .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                    .stroke(FPColors.borderDivider, lineWidth: 1)
-            }
+    private func chainContractURL(_ response: FanPassChainProofResponse) -> URL? {
+        guard let explorerUrl = response.contractExplorerUrl,
+              let url = URL(string: explorerUrl),
+              url.host?.contains("etherscan.io") == true,
+              url.path.contains("/address/")
+        else {
+            return nil
         }
-        .accessibilityLabel(title)
+        return url
     }
 
-    private func shortExplorerLabel(for url: URL) -> String {
-        guard let lastPath = url.pathComponents.last, lastPath.count > 18 else {
-            return url.host ?? "sepolia.etherscan.io"
+    private func chainTokenURL(_ response: FanPassChainProofResponse) -> URL? {
+        guard let contractAddress = response.contractAddress,
+              let tokenId = response.ticket.tokenId,
+              let url = URL(string: "https://sepolia.etherscan.io/token/\(contractAddress)?a=\(tokenId)")
+        else {
+            return nil
         }
-        return "\(lastPath.prefix(10))...\(lastPath.suffix(8))"
+        return url
+    }
+
+    private func activityTitle(_ response: FanPassChainProofResponse) -> String {
+        response.proof.transferCount == "0" ? "Mint" : "Transfer"
+    }
+
+    private func activityIcon(_ response: FanPassChainProofResponse) -> String {
+        response.proof.transferCount == "0" ? "sparkles" : "arrow.right"
+    }
+
+    private func activityRecipient(_ response: FanPassChainProofResponse) -> String {
+        if response.wallet.matches == true {
+            return "You"
+        }
+        return shortIdentifier(response.wallet.onChainOwnerAddress, head: 6, tail: 4, fallback: "Unknown")
+    }
+
+    private func activityTime(_ isoTimestamp: String?) -> String {
+        guard let isoTimestamp,
+              let date = ISO8601DateFormatter().date(from: isoTimestamp)
+        else {
+            return "Pending"
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 
     private func shortIdentifier(_ value: String?, head: Int, tail: Int, fallback: String) -> String {

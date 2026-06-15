@@ -6239,6 +6239,15 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Render is the deployment target for this API route because the iOS app points at `https://fanpass-api-staging.onrender.com`; Vercel hosts the web/console surfaces and was not changed for this ticket-detail API issue. Neon is the database layer and likely needs row reconciliation for the mismatched staging ticket, but no Neon update was made in this pass because Neon MCP project listing timed out.
 - Boundary: this pass fixes UI/API semantics and simulator build behavior. It does not repair the underlying staging data association for `tkt_9bc51141-f81d-4018-bec0-9c244c0fb9b8`; that needs DB access or an authenticated admin/data repair path to map the intended FanPass ticket to token `9` / tx `0xf0cf2618087e4796d8302874f29eeee081bec0682da7ba0fa1b4848755745b08`, or the user must inspect the actual Aurora ticket record.
 
+## After OpenSea-Style Blockchain Details UI on 2026-06-15
+
+- Owner said the ticket-detail chain proof UI was too noisy and asked to use an OpenSea-style pattern with less information.
+- `apps/ios/FanPass/FanPass/Views/Tickets/FanPassV4TicketsView.swift` now shows the chain section as `Blockchain details` with only compact rows: Contract Address, Token ID, Token Standard, Chain, and Transaction. Wallet owner, event binding, proof-hash, and internal check rows are no longer shown to normal ticket users.
+- The same card now shows a minimal `Activity` section: one ticket-specific Mint/Transfer row linked to the ticket transaction when available, or a concise no-ticket-transaction state when the API has no tx for that ticket.
+- Verification passed `git diff --check` and `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBetaBlockchainCompact CODE_SIGNING_ALLOWED=NO build`.
+- Simulator-only install completed on `FanPass-iPhone-17` (`41D28602-FF01-4E4C-98AA-DA7F4FC93D27`) and launched `com.fanpass.app`; built and installed executable SHA-256 both matched `4c221393995c9906c5a154a69ec0c2a76ed596bfc689e83c0d4c771697bfc0d5`. No physical iPhone install was performed.
+- Boundary: this is a presentation cleanup only. It does not change the Render API, Vercel, Neon, or the underlying staging ticket/token/transaction mismatch.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
