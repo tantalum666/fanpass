@@ -6397,6 +6397,18 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - To unblock TestFlight QR/internal testing, `FanPassOps.entitlements` no longer declares `com.apple.developer.nfc.readersession.formats=NDEF`, and `NFCPayloadScanner` reports native Core NFC unavailable for non-DEBUG builds. QR scanning and backend redemption remain unaffected; native iOS NFC should be reintroduced later through the currently accepted Core NFC/tag entitlement path after device/tag evidence is available.
 - Verification passed: `plutil -p apps/ios/FanPass/FanPassOps/FanPassOps.entitlements` returns an empty entitlement dictionary, and `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOpsNoNDEF CODE_SIGNING_ALLOWED=NO build` succeeded. Re-archive before uploading; the rejected old archive still contains the old entitlement.
 
+## After FanPass TestFlight Orientation Upload Fix on 2026-06-16
+
+- Owner retried the `FanPassOps` App Store Connect upload after the NFC entitlement fix. The new ContentDelivery failure was `Invalid bundle. No orientations were specified in the com.fanpass.ops bundle... To support iPad multitasking, specify the UISupportedInterfaceOrientations Info.plist key`.
+- `FanPassOps/Generated/Info.plist` now declares the four required orientations: portrait, portrait upside down, landscape left, and landscape right.
+- `FanPass/Generated/Info.plist` was updated with the same orientation list because the main app also targets iPhone and iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) and would likely hit the same App Store Connect validation during its own upload.
+- Verification passed:
+  - `plutil -p apps/ios/FanPass/FanPassOps/Generated/Info.plist` shows all four `UISupportedInterfaceOrientations` values.
+  - `plutil -p apps/ios/FanPass/FanPass/Generated/Info.plist` shows all four `UISupportedInterfaceOrientations` values.
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOpsOrientations CODE_SIGNING_ALLOWED=NO build` succeeded.
+  - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOrientations CODE_SIGNING_ALLOWED=NO build` succeeded.
+- Re-archive before uploading again. Previously exported archives still contain the old Info.plist and will continue to fail App Store Connect validation.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
