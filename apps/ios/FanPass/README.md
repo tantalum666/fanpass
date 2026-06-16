@@ -7,7 +7,12 @@ This folder currently contains the SwiftUI source layout and a project manifest.
 ## Intended Targets
 
 - FanPass: event discovery, ticket wallet, fan access, and marketplace.
-- FanPass Ops: dynamic QR verification and Core NFC NDEF tag-reading prototype.
+- FanPass Ops: dynamic QR verification for current TestFlight/internal testing.
+
+Native Core NFC remains DEBUG-only for now. The first App Store Connect upload
+attempt rejected the release archive's NDEF entitlement, so release/TestFlight
+Ops builds should be treated as QR-first until a supported NFC entitlement and
+physical NDEF evidence path is reintroduced.
 
 ## Build Note
 
@@ -33,6 +38,11 @@ npm run ios:archive:beta
 ```
 
 The helper writes archives and logs under ignored `outputs/ios-archives/`. Keep Apple signing values, provisioning profile names, Privy values, Stripe keys, export options, and App Store Connect credentials out of source control and saved evidence.
+
+After changing Info.plist, entitlements, signing, or bundle identifiers, create a
+fresh archive before uploading. Old Organizer archives keep their original
+plist/entitlement contents and will continue to fail App Store Connect validation
+even after source fixes are committed.
 
 ## Local Provider Config
 

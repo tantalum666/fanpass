@@ -34,8 +34,8 @@ Do not use real personal data, production credentials, production Stripe or Priv
 - Gate staff can sign in with verified auth and only see assigned event/gate access.
 - QR camera scanning accepts the first valid staging payload and rejects duplicate replay.
 - Same-ticket race coverage is required: two scans for the same ticket, including different signed nonces when a code has been copied/refreshed, must result in exactly one accepted backend redemption and the rest rejected as duplicate/invalid. Do not rely on UI disabled states, scanner throttling, chain settlement, or client clocks as the gate authority.
-- NFC reads a supported physical NDEF tag into the same backend redemption path as QR. This is for internal fixture validation only; the tag must be NFC-compatible and NDEF-readable/writable, and generic RFID cards that cannot store/read NDEF are not sufficient for this check.
-- Unsupported NFC devices or unsupported tags show a clear failure state.
+- For the current TestFlight/internal release path, Ops is QR-first because App Store Connect rejected the release NDEF entitlement. Native Core NFC evidence is a separate future fixture path, not a prerequisite for initial internal QR testing.
+- When NFC is explicitly re-enabled later, it must read a supported physical NDEF tag into the same backend redemption path as QR. Generic RFID cards that cannot store/read NDEF are not sufficient for that future check.
 - Accepted and rejected counts update after scan results.
 - Scanner identity comes from the verified auth session; client-supplied staff or scanner ids are rejected.
 - Debug paste fallback and payload copy helpers are unavailable in external or evidence builds.
@@ -46,7 +46,7 @@ Do not use real personal data, production credentials, production Stripe or Priv
 Before closing external-testing readiness, save redacted evidence and run:
 
 - `npm run security:ios-staging-build:evidence -- <saved-json-output>` for signed build, real HTTPS API URL, app separation, provider mode, and debug-helper removal proof.
-- `npm run security:ops-scanner:device-evidence -- <saved-json-output>` for physical QR/NFC scan proof bound to the current scanner, API redemption/auth, and NFC fixture implementation snapshot.
+- `npm run security:ops-scanner:device-evidence -- <saved-json-output>` for physical QR scan proof bound to the current scanner and API redemption/auth. NFC fixture proof remains required only when native NFC is reintroduced for release/evidence builds.
 - `npm run security:apple-wallet:evidence -- <saved-json-output>` before claiming signed Apple Wallet pass readiness, with evidence bound to the current ticket wallet, QR payload/API signing, scanner compatibility, and prototype-boundary implementation snapshot.
 - `npm run security:runtime:staging:evidence -- <saved-json-output>` before claiming deployed API/Console runtime readiness.
 - `npm run security:staff-tenant:staging-evidence -- <saved-json-output>` before claiming production-like tenant/staff policy readiness.

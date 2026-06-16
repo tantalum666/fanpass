@@ -65,7 +65,8 @@ FanPass:
 FanPass Ops:
 
 - Camera permission for QR scanning.
-- NFC Tag Reading capability for Core NFC NDEF scanning as an internal fixture/prototype path.
+- Current TestFlight/internal builds are QR-first. Native Core NFC is DEBUG-only after App Store Connect rejected the release archive's NDEF entitlement on 2026-06-16.
+- NFC Tag Reading for Core NFC NDEF scanning remains a future internal fixture/prototype path, to be reintroduced only after the supported Apple entitlement/profile path and physical NDEF evidence are available.
 - No consumer wallet, market, or organizer controls.
 - Device testing is required because simulator cannot validate camera hardware or NFC reading.
 
@@ -133,20 +134,20 @@ Shared:
 - Stripe PaymentSheet remains test-mode only for current Beta: checked-in iOS configs stay free of Stripe publishable keys, and the `FanPassEnvironment` runtime accessor keeps a test publishable-key runtime guard that accepts only `pk_test_` values supplied outside source control.
 - Runtime security checks pass against deployed staging.
 - Privacy-scoped responses and redaction are enabled.
-- `npm run security:ios-distribution-boundaries` passes, proving the FanPass target has no Camera/NFC permissions, FanPass Ops owns Camera/NFC capability, release API configs stay HTTPS-only and secret-free, Privy public-config secret guard stays enforced, and Apple Wallet stays a signed `.pkpass` blocker rather than a fake local pass flow.
+- `npm run security:ios-distribution-boundaries` passes, proving the FanPass target has no Camera/NFC permissions, FanPass Ops owns Camera for QR scanning, native Core NFC stays DEBUG-only for the current QR-first TestFlight path, release API configs stay HTTPS-only and secret-free, Privy public-config secret guard stays enforced, and Apple Wallet stays a signed `.pkpass` blocker rather than a fake local pass flow.
 - Saved real-device or TestFlight build evidence passes `npm run security:ios-staging-build:evidence -- <saved-json-output>`, proving both apps used real HTTPS staging/beta API URLs, signed builds, physical-device or TestFlight install evidence, debug helper removal, role separation, the current iOS distribution/config implementation SHA-256 snapshot, deployment/cloud credential absence, CI secret masking command redaction, and redaction.
 
 ## Beta Blockers
 
-- Apple Developer account access is now available as of 2026-06-10, but local signing assets are not configured yet. `security find-identity -v -p codesigning` returned zero valid code-signing identities on the local machine.
-- Environment-specific iOS API configuration is not implemented yet.
-- `FanPass Ops` NFC prototype has not been tested on a physical iPhone with an NDEF tag.
+- Apple Developer account access is available as of 2026-06-10, and local development-device signing has been used successfully. App Store/TestFlight archive upload is still in progress.
+- Environment-specific iOS API configuration exists through build settings/xcconfig injection, but signed TestFlight evidence with real HTTPS beta/staging values is still open.
+- `FanPass Ops` release/TestFlight path is QR-first for now. NFC NDEF evidence remains open and should not block initial internal TestFlight QR testing.
 - Apple Wallet `.pkpass` signing is not implemented.
 - NFC/contactless Apple Wallet ticket presentation is not in current scope. It requires special Apple entitlement/access, compatible reader protocol, and likely organization-level Apple Developer Program status plus Apple approval/agreements; it is different from standard QR/barcode `.pkpass` support.
 - Privy Swift SDK login is wired locally for FanPass and FanPass Ops through placeholder public app/client IDs only; real dashboard evidence and non-placeholder staging/beta app configuration are still open.
 - Real Privy mobile app configuration evidence is not saved yet. Future evidence must pass `npm run security:privy-mobile-app-config:evidence -- <saved-json-output>` with deployment credential and CI masking-command redaction proof before non-placeholder app/client IDs are trusted for staging, beta, or TestFlight-style builds.
 - Stripe client UI and real Stripe test-mode webhook validation are not complete.
-- Deployed staging API/Console URLs do not exist yet.
+- Deployed staging API exists on Render; saved TestFlight evidence, live settlement evidence, and signed Wallet evidence remain open.
 
 ## Implementation Tasks
 
@@ -206,13 +207,20 @@ Next required external setup:
 
 - Sign in to Xcode with the Apple Developer account.
 - Create or confirm App Store Connect apps and bundle IDs for `fun.fanpass.app` and `com.fanpass.ops`.
-- Enable NFC Tag Reading only for the `FanPass Ops` identifier.
+- Do not enable NFC Tag Reading for the current App Store/TestFlight `FanPass Ops` release archive. The 2026-06-16 upload was rejected for the NDEF entitlement, so current internal TestFlight should proceed QR-first.
 - Create/download Apple Development and Apple Distribution signing identities.
 - Create/download development and App Store/TestFlight provisioning profiles for both apps.
 - Keep real Team ID/profile names outside source control and inject them with environment variables.
 - Replace placeholder staging/beta API values only through build settings or external configuration for signed builds; checked-in configs should remain secret-free.
 - Complete Privy mobile app config evidence before trusting real public Privy app/client IDs in staging or beta.
-- Use a real iPhone, dynamic QR, and a physical NFC-compatible NDEF fixture tag to complete `ops-scanner` evidence; simulator, paste fallback, localhost API, raw payload screenshots, or non-NDEF RFID cards cannot close the physical QR/NFC blocker.
+- Use a real iPhone and dynamic QR to validate the current TestFlight scanner path. Physical NFC-compatible NDEF fixture evidence remains a separate future blocker; simulator, paste fallback, localhost API, raw payload screenshots, or non-NDEF RFID cards cannot close it.
+
+## 2026-06-16 App Store Connect Upload Notes
+
+- Xcode Organizer uploads use `App Store Connect` as the destination. Successful builds then appear under TestFlight in App Store Connect.
+- The first `FanPassOps` upload failed because the release archive contained the Core NFC NDEF entitlement. The current source removes that release entitlement and gates native Core NFC to DEBUG builds.
+- The next `FanPassOps` upload failed because no supported interface orientations were specified while the app targets iPhone and iPad. Both `FanPassOps/Generated/Info.plist` and `FanPass/Generated/Info.plist` now declare portrait, portrait upside down, landscape left, and landscape right.
+- Always create a fresh archive after these fixes. Previously exported archives still contain the old Info.plist or entitlement payload and will keep failing validation.
 
 ## Security Position
 

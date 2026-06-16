@@ -117,6 +117,8 @@ Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup 
 
 Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock turnstile prototype now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. It is local learning/prototype work only and does not close any native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, backend-authority, or chain-custody release blocker.
 
+TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR-first. App Store Connect rejected the `FanPassOps` release archive when it carried the Core NFC NDEF entitlement, so native NFC is DEBUG-only until a supported entitlement/profile path is reintroduced. The later App Store Connect orientation failure was fixed by adding all four required `UISupportedInterfaceOrientations` values to both iOS app Info.plists; old archives still need to be discarded and recreated.
+
 - [x] Build a local Arduino/EP8280 mock turnstile bench that reads real QR text over TTL, displays LCD status, moves one servo gate, and uses ultrasonic pass-through detection.
 - [x] Update the iOS FanPass ticket detail `On-chain status` card to distinguish a current ticket with no Sepolia transaction from dev contract activity, and add Sepolia Etherscan links for ticket tx, contract, and latest observed tx where available.
   - [x] Wire EP8280 8-pin Pin4 TTL output to Arduino `D0/RX1` and confirm serial `EP8280 BYTE ...` plus `SCAN: <payload>` logs.
@@ -130,7 +132,7 @@ Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock tur
 - [x] Repair the iOS distribution boundary audit so removing the FanPass Ops paste fallback metric is accepted while any reintroduced metric remains `#if DEBUG`-gated.
 - [x] Keep FanPass Ops scanner paste-fallback wording out of release UI states and verify the audit plus FanPass/FanPassOps simulator builds.
 - [x] Restore FanPass Ops release staff invite linking through Privy email code login plus one-time invite acceptance and rerun the staff policy gate.
-- [ ] Complete signed iOS/TestFlight evidence and physical QR/NFC evidence with real HTTPS API/provider config and real-device captures.
+- [ ] Complete signed iOS/TestFlight evidence and physical QR evidence with real HTTPS API/provider config and real-device captures; keep NFC NDEF evidence as a separate future blocker until native NFC is re-enabled for release/evidence builds.
 - [x] Freeze Alpha demo script for the local walkthrough.
 - [x] Add a repeatable audit for the frozen Alpha demo script.
 - [x] Add self-test coverage for Alpha demo script audit acceptance and rejection semantics.

@@ -6408,6 +6408,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
   - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOpsOrientations CODE_SIGNING_ALLOWED=NO build` succeeded.
   - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOrientations CODE_SIGNING_ALLOWED=NO build` succeeded.
 - Re-archive before uploading again. Previously exported archives still contain the old Info.plist and will continue to fail App Store Connect validation.
+- Follow-up Markdown sync completed before opening a new chat: `apps/ios/FanPass/README.md`, `docs/IOS_DISTRIBUTION_PLAN.md`, `docs/IOS_PHYSICAL_DEVICE_QA.md`, `docs/NFC_NDEF_TAG_FIXTURE.md`, `docs/PROVIDER_COST_FEASIBILITY.md`, `docs/DEVELOPMENT_TASKS.md`, `docs/BETA_ROADMAP.md`, `docs/QA_CHECKLIST.md`, `docs/technical/FanPass_QR_NFC_Verification_Plan_V4.md`, `docs/ALPHA_SECURITY_REVIEW.md`, and `docs/NEW_CHAT_PROMPT.md` now describe the current QR-first TestFlight boundary and deferred native NFC evidence path. Historical notes that mention prior NFC entitlement expectations should be read as superseded by this 2026-06-16 App Store Connect result.
 
 ## Next Engineering Tasks
 

@@ -245,7 +245,7 @@ Remaining evidence:
 
 ## 2026-06-15 Arduino EP8280 Mock Turnstile Bench
 
-Status: local hardware bench QR path working; product QR/NFC evidence still open.
+Status: local hardware bench QR path working; product QR evidence still open for current TestFlight, and NFC NDEF evidence remains a future release path.
 
 A local Arduino mock turnstile was added at `hardware/fanpass_turnstile/fanpass_turnstile.ino` to support hardware learning before continuing Web work. It uses Arduino UNO R4 WiFi, EP8280 NFC/QR scan engine, I2C LCD, HC-SR04 ultrasonic sensor, and one micro servo.
 
@@ -267,8 +267,8 @@ Current bench limitations:
 
 Boundary:
 
-- This bench is not a replacement for FanPass Ops physical QR/NFC validation.
-- It does not close the QR/NFC blocker, TestFlight blocker, Apple Wallet blocker, or chain custody blocker.
+- This bench is not a replacement for FanPass Ops physical QR validation.
+- It does not close the QR blocker, future NFC blocker, TestFlight blocker, Apple Wallet blocker, or chain custody blocker.
 - Do not save raw signed FanPass QR payloads, nonces, bearer tokens, device identifiers, or real ticket/user data in Arduino logs or hardware notes.
 
 ## 2026-06-16 Ops Live Scan History Update
@@ -286,4 +286,4 @@ Remaining evidence:
 - Sign in to Ops with a real linked staff/admin account.
 - Redeem a valid fan ticket QR and then redeem it again.
 - Confirm the API records accepted and duplicate/rejected check-ins and the Ops Scan history page reflects both records.
-- Save physical-device QR/NFC evidence without raw payloads, nonces, bearer tokens, device identifiers, or real personal data.
+- Save physical-device QR evidence without raw payloads, nonces, bearer tokens, device identifiers, or real personal data. Save NFC NDEF evidence separately if native NFC is re-enabled for release/evidence builds.

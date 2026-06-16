@@ -2,6 +2,12 @@
 
 Status: fixture contract ready; physical-device validation remains open.
 
+Current release/TestFlight status as of 2026-06-16: native Core NFC is DEBUG-only.
+App Store Connect rejected the `FanPass Ops` release archive's NDEF entitlement,
+so the first internal TestFlight path is QR-first. This NFC fixture remains the
+future contract for reintroducing native NDEF scanning after the supported Apple
+entitlement/profile path is available.
+
 ## Scope
 
 This document defines the supported NFC test-tag payload format for `FanPass Ops` only. It does not add NFC capability to the consumer `FanPass` app, and it does not close physical-device validation until saved scanner evidence passes the real-device evidence gate.
