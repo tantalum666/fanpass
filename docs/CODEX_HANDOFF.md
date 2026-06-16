@@ -6389,6 +6389,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - The obsolete `TESTNET_OPERATOR_PRIVATE_KEY` env var was deleted from Render after the Privy deploy and the service was restarted so the running process no longer needs or retains the old raw-key path. Local `.env` may still contain a dev key and must not be copied to Render.
 - Because Render free tier does not support one-off jobs, readiness was run locally with Render env values loaded in-memory from the Render API without printing secrets. `npm run chain:privy-sponsorship:readiness` returned `ok: true`, confirmed `users.privy_wallet_id` exists in the staging DB, and confirmed Sepolia `owner()` matches the Privy sponsor wallet ending `bD4E`, with no warnings after local raw-key env was blanked.
 - Post-deploy verification: `https://fanpass-api-staging.onrender.com/health` returned HTTP 200 after deploy and again after restart; Render error logs after `2026-06-16T03:15:00Z` were empty.
+- The remote `main` branch was then fast-forwarded from old `07d4cb6` to `9e43ba6` so future Render Dashboard deploys no longer pull stale source. Render auto-deploy `dep-d8oc2ou7r5hc73bvua40` for commit `9e43ba6` finished `live` at `2026-06-16T03:24:29Z`. Final checks after that deploy: `/health` returned 200, Render error logs after `2026-06-16T03:24:29Z` were empty, and the same Render-env readiness check returned `ok: true` with no warnings.
 
 ## Next Engineering Tasks
 
