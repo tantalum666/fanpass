@@ -101,12 +101,7 @@ export class PrivyWalletService {
   }
 
   private readHash(body: Record<string, unknown> | null) {
-    const candidates = [
-      body?.hash,
-      body?.transactionHash,
-      body?.transaction_hash,
-      body?.result,
-    ];
+    const candidates = this.hashCandidates(body);
     for (const candidate of candidates) {
       const value = this.readString(candidate);
       if (value && /^0x[a-fA-F0-9]{64}$/.test(value)) {
@@ -114,6 +109,26 @@ export class PrivyWalletService {
       }
     }
     return null;
+  }
+
+  private hashCandidates(value: unknown): unknown[] {
+    if (!value || typeof value !== "object") {
+      return [value];
+    }
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => this.hashCandidates(item));
+    }
+    const record = value as Record<string, unknown>;
+    return [
+      record.hash,
+      record.transactionHash,
+      record.transaction_hash,
+      record.txHash,
+      record.tx_hash,
+      record.result,
+      record.data,
+      record.response,
+    ].flatMap((candidate) => this.hashCandidates(candidate));
   }
 
   private readString(value: unknown) {

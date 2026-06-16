@@ -463,7 +463,7 @@ class PrivySponsoredOwnershipAdapter implements OwnershipAdapter {
 
   private async send(data: string) {
     await this.assertSponsorOwnsContract();
-    return this.privyWallets.sendSponsoredEthereumTransaction({
+    const submitted = await this.privyWallets.sendSponsoredEthereumTransaction({
       walletId: this.requiredConfig("FANPASS_PRIVY_SPONSOR_WALLET_ID"),
       caip2: this.caip2(),
       transaction: {
@@ -471,6 +471,12 @@ class PrivySponsoredOwnershipAdapter implements OwnershipAdapter {
         data,
       },
     });
+    if (!submitted.hash) {
+      throw new Error(
+        "Privy sponsored transaction did not return a Sepolia transaction hash",
+      );
+    }
+    return submitted;
   }
 
   private async assertSponsorOwnsContract() {

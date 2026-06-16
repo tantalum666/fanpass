@@ -350,12 +350,9 @@ struct FanPassV4CheckoutView: View {
         paymentSheetRequest = nil
         switch result {
         case .completed:
-            let ticket = viewModel.completeStripeCheckout(owner: backend.user)
-            backend.recordCheckoutTicket(ticket)
             checkoutOutcome = .success(
-                ticket: ticket,
-                title: "Payment successful",
-                message: "Your ticket has been added to Tickets. Entry QR becomes available after payment settles."
+                title: "Payment authorized",
+                message: "Ticket assignment is syncing with FanPass. Open Tickets again in a few seconds to load the server-issued ticket and its proof status."
             )
         case .canceled:
             checkoutOutcome = .cancelled(
@@ -378,13 +375,13 @@ struct FanPassV4CheckoutView: View {
 }
 
 private enum CheckoutOutcome: Identifiable {
-    case success(ticket: FanPassV4.Ticket, title: String, message: String)
+    case success(title: String, message: String)
     case failed(message: String)
     case cancelled(message: String)
 
     var id: String {
         switch self {
-        case let .success(ticket, _, _): "success-\(ticket.id)"
+        case let .success(title, message): "success-\(title)-\(message)"
         case let .failed(message): "failed-\(message)"
         case let .cancelled(message): "cancelled-\(message)"
         }
@@ -401,10 +398,10 @@ private struct CheckoutOutcomeSheet: View {
             FPColors.backgroundNight.ignoresSafeArea()
             VStack(alignment: .leading, spacing: FPSpacing.lg) {
                 switch outcome {
-                case let .success(ticket, title, message):
+                case let .success(title, message):
                     FPConfirmationCard(
                         title: title,
-                        message: "\(message)\n\n\(ticket.event.title) • \(ticket.ticketType.name)",
+                        message: message,
                         systemImage: FPIcons.verified
                     )
                     FPPrimaryButton(title: "View in Tickets", systemImage: FPIcons.tickets) {

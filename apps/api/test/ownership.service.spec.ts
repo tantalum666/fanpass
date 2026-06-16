@@ -349,4 +349,41 @@ describe("OwnershipService", () => {
     );
     fetchMock.mockRestore();
   });
+
+  it("rejects Privy sponsored ownership writes when no transaction hash is returned", async () => {
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn().mockResolvedValue({
+        hash: null,
+        providerId: "wallet_rpc_fixture",
+        rawStatus: "submitted",
+      }),
+    };
+    const ownership = new OwnershipService(
+      new ConfigService({
+        OWNERSHIP_ADAPTER: "privy",
+        FANPASS_PRIVY_SPONSOR_WALLET_ID: "wallet_fixture_operator",
+        FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2: "eip155:11155111",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+      }),
+      privyWallets as never,
+    );
+
+    await expect(
+      ownership.issueTicket({
+        localTicketId: "tkt_privy_no_hash",
+        tokenIdHint: "7",
+        eventId: "evt_weekend_demo",
+        ticketTypeId: "tt_cat2_demo",
+        ownerId: "usr_fan_demo",
+        ownerWalletAddress: "0x0000000000000000000000000000000000002001",
+        transferable: true,
+        resaleCap: 1545,
+        maxTransferCount: 2,
+        metadataUri: null,
+      }),
+    ).rejects.toThrow(
+      "Privy sponsored transaction did not return a Sepolia transaction hash",
+    );
+  });
 });
