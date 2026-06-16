@@ -9,7 +9,7 @@ final class NFCPayloadScanner: NSObject, ObservableObject {
     @Published private(set) var lastError: String?
 
     var isAvailable: Bool {
-        #if canImport(CoreNFC)
+        #if DEBUG && canImport(CoreNFC)
         NFCNDEFReaderSession.readingAvailable
         #else
         false
@@ -28,7 +28,7 @@ final class NFCPayloadScanner: NSObject, ObservableObject {
         lastError = nil
         isReading = true
 
-        #if canImport(CoreNFC)
+        #if DEBUG && canImport(CoreNFC)
         let session = NFCNDEFReaderSession(delegate: self, queue: nil, invalidateAfterFirstRead: true)
         session.alertMessage = "Hold FanPass Ops near the venue NFC tag."
         session.begin()

@@ -6391,6 +6391,12 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/20260530T18
 - Post-deploy verification: `https://fanpass-api-staging.onrender.com/health` returned HTTP 200 after deploy and again after restart; Render error logs after `2026-06-16T03:15:00Z` were empty.
 - The remote `main` branch was then fast-forwarded from old `07d4cb6` to `9e43ba6` so future Render Dashboard deploys no longer pull stale source. Render auto-deploy `dep-d8oc2ou7r5hc73bvua40` for commit `9e43ba6` finished `live` at `2026-06-16T03:24:29Z`. Final checks after that deploy: `/health` returned 200, Render error logs after `2026-06-16T03:24:29Z` were empty, and the same Render-env readiness check returned `ok: true` with no warnings.
 
+## After FanPassOps TestFlight NFC Entitlement Upload Fix on 2026-06-16
+
+- Owner attempted to upload the `FanPassOps` archive to App Store Connect for TestFlight. Xcode correctly found the App Store Connect app for bundle id `com.fanpass.ops`, but ContentDelivery rejected the upload with `Invalid entitlement for core nfc framework ... com.apple.developer.nfc.readersession.formats ... NDEF is disallowed`.
+- To unblock TestFlight QR/internal testing, `FanPassOps.entitlements` no longer declares `com.apple.developer.nfc.readersession.formats=NDEF`, and `NFCPayloadScanner` reports native Core NFC unavailable for non-DEBUG builds. QR scanning and backend redemption remain unaffected; native iOS NFC should be reintroduced later through the currently accepted Core NFC/tag entitlement path after device/tag evidence is available.
+- Verification passed: `plutil -p apps/ios/FanPass/FanPassOps/FanPassOps.entitlements` returns an empty entitlement dictionary, and `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Beta -destination 'generic/platform=iOS' -derivedDataPath outputs/ios-archive-check/FanPassOpsNoNDEF CODE_SIGNING_ALLOWED=NO build` succeeded. Re-archive before uploading; the rejected old archive still contains the old entitlement.
+
 ## Next Engineering Tasks
 
 1. If continuing the current Web Beta Fallback path, continue refining the actual `apps/web` product app, not a landing page. Prioritize high-fidelity parity with the supplied marketplace/orderbook/wallet concept, maintainable component boundaries, API-backed ticket/order/listing flows, and browser QA evidence. Keep Web NFC out of scope and keep the web path separate from native iOS/TestFlight/Wallet evidence.
