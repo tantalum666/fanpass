@@ -79,6 +79,41 @@ describe("VerificationService", () => {
     });
   });
 
+  it("returns recent check-ins without raw nonce or payload data", async () => {
+    const payload = await verification.createPayload("tkt_demo_001");
+    await verification.redeem(payload, "usr_gate_demo", "A1", {
+      userId: "usr_gate_demo",
+      role: "GATE_STAFF",
+    });
+    await expect(
+      verification.redeem(payload, "usr_gate_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    const history = await verification.recentCheckins({
+      userId: "usr_gate_demo",
+      role: "GATE_STAFF",
+    });
+
+    expect(history.items).toHaveLength(2);
+    expect(history.items[0]).toMatchObject({
+      result: "DUPLICATE",
+      accepted: false,
+      ticketRef: "FP-EMO001",
+      reason: "Already used",
+    });
+    expect(history.items[1]).toMatchObject({
+      result: "ACCEPTED",
+      accepted: true,
+      reason: null,
+    });
+    expect(history.items[0]).not.toHaveProperty("nonce");
+    expect(history.items[0]).not.toHaveProperty("payload");
+    expect(history.items[0]).not.toHaveProperty("signature");
+  });
+
   it("accepts only one concurrent redemption attempt for the same QR payload", async () => {
     let releaseOwnership: (() => void) | undefined;
     const ownershipReleased = new Promise<void>((resolve) => {

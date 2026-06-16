@@ -147,6 +147,13 @@ export class VerificationController {
     return this.verification.checkinSummary(eventId, gate, session);
   }
 
+  @Get("/checkins/recent")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("GATE_STAFF", "ADMIN")
+  recentCheckins(@CurrentSession() session: FanPassSession) {
+    return this.verification.recentCheckins(session);
+  }
+
   @Post("/tickets/:ticketId/qr")
   @UseGuards(FanPassAuthGuard)
   @Roles("FAN", "ADMIN")

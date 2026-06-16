@@ -287,6 +287,66 @@ export class VerificationService {
     return this.buildCheckinSummary(eventId, gate, checkins);
   }
 
+  async recentCheckins(_session?: FanPassSession) {
+    const prisma = this.prismaClient();
+    if (prisma) {
+      const checkins = await prisma.checkin.findMany({
+        orderBy: {
+          checkedInAt: "desc",
+        },
+        take: 25,
+        include: {
+          ticket: {
+            select: {
+              id: true,
+              eventId: true,
+              ticketTypeId: true,
+              tokenId: true,
+            },
+          },
+        },
+      });
+      return {
+        items: checkins.map((checkin) =>
+          this.buildCheckinHistoryItem({
+            id: checkin.id,
+            checkedInAt: checkin.checkedInAt,
+            gate: checkin.gate,
+            result: checkin.result as CheckinRecord["result"],
+            ticketId: checkin.ticket.id,
+            eventId: checkin.ticket.eventId,
+            ticketTypeId: checkin.ticket.ticketTypeId,
+            tokenId: checkin.ticket.tokenId,
+          }),
+        ),
+      };
+    }
+
+    const ticketsById = new Map(
+      this.store.tickets.map((ticket) => [ticket.id, ticket]),
+    );
+    return {
+      items: this.store.checkins.slice(0, 25).flatMap((checkin) => {
+        const ticket = ticketsById.get(checkin.ticketId);
+        if (!ticket) {
+          return [];
+        }
+        return [
+          this.buildCheckinHistoryItem({
+            id: checkin.id,
+            checkedInAt: checkin.checkedInAt,
+            gate: checkin.gate,
+            result: checkin.result,
+            ticketId: ticket.id,
+            eventId: ticket.eventId,
+            ticketTypeId: ticket.ticketTypeId,
+            tokenId: ticket.tokenId,
+          }),
+        ];
+      }),
+    };
+  }
+
   private sign(payload: Omit<SignedQrPayload, "signature">) {
     return createHmac("sha256", this.secret())
       .update(this.canonical(payload))
@@ -1148,5 +1208,60 @@ export class VerificationService {
           ? checkins[0].checkedInAt.toISOString()
           : (checkins[0]?.checkedInAt ?? null),
     };
+  }
+
+  private buildCheckinHistoryItem(input: {
+    id: string;
+    checkedInAt: Date | string;
+    gate: string;
+    result: CheckinRecord["result"];
+    ticketId: string;
+    eventId: string;
+    ticketTypeId: string;
+    tokenId: string | null;
+  }) {
+    return {
+      id: input.id,
+      checkedInAt:
+        input.checkedInAt instanceof Date
+          ? input.checkedInAt.toISOString()
+          : input.checkedInAt,
+      gate: input.gate,
+      result: input.result,
+      accepted: input.result === "ACCEPTED",
+      ticketRef: this.safeTicketRef(input.ticketId),
+      eventId: input.eventId,
+      ticketTypeId: input.ticketTypeId,
+      tokenId: input.tokenId,
+      reason: this.checkinReason(input.result),
+    };
+  }
+
+  private checkinReason(result: CheckinRecord["result"]) {
+    switch (result) {
+      case "ACCEPTED":
+        return null;
+      case "DUPLICATE":
+        return "Already used";
+      case "EXPIRED":
+        return "Expired";
+      case "INVALID_SIGNATURE":
+        return "Invalid signature";
+      case "INVALID_TICKET":
+        return "Invalid ticket";
+      case "OWNER_MISMATCH":
+        return "Ticket mismatch";
+      case "NOT_ACTIVE":
+        return "Not active";
+      case "CANCELLED":
+        return "Cancelled";
+      case "ERROR":
+        return "Scan error";
+    }
+  }
+
+  private safeTicketRef(ticketId: string) {
+    const compact = ticketId.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    return `FP-${compact.slice(-6).padStart(6, "0")}`;
   }
 }

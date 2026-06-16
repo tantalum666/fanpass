@@ -579,14 +579,12 @@ export class TicketsService {
         stateResult,
         transferCountResult,
         proofResult,
-        transaction,
       ] = await Promise.all([
         this.ethCall(rpcUrl, contractAddress, this.uint256Call("6352211e", tokenId)),
         this.ethCall(rpcUrl, contractAddress, this.uint256Call("998f6ac0", tokenId)),
         this.ethCall(rpcUrl, contractAddress, this.uint256Call("017a9105", tokenId)),
         this.ethCall(rpcUrl, contractAddress, this.uint256Call("ed810d30", tokenId)),
         this.ethCall(rpcUrl, contractAddress, this.uint256Call("9ddaf5aa", tokenId)),
-        this.transactionProof(rpcUrl, latestOwnership?.transactionHash ?? null),
       ]);
 
       const onChainOwnerAddress = this.decodeAddress(ownerResult);
@@ -621,6 +619,13 @@ export class TicketsService {
         state: stateValue === null ? null : this.ticketStateLabel(Number(stateValue)),
         transferCount: this.decodeUint(transferCountResult),
       };
+      const transaction = await this.bestTransactionProof(
+        rpcUrl,
+        contractAddress,
+        tokenId,
+        latestOwnership?.transactionHash ?? null,
+        proof.transferCount,
+      );
       const proofMatches = [
         proof.ticketIdHashMatches,
         proof.ticketTypeHashMatches,
@@ -766,6 +771,82 @@ export class TicketsService {
     };
   }
 
+  private async bestTransactionProof(
+    rpcUrl: string,
+    contractAddress: string,
+    tokenId: string,
+    auditTransactionHash: string | null,
+    transferCount: string | null,
+  ) {
+    const auditTransaction = await this.transactionProof(
+      rpcUrl,
+      auditTransactionHash,
+    );
+    if (auditTransaction?.status === "success") {
+      return auditTransaction;
+    }
+
+    try {
+      const transferHash = await this.latestTokenTransferHash(
+        rpcUrl,
+        contractAddress,
+        tokenId,
+        transferCount,
+      );
+      const transferTransaction = await this.transactionProof(rpcUrl, transferHash);
+      if (transferTransaction?.status === "success") {
+        return transferTransaction;
+      }
+      return transferTransaction ?? auditTransaction;
+    } catch {
+      return auditTransaction;
+    }
+  }
+
+  private async latestTokenTransferHash(
+    rpcUrl: string,
+    contractAddress: string,
+    tokenId: string,
+    transferCount: string | null,
+  ) {
+    const logs = await this.rpcCall<
+      Array<{
+        transactionHash?: string;
+        blockNumber?: string;
+        logIndex?: string;
+        topics?: string[];
+      }>
+    >(rpcUrl, "eth_getLogs", [
+      {
+        address: contractAddress,
+        fromBlock: "0x0",
+        toBlock: "latest",
+        topics: [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          null,
+          null,
+          this.uint256Topic(tokenId),
+        ],
+      },
+    ]);
+    const matchingLogs = logs
+      .filter((log) => /^0x[a-fA-F0-9]{64}$/.test(log.transactionHash ?? ""));
+    const candidates =
+      transferCount === "0"
+        ? matchingLogs.filter((log) => this.isMintTransferLog(log))
+        : matchingLogs;
+    const latest = candidates
+      .sort((left, right) => {
+        const leftBlock = this.hexQuantity(left.blockNumber);
+        const rightBlock = this.hexQuantity(right.blockNumber);
+        if (leftBlock !== rightBlock) {
+          return rightBlock - leftBlock;
+        }
+        return this.hexQuantity(right.logIndex) - this.hexQuantity(left.logIndex);
+      })[0];
+    return latest?.transactionHash ?? null;
+  }
+
   private async ethCall(rpcUrl: string, to: string, data: string) {
     return this.rpcCall<string>(rpcUrl, "eth_call", [{ to, data }, "latest"]);
   }
@@ -803,6 +884,26 @@ export class TicketsService {
   private uint256Call(selector: string, value: string) {
     const numeric = BigInt(value);
     return `0x${selector}${numeric.toString(16).padStart(64, "0")}`;
+  }
+
+  private uint256Topic(value: string) {
+    const numeric = BigInt(value);
+    return `0x${numeric.toString(16).padStart(64, "0")}`;
+  }
+
+  private isMintTransferLog(log: { topics?: string[] }) {
+    return (
+      Array.isArray(log.topics) &&
+      log.topics[1]?.toLowerCase() ===
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+    );
+  }
+
+  private hexQuantity(value: string | undefined) {
+    if (!value || !/^0x[a-fA-F0-9]+$/.test(value)) {
+      return 0;
+    }
+    return Number.parseInt(value, 16);
   }
 
   private decodeAddress(value: string) {
