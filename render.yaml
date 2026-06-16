@@ -31,7 +31,7 @@ services:
       - key: FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES
         value: "false"
       - key: FANPASS_CHAIN_PROOF_SYNC_OUTBOX
-        value: "false"
+        value: "true"
       - key: FANPASS_TICKET_CONTRACT_ADDRESS
         sync: false
       - key: TESTNET_RPC_URL

@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Optional } from "@nestjs/common";
 import { Prisma, SideEffectOutbox } from "@prisma/client";
+import { PrismaService } from "../../common/prisma.service";
 import {
   IssueOwnershipInput,
   OwnershipReceipt,
@@ -26,6 +27,7 @@ export class SideEffectWorkerService {
     private readonly ownership: OwnershipService,
     private readonly payments: PaymentsService,
     private readonly orderbook: OrderbookService,
+    @Optional() private readonly prisma?: PrismaService,
   ) {}
 
   async workOnce(limit = 10): Promise<WorkerResult> {
@@ -135,6 +137,7 @@ export class SideEffectWorkerService {
   ): Promise<Prisma.InputJsonValue> {
     const payload = this.readOwnershipIssuePayload(job.payloadJson);
     const ownership = await this.ownership.issueTicket(payload);
+    await this.recordIssuedOwnership(payload, ownership);
     return {
       ...payload,
       tokenId: ownership.tokenId,
@@ -143,6 +146,41 @@ export class SideEffectWorkerService {
       transactionHash: ownership.transactionHash,
       status: ownership.status,
     };
+  }
+
+  private async recordIssuedOwnership(
+    payload: IssueOwnershipInput,
+    ownership: OwnershipReceipt,
+  ) {
+    if (!this.prisma) {
+      return;
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.ticket.updateMany({
+        where: {
+          id: payload.localTicketId,
+        },
+        data: {
+          tokenId: ownership.tokenId,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: payload.ownerId,
+          action: "TICKET_OWNERSHIP_SYNCED",
+          entityType: "ticket",
+          entityId: payload.localTicketId,
+          metadataJson: {
+            eventId: payload.eventId,
+            ticketTypeId: payload.ticketTypeId,
+            ownershipAdapter: ownership.adapter,
+            ownershipStatus: ownership.status,
+            ownershipRef: ownership.ownershipRef,
+            transactionHash: ownership.transactionHash,
+          },
+        },
+      });
+    });
   }
 
   private async redeemOwnership(

@@ -11,6 +11,14 @@ export interface PrivySponsoredTransactionReceipt {
   hash: string | null;
   providerId: string | null;
   rawStatus: string | null;
+  userOperationHash: string | null;
+}
+
+export interface PrivyTransactionStatus {
+  hash: string | null;
+  providerId: string | null;
+  rawStatus: string | null;
+  userOperationHash: string | null;
 }
 
 @Injectable()
@@ -27,6 +35,7 @@ export class PrivyWalletService {
       headers: this.headers(),
       body: JSON.stringify({
         caip2: input.caip2,
+        chain_type: "ethereum",
         method: "eth_sendTransaction",
         params: {
           transaction: {
@@ -55,13 +64,74 @@ export class PrivyWalletService {
       providerId:
         this.readString(body?.id) ??
         this.readString(body?.transactionId) ??
-        this.readString(body?.transaction_id),
-      rawStatus: this.readString(body?.status),
+        this.readString(body?.transaction_id) ??
+        this.readString(this.readPath(body, ["data", "id"])) ??
+        this.readString(this.readPath(body, ["data", "transactionId"])) ??
+        this.readString(this.readPath(body, ["data", "transaction_id"])),
+      rawStatus:
+        this.readString(body?.status) ??
+        this.readString(this.readPath(body, ["data", "status"])),
+      userOperationHash:
+        this.readString(body?.userOperationHash) ??
+        this.readString(body?.user_operation_hash) ??
+        this.readString(this.readPath(body, ["data", "userOperationHash"])) ??
+        this.readString(this.readPath(body, ["data", "user_operation_hash"])),
     };
+  }
+
+  async getTransactionStatus(
+    transactionId: string,
+  ): Promise<PrivyTransactionStatus> {
+    const response = await fetch(this.transactionUrl(transactionId), {
+      method: "GET",
+      headers: this.headers(),
+    });
+    const body = (await response.json().catch(() => null)) as
+      | Record<string, unknown>
+      | null;
+    if (!response.ok) {
+      const message =
+        this.readString(body?.error) ??
+        this.readString(body?.message) ??
+        `Privy transaction lookup failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return this.readTransactionStatus(body);
+  }
+
+  async waitForTransactionHash(input: {
+    transactionId: string;
+    timeoutMs: number;
+    intervalMs?: number;
+  }): Promise<PrivyTransactionStatus> {
+    const startedAt = Date.now();
+    let latest: PrivyTransactionStatus = {
+      hash: null,
+      providerId: input.transactionId,
+      rawStatus: null,
+      userOperationHash: null,
+    };
+    do {
+      latest = await this.getTransactionStatus(input.transactionId);
+      if (latest.hash || this.isTerminalFailedStatus(latest.rawStatus)) {
+        return latest;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, input.intervalMs ?? 1_500),
+      );
+    } while (Date.now() - startedAt < input.timeoutMs);
+    return latest;
   }
 
   private walletRpcUrl(walletId: string) {
     return `${this.apiBaseUrl()}/v1/wallets/${encodeURIComponent(walletId)}/rpc`;
+  }
+
+  private transactionUrl(transactionId: string) {
+    return `${this.apiBaseUrl()}/v1/transactions/${encodeURIComponent(
+      transactionId,
+    )}`;
   }
 
   private headers() {
@@ -133,5 +203,40 @@ export class PrivyWalletService {
 
   private readString(value: unknown) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
+  }
+
+  private readPath(value: unknown, path: string[]) {
+    let current = value;
+    for (const key of path) {
+      if (!current || typeof current !== "object" || Array.isArray(current)) {
+        return null;
+      }
+      current = (current as Record<string, unknown>)[key];
+    }
+    return current;
+  }
+
+  private readTransactionStatus(
+    body: Record<string, unknown> | null,
+  ): PrivyTransactionStatus {
+    return {
+      hash: this.readHash(body),
+      providerId:
+        this.readString(body?.id) ??
+        this.readString(body?.transactionId) ??
+        this.readString(body?.transaction_id),
+      rawStatus: this.readString(body?.status),
+      userOperationHash:
+        this.readString(body?.userOperationHash) ??
+        this.readString(body?.user_operation_hash),
+    };
+  }
+
+  private isTerminalFailedStatus(status: string | null) {
+    return (
+      status === "failed" ||
+      status === "execution_reverted" ||
+      status === "provider_error"
+    );
   }
 }

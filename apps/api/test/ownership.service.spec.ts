@@ -297,7 +297,9 @@ describe("OwnershipService", () => {
         hash: "0x1111111111111111111111111111111111111111111111111111111111111111",
         providerId: "wallet_rpc_fixture",
         rawStatus: null,
+        userOperationHash: null,
       }),
+      waitForTransactionHash: jest.fn(),
     };
     const ownership = new OwnershipService(
       new ConfigService({
@@ -347,16 +349,91 @@ describe("OwnershipService", () => {
         method: "POST",
       }),
     );
+    expect(privyWallets.waitForTransactionHash).not.toHaveBeenCalled();
     fetchMock.mockRestore();
   });
 
-  it("rejects Privy sponsored ownership writes when no transaction hash is returned", async () => {
+  it("resolves Privy sponsored ownership writes through transaction status polling", async () => {
+    const fetchMock = jest
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          result:
+            "0x0000000000000000000000000000000000000000000000000000000000009000",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          result: {
+            status: "0x1",
+            logs: [],
+          },
+        }),
+      } as Response);
     const privyWallets = {
       sendSponsoredEthereumTransaction: jest.fn().mockResolvedValue({
         hash: null,
-        providerId: "wallet_rpc_fixture",
-        rawStatus: "submitted",
+        providerId: "tx_fixture",
+        rawStatus: "broadcasted",
+        userOperationHash: "0xuserop",
       }),
+      waitForTransactionHash: jest.fn().mockResolvedValue({
+        hash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+        providerId: "tx_fixture",
+        rawStatus: "confirmed",
+        userOperationHash: "0xuserop",
+      }),
+    };
+    const ownership = new OwnershipService(
+      new ConfigService({
+        OWNERSHIP_ADAPTER: "privy",
+        FANPASS_PRIVY_SPONSOR_WALLET_ID: "wallet_fixture_operator",
+        FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS:
+          "0x0000000000000000000000000000000000009000",
+        FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2: "eip155:11155111",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+        TESTNET_RPC_URL: "https://rpc.testnet.example",
+      }),
+      privyWallets as never,
+    );
+
+    await expect(
+      ownership.issueTicket({
+        localTicketId: "tkt_privy_async_hash",
+        tokenIdHint: "8",
+        eventId: "evt_weekend_demo",
+        ticketTypeId: "tt_cat2_demo",
+        ownerId: "usr_fan_demo",
+        ownerWalletAddress: "0x0000000000000000000000000000000000002001",
+        transferable: true,
+        resaleCap: 1545,
+        maxTransferCount: 2,
+        metadataUri: null,
+      }),
+    ).resolves.toMatchObject({
+      adapter: "privy",
+      transactionHash:
+        "0x3333333333333333333333333333333333333333333333333333333333333333",
+    });
+    expect(privyWallets.waitForTransactionHash).toHaveBeenCalledWith({
+      transactionId: "tx_fixture",
+      timeoutMs: 45_000,
+    });
+    fetchMock.mockRestore();
+  });
+
+  it("rejects Privy sponsored ownership writes when no transaction hash or transaction id is returned", async () => {
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn().mockResolvedValue({
+        hash: null,
+        providerId: null,
+        rawStatus: "submitted",
+        userOperationHash: null,
+      }),
+      waitForTransactionHash: jest.fn(),
     };
     const ownership = new OwnershipService(
       new ConfigService({
@@ -382,8 +459,7 @@ describe("OwnershipService", () => {
         maxTransferCount: 2,
         metadataUri: null,
       }),
-    ).rejects.toThrow(
-      "Privy sponsored transaction did not return a Sepolia transaction hash",
-    );
+    ).rejects.toThrow("Sepolia transaction hash or transaction id");
+    expect(privyWallets.waitForTransactionHash).not.toHaveBeenCalled();
   });
 });

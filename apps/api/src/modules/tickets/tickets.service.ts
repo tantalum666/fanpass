@@ -494,7 +494,10 @@ export class TicketsService {
         safeTicketRef,
       },
     ];
-    if (latestOwnership?.adapter === "testnet") {
+    if (
+      latestOwnership &&
+      this.isSepoliaOwnershipAdapter(latestOwnership.adapter)
+    ) {
       items.push({
         id: "chain-proof",
         label: "On-chain proof",
@@ -1051,12 +1054,16 @@ export class TicketsService {
               ? `proof ${this.shortOwnershipRef(ownershipRef)}`
               : "proof pending",
         externalUrl:
-          adapter === "testnet" && transactionHash !== null
+          this.isSepoliaOwnershipAdapter(adapter) && transactionHash !== null
             ? `https://sepolia.etherscan.io/tx/${transactionHash}`
             : undefined,
       };
     }
     return null;
+  }
+
+  private isSepoliaOwnershipAdapter(adapter: string | null | undefined) {
+    return adapter === "testnet" || adapter === "privy";
   }
 
   private recordMetadata(value: unknown) {

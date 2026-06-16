@@ -471,12 +471,33 @@ class PrivySponsoredOwnershipAdapter implements OwnershipAdapter {
         data,
       },
     });
-    if (!submitted.hash) {
+    if (submitted.hash) {
+      return submitted;
+    }
+    if (submitted.providerId) {
+      const resolved = await this.privyWallets.waitForTransactionHash({
+        transactionId: submitted.providerId,
+        timeoutMs: this.integerConfig(
+          "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
+          45_000,
+        ),
+      });
+      if (resolved.hash) {
+        return {
+          hash: resolved.hash,
+          providerId: resolved.providerId ?? submitted.providerId,
+          rawStatus: resolved.rawStatus ?? submitted.rawStatus,
+          userOperationHash:
+            resolved.userOperationHash ?? submitted.userOperationHash,
+        };
+      }
       throw new Error(
-        "Privy sponsored transaction did not return a Sepolia transaction hash",
+        `Privy sponsored transaction did not resolve a Sepolia transaction hash (status=${resolved.rawStatus ?? submitted.rawStatus ?? "unknown"}, transactionId=${submitted.providerId})`,
       );
     }
-    return submitted;
+    throw new Error(
+      `Privy sponsored transaction did not return a Sepolia transaction hash or transaction id (status=${submitted.rawStatus ?? "unknown"})`,
+    );
   }
 
   private async assertSponsorOwnsContract() {
