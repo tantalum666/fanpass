@@ -41,7 +41,8 @@ final class AppState {
         try await loginWithPrivyAccessToken(
             privySession.accessToken,
             email: privySession.email,
-            walletAddress: privySession.walletAddress
+            walletAddress: privySession.walletAddress,
+            walletId: privySession.walletId
         )
     }
 
@@ -50,19 +51,22 @@ final class AppState {
         try await loginWithPrivyAccessToken(
             privySession.accessToken,
             email: privySession.email,
-            walletAddress: privySession.walletAddress
+            walletAddress: privySession.walletAddress,
+            walletId: privySession.walletId
         )
     }
 
     func loginWithPrivyAccessToken(
         _ accessToken: String,
         email: String? = nil,
-        walletAddress: String? = nil
+        walletAddress: String? = nil,
+        walletId: String? = nil
     ) async throws {
         let fanPassSession = try await apiClient.syncPrivySession(
             privyAccessToken: accessToken,
             email: email,
-            walletAddress: walletAddress
+            walletAddress: walletAddress,
+            walletId: walletId
         )
         session = fanPassSession.withAccessToken(fanPassSession.accessToken ?? accessToken)
         apiClient = apiClient.withAccessToken(accessToken)

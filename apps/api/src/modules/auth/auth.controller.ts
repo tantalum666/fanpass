@@ -62,6 +62,12 @@ class PrivySyncRequest {
   @MinLength(1)
   @MaxLength(256)
   walletAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  walletId?: string;
 }
 
 class AcceptStaffInviteRequest {
@@ -81,6 +87,12 @@ class AcceptStaffInviteRequest {
   @MinLength(1)
   @MaxLength(256)
   walletAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  walletId?: string;
 }
 
 @Controller("auth")

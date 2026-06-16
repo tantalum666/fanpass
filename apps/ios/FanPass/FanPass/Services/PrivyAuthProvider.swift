@@ -8,6 +8,7 @@ struct PrivyLoginResult: Equatable {
     let accessToken: String
     let email: String?
     let walletAddress: String?
+    let walletId: String?
 }
 
 enum PrivyOAuthLoginProvider: String, CaseIterable, Identifiable, Hashable {
@@ -159,7 +160,8 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
         return PrivyLoginResult(
             accessToken: accessToken,
             email: emailAddress(for: user) ?? fallbackEmail,
-            walletAddress: wallet.address
+            walletAddress: wallet.address,
+            walletId: wallet.id
         )
     }
 

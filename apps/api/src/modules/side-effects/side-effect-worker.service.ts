@@ -355,7 +355,7 @@ export class SideEffectWorkerService {
   }
 
   private ownershipAdapter(value: unknown): OwnershipReceipt["adapter"] {
-    if (value === "mock" || value === "testnet") {
+    if (value === "mock" || value === "testnet" || value === "privy") {
       return value;
     }
     throw new BadRequestException("ownershipAdapter is invalid");

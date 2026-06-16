@@ -144,19 +144,24 @@ struct FanPassV4TicketDetailView: View {
     @State private var credentialError: String?
     @State private var isRefreshingCredential = false
     @State private var credentialRefreshRemainingSeconds = 30
+    @State private var liveTicket: FanPassV4.Ticket?
+
+    private var currentTicket: FanPassV4.Ticket {
+        liveTicket ?? ticket
+    }
 
     var body: some View {
-        FanPassV4Scaffold(title: "Ticket", subtitle: ticket.event.title) {
+        FanPassV4Scaffold(title: "Ticket", subtitle: currentTicket.event.title) {
             FPTicketCard(
-                eventTitle: ticket.event.title,
-                metadata: "\(ticket.event.dateLine) • \(ticket.event.venue.name), \(ticket.event.venue.city)",
-                section: ticket.section,
-                row: ticket.row,
-                seat: ticket.seat,
-                ticketId: ticket.shortId,
-                statusTitle: ticket.status.title,
+                eventTitle: currentTicket.event.title,
+                metadata: "\(currentTicket.event.dateLine) • \(currentTicket.event.venue.name), \(currentTicket.event.venue.city)",
+                section: currentTicket.section,
+                row: currentTicket.row,
+                seat: currentTicket.seat,
+                ticketId: currentTicket.shortId,
+                statusTitle: currentTicket.status.title,
                 nfcReady: false,
-                entryModeTitle: ticket.status.allowsEntryCode ? "Entry ready" : ticket.entryMode.title
+                entryModeTitle: currentTicket.status.allowsEntryCode ? "Entry ready" : currentTicket.entryMode.title
             )
 
             entryReadinessCard
@@ -168,11 +173,14 @@ struct FanPassV4TicketDetailView: View {
         .task(id: ticket.id) {
             await refreshChainProof()
         }
+        .task(id: "\(ticket.id)-status-refresh") {
+            await runTicketStatusRefreshLoop()
+        }
         .task(id: "\(ticket.id)-entry-credential") {
             await runEntryCredentialLoop()
         }
         .sheet(item: $sheet) { sheet in
-            TicketSheetView(sheet: sheet, ticket: ticket)
+            TicketSheetView(sheet: sheet, ticket: currentTicket)
                 .presentationDetents([.large])
         }
     }
@@ -181,7 +189,7 @@ struct FanPassV4TicketDetailView: View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.lg) {
                 FPSectionHeader(title: "Entry QR", subtitle: "Refreshes automatically every 30 seconds")
-                if ticket.status.allowsEntryCode {
+                if currentTicket.status.allowsEntryCode {
                     entryQRCodePanel
                     FPSecondaryButton(
                         title: isRefreshingCredential ? "Refreshing QR" : "Refresh QR",
@@ -191,8 +199,10 @@ struct FanPassV4TicketDetailView: View {
                             await refreshEntryCredential()
                         }
                     }
+                } else if currentTicket.status == .redeemed, qrCredential != nil {
+                    entryQRCodePanel
                 } else {
-                    FPStateBanner(title: inactiveStateTitle, message: inactiveStateMessage, kind: ticket.status == .cancelled ? .danger : .warning)
+                    FPStateBanner(title: inactiveStateTitle, message: inactiveStateMessage, kind: currentTicket.status == .cancelled ? .danger : .warning)
                 }
             }
         }
@@ -202,26 +212,45 @@ struct FanPassV4TicketDetailView: View {
     private var entryQRCodePanel: some View {
         VStack(alignment: .center, spacing: FPSpacing.md) {
             if let qrCredential {
-                FanPassEntryQRCodeImage(value: qrCredential)
-                    .frame(width: 220, height: 220)
-                    .padding(FPSpacing.md)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                    .accessibilityLabel("Entry QR code")
+                ZStack {
+                    FanPassEntryQRCodeImage(value: qrCredential)
+                        .opacity(currentTicket.status == .redeemed ? 0.38 : 1)
+                    if currentTicket.status == .redeemed {
+                        VStack(spacing: FPSpacing.sm) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 38, weight: .bold))
+                            Text("USED")
+                                .font(.system(size: 32, weight: .heavy))
+                        }
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, FPSpacing.lg)
+                        .padding(.vertical, FPSpacing.md)
+                        .background(FPColors.verifiedGreen.opacity(0.94), in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
+                        .shadow(color: FPColors.verifiedGreen.opacity(0.35), radius: 18, y: 8)
+                        .accessibilityLabel("Ticket already used")
+                    }
+                }
+                .frame(width: 220, height: 220)
+                .padding(FPSpacing.md)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                .accessibilityLabel(currentTicket.status == .redeemed ? "Ticket already used" : "Entry QR code")
                 HStack(spacing: FPSpacing.sm) {
                     FPStatusPill(
-                        title: "Entry QR",
-                        systemImage: FPIcons.qr,
-                        foreground: FPColors.pulseCyan,
-                        background: FPColors.pulseCyan.opacity(0.12),
-                        border: FPColors.pulseCyan.opacity(0.6)
+                        title: currentTicket.status == .redeemed ? "Entered" : "Entry QR",
+                        systemImage: currentTicket.status == .redeemed ? "checkmark.seal.fill" : FPIcons.qr,
+                        foreground: currentTicket.status == .redeemed ? FPColors.verifiedGreen : FPColors.pulseCyan,
+                        background: (currentTicket.status == .redeemed ? FPColors.verifiedGreen : FPColors.pulseCyan).opacity(0.12),
+                        border: (currentTicket.status == .redeemed ? FPColors.verifiedGreen : FPColors.pulseCyan).opacity(0.6)
                     )
-                    FPStatusPill(
-                        title: "Refresh in \(credentialRefreshRemainingSeconds)s",
-                        systemImage: "timer",
-                        foreground: FPColors.textSecondary,
-                        background: FPColors.surfaceGlass,
-                        border: FPColors.borderDivider
-                    )
+                    if currentTicket.status.allowsEntryCode {
+                        FPStatusPill(
+                            title: "Refresh in \(credentialRefreshRemainingSeconds)s",
+                            systemImage: "timer",
+                            foreground: FPColors.textSecondary,
+                            background: FPColors.surfaceGlass,
+                            border: FPColors.borderDivider
+                        )
+                    }
                 }
             } else if isRefreshingCredential {
                 ProgressView()
@@ -252,9 +281,9 @@ struct FanPassV4TicketDetailView: View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Ticket rules", subtitle: "Entry and resale rules")
             FPConceptRowList(rows: [
-                .init(id: "type", icon: FPIcons.tickets, title: ticket.ticketType.name, subtitle: "Face value \(ticket.ticketType.priceLabel)", value: ticket.status.title),
-                .init(id: "transfer", icon: "arrow.left.arrow.right", title: "Transfer rule", subtitle: ticket.ticketType.transferRule.summary, value: "\(ticket.transferCount)/\(ticket.ticketType.transferRule.maxTransferCount)"),
-                .init(id: "refund", icon: "doc.text.fill", title: "Refund policy", subtitle: ticket.ticketType.refundPolicy, value: "Policy")
+                .init(id: "type", icon: FPIcons.tickets, title: currentTicket.ticketType.name, subtitle: "Face value \(currentTicket.ticketType.priceLabel)", value: currentTicket.status.title),
+                .init(id: "transfer", icon: "arrow.left.arrow.right", title: "Transfer rule", subtitle: currentTicket.ticketType.transferRule.summary, value: "\(currentTicket.transferCount)/\(currentTicket.ticketType.transferRule.maxTransferCount)"),
+                .init(id: "refund", icon: "doc.text.fill", title: "Refund policy", subtitle: currentTicket.ticketType.refundPolicy, value: "Policy")
             ])
         }
     }
@@ -410,7 +439,7 @@ struct FanPassV4TicketDetailView: View {
                         }
                         Spacer(minLength: FPSpacing.sm)
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(activityTime(transaction.blockTimestamp))
+                            Text(activityTime(transaction))
                                 .font(FPTypography.caption)
                                 .foregroundStyle(FPColors.textPrimary)
                                 .lineLimit(1)
@@ -538,11 +567,18 @@ struct FanPassV4TicketDetailView: View {
         return shortIdentifier(response.wallet.onChainOwnerAddress, head: 6, tail: 4, fallback: "Unknown")
     }
 
-    private func activityTime(_ isoTimestamp: String?) -> String {
-        guard let isoTimestamp,
+    private func activityTime(_ transaction: FanPassChainProofResponse.Transaction) -> String {
+        guard let isoTimestamp = transaction.blockTimestamp,
               let date = ISO8601DateFormatter().date(from: isoTimestamp)
         else {
-            return "Pending"
+            switch transaction.status {
+            case "success":
+                return "Confirmed"
+            case "failed":
+                return "Failed"
+            default:
+                return "Pending"
+            }
         }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -568,7 +604,7 @@ struct FanPassV4TicketDetailView: View {
         chainProofLoadState = .loading
         chainProofErrorMessage = nil
         do {
-            chainProofResponse = try await backend.ticketService().chainProof(for: ticket)
+            chainProofResponse = try await backend.ticketService().chainProof(for: currentTicket)
             chainProofLoadState = .loaded
         } catch is CancellationError {
             return
@@ -579,14 +615,48 @@ struct FanPassV4TicketDetailView: View {
         }
     }
 
+    private func runTicketStatusRefreshLoop() async {
+        while !Task.isCancelled {
+            await refreshTicketStatus()
+            do {
+                try await Task.sleep(nanoseconds: 5_000_000_000)
+            } catch {
+                return
+            }
+        }
+    }
+
+    private func refreshTicketStatus() async {
+        guard backend.isAuthenticated else {
+            return
+        }
+
+        let walletTickets = await backend.ticketService().walletTickets(for: backend.user, statusOverride: nil)
+        guard let updatedTicket = walletTickets.first(where: { $0.id == ticket.id }) else {
+            return
+        }
+
+        liveTicket = updatedTicket
+        if updatedTicket.status == .redeemed {
+            credentialError = nil
+        } else if !updatedTicket.status.allowsEntryCode {
+            qrCredential = nil
+            credentialError = nil
+        }
+    }
+
     private func runEntryCredentialLoop() async {
-        guard ticket.status.allowsEntryCode else {
+        guard currentTicket.status.allowsEntryCode else {
             qrCredential = nil
             credentialError = nil
             return
         }
 
         while !Task.isCancelled {
+            if !currentTicket.status.allowsEntryCode {
+                credentialError = nil
+                return
+            }
             await refreshEntryCredential()
             do {
                 for remaining in stride(from: 29, through: 0, by: -1) {
@@ -600,8 +670,9 @@ struct FanPassV4TicketDetailView: View {
     }
 
     private func refreshEntryCredential() async {
-        guard ticket.status.allowsEntryCode else {
-            qrCredential = nil
+        await refreshTicketStatus()
+        let ticketForCredential = currentTicket
+        guard ticketForCredential.status.allowsEntryCode else {
             credentialError = nil
             return
         }
@@ -610,7 +681,7 @@ struct FanPassV4TicketDetailView: View {
         defer { isRefreshingCredential = false }
 
         do {
-            qrCredential = try await backend.scannerService().refreshQRCredential(ticket: ticket)
+            qrCredential = try await backend.scannerService().refreshQRCredential(ticket: ticketForCredential)
             credentialError = nil
             credentialRefreshRemainingSeconds = 30
         } catch {
@@ -623,9 +694,9 @@ struct FanPassV4TicketDetailView: View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
                 FPSectionHeader(title: "Ticket actions", subtitle: "Sell this ticket or open the market")
-                if ticket.status.allowsResale {
+                if currentTicket.status.allowsResale {
                     NavigationLink {
-                        FanPassV4ListTicketView(ticket: ticket)
+                        FanPassV4ListTicketView(ticket: currentTicket)
                     } label: {
                         HStack(spacing: FPSpacing.sm) {
                             Image(systemName: FPIcons.resale)
@@ -644,13 +715,13 @@ struct FanPassV4TicketDetailView: View {
                 } else {
                     FPStateBanner(
                         title: "Resale unavailable",
-                        message: "\(ticket.status.title) tickets cannot be listed for resale.",
+                        message: "\(currentTicket.status.title) tickets cannot be listed for resale.",
                         kind: .warning
                     )
                 }
 
                 FPSecondaryButton(title: "Open market chart", systemImage: "chart.xyaxis.line") {
-                    appViewModel.openMarket(for: ticket.event)
+                    appViewModel.openMarket(for: currentTicket.event)
                 }
             }
         }
@@ -667,9 +738,9 @@ struct FanPassV4TicketDetailView: View {
     }
 
     private var inactiveStateTitle: String {
-        switch ticket.status {
+        switch currentTicket.status {
         case .listed: "Listed ticket"
-        case .redeemed: "Already redeemed"
+        case .redeemed: "Already entered"
         case .cancelled: "Cancelled ticket"
         case .refunded: "Refunded ticket"
         case .expired: "Expired ticket"
@@ -680,7 +751,7 @@ struct FanPassV4TicketDetailView: View {
     }
 
     private var inactiveStateMessage: String {
-        switch ticket.status {
+        switch currentTicket.status {
         case .listed: "Listed tickets cannot be used for entry while resale is open."
         case .redeemed: "This ticket has already been accepted at entry and cannot be reused."
         case .cancelled: "Organizer policy cancelled this ticket. Entry and resale are disabled."

@@ -15,6 +15,8 @@ Use this checklist before calling a version or milestone complete.
 - Update docs in the same change when evidence status, provider assumptions, release blockers, standing user instructions, or external-testing claims change.
 - Before ending the work session, update the relevant Markdown docs with what changed, what passed, and known gaps.
 - Before ending the work session, update `docs/NEW_CHAT_PROMPT.md` when durable state, blockers, or standing instructions changed.
+- Before resuming Web Beta Fallback implementation after 2026-06-15, confirm the owner has provided the extra requirements, then repeat the Markdown startup pass and re-read the Web source docs.
+- When hardware bench work changes, update `docs/OPS_SCANNER_DEVICE_EVIDENCE.md`, `docs/technical/FanPass_QR_NFC_Verification_Plan_V4.md`, `docs/NFC_NDEF_TAG_FIXTURE.md`, and `docs/DEVELOPMENT_TASKS.md` as applicable.
 
 ## Product Boundary Checks
 
@@ -22,6 +24,7 @@ Use this checklist before calling a version or milestone complete.
 - Gate scanner belongs in `FanPass Ops`.
 - Fan app must not register or expose a staff scanner deep link in normal prototype builds.
 - Fan app must not declare Camera/NFC permissions unless a consumer feature truly requires them.
+- FanPass Ops login must not expose local demo/test staff shortcuts or user-facing test staff copy in beta-facing builds.
 - Organizer controls belong in `FanPass Console`, not in either fan wallet or gate scanner flows.
 - Fan app must open to a browsable home screen for signed-out users.
 - Auth should appear at action time, not as a launch-time wall.
@@ -113,6 +116,7 @@ Use this checklist before calling a version or milestone complete.
 - The iOS physical-device QA checklist must keep real-iPhone scope, signed build scope, HTTPS staging/beta API scope, FanPass/FanPass Ops role separation, no-debug-fallback requirements, no-secret/no-real-data constraints, and saved-evidence handoffs explicit.
 - Keep iOS QR payload copy/paste and Wallet barcode JSON copy as debug-gated payload copy/paste helpers only; external TestFlight builds should rely on QR/NFC scanner transports unless explicit risk acceptance changes that release gate.
 - Real FanPass Ops device scanner evidence must be saved without bearer tokens, QR signing secrets, raw nonces, raw signed payloads, provider secrets, deployment/cloud credentials, Stripe publishable keys, database URLs, real personal data, or device identifiers; it must prove the current QR/NFC scanner/API/auth/NFC fixture implementation SHA-256 snapshot, `runtime.deploymentCredentialsAvailable: false`, and `redaction.deploymentCredentialsRedacted: true`, then pass `npm run security:ops-scanner:device-evidence -- <saved-json-output>` before closing physical QR/NFC validation.
+- Arduino/EP8280 bench logs, LCD/servo behavior, and Pin7 decode-success are local hardware prototype evidence only. They must not be used to close FanPass Ops physical scanner evidence, backend signature/replay/gate-assignment evidence, signed iOS/TestFlight evidence, Apple Wallet evidence, or chain custody evidence.
 - Keep `npm run security:ops-scanner:device-evidence:self-test` in `npm run beta:foundation:verify` so scanner evidence validation continues rejecting simulator-only proof, stale implementation snapshot proof, localhost or non-HTTPS API evidence, debug paste fallback use, leaked auth/private-key markers, provider-key/database URL leakage, Stripe publishable-key leakage, deployment/cloud credential leakage, missing QR/NFC replay proof, missing backend authority proof, real-user data, missing deployment credential redaction proof, and missing redaction proof.
 - Keep `npm run security:nfc-ndef-fixture:self-test` and `npm run security:nfc-ndef-fixture` in `npm run beta:foundation:verify` so the supported NFC fixture contract cannot drift before physical-device validation.
 - NFC fixture documentation must keep FanPass Ops scope, QR-equivalent backend authority, supported NDEF Text/URI records, no-token/no-nonce/no-raw-payload constraints, debug-only paste fallback, and physical-device evidence requirements explicit.

@@ -10,23 +10,15 @@ struct OpsShellView: View {
     @State private var scanSheet: OpsScanSheet?
     @State private var loadState: OpsLoadState = .offline
     @State private var checkinSummary: CheckinSummary?
+    @State private var checkinHistory: [CheckinHistoryItem] = []
     @State private var staffEmail = ""
     @State private var emailCode = ""
     @State private var inviteToken = ""
     @State private var privyAccessToken = ""
     @State private var staffLinkState: StaffLinkState = .idle
-    @State private var isDemoSigningIn = false
-
-    private var assignedEvents: [FanPassV4.Event] {
-        Array(FanPassMockData.events.prefix(3))
-    }
-
-    private var assignedGates: [String] {
-        Array(selectedEvent.venue.gates.prefix(2))
-    }
 
     private var isGateAssigned: Bool {
-        assignedGates.contains(selectedGate)
+        true
     }
 
     var body: some View {
@@ -59,15 +51,6 @@ struct OpsShellView: View {
         }
         .fullScreenCover(item: $scanSheet) { sheet in
             switch sheet {
-            case .modeSelector:
-                OpsModeSelectorView(
-                    event: selectedEvent,
-                    gate: selectedGate,
-                    loadState: loadState,
-                    onClose: { scanSheet = nil },
-                    onQR: { scanSheet = .qrCamera },
-                    onNFC: { scanSheet = .nfcReader }
-                )
             case .qrCamera:
                 scannerCover(startsWithCamera: true, startsWithNFC: false)
             case .nfcReader:
@@ -93,21 +76,13 @@ struct OpsShellView: View {
                     Text("FanPass Ops")
                         .font(FPTypography.largeTitle)
                         .foregroundStyle(FPOpsTheme.textPrimary)
-                    Text("Staff sign-in is required before scanner, audit, or gate tools are available.")
+                    Text("Sign in with an Ops-enabled account. New staff can link an invite once.")
                         .font(FPTypography.callout)
                         .foregroundStyle(FPOpsTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 staffLinkingPanel
-
-                FPPrimaryButton(
-                    title: isDemoSigningIn ? "Signing in" : "Continue as test gate staff",
-                    systemImage: "checkmark.shield.fill",
-                    isLoading: isDemoSigningIn
-                ) {
-                    Task { await useLocalDemoStaff() }
-                }
 
                 Spacer()
             }
@@ -118,14 +93,7 @@ struct OpsShellView: View {
     private var homeTerminal: some View {
         ScrollView {
             VStack(spacing: FPSpacing.xl) {
-                OpsHomeHeader(
-                    event: selectedEvent,
-                    gate: selectedGate,
-                    loadState: loadState,
-                    gates: assignedGates,
-                    onSelectGate: { selectedGate = $0 },
-                    onAccount: { selectedTab = .account }
-                )
+                OpsHomeHeader(onAccount: { selectedTab = .account })
 
                 VStack(spacing: FPSpacing.lg) {
                     Image(systemName: "checkmark.shield")
@@ -135,10 +103,10 @@ struct OpsShellView: View {
                         .background(FPOpsTheme.blue.opacity(0.08), in: Circle())
 
                     VStack(spacing: FPSpacing.xs) {
-                        Text(isGateAssigned ? "Ready to scan" : "Gate locked")
+                        Text("Ready to scan")
                             .font(FPTypography.title2)
                             .foregroundStyle(FPOpsTheme.textPrimary)
-                        Text(isGateAssigned ? "Verify tickets at the gate" : "Switch to an assigned gate in Account")
+                        Text("Verify any valid FanPass ticket.")
                             .font(FPTypography.callout)
                             .foregroundStyle(FPOpsTheme.textSecondary)
                             .multilineTextAlignment(.center)
@@ -149,9 +117,8 @@ struct OpsShellView: View {
 
                 VStack(spacing: FPSpacing.md) {
                     FPPrimaryButton(title: "Start scanning", systemImage: "qrcode.viewfinder") {
-                        scanSheet = .modeSelector
+                        scanSheet = .qrCamera
                     }
-                    .disabled(!isGateAssigned)
 
                     Button {
                         scanSheet = .nfcReader
@@ -168,15 +135,8 @@ struct OpsShellView: View {
                             }
                     }
                     .buttonStyle(.plain)
-                    .disabled(!isGateAssigned)
                 }
 
-                Button {
-                    Task { await loadCheckinSummary() }
-                } label: {
-                    OpsServiceRow(loadState: loadState, summary: checkinSummary)
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, FPSpacing.lg)
             .padding(.top, FPSpacing.xl)
@@ -198,36 +158,17 @@ struct OpsShellView: View {
                 }
 
                 OpsStaffHeader(
-                    name: "Alex Wong",
-                    email: staffEmail.isEmpty ? "alex.wong@fanpass.com" : staffEmail,
-                    gate: selectedGate
+                    name: gateSession?.displayName ?? "Ops Staff",
+                    email: gateSession?.email ?? (staffEmail.isEmpty ? "ops@fanpass.com" : staffEmail)
                 )
 
                 FPOpsPanel {
                     VStack(spacing: 0) {
                         OpsNavigationRow(
-                            icon: "location.circle.fill",
-                            title: "Gate assignment",
-                            value: selectedGate,
-                            route: .gateAssignment
-                        )
-                        OpsNavigationRow(
-                            icon: "checkmark.shield.fill",
-                            title: "Device checks",
-                            value: "All good",
-                            route: .deviceChecks
-                        )
-                        OpsNavigationRow(
                             icon: "clock.badge.checkmark",
                             title: "Scan history",
-                            value: "Today: \(checkinSummary?.total ?? 128)",
+                            value: "\(checkinHistory.count) recent",
                             route: .scanHistory
-                        )
-                        OpsNavigationRow(
-                            icon: "chart.bar.doc.horizontal",
-                            title: "Shift summary",
-                            value: "10:00 - 18:00",
-                            route: .shiftSummary
                         )
                         OpsNavigationRow(
                             icon: "questionmark.circle",
@@ -257,68 +198,10 @@ struct OpsShellView: View {
     @ViewBuilder
     private func accountDestination(_ route: OpsAccountRoute) -> some View {
         switch route {
-        case .gateAssignment:
-            gateAssignmentPage
-        case .deviceChecks:
-            deviceChecksPage
         case .scanHistory:
             scanHistoryPage
-        case .shiftSummary:
-            shiftSummaryPage
         case .help:
             helpPage
-        }
-    }
-
-    private var gateAssignmentPage: some View {
-        OpsSubpage(title: "Gate assignment") {
-            VStack(alignment: .leading, spacing: FPSpacing.lg) {
-                Text("Current gate")
-                    .font(FPTypography.caption.weight(.semibold))
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-                FPOpsPanel {
-                    OpsGateRow(title: selectedGate, subtitle: "Main Floor Entrance", isActive: true) {}
-                }
-
-                Text("Change gate")
-                    .font(FPTypography.caption.weight(.semibold))
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-                FPOpsPanel {
-                    VStack(spacing: 0) {
-                        ForEach(selectedEvent.venue.gates, id: \.self) { gate in
-                            OpsGateRow(
-                                title: gate,
-                                subtitle: gateSubtitle(gate),
-                                isActive: gate == selectedGate
-                            ) {
-                                selectedGate = gate
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var deviceChecksPage: some View {
-        OpsSubpage(title: "Device checks") {
-            VStack(spacing: FPSpacing.lg) {
-                FPOpsPanel {
-                    VStack(spacing: 0) {
-                        OpsHealthRow(icon: "camera.fill", title: "Camera", value: "OK", kind: .success)
-                        OpsHealthRow(icon: FPIcons.nfc, title: "NFC Reader", value: "OK", kind: .success)
-                        OpsHealthRow(icon: loadState.icon, title: "Network", value: loadState.title, kind: loadState.kind)
-                        OpsHealthRow(icon: "clock.badge.checkmark", title: "Time sync", value: "OK", kind: .success)
-                        OpsHealthRow(icon: "battery.75percent", title: "Battery", value: "88%", kind: .success)
-                    }
-                }
-
-                FPStateBanner(
-                    title: "All systems operational",
-                    message: "Last checked at \(Date().formatted(date: .omitted, time: .shortened)).",
-                    kind: loadState.kind
-                )
-            }
         }
     }
 
@@ -328,44 +211,34 @@ struct OpsShellView: View {
                 HStack {
                     Text(Date().formatted(date: .abbreviated, time: .omitted))
                     Spacer()
-                    Text("\(checkinSummary?.total ?? 128) scans")
+                    Text("\(checkinHistory.count) recent")
                 }
                 .font(FPTypography.caption.weight(.semibold))
                 .foregroundStyle(FPOpsTheme.textSecondary)
 
                 FPOpsPanel {
-                    VStack(spacing: 0) {
-                        OpsHistoryRow(time: "10:45:32", accepted: true, ref: "J8X4-2M9Q", gate: selectedGate, reason: nil)
-                        OpsHistoryRow(time: "10:45:10", accepted: false, ref: "K2T9-7H6L", gate: selectedGate, reason: "Already used")
-                        OpsHistoryRow(time: "10:44:51", accepted: true, ref: "P6N3-8ZLQ", gate: selectedGate, reason: nil)
-                        OpsHistoryRow(time: "10:44:33", accepted: true, ref: "B7C2-5LP9", gate: selectedGate, reason: nil)
-                        OpsHistoryRow(time: "10:44:12", accepted: false, ref: "A1V8-3QJJ", gate: selectedGate, reason: "Expired")
+                    if checkinHistory.isEmpty {
+                        VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                            Text("No scans yet")
+                                .font(FPTypography.headline)
+                                .foregroundStyle(FPOpsTheme.textPrimary)
+                            Text("Accepted and rejected scans will appear here after the API records them.")
+                                .font(FPTypography.caption)
+                                .foregroundStyle(FPOpsTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, FPSpacing.sm)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(checkinHistory) { item in
+                                OpsHistoryRow(item: item)
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-
-    private var shiftSummaryPage: some View {
-        OpsSubpage(title: "Shift summary") {
-            VStack(spacing: FPSpacing.lg) {
-                FPOpsPanel {
-                    VStack(alignment: .leading, spacing: FPSpacing.md) {
-                        Text("Today, \(Date().formatted(date: .abbreviated, time: .omitted))")
-                            .font(FPTypography.caption.weight(.semibold))
-                            .foregroundStyle(FPOpsTheme.textSecondary)
-                        OpsSummaryMetric(title: "Total scans", value: "\(checkinSummary?.total ?? 128)", caption: nil)
-                        OpsSummaryMetric(title: "Accepted", value: "\(checkinSummary?.accepted ?? 118)", caption: "92.2%")
-                        OpsSummaryMetric(title: "Rejected", value: "\(checkinSummary?.rejected ?? 10)", caption: "7.8%")
-                    }
-                }
-
-                FPOpsPanel {
-                    VStack(alignment: .leading, spacing: FPSpacing.md) {
-                        OpsSummaryMetric(title: "Shift time", value: "10:00 - 18:00", caption: "Ongoing")
-                        OpsSummaryMetric(title: "Gate", value: selectedGate, caption: selectedEvent.title)
-                    }
-                }
+            .task {
+                await loadCheckinSummary()
             }
         }
     }
@@ -401,30 +274,25 @@ struct OpsShellView: View {
     }
 
     private func scannerCover(startsWithCamera: Bool, startsWithNFC: Bool) -> some View {
-        NavigationStack {
-            ScannerView(
-                apiClient: apiClient,
-                eventId: selectedEvent.id,
-                gate: selectedGate,
-                startsWithCamera: startsWithCamera,
-                startsWithNFC: startsWithNFC
-            )
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") {
-                        scanSheet = nil
-                    }
-                }
+        ScannerView(
+            apiClient: apiClient,
+            eventId: selectedEvent.id,
+            gate: selectedGate,
+            startsWithCamera: startsWithCamera,
+            startsWithNFC: startsWithNFC,
+            onExit: {
+                scanSheet = nil
+                selectedTab = .home
             }
-        }
+        )
     }
 
     private var staffLinkingPanel: some View {
         FPOpsPanel {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                FPOpsSectionHeader(title: "Staff sign-in", subtitle: "Link Privy email verification with a one-time staff invite")
+                FPOpsSectionHeader(title: "Ops sign-in", subtitle: "Admins and linked staff use email code. New staff add an invite once.")
 
-                TextField("Staff email", text: $staffEmail)
+                TextField("Ops email", text: $staffEmail)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -436,7 +304,7 @@ struct OpsShellView: View {
                         .textContentType(.oneTimeCode)
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
-                    SecureField("One-time invite", text: $inviteToken)
+                    SecureField("Invite token (new staff only)", text: $inviteToken)
                         .textFieldStyle(.roundedBorder)
                 }
 
@@ -451,18 +319,33 @@ struct OpsShellView: View {
                     .disabled(staffEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || staffLinkState == .working)
 
                     Button {
-                        Task { await acceptStaffInvite() }
+                        Task { await signInOpsAccount() }
                     } label: {
-                        Label("Link staff", systemImage: "person.badge.key.fill")
+                        Label("Sign in", systemImage: "checkmark.shield.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!canAcceptStaffInvite)
+                    .disabled(!canSignInOpsAccount)
                 }
+
+                Button {
+                    Task { await acceptStaffInvite() }
+                } label: {
+                    Label("Link new staff with invite", systemImage: "person.badge.key.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!canAcceptStaffInvite)
 
                 FPStateBanner(title: staffLinkState.title, message: staffLinkState.message, kind: staffLinkState.kind)
             }
         }
+    }
+
+    private var canSignInOpsAccount: Bool {
+        staffLinkState != .working &&
+        !staffEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !emailCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var canAcceptStaffInvite: Bool {
@@ -472,48 +355,24 @@ struct OpsShellView: View {
         !inviteToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func useLocalDemoStaff() async {
-        isDemoSigningIn = true
-        defer { isDemoSigningIn = false }
-        do {
-            let session = try await loadDemoSessionWithTimeout()
-            gateSession = session
-            apiClient = apiClient.withAccessToken(session.accessToken)
-            loadState = .online
-            await loadCheckinSummary()
-        } catch {
-            gateSession = UserSession.gateStaff
-            apiClient = apiClient.withAccessToken("local-review-staff")
-            staffLinkState = .linked
-            loadState = .degraded
-        }
-    }
-
-    private func loadDemoSessionWithTimeout() async throws -> UserSession {
-        try await withThrowingTaskGroup(of: UserSession.self) { group in
-            let client = apiClient
-            group.addTask {
-                try await client.demoSession(userId: UserSession.gateStaff.userId)
-            }
-            group.addTask {
-                try await Task.sleep(nanoseconds: 3_000_000_000)
-                throw OpsDemoSignInError.timeout
-            }
-            guard let session = try await group.next() else {
-                throw OpsDemoSignInError.timeout
-            }
-            group.cancelAll()
-            return session
-        }
-    }
-
     private func loadCheckinSummary() async {
         guard gateSession != nil else { return }
+        var loadedAnyData = false
         do {
             checkinSummary = try await apiClient.checkinSummary(eventId: selectedEvent.id, gate: selectedGate)
-            loadState = .online
+            loadedAnyData = true
         } catch {
             checkinSummary = nil
+        }
+        do {
+            checkinHistory = try await apiClient.checkinHistory().items
+            loadedAnyData = true
+        } catch {
+            checkinHistory = []
+        }
+        if loadedAnyData {
+            loadState = .online
+        } else {
             loadState = gateSession == nil ? .offline : .degraded
         }
     }
@@ -543,21 +402,57 @@ struct OpsShellView: View {
             let session = try await apiClient.acceptStaffInvite(
                 privyAccessToken: privyAccessToken,
                 inviteToken: trimmedInviteToken,
-                walletAddress: result.walletAddress
+                walletAddress: result.walletAddress,
+                walletId: result.walletId
             )
-            gateSession = session
-            let token = session.accessToken
-            apiClient = apiClient.withAccessToken(token)
-            privyAccessToken = ""
-            inviteToken = ""
-            emailCode = ""
-            staffLinkState = .linked
-            loadState = .online
-            await loadCheckinSummary()
+            guard session.isOpsRole else {
+                privyAccessToken = ""
+                staffLinkState = .failed("This account is not enabled for Ops. Ask an admin to assign staff access.")
+                return
+            }
+            await activateOpsSession(session, fallbackAccessToken: result.accessToken)
         } catch {
             privyAccessToken = ""
             staffLinkState = .failed("Staff invite linking failed. Check the code, invite, and assignment.")
         }
+    }
+
+    private func signInOpsAccount() async {
+        let email = staffEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = emailCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !email.isEmpty, !code.isEmpty else { return }
+
+        staffLinkState = .working
+        do {
+            let result = try await privyAuthProvider.loginWithEmailCode(code, sentTo: email)
+            privyAccessToken = result.accessToken
+            let session = try await apiClient.syncPrivySession(
+                privyAccessToken: result.accessToken,
+                email: email,
+                walletAddress: result.walletAddress,
+                walletId: result.walletId
+            )
+            guard session.isOpsRole else {
+                privyAccessToken = ""
+                staffLinkState = .failed("This account is not enabled for Ops. Ask an admin to assign admin or staff access.")
+                return
+            }
+            await activateOpsSession(session, fallbackAccessToken: result.accessToken)
+        } catch {
+            privyAccessToken = ""
+            staffLinkState = .failed("Ops sign-in failed. Check the code and Privy app identifier settings.")
+        }
+    }
+
+    private func activateOpsSession(_ session: UserSession, fallbackAccessToken: String?) async {
+        gateSession = session
+        apiClient = apiClient.withAccessToken(session.accessToken ?? fallbackAccessToken)
+        privyAccessToken = ""
+        inviteToken = ""
+        emailCode = ""
+        staffLinkState = .linked
+        loadState = .online
+        await loadCheckinSummary()
     }
 
     private func signOut() {
@@ -566,17 +461,9 @@ struct OpsShellView: View {
         scanSheet = nil
         loadState = .offline
         checkinSummary = nil
+        checkinHistory = []
     }
 
-    private func gateSubtitle(_ gate: String) -> String {
-        switch gate {
-        case "A1": "Main Floor Entrance"
-        case "A2": "VIP Entrance"
-        case "B1": "Balcony Entrance"
-        case "C1": "Back Entrance"
-        default: "Event entrance"
-        }
-    }
 }
 
 private enum OpsTab: Hashable {
@@ -599,7 +486,6 @@ private enum OpsTab: Hashable {
 }
 
 private enum OpsScanSheet: String, Identifiable {
-    case modeSelector
     case qrCamera
     case nfcReader
 
@@ -607,15 +493,8 @@ private enum OpsScanSheet: String, Identifiable {
 }
 
 private enum OpsAccountRoute: Hashable {
-    case gateAssignment
-    case deviceChecks
     case scanHistory
-    case shiftSummary
     case help
-}
-
-private enum OpsDemoSignInError: Error {
-    case timeout
 }
 
 private enum OpsLoadState: Equatable {
@@ -658,28 +537,28 @@ private enum StaffLinkState: Equatable {
     var title: String {
         switch self {
         case .idle:
-            "Staff link required"
+            "Ops access required"
         case .working:
             "Checking"
         case .codeSent:
             "Code sent"
         case .linked:
-            "Staff linked"
+            "Ops session active"
         case .failed:
-            "Link failed"
+            "Sign-in failed"
         }
     }
 
     var message: String {
         switch self {
         case .idle:
-            "Use a verified email code and one-time invite before scanning assigned gates."
+            "Admins and linked staff can sign in with an email code. New staff use an invite once."
         case .working:
-            "Verifying staff identity and assignment."
+            "Verifying identity and Ops access."
         case .codeSent:
-            "Enter the email code and staff invite to finish linking."
+            "Enter the email code to sign in. Add an invite only when linking new staff."
         case .linked:
-            "The staff session is active for assigned gate work."
+            "Scanner access is active for this Ops account."
         case let .failed(message):
             message
         }
@@ -711,42 +590,10 @@ private enum FPOpsTheme {
 }
 
 private struct OpsHomeHeader: View {
-    let event: FanPassV4.Event
-    let gate: String
-    let loadState: OpsLoadState
-    let gates: [String]
-    let onSelectGate: (String) -> Void
     let onAccount: () -> Void
 
     var body: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                Menu {
-                    ForEach(gates, id: \.self) { gate in
-                        Button(gate) { onSelectGate(gate) }
-                    }
-                } label: {
-                    HStack(spacing: FPSpacing.xs) {
-                        Text("Gate \(gate)")
-                            .font(FPTypography.title3)
-                            .foregroundStyle(FPOpsTheme.textPrimary)
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(FPOpsTheme.textSecondary)
-                    }
-                }
-                Text(event.title)
-                    .font(FPTypography.caption)
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-                FPStatusPill(
-                    title: loadState.title,
-                    systemImage: loadState.icon,
-                    foreground: loadState.kind.foreground,
-                    background: loadState.kind.foreground.opacity(0.12),
-                    border: loadState.kind.foreground.opacity(0.35)
-                )
-                .padding(.top, FPSpacing.xs)
-            }
             Spacer()
             Button(action: onAccount) {
                 Image(systemName: "person.fill")
@@ -760,151 +607,6 @@ private struct OpsHomeHeader: View {
             }
             .buttonStyle(.plain)
         }
-    }
-}
-
-private struct OpsServiceRow: View {
-    let loadState: OpsLoadState
-    let summary: CheckinSummary?
-
-    var body: some View {
-        HStack(spacing: FPSpacing.sm) {
-            Circle()
-                .fill(loadState.kind.foreground)
-                .frame(width: 9, height: 9)
-            Text(loadState == .online ? "Service online" : "Service \(loadState.title.lowercased())")
-                .font(FPTypography.caption.weight(.semibold))
-                .foregroundStyle(FPOpsTheme.textSecondary)
-            Spacer()
-            if let summary {
-                Text("\(summary.accepted) accepted")
-                    .font(FPTypography.caption.weight(.semibold))
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-            }
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(FPOpsTheme.textSecondary)
-        }
-        .padding(FPSpacing.md)
-        .background(FPOpsTheme.surface, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                .stroke(FPOpsTheme.border, lineWidth: 1)
-        }
-    }
-}
-
-private struct OpsModeSelectorView: View {
-    let event: FanPassV4.Event
-    let gate: String
-    let loadState: OpsLoadState
-    let onClose: () -> Void
-    let onQR: () -> Void
-    let onNFC: () -> Void
-
-    var body: some View {
-        ZStack {
-            FPOpsTheme.background.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: FPSpacing.xl) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                        Text("Gate \(gate)")
-                            .font(FPTypography.title3)
-                            .foregroundStyle(FPOpsTheme.textPrimary)
-                        Text(event.title)
-                            .font(FPTypography.caption)
-                            .foregroundStyle(FPOpsTheme.textSecondary)
-                        FPStatusPill(
-                            title: loadState.title,
-                            systemImage: loadState.icon,
-                            foreground: loadState.kind.foreground,
-                            background: loadState.kind.foreground.opacity(0.12),
-                            border: loadState.kind.foreground.opacity(0.35)
-                        )
-                    }
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(FPOpsTheme.textPrimary)
-                            .frame(width: 44, height: 44)
-                            .background(FPOpsTheme.surface, in: Circle())
-                            .overlay {
-                                Circle().stroke(FPOpsTheme.border, lineWidth: 1)
-                            }
-                    }
-                }
-
-                Spacer(minLength: FPSpacing.lg)
-
-                Text("Choose scanning method")
-                    .font(FPTypography.title3)
-                    .foregroundStyle(FPOpsTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
-
-                VStack(spacing: FPSpacing.md) {
-                    OpsScanChoice(icon: "qrcode.viewfinder", title: "QR Camera", subtitle: "Scan entry code", action: onQR)
-                    OpsScanChoice(icon: FPIcons.nfc, title: "NFC Reader", subtitle: "Tap fan device", action: onNFC)
-                }
-
-                Spacer()
-
-                FPOpsPanel {
-                    HStack(spacing: FPSpacing.md) {
-                        Image(systemName: "lock.fill")
-                            .foregroundStyle(FPOpsTheme.textSecondary)
-                        VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                            Text("Event & gate are locked")
-                                .font(FPTypography.headline)
-                                .foregroundStyle(FPOpsTheme.textPrimary)
-                            Text("Switch in Account > Gate assignment")
-                                .font(FPTypography.caption)
-                                .foregroundStyle(FPOpsTheme.textSecondary)
-                        }
-                        Spacer()
-                    }
-                }
-            }
-            .padding(FPSpacing.lg)
-        }
-    }
-}
-
-private struct OpsScanChoice: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: FPSpacing.md) {
-                Image(systemName: icon)
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 56, height: 56)
-                    .background(FPOpsTheme.blue, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                    Text(title)
-                        .font(FPTypography.headline)
-                        .foregroundStyle(FPOpsTheme.textPrimary)
-                    Text(subtitle)
-                        .font(FPTypography.caption)
-                        .foregroundStyle(FPOpsTheme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-            }
-            .padding(FPSpacing.md)
-            .background(FPOpsTheme.surface, in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous)
-                    .stroke(FPOpsTheme.border, lineWidth: 1)
-            }
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -954,7 +656,6 @@ private struct OpsTabButton: View {
 private struct OpsStaffHeader: View {
     let name: String
     let email: String
-    let gate: String
 
     var body: some View {
         HStack(spacing: FPSpacing.md) {
@@ -978,9 +679,6 @@ private struct OpsStaffHeader: View {
                     .foregroundStyle(FPOpsTheme.textSecondary)
             }
             Spacer()
-            Text(gate)
-                .font(FPTypography.caption.weight(.semibold))
-                .foregroundStyle(FPOpsTheme.textSecondary)
         }
     }
 }
@@ -1036,117 +734,40 @@ private struct OpsSubpage<Content: View>: View {
     }
 }
 
-private struct OpsGateRow: View {
-    let title: String
-    let subtitle: String
-    let isActive: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: FPSpacing.md) {
-                VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                    Text("Gate \(title)")
-                        .font(FPTypography.headline)
-                        .foregroundStyle(FPOpsTheme.textPrimary)
-                    Text(subtitle)
-                        .font(FPTypography.caption)
-                        .foregroundStyle(FPOpsTheme.textSecondary)
-                }
-                Spacer()
-                if isActive {
-                    FPStatusPill(title: "Active", systemImage: "checkmark", foreground: FPOpsTheme.green, background: FPOpsTheme.green.opacity(0.12), border: FPOpsTheme.green.opacity(0.35))
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(FPOpsTheme.textSecondary)
-                }
-            }
-            .padding(.vertical, FPSpacing.sm)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct OpsHealthRow: View {
-    let icon: String
-    let title: String
-    let value: String
-    let kind: FPStateKind
-
-    var body: some View {
-        HStack(spacing: FPSpacing.md) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(FPOpsTheme.textSecondary)
-                .frame(width: 28)
-            Text(title)
-                .font(FPTypography.headline)
-                .foregroundStyle(FPOpsTheme.textPrimary)
-            Spacer()
-            Text(value)
-                .font(FPTypography.caption.weight(.bold))
-                .foregroundStyle(kind.foreground)
-        }
-        .padding(.vertical, FPSpacing.sm)
-    }
-}
-
 private struct OpsHistoryRow: View {
-    let time: String
-    let accepted: Bool
-    let ref: String
-    let gate: String
-    let reason: String?
+    let item: CheckinHistoryItem
 
     var body: some View {
         HStack(spacing: FPSpacing.md) {
-            Image(systemName: accepted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(accepted ? FPOpsTheme.green : FPOpsTheme.red)
-            Text(time)
+            Image(systemName: item.accepted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(item.accepted ? FPOpsTheme.green : FPOpsTheme.red)
+            Text(formattedTime(item.checkedInAt))
                 .font(FPTypography.caption)
                 .foregroundStyle(FPOpsTheme.textPrimary)
                 .monospacedDigit()
             VStack(alignment: .leading, spacing: 2) {
-                Text(accepted ? "ACCEPTED" : "REJECTED")
+                Text(item.accepted ? "ACCEPTED" : "REJECTED")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(accepted ? FPOpsTheme.green : FPOpsTheme.red)
-                Text(reason ?? ref)
+                    .foregroundStyle(item.accepted ? FPOpsTheme.green : FPOpsTheme.red)
+                Text(item.reason ?? item.ticketRef)
                     .font(.caption2)
                     .foregroundStyle(FPOpsTheme.textSecondary)
             }
             Spacer()
-            Text(gate)
+            Text(item.ticketRef)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(FPOpsTheme.textSecondary)
         }
         .padding(.vertical, FPSpacing.sm)
     }
-}
 
-private struct OpsSummaryMetric: View {
-    let title: String
-    let value: String
-    let caption: String?
-
-    var body: some View {
-        HStack(alignment: .lastTextBaseline) {
-            VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                Text(title)
-                    .font(FPTypography.caption)
-                    .foregroundStyle(FPOpsTheme.textSecondary)
-                Text(value)
-                    .font(FPTypography.title3)
-                    .foregroundStyle(FPOpsTheme.textPrimary)
-                    .monospacedDigit()
-            }
-            Spacer()
-            if let caption {
-                Text(caption)
-                    .font(FPTypography.caption.weight(.semibold))
-                    .foregroundStyle(FPOpsTheme.blue)
-            }
+    private func formattedTime(_ isoTimestamp: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: isoTimestamp) else {
+            return "--:--"
         }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: date)
     }
 }
 

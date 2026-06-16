@@ -9,6 +9,7 @@ struct ScannerView: View {
     let gate: String
     let startsWithCamera: Bool
     let startsWithNFC: Bool
+    let onExit: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var qrText = ""
@@ -19,7 +20,6 @@ struct ScannerView: View {
     @State private var isRedeeming = false
     @State private var didStartInitialCapture = false
     @State private var autoRedeemPayload: String?
-    @State private var resultDismissTask: Task<Void, Never>?
     @State private var redeemedLocalCredentialIds: Set<String> = []
     @StateObject private var nfcScanner = NFCPayloadScanner()
     private let isoFormatter = ISO8601DateFormatter()
@@ -29,34 +29,121 @@ struct ScannerView: View {
         eventId: String = "evt_weekend",
         gate: String = "A1",
         startsWithCamera: Bool = false,
-        startsWithNFC: Bool = false
+        startsWithNFC: Bool = false,
+        onExit: (() -> Void)? = nil
     ) {
         self.apiClient = apiClient
         self.eventId = eventId
         self.gate = gate
         self.startsWithCamera = startsWithCamera
         self.startsWithNFC = startsWithNFC
+        self.onExit = onExit
     }
 
     var body: some View {
         ZStack {
-            FanPassScreen {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        header
-                        statusPanel
-                        inputPanel
-                        resultPanel
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 18)
-                    .padding(.bottom, 48)
+            if startsWithCamera {
+                QRCodeScannerView { code in
+                    captureQRCode(code)
                 }
+                .ignoresSafeArea()
+            } else {
+                LinearGradient(
+                    colors: [Color(hex: 0x06101F), Color(hex: 0x0D1B2F)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
             }
 
+            VStack(spacing: FPSpacing.xl) {
+                HStack {
+                    Button {
+                        exitScanner()
+                    } label: {
+                        Label("Exit", systemImage: "xmark")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 14)
+                            .frame(height: 44)
+                            .background(Color.white.opacity(0.14), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+
+                Spacer()
+
+                VStack(spacing: FPSpacing.lg) {
+                    Image(systemName: scanState.icon)
+                        .font(.system(size: 56, weight: .bold))
+                        .foregroundStyle(scanState.color)
+                        .frame(width: 108, height: 108)
+                        .background(scanState.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+                    VStack(spacing: FPSpacing.sm) {
+                        Text(scanState.title)
+                            .font(.system(size: 34, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.white)
+                            .multilineTextAlignment(.center)
+                        Text(scanState.message)
+                            .font(FPTypography.callout)
+                            .foregroundStyle(Color.white.opacity(0.72))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if isRedeeming || scanState == .checking {
+                        ProgressView()
+                            .tint(Color.white)
+                    }
+                }
+                .padding(.horizontal, FPSpacing.lg)
+                .opacity(startsWithCamera ? 0 : 1)
+
+                Spacer()
+
+                if !startsWithCamera && !startsWithNFC {
+                    VStack(spacing: FPSpacing.md) {
+                        Button {
+                            isCameraScannerPresented = true
+                        } label: {
+                            Label(isRedeeming ? "Checking" : "Scan QR", systemImage: "qrcode.viewfinder")
+                                .font(FPTypography.headline)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(FanPassTheme.accent, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isRedeeming)
+
+                        Button {
+                            beginNFCScan()
+                        } label: {
+                            Label(nfcScanner.isReading ? "Reading NFC" : "Scan NFC", systemImage: "wave.3.right.circle")
+                                .font(FPTypography.headline)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                                .background(Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isRedeeming || nfcScanner.isReading)
+                    }
+                    .padding(.horizontal, FPSpacing.lg)
+                }
+            }
+            .padding(.horizontal, FPSpacing.lg)
+            .padding(.top, FPSpacing.lg)
+            .padding(.bottom, FPSpacing.xl)
+
             if let result = scanState.fullScreenResult(gate: gate) {
-                ScannerResultOverlay(result: result)
-                    .transition(.opacity)
+                ScannerResultOverlay(result: result) {
+                    exitScanner()
+                }
+                .transition(.opacity)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -64,18 +151,13 @@ struct ScannerView: View {
             await loadSummary()
             startInitialCaptureIfNeeded()
         }
-        .onDisappear {
-            resultDismissTask?.cancel()
-        }
         .onChange(of: scanState) { _, state in
             handleScanStateChange(state)
         }
         .fullScreenCover(isPresented: $isCameraScannerPresented) {
             NavigationStack {
                 QRCodeScannerView { code in
-                    qrText = code
-                    capturedTransport = .qr
-                    scanState = .captured
+                    captureQRCode(code)
                     isCameraScannerPresented = false
                 }
                 .toolbar {
@@ -247,9 +329,7 @@ struct ScannerView: View {
     private func startInitialCaptureIfNeeded() {
         guard !didStartInitialCapture else { return }
         didStartInitialCapture = true
-        if startsWithCamera {
-            isCameraScannerPresented = true
-        } else if startsWithNFC {
+        if startsWithNFC {
             beginNFCScan()
         }
     }
@@ -258,8 +338,6 @@ struct ScannerView: View {
         switch state {
         case .captured:
             redeemCapturedPayloadIfNeeded()
-        case .accepted, .failure:
-            scheduleResultDismiss()
         default:
             break
         }
@@ -272,15 +350,10 @@ struct ScannerView: View {
         Task { await redeem() }
     }
 
-    private func scheduleResultDismiss() {
-        resultDismissTask?.cancel()
-        resultDismissTask = Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                dismiss()
-            }
-        }
+    private func captureQRCode(_ code: String) {
+        qrText = code
+        capturedTransport = .qr
+        scanState = .captured
     }
 
     private func beginNFCScan() {
@@ -379,11 +452,18 @@ struct ScannerView: View {
     }
 
     private func resetForNextScan() {
-        resultDismissTask?.cancel()
         qrText = ""
         capturedTransport = nil
         autoRedeemPayload = nil
         scanState = .ready
+    }
+
+    private func exitScanner() {
+        if let onExit {
+            onExit()
+        } else {
+            dismiss()
+        }
     }
 
     private func loadSummary() async {
@@ -524,9 +604,9 @@ private enum ScanState: Equatable {
 
     private var readyMessage: String {
         #if DEBUG
-        return "Open QR or NFC to verify the attendee at the gate."
+        return "Open QR or NFC to verify the attendee."
         #else
-        return "Open QR or NFC to verify the attendee at the gate."
+        return "Open QR or NFC to verify the attendee."
         #endif
     }
 
@@ -541,11 +621,11 @@ private enum ScanState: Equatable {
                 gate: gate,
                 timestamp: Date()
             )
-        case let .failure(code, _):
+        case let .failure(code, message):
             return ScannerFullScreenResult(
                 isAccepted: false,
                 title: "REJECTED",
-                reason: failureTitle(code),
+                reason: failureOverlayReason(code: code, message: message),
                 safeRef: safeRef(from: code),
                 gate: gate,
                 timestamp: Date()
@@ -562,6 +642,16 @@ private enum ScanState: Equatable {
         guard suffix.count > 4 else { return suffix }
         let splitIndex = suffix.index(suffix.startIndex, offsetBy: 4)
         return "\(suffix[..<splitIndex])-\(suffix[splitIndex...])"
+    }
+
+    private func failureOverlayReason(code: String, message: String) -> String {
+        let title = failureTitle(code)
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMessage.isEmpty else { return title }
+        if trimmedMessage.localizedCaseInsensitiveContains(title) {
+            return trimmedMessage
+        }
+        return "\(title): \(trimmedMessage)"
     }
 }
 
@@ -584,6 +674,7 @@ private struct ScannerFullScreenResult {
 
 private struct ScannerResultOverlay: View {
     let result: ScannerFullScreenResult
+    let onExit: () -> Void
 
     var body: some View {
         ZStack {
@@ -593,6 +684,24 @@ private struct ScannerResultOverlay: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Button(action: onExit) {
+                        Label("Exit", systemImage: "xmark")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(result.tint)
+                            .padding(.horizontal, 14)
+                            .frame(height: 44)
+                            .background(Color.white, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
 
             VStack(spacing: 28) {
                 Spacer()
@@ -618,6 +727,9 @@ private struct ScannerResultOverlay: View {
                         Text(reason)
                             .font(.title3.weight(.bold))
                             .foregroundStyle(Color.white)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 28)
                     }
 
                     Text("Safe Ref")
@@ -633,31 +745,11 @@ private struct ScannerResultOverlay: View {
                     .frame(height: 1)
                     .padding(.horizontal, 44)
 
-                VStack(spacing: 8) {
-                    Text("Gate \(result.gate)")
-                        .font(.title3.weight(.bold))
-                    Text(result.timestamp.formatted(date: .abbreviated, time: .standard))
-                        .font(.callout.weight(.semibold))
-                }
+                Text(result.timestamp.formatted(date: .abbreviated, time: .standard))
+                    .font(.callout.weight(.semibold))
                 .foregroundStyle(Color.white)
 
                 Spacer()
-
-                VStack(spacing: 10) {
-                    Text("Closing in 1.5s")
-                        .font(.caption.weight(.semibold))
-                    Capsule()
-                        .fill(Color.white.opacity(0.32))
-                        .frame(height: 8)
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white)
-                                .frame(width: 148, height: 8)
-                        }
-                }
-                .foregroundStyle(Color.white.opacity(0.9))
-                .padding(.horizontal, 44)
-                .padding(.bottom, 24)
             }
         }
     }

@@ -4,7 +4,7 @@ enum FanPassMockData {
     static let guestFan = FanPassV4.User(
         id: "usr_guest",
         displayName: "Guest",
-        email: "guest@example.com",
+        email: "",
         role: .guest,
         scenario: .normalFan,
         walletReference: nil,

@@ -10,6 +10,9 @@ struct UserSession: Codable, Hashable {
     let expiresAt: String?
 
     var isFan: Bool { role == "FAN" }
+    var isGateStaff: Bool { role == "GATE_STAFF" }
+    var isAdmin: Bool { role == "ADMIN" }
+    var isOpsRole: Bool { isGateStaff || isAdmin }
 
     func withAccessToken(_ token: String?) -> UserSession {
         UserSession(
@@ -177,6 +180,23 @@ struct CheckinSummary: Codable, Hashable {
     let rejected: Int
     let results: [String: Int]
     let lastCheckedInAt: String?
+}
+
+struct CheckinHistoryResponse: Codable, Hashable {
+    let items: [CheckinHistoryItem]
+}
+
+struct CheckinHistoryItem: Codable, Identifiable, Hashable {
+    let id: String
+    let checkedInAt: String
+    let gate: String
+    let result: String
+    let accepted: Bool
+    let ticketRef: String
+    let eventId: String
+    let ticketTypeId: String
+    let tokenId: String?
+    let reason: String?
 }
 
 struct OrderbookLevel: Codable, Hashable {

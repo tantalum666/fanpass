@@ -28,12 +28,14 @@ export interface SyncPrivyUserInput {
   email?: string;
   name?: string;
   walletAddress?: string;
+  walletId?: string;
 }
 
 export interface AcceptStaffInviteInput {
   inviteToken: string;
   name?: string;
   walletAddress?: string;
+  walletId?: string;
 }
 
 @Injectable()
@@ -141,6 +143,7 @@ export class AuthService {
     }
 
     const walletAddress = this.normalizeWalletAddress(input.walletAddress);
+    const privyWalletId = this.normalizePrivyWalletId(input.walletId);
     const accepted = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const now = new Date();
@@ -229,6 +232,7 @@ export class AuthService {
           },
           data: {
             privyId,
+            privyWalletId: privyWalletId ?? staff.privyWalletId,
             walletAddress: walletAddress ?? staff.walletAddress,
           },
         });
@@ -381,6 +385,7 @@ export class AuthService {
       email,
       role: "FAN",
       privyId,
+      privyWalletId: this.normalizePrivyWalletId(input.walletId),
       walletAddress: this.normalizeWalletAddress(input.walletAddress),
       riskScore: 0,
     };
@@ -394,6 +399,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
           privyId: user.privyId,
+          privyWalletId: user.privyWalletId,
           walletAddress: user.walletAddress,
           riskScore: user.riskScore,
         },
@@ -440,7 +446,11 @@ export class AuthService {
     input: SyncPrivyUserInput,
   ): Promise<UserRecord> {
     const walletAddress = this.normalizeWalletAddress(input.walletAddress);
-    if (!walletAddress || walletAddress === user.walletAddress) {
+    const privyWalletId = this.normalizePrivyWalletId(input.walletId);
+    if (
+      (!walletAddress || walletAddress === user.walletAddress) &&
+      (!privyWalletId || privyWalletId === user.privyWalletId)
+    ) {
       return user;
     }
 
@@ -451,13 +461,15 @@ export class AuthService {
           id: user.id,
         },
         data: {
-          walletAddress,
+          walletAddress: walletAddress ?? user.walletAddress,
+          privyWalletId: privyWalletId ?? user.privyWalletId,
         },
       });
       return this.toUserRecord(updated);
     }
 
-    user.walletAddress = walletAddress;
+    user.walletAddress = walletAddress ?? user.walletAddress;
+    user.privyWalletId = privyWalletId ?? user.privyWalletId;
     return user;
   }
 
@@ -516,6 +528,7 @@ export class AuthService {
     email: string;
     role: UserRecord["role"];
     privyId: string | null;
+    privyWalletId?: string | null;
     walletAddress: string | null;
     riskScore: number;
   }): UserRecord {
@@ -525,6 +538,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       privyId: user.privyId,
+      privyWalletId: user.privyWalletId ?? null,
       walletAddress: user.walletAddress,
       riskScore: user.riskScore,
     };
@@ -548,6 +562,11 @@ export class AuthService {
 
   private normalizeWalletAddress(walletAddress: string | undefined) {
     const normalized = walletAddress?.trim();
+    return normalized || null;
+  }
+
+  private normalizePrivyWalletId(walletId: string | undefined) {
+    const normalized = walletId?.trim();
     return normalized || null;
   }
 

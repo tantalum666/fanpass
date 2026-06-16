@@ -15,6 +15,19 @@ const mockContract = {
 
 jest.mock("ethers", () => ({
   Contract: jest.fn(() => mockContract),
+  Interface: jest.fn(() => ({
+    encodeFunctionData: jest.fn(
+      (name: string, args: unknown[]) => `0xencoded_${name}_${args.length}`,
+    ),
+    parseLog: jest.fn(() => ({
+      name: "TicketMinted",
+      args: {
+        tokenId: {
+          toString: () => "42",
+        },
+      },
+    })),
+  })),
   JsonRpcProvider: jest.fn(),
   Wallet: jest.fn(),
 }));
@@ -258,5 +271,82 @@ describe("OwnershipService", () => {
       "0x0000000000000000000000000000000000002002",
       42n,
     );
+  });
+
+  it("sends Sepolia ownership writes through Privy gas sponsorship when selected", async () => {
+    const fetchMock = jest
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          result:
+            "0x0000000000000000000000000000000000000000000000000000000000009000",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          result: {
+            status: "0x1",
+            logs: [{}],
+          },
+        }),
+      } as Response);
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn().mockResolvedValue({
+        hash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        providerId: "wallet_rpc_fixture",
+        rawStatus: null,
+      }),
+    };
+    const ownership = new OwnershipService(
+      new ConfigService({
+        OWNERSHIP_ADAPTER: "privy",
+        FANPASS_PRIVY_SPONSOR_WALLET_ID: "wallet_fixture_operator",
+        FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS:
+          "0x0000000000000000000000000000000000009000",
+        FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2: "eip155:11155111",
+        FANPASS_TICKET_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+        TESTNET_RPC_URL: "https://rpc.testnet.example",
+      }),
+      privyWallets as never,
+    );
+
+    const receipt = await ownership.issueTicket({
+      localTicketId: "tkt_privy_sensitive",
+      tokenIdHint: "7",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      ownerId: "usr_fan_demo",
+      ownerWalletAddress: "0x0000000000000000000000000000000000002001",
+      transferable: true,
+      resaleCap: 1545,
+      maxTransferCount: 2,
+      metadataUri: null,
+    });
+
+    expect(receipt).toMatchObject({
+      adapter: "privy",
+      status: "CONFIRMED",
+      tokenId: "42",
+      transactionHash:
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+    });
+    expect(privyWallets.sendSponsoredEthereumTransaction).toHaveBeenCalledWith({
+      walletId: "wallet_fixture_operator",
+      caip2: "eip155:11155111",
+      transaction: {
+        to: "0x0000000000000000000000000000000000001000",
+        data: "0xencoded_mintTicketWithProof_10",
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://rpc.testnet.example",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    fetchMock.mockRestore();
   });
 });

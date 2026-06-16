@@ -242,3 +242,48 @@ Remaining evidence:
 - Redeploy staging with the backend primary ticket settlement update.
 - Use a real backend ticket created from a real Stripe test checkout, not a client pending/local-review ticket.
 - Scan the fan device QR with FanPass Ops on physical devices and save accepted, duplicate/replay, expired, and backend-authority evidence before closing the QR/NFC blocker.
+
+## 2026-06-15 Arduino EP8280 Mock Turnstile Bench
+
+Status: local hardware bench QR path working; product QR/NFC evidence still open.
+
+A local Arduino mock turnstile was added at `hardware/fanpass_turnstile/fanpass_turnstile.ino` to support hardware learning before continuing Web work. It uses Arduino UNO R4 WiFi, EP8280 NFC/QR scan engine, I2C LCD, HC-SR04 ultrasonic sensor, and one micro servo.
+
+Current verified bench behavior:
+
+- EP8280 is connected through the 8-pin interface in TTL mode.
+- QR scans can now produce real TTL bytes on Arduino `Serial1`; serial output includes `EP8280 BYTE ...` and `SCAN: <real QR text>`.
+- EP8280 Pin7 decode-success output is still monitored for diagnostics, but the code now delays that fallback to let TTL payloads arrive first.
+- LCD status copy is configured for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data states.
+- The servo gate opens for real QR payloads containing `FANPASS`.
+- The ultrasonic sensor detects pass-through and marks the local gate flow as passed.
+
+Current bench limitations:
+
+- EP8280 NFC card/tag behavior is not working yet in this setup.
+- Pin7 decode-success alone does not provide QR text and is denied by default now that TTL content works.
+- The bench prototype is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging.
+- Arduino/breadboard rail power may be unstable under scanner/servo load until a separate regulated 5V supply is added.
+
+Boundary:
+
+- This bench is not a replacement for FanPass Ops physical QR/NFC validation.
+- It does not close the QR/NFC blocker, TestFlight blocker, Apple Wallet blocker, or chain custody blocker.
+- Do not save raw signed FanPass QR payloads, nonces, bearer tokens, device identifiers, or real ticket/user data in Arduino logs or hardware notes.
+
+## 2026-06-16 Ops Live Scan History Update
+
+Status: API and iOS implementation verified; release scanner evidence still open.
+
+- The Ops app no longer uses fixed sample rows for scan history. `FanPassAPIClient.checkinHistory()` calls `GET /verification/checkins/recent`.
+- The API endpoint is guarded for `GATE_STAFF` and `ADMIN` and returns the latest 25 check-ins from Prisma or the memory store.
+- History rows expose only safe display fields. Raw QR payloads, nonces, signatures, and bearer/session tokens are not returned to the client.
+- Ops Home and Account were reduced to the current production-like scanner surface: no online/status chip, no online service card, no gate assignment/device checks/shift summary pages, and no `Continue as test gate staff` login shortcut.
+- Verification passed focused API tests and both simulator/device Ops builds. This does not replace physical accepted/rejected QR and NFC evidence.
+
+Remaining evidence:
+
+- Sign in to Ops with a real linked staff/admin account.
+- Redeem a valid fan ticket QR and then redeem it again.
+- Confirm the API records accepted and duplicate/rejected check-ins and the Ops Scan history page reflects both records.
+- Save physical-device QR/NFC evidence without raw payloads, nonces, bearer tokens, device identifiers, or real personal data.

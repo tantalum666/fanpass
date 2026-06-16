@@ -42,6 +42,8 @@ The product is not positioned as a speculative crypto app. Blockchain-backed pro
 
 The current V4 prototype is a high-fidelity local iOS prototype. It supports realistic product flows and state transitions using deterministic mock data. The backend and contracts now include local foundations for signed QR/NFC validation and proof-record contracts, but the V4 shell does not connect to production backend flows, live Stripe mode, real blockchain transactions, real NFC tags, real Apple Wallet passes, or real organizer dashboards.
 
+Local hardware note as of 2026-06-15: `hardware/fanpass_turnstile/fanpass_turnstile.ino` contains an Arduino UNO R4 WiFi + EP8280 mock turnstile sketch. The bench prototype can read real QR text over the EP8280 TTL path, show LCD gate states, move one servo, and detect pass-through with an ultrasonic sensor. It is local hardware-learning work only. It does not replace FanPass Ops iOS, backend-authoritative redemption, TestFlight evidence, physical QR/NFC evidence, signed Apple Wallet evidence, or release-grade chain custody evidence.
+
 Use the prototype to validate:
 
 - Navigation and information architecture.
@@ -90,6 +92,7 @@ apps/ios/FanPass/
   FanPassOps/
 
 assets/brand/
+hardware/
 docs/brand/
 docs/ux/
 docs/product/

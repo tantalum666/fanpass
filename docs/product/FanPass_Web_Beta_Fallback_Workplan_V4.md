@@ -1,7 +1,7 @@
 # FanPass Web Beta Fallback Workplan V4
 
 Date: 2026-06-07
-Status: implementation in progress
+Status: implementation paused pending owner requirements as of 2026-06-15
 Source of truth: `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`
 
 ## Purpose
@@ -11,6 +11,8 @@ The Web Beta Fallback is a backup delivery path while Apple Developer enrollment
 The fallback must support future dual-platform use: a fan should be able to use FanPass on web and iOS with the same account, same tickets, same resale listings, same proof history, and same organizer rules.
 
 Web NFC is out of scope. Entry fallback is QR-only.
+
+2026-06-15 owner instruction: prepare for Web work but do not start implementation yet. Additional requirements are pending. Before any Web implementation resumes, read `docs/CODEX_HANDOFF.md` first, enumerate and read project Markdown files, then re-read the Web Beta Fallback plan/workplan and active UX docs. Update Markdown immediately after completed work and repeat the non-ignored Markdown pass after context compaction.
 
 ## Product Principle
 

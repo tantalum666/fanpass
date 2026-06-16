@@ -30,13 +30,16 @@ const unsigned long DISTANCE_LOG_INTERVAL_MS = 500;
 const unsigned long DECODE_FALLBACK_DELAY_MS = 450;
 const unsigned long SCAN_COOLDOWN_MS = 1200;
 const unsigned long SENSOR_ARM_DELAY_MS = 2000;
+const unsigned long SCANNER_IDLE_COMPLETE_MS = 700;
 const unsigned long WIEGAND_PROBE_INTERVAL_MS = 300;
 const int PASS_DISTANCE_CM = 5;
+const int MAX_REDEEMED_TICKET_KEYS = 24;
+const int MAX_SCAN_PAYLOAD_CHARS = 1400;
 
 // Gate policy for the bench prototype:
-// Any QR payload received over TTL or Wiegand opens the gate. The EP8280 decode
-// pin fallback proves the scanner reported decode success but does not contain
-// payload text. It opens the gate in this bench demo only.
+// First-use QR/Wiegand payloads open the gate. The EP8280 decode pin fallback
+// proves the scanner reported decode success but does not contain payload text.
+// It opens the gate in this bench demo only.
 const char REQUIRED_QR_MARKER[] = "FANPASS";
 const bool ALLOW_ANY_QR_FOR_TESTING = true;
 const bool ALLOW_DECODE_FALLBACK_OPEN = true;
@@ -53,6 +56,9 @@ unsigned long lastDecodePinChangeAt = 0;
 bool decodeFallbackPending = false;
 unsigned long decodeFallbackAt = 0;
 unsigned long lastScanCompletedAt = 0;
+bool scannerReadStatusShown = false;
+String redeemedTicketKeys[MAX_REDEEMED_TICKET_KEYS];
+int redeemedTicketKeyCursor = 0;
 
 volatile uint64_t wiegandValue = 0;
 volatile byte wiegandBits = 0;
@@ -191,7 +197,7 @@ void reportWiegandProbe() {
   Serial.print(" idle_ms=");
   Serial.println(millis() - pulseAt);
 
-  showLine("WG PULSE", "D0 " + String(d0Count) + " D1 " + String(d1Count));
+  // Keep Wiegand pulse diagnostics on Serial only; the LCD is for gate users.
 }
 
 void readWiegand() {
@@ -256,15 +262,22 @@ void readScanner() {
         decodeFallbackPending = false;
         handleScannerLine(scanBuffer);
         scanBuffer = "";
+        scannerReadStatusShown = false;
       }
       continue;
     }
 
-    if (scanBuffer.length() < 240) {
+    if (scanBuffer.length() == 0 && !scannerReadStatusShown) {
+      showLine("PASS READ", "Checking");
+      scannerReadStatusShown = true;
+    }
+
+    if (scanBuffer.length() < MAX_SCAN_PAYLOAD_CHARS) {
       scanBuffer += c;
     } else {
       scanBuffer = "";
-      showLine("SCAN TOO LONG", "Buffer cleared");
+      scannerReadStatusShown = false;
+      showLine("SCAN ERROR", "Please rescan");
       delay(1200);
       showReady();
     }
@@ -272,10 +285,11 @@ void readScanner() {
 
   // Some scanner settings send no CR/LF terminator. Treat a short idle gap
   // after incoming bytes as the end of one scan.
-  if (scanBuffer.length() > 0 && millis() - lastScannerByteAt > 180) {
+  if (scanBuffer.length() > 0 && millis() - lastScannerByteAt > SCANNER_IDLE_COMPLETE_MS) {
     decodeFallbackPending = false;
     handleScannerLine(scanBuffer);
     scanBuffer = "";
+    scannerReadStatusShown = false;
   }
 }
 
@@ -288,7 +302,7 @@ void handleScannerLine(String payload) {
   if (isDeviceCommandResponse(payload)) {
     Serial.print("EP8280 CMD RESPONSE: ");
     Serial.println(payload);
-    showLine("CMD RESPONSE", shortText(payload));
+    showLine("READER READY", "Settings saved");
     return;
   }
 
@@ -357,15 +371,15 @@ void handleScan(String payload) {
   Serial.println(payload);
 
   if (isDecodeFallbackPayload(payload)) {
-    showLine("SCAN SEEN", "No data");
+    showLine("PASS READ", "Checking");
   } else {
-    showLine("VERIFYING PASS", shortText(payload));
+    showLine("PASS READ", "Checking");
   }
   delay(350);
 
   if (!isAuthorized(payload)) {
     if (isDecodeFallbackPayload(payload)) {
-      showLine("NO SCAN DATA", "Scan again");
+      showLine("SCAN AGAIN", "No pass data");
     } else {
       showLine("ACCESS DENIED", "Invalid pass");
     }
@@ -376,20 +390,35 @@ void handleScan(String payload) {
     return;
   }
 
+  String redemptionKey = redemptionKeyForPayload(payload);
+  if (redemptionKey.length() > 0 && hasRedeemedKey(redemptionKey)) {
+    Serial.print("REJECTED_DUPLICATE: ");
+    Serial.println(redemptionKey);
+    showLine("ALREADY USED", "Gate locked");
+    delay(1800);
+    lastScanCompletedAt = millis();
+    showReady();
+    return;
+  }
+
+  if (redemptionKey.length() > 0) {
+    rememberRedeemedKey(redemptionKey);
+  }
+
   Serial.println("ACCESS OK");
   showLine("PASS VALID", "Gate opening");
   delay(300);
   openGate();
   waitBeforeSensorArmed();
-  showLine("GATE OPEN", "Watching 5cm");
+  showLine("GATE OPEN", "Please enter");
 
   bool objectDetected = holdGateUntilClear();
 
   if (objectDetected) {
-    showLine("CLEAR", "Gate closing");
+    showLine("THANK YOU", "Gate closing");
     Serial.println("OBJECT_CLEARED");
   } else {
-    showLine("NO OBJECT", "Gate closing");
+    showLine("GATE CLOSING", "Please wait");
     Serial.println("NO_OBJECT_TIMEOUT");
   }
 
@@ -417,6 +446,80 @@ bool isDecodeFallbackPayload(String payload) {
   return payload == "EP8280:DECODE_PIN";
 }
 
+String redemptionKeyForPayload(String payload) {
+  payload.trim();
+  if (payload.length() == 0 || isDecodeFallbackPayload(payload)) {
+    return "";
+  }
+
+  String ticketId = extractJsonStringField(payload, "ticketId");
+  if (ticketId.length() == 0) {
+    ticketId = extractJsonStringField(payload, "ticket_id");
+  }
+  if (ticketId.length() > 0) {
+    return "ticket:" + ticketId;
+  }
+
+  return "payload:" + payloadFingerprint(payload);
+}
+
+String extractJsonStringField(String payload, const char *fieldName) {
+  String pattern = "\"";
+  pattern += fieldName;
+  pattern += "\"";
+
+  int keyIndex = payload.indexOf(pattern);
+  if (keyIndex < 0) {
+    return "";
+  }
+
+  int colonIndex = payload.indexOf(':', keyIndex + pattern.length());
+  if (colonIndex < 0) {
+    return "";
+  }
+
+  int startQuote = payload.indexOf('"', colonIndex + 1);
+  if (startQuote < 0) {
+    return "";
+  }
+
+  int endQuote = payload.indexOf('"', startQuote + 1);
+  if (endQuote < 0) {
+    return "";
+  }
+
+  return payload.substring(startQuote + 1, endQuote);
+}
+
+String payloadFingerprint(String payload) {
+  uint32_t hash = 2166136261UL;
+  for (unsigned int i = 0; i < payload.length(); i++) {
+    hash ^= (uint8_t)payload.charAt(i);
+    hash *= 16777619UL;
+  }
+  return String((unsigned long)hash, HEX);
+}
+
+bool hasRedeemedKey(String key) {
+  for (int i = 0; i < MAX_REDEEMED_TICKET_KEYS; i++) {
+    if (redeemedTicketKeys[i] == key) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void rememberRedeemedKey(String key) {
+  redeemedTicketKeys[redeemedTicketKeyCursor] = key;
+  redeemedTicketKeyCursor++;
+  if (redeemedTicketKeyCursor >= MAX_REDEEMED_TICKET_KEYS) {
+    redeemedTicketKeyCursor = 0;
+  }
+
+  Serial.print("REDEEMED_LOCAL: ");
+  Serial.println(key);
+}
+
 void waitBeforeSensorArmed() {
   unsigned long start = millis();
   int lastShownSecond = -1;
@@ -427,7 +530,7 @@ void waitBeforeSensorArmed() {
 
     if (remainingSeconds != lastShownSecond) {
       lastShownSecond = remainingSeconds;
-      showLine("GATE OPEN", "Sensor in " + String(remainingSeconds));
+      showLine("GATE OPEN", "Enter in " + String(remainingSeconds));
     }
 
     delay(80);
@@ -459,7 +562,7 @@ bool holdGateUntilClear() {
         noObjectSince = millis();
         if (millis() - lastLcdUpdateAt >= 500) {
           lastLcdUpdateAt = millis();
-          showLine("OBJECT 5CM", "Gate held open");
+          showLine("PLEASE ENTER", "Gate open");
         }
       }
     } else {
@@ -471,7 +574,7 @@ bool holdGateUntilClear() {
         lastLcdUpdateAt = millis();
         unsigned long remainingMs = GATE_OPEN_TIMEOUT_MS - (millis() - noObjectSince);
         int remainingSeconds = (int)((remainingMs + 999) / 1000);
-        showLine("NO OBJECT", "Closing in " + String(remainingSeconds));
+        showLine("GATE OPEN", "Close in " + String(remainingSeconds));
       }
     }
 

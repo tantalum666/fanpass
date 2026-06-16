@@ -32,7 +32,7 @@ interface FinalizeOwnershipTransferInput {
   sellOrderId: string;
   ticketId: string;
   ownership: {
-    adapter: "mock" | "testnet";
+    adapter: "mock" | "testnet" | "privy";
     ownershipRef: string;
     transactionHash: string | null;
   };

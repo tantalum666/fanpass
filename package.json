@@ -86,6 +86,8 @@
     "security:chain-custody:evidence:self-test": "node scripts/chain-custody-evidence-audit-self-test.js",
     "chain:sepolia-dev:ownership-smoke": "npm run chain:sepolia-dev:ownership-smoke -w apps/api",
     "chain:sepolia-dev:outbox-smoke": "npm run chain:sepolia-dev:outbox-smoke -w apps/api",
+    "chain:privy-sponsorship:readiness": "node scripts/privy-sponsorship-readiness.js",
+    "privy:import-owner-wallet": "node scripts/privy-import-owner-wallet.js",
     "security:route-roles:self-test": "node scripts/route-role-audit-self-test.js",
     "security:route-roles": "npm run test -w apps/api -- --runTestsByPath test/route-security.spec.ts",
     "security:api-contracts": "node scripts/api-contract-audit.js",
@@ -137,6 +139,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,sol,prisma}\""
   },
   "devDependencies": {
+    "@hpke/chacha20poly1305": "^1.8.0",
+    "@hpke/core": "^1.9.0",
     "@playwright/test": "^1.60.0",
     "prettier": "^3.5.3"
   },

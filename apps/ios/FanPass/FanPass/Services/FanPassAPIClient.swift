@@ -68,17 +68,19 @@ struct FanPassAPIClient {
         privyAccessToken: String,
         name: String? = nil,
         email: String? = nil,
-        walletAddress: String? = nil
+        walletAddress: String? = nil,
+        walletId: String? = nil
     ) async throws -> UserSession {
         struct PrivySyncRequest: Encodable {
             let name: String?
             let email: String?
             let walletAddress: String?
+            let walletId: String?
         }
 
         return try await withAccessToken(privyAccessToken).post(
             "/auth/privy/sync",
-            body: PrivySyncRequest(name: name, email: email, walletAddress: walletAddress),
+            body: PrivySyncRequest(name: name, email: email, walletAddress: walletAddress, walletId: walletId),
             retryOnTransientNetworkLoss: true
         )
     }
@@ -86,18 +88,21 @@ struct FanPassAPIClient {
     func acceptStaffInvite(
         privyAccessToken: String,
         inviteToken: String,
-        walletAddress: String? = nil
+        walletAddress: String? = nil,
+        walletId: String? = nil
     ) async throws -> UserSession {
         struct StaffInviteRequest: Encodable {
             let inviteToken: String
             let walletAddress: String?
+            let walletId: String?
         }
 
         return try await withAccessToken(privyAccessToken).post(
             "/auth/privy/accept-staff-invite",
             body: StaffInviteRequest(
                 inviteToken: inviteToken,
-                walletAddress: walletAddress
+                walletAddress: walletAddress,
+                walletId: walletId
             ),
             retryOnTransientNetworkLoss: true
         )
@@ -258,6 +263,10 @@ struct FanPassAPIClient {
 
     func checkinSummary(eventId: String, gate: String) async throws -> CheckinSummary {
         try await get("/verification/events/\(eventId)/gates/\(gate)/checkins/summary")
+    }
+
+    func checkinHistory() async throws -> CheckinHistoryResponse {
+        try await get("/verification/checkins/recent")
     }
 
     private func get<T: Decodable>(

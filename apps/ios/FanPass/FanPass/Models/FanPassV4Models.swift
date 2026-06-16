@@ -206,7 +206,7 @@ enum FanPassV4 {
             case .listed: "Listed"
             case .transferPending: "Transfer pending"
             case .transferred: "Transferred"
-            case .redeemed: "Redeemed"
+            case .redeemed: "Entered"
             case .cancelled: "Cancelled"
             case .refunded: "Refunded"
             case .expired: "Expired"

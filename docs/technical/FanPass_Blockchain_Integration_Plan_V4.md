@@ -149,6 +149,16 @@ FanPass should sponsor gas for mainstream users:
 - Rate limits and abuse controls required.
 - Failed chain writes must reconcile without blocking ticket usability.
 
+Current dev/staging implementation:
+
+- `OWNERSHIP_ADAPTER=privy` uses a server-side Privy wallet RPC call with `sponsor: true` to submit Sepolia transactions.
+- The user Privy wallet remains the NFT recipient/holder. The server-side sponsor wallet is only the transaction sender for the existing contract write methods.
+- Because the current contract write methods are `onlyOwner`, the sponsor wallet must be the deployed contract owner or the write will revert. If FanPass later wants user-initiated sponsored writes, the contract permission model must be changed first.
+- Keep Privy's client-side sponsorship toggle disabled for FanPass ticket issuance/redeem until the contract exposes safe non-owner entry points. Server-side sponsorship avoids exposing owner-only chain calls to iOS clients.
+- Required env outside source control: `OWNERSHIP_ADAPTER=privy`, `PRIVY_APP_SECRET`, `FANPASS_PRIVY_SPONSOR_WALLET_ID`, `FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS`, `FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2=eip155:11155111`, `FANPASS_TICKET_CONTRACT_ADDRESS`, and `TESTNET_RPC_URL` if receipt confirmation/log parsing is needed.
+- Run `npm run chain:privy-sponsorship:readiness` before deploying this path. The check verifies required env, the `users.privy_wallet_id` database column, and the chain `owner()` match against `FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS` without printing secrets or full addresses.
+- For the temporary test-owner path only, `npm run privy:import-owner-wallet` can import the existing Sepolia owner private key into Privy using HPKE. The key must be entered interactively or passed through a short-lived environment variable and must never be committed, logged, written to evidence, or copied into deployment configuration.
+
 ## Backend-Controlled Settlement Flow
 
 1. Payment succeeds.

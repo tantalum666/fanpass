@@ -58,6 +58,7 @@ model User {
   phone           String?
   role            UserRole         @default(FAN)
   privyId         String?          @unique @map("privy_id")
+  privyWalletId   String?          @map("privy_wallet_id")
   walletAddress   String?          @map("wallet_address")
   riskScore       Float            @default(0) @map("risk_score")
   kycStatus       String           @default("NOT_REQUIRED") @map("kyc_status")

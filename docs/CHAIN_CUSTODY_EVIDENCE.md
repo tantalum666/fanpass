@@ -147,3 +147,18 @@ Release rule:
 - Rotation, signer disablement, incident response, monitoring, and pause/rollback procedures must be documented before enabling real chain ownership side effects.
 - The current operational runbook is `docs/technical/FanPass_Chain_Custody_Runbook_V4.md`; update it before collecting evidence if signer/provider assumptions change.
 - `deploymentCredentialsAvailable` must be `false`, `redaction.deploymentCredentialsRedacted` must be `true`, and `redaction.ciSecretMaskingCommandsRedacted` must be `true`; saved chain custody evidence must not contain deployment/cloud credential assignments, JSON fields such as AWS keys, Vercel tokens, GitHub tokens, Netlify tokens, or Cloudflare API credentials, or CI masking commands with literal values.
+
+## 2026-06-16 Chain Activity UI Note
+
+- Ticket-detail chain activity now resolves transaction display through the exact `contract + tokenId` path when the backend audit transaction is missing or not successful.
+- The fallback uses ERC-721 `Transfer` logs with topic3 equal to the token id. For mint display it filters to `from == 0x0000000000000000000000000000000000000000`; otherwise it selects the latest transfer log for that token id.
+- This is a display reconciliation improvement only. It does not prove release-grade chain custody, signer custody, multisig ownership, outbox health, or incident/rotation readiness.
+
+## 2026-06-16 Privy Sponsorship Note
+
+- `OWNERSHIP_ADAPTER=privy` is a dev/staging gas-sponsorship path. It submits owner-only ticket contract calls through a backend-controlled Privy wallet RPC request with sponsorship enabled.
+- The API now checks the configured sponsor wallet address against `FanPassTicket.owner()` before submitting a Privy-sponsored write when RPC config is available. A mismatch blocks the request before chain submission.
+- `npm run chain:privy-sponsorship:readiness` is the pre-deploy readiness check for this dev/staging path; it is not release custody evidence by itself.
+- The temporary `npm run privy:import-owner-wallet` flow may be used only for dev/staging test ownership continuity. Importing an already-exposed test private key into Privy does not satisfy release signer custody requirements.
+- This path is not release-grade custody evidence. Before using it for pilot custody claims, FanPass must prove sponsor wallet ownership/permissions, multisig or equivalent admin control, rotation/disablement procedures, outbox routing, retry health, and redacted transaction evidence.
+- Do not save Privy app secrets, wallet authorization signatures, RPC URLs with provider keys, full private transaction payloads, or personal user data in evidence.

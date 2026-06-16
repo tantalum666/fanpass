@@ -103,6 +103,7 @@ describe("AuthService", () => {
       email: "new-fan@example.com",
       name: "New Fan",
       walletAddress: "0x0000000000000000000000000000000000003001",
+      walletId: "wallet_new_fan",
     });
 
     expect(synced).toMatchObject({
@@ -114,6 +115,9 @@ describe("AuthService", () => {
       authProvider: "privy",
       privyId: "did:privy:new-fan",
       created: true,
+    });
+    expect(store.users.find((user) => user.id === synced.userId)).toMatchObject({
+      privyWalletId: "wallet_new_fan",
     });
     await expect(auth.verifyAccessToken(token)).resolves.toEqual({
       userId: synced.userId,

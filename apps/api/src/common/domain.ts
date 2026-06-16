@@ -23,6 +23,7 @@ export interface UserRecord {
   email: string;
   role: UserRole;
   privyId?: string | null;
+  privyWalletId?: string | null;
   walletAddress: string | null;
   riskScore: number;
 }

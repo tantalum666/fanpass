@@ -80,7 +80,7 @@ struct FanPassV4ProfileView: View {
             walletBalances = nil
             walletBalanceError = nil
             isLoadingWalletBalances = false
-            if authEmail.isEmpty {
+            if backend.isAuthenticated && authEmail.isEmpty {
                 authEmail = backend.user.email
             }
             if !backend.isAuthenticated && selectedSection == .security {

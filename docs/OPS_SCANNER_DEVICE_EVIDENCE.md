@@ -36,22 +36,22 @@ A separate bench mock turnstile now exists under `hardware/fanpass_turnstile/fan
 Observed local behavior:
 
 - EP8280 QR scan can emit real QR text over TTL; Arduino logs `EP8280 BYTE ...` and `SCAN: <payload>`.
-- Pin7 decode-success also toggles on successful decode, but the Arduino code now waits for TTL QR text first and treats Pin7-only scans as `NO QR DATA` unless the explicit testing flag is changed.
+- Pin7 decode-success also toggles on successful decode, and the current bench fallback can open the servo when no TTL or Wiegand payload arrives. This is intentional temporary demo behavior while no compatible NFC tag is available; it is not ticket validation.
 - LCD state text covers ready, verifying pass, valid pass, gate open, 5cm object-held, no-object countdown, closing, invalid pass, and no-QR-data states.
 - Servo movement and ultrasonic pass-through detection both work in the local bench setup.
-- Current bench policy opens the servo gate for any QR payload received over TTL or Wiegand.
+- Current bench policy opens the servo gate for any first-use QR/Wiegand payload received over TTL or Wiegand. The sketch stores a small in-memory set of used ticket keys, preferring `ticketId` from the QR JSON, and rejects a repeated QR with `ALREADY USED` on the LCD without opening the servo.
 - The ultrasonic hold range is now 5cm. After a QR scan opens the servo gate, the sketch waits 2 seconds before arming ultrasonic detection. The gate remains open while an object is detected within 5cm; when no object is detected continuously for 4 seconds after the sensor is armed, the LCD shows the closing countdown and the servo closes.
 - Startup LCD diagnostics scan the I2C bus, print detected addresses to Serial, and show an `LCD ONLINE` self-test before the ready screen. A local serial capture confirmed the LCD backpack was detected at `0x27` and LCD write calls were issued.
 - Wiegand diagnostics now count raw DATA0/DATA1 pulses and report `WIEGAND PROBE` over Serial plus `WG PULSE` on the LCD when either line toggles.
-- EP8280 Pin7 decode-success fallback is enabled for the bench demo. If the reader reports decode success but provides no TTL or Wiegand payload, the LCD shows `SCAN SEEN` and opens the servo. The previously observed Pin7 fallback was from a QR code, not NFC. This is a local hardware fallback only; it does not prove a readable NFC UID, NDEF payload, or FanPass ticket credential.
+- EP8280 Pin7 decode-success fallback is enabled for the bench demo. If the reader reports decode success but provides no TTL or Wiegand payload, the LCD shows `SCAN SEEN` and opens the servo. The previously observed Pin7 fallback was from a QR code, not NFC. User testing showed an iPhone Wallet card can trigger the reader, but the available blue tag/white card could not be read by the iPhone or EP8280 and is likely not a compatible NFC/NDEF tag. Until a supported NFC tag is available, any decode-only NFC-like trigger is treated as temporary bench-open behavior only; it does not prove a readable NFC UID, NDEF payload, or FanPass ticket credential.
 - EP8280 manual review found NFC setting commands but no documented NDEF payload-reading mode. NFC can be enabled with `CMD_0E0501=1;`, the seek period can be set with `CMD_0E0502=<ms>;`, and duplicate-read time can be set with `CMD_0E0503=<ms>;`. Host output still depends on the communication interface: `CMD_0B0000=4;` for serial-style RS-232, or `CMD_0B0000=64;` for Wiegand. Wiegand requires both Pin4/DATA0 and Pin3/DATA1, not only Pin3/D4.
 - The Arduino sketch includes a Serial Monitor command bridge for EP8280 settings. If EP8280 Pin3/RX is connected to Arduino `D1/TX1`, lines starting with `CMD_` are forwarded to EP8280 over `Serial1`, and EP8280 command responses are logged without opening the gate.
 
 Known gaps:
 
-- EP8280 NFC card/tag behavior has not been made to work yet; the current working path is QR over TTL.
+- A compatible NFC tag is not currently available. EP8280/iPhone Wallet reaction proves the reader can see some NFC field/card activity, but not a FanPass NFC tag payload. The current validated ticket path is QR over TTL/Wiegand plus local duplicate rejection.
 - The bench setup is powered from Arduino/breadboard rails and may brown out under scanner/servo load until a separate regulated 5V supply is added.
-- No enclosure, two-servo lane, production turnstile controller, backend API redemption, HTTPS staging configuration, real signed FanPass credential, or replay rejection is connected to this Arduino prototype.
+- No enclosure, two-servo lane, production turnstile controller, backend API redemption, HTTPS staging configuration, real signed FanPass credential, or persistent replay rejection is connected to this Arduino prototype. The duplicate QR guard is local RAM only and resets when the Arduino reboots.
 
 Evidence boundary:
 
@@ -183,3 +183,9 @@ Release rule:
 - `runtime.deploymentCredentialsAvailable` must be `false`, and `redaction.deploymentCredentialsRedacted` must be `true`; saved scanner evidence must not contain deployment/cloud credential assignments or JSON fields such as AWS keys, Vercel tokens, GitHub tokens, Netlify tokens, or Cloudflare API credentials.
 - QR and NFC both need accepted-scan and duplicate-replay proof through the FanPass API.
 - Backend authority must remain server-side: signature checks, nonce replay rejection, gate assignment enforcement, and scanner identity must be derived from verified auth rather than client-supplied scanner ids.
+
+## 2026-06-16 Implementation Note
+
+- `GET /verification/checkins/recent` was added for Ops scan history. It is role-guarded for `GATE_STAFF` and `ADMIN` and returns safe check-in summary fields only.
+- FanPassOps now renders Scan history from that endpoint instead of static sample rows. The Account page keeps only Scan history and Help & support, and the login page no longer exposes the local `Continue as test gate staff` shortcut.
+- This note is implementation evidence only. It does not close the device-evidence gate because physical accepted/rejected QR and NFC captures still need to be saved and validated under the release rule above.

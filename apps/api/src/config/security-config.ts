@@ -162,6 +162,10 @@ function validatePaymentConfiguration(config: EnvMap, errors: string[]) {
 }
 
 function validateOwnershipConfiguration(config: EnvMap, errors: string[]) {
+  if (stringValue(config.OWNERSHIP_ADAPTER) === "privy") {
+    validatePrivyOwnershipConfiguration(config, errors);
+    return;
+  }
   if (stringValue(config.OWNERSHIP_ADAPTER) !== "testnet") {
     return;
   }
@@ -190,6 +194,39 @@ function validateOwnershipConfiguration(config: EnvMap, errors: string[]) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
     errors.push(
       "FANPASS_TICKET_CONTRACT_ADDRESS must be an EVM address when private-key testnet writes are explicitly enabled",
+    );
+  }
+}
+
+function validatePrivyOwnershipConfiguration(config: EnvMap, errors: string[]) {
+  validateProductionSecret(config, "PRIVY_APP_SECRET", errors);
+
+  if (!stringValue(config.FANPASS_PRIVY_SPONSOR_WALLET_ID)) {
+    errors.push(
+      "FANPASS_PRIVY_SPONSOR_WALLET_ID is required when OWNERSHIP_ADAPTER=privy",
+    );
+  }
+
+  const sponsorWalletAddress = stringValue(
+    config.FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS,
+  );
+  if (!/^0x[a-fA-F0-9]{40}$/.test(sponsorWalletAddress)) {
+    errors.push(
+      "FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS must be an EVM address when OWNERSHIP_ADAPTER=privy",
+    );
+  }
+
+  const contractAddress = stringValue(config.FANPASS_TICKET_CONTRACT_ADDRESS);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
+    errors.push(
+      "FANPASS_TICKET_CONTRACT_ADDRESS must be an EVM address when OWNERSHIP_ADAPTER=privy",
+    );
+  }
+
+  const caip2 = stringValue(config.FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2);
+  if (caip2 && !/^eip155:\d+$/.test(caip2)) {
+    errors.push(
+      "FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2 must use eip155:<chainId> format",
     );
   }
 }

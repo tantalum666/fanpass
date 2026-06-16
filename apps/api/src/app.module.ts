@@ -33,6 +33,7 @@ import { VerificationController } from "./modules/verification/verification.cont
 import { VerificationService } from "./modules/verification/verification.service";
 import { WalletController } from "./modules/wallet/wallet.controller";
 import { WalletService } from "./modules/wallet/wallet.service";
+import { PrivyWalletService } from "./modules/privy/privy-wallet.service";
 import { validateEnvironment } from "./config/security-config";
 
 @Module({
@@ -81,6 +82,7 @@ import { validateEnvironment } from "./config/security-config";
     FanAccessService,
     VerificationService,
     WalletService,
+    PrivyWalletService,
   ],
 })
 export class AppModule {}

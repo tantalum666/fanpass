@@ -6,6 +6,8 @@ Date: 2026-06-07
 
 FanPass may add a web-based Beta fallback while Apple Developer enrollment, signed TestFlight builds, and signed Apple Wallet pass work are blocked. This is a fallback delivery path only. It does not replace the native iOS product direction and must not be used to close native Apple, physical-device, Wallet, Core NFC, or release-custody evidence gates.
 
+2026-06-15 owner instruction: Web work is preparing to resume, but implementation must not start until the owner provides additional requirements. Before coding resumes, run the full Markdown startup protocol again and re-read this plan, `docs/product/FanPass_Web_Beta_Fallback_Workplan_V4.md`, and the active UX/product docs. After each completed Web work session, update the relevant Markdown docs immediately.
+
 Web NFC is explicitly out of scope for the fallback path. The web fallback should use QR-based entry only.
 
 ## Product Boundary
