@@ -59,6 +59,10 @@ describe("PaymentsService", () => {
     process.env.FANPASS_DATA_SOURCE = "prisma";
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   afterAll(() => {
     if (previousDataSource === undefined) {
       delete process.env.FANPASS_DATA_SOURCE;
@@ -176,5 +180,342 @@ describe("PaymentsService", () => {
     expect(prisma.payment.update).not.toHaveBeenCalled();
     expect(outbox.markCompleted).not.toHaveBeenCalled();
     expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it("creates a USDC crypto quote with ERC-20 transfer calldata", async () => {
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_demo",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+    };
+    const prisma = {
+      order: {
+        findUnique: jest.fn(async () => order),
+      },
+      payment: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async () => cryptoPayment),
+      },
+    };
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+        FANPASS_USDC_RECEIVER_ADDRESS:
+          "0x0000000000000000000000000000000000002000",
+        FANPASS_USDC_HKD_RATE: "7.8355",
+      }),
+      prisma as never,
+      { enqueue: jest.fn(), markCompleted: jest.fn() } as never,
+      { record: jest.fn() } as never,
+    );
+
+    const quote = await service.createCryptoQuote(
+      {
+        orderId: order.id,
+        asset: "USDC",
+        idempotencyKey: "ios-v4-crypto-payment-demo",
+      },
+      {
+        userId: order.userId,
+        role: "FAN",
+      } as never,
+    );
+
+    expect(quote.payment.currency).toBe("usdc");
+    expect(quote.quote.asset).toBe("USDC");
+    expect(quote.quote.chainId).toBe("11155111");
+    expect(quote.quote.tokenContractAddress).toBe(
+      "0x0000000000000000000000000000000000001000",
+    );
+    expect(quote.quote.receiverAddress).toBe(
+      "0x0000000000000000000000000000000000002000",
+    );
+    expect(quote.quote.amountAtomic).toMatch(/^[1-9][0-9]*$/);
+    expect(quote.quote.erc20TransferData).toMatch(/^0xa9059cbb/);
+  });
+
+  it("confirms a Sepolia USDC transfer and enqueues order settlement", async () => {
+    const payer = "0x0000000000000000000000000000000000003000";
+    const receiver = "0x0000000000000000000000000000000000002000";
+    const token = "0x0000000000000000000000000000000000001000";
+    const transactionHash =
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_demo",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+      order: {
+        ...order,
+        user: {
+          walletAddress: payer,
+          privyWalletId: null,
+        },
+      },
+    };
+    const updatedPayment = {
+      ...cryptoPayment,
+      stripePaymentIntentId: `crypto:${transactionHash}`,
+      status: "crypto_confirmed",
+      captureStatus: "CAPTURED",
+    };
+    const tx = {
+      payment: {
+        update: jest.fn(async () => updatedPayment),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      payment: {
+        findUnique: jest.fn(async () => cryptoPayment),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    const outbox = {
+      enqueue: jest.fn(),
+      markCompleted: jest.fn(),
+    };
+    const audit = {
+      record: jest.fn(),
+    };
+    jest.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (body.method === "eth_getTransactionByHash") {
+        return {
+          ok: true,
+          json: async () => ({
+            result: {
+              hash: transactionHash,
+              from: payer,
+              to: token,
+            },
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          result: {
+            status: "0x1",
+            blockNumber: "0x10",
+            logs: [
+              {
+                address: token,
+                topics: [
+                  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                  `0x${payer.slice(2).padStart(64, "0")}`,
+                  `0x${receiver.slice(2).padStart(64, "0")}`,
+                ],
+                data: `0x${(999999999999n).toString(16).padStart(64, "0")}`,
+              },
+            ],
+          },
+        }),
+      } as Response;
+    });
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS: token,
+        FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+      }),
+      prisma as never,
+      outbox as never,
+      audit as never,
+    );
+
+    const result = await service.confirmCryptoPayment(
+      {
+        paymentId: cryptoPayment.id,
+        transactionHash,
+        idempotencyKey: "ios-v4-crypto-confirm-demo",
+      },
+      {
+        userId: order.userId,
+        role: "FAN",
+      } as never,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(tx.payment.update).toHaveBeenCalledWith({
+      where: { id: cryptoPayment.id },
+      data: {
+        stripePaymentIntentId: `crypto:${transactionHash}`,
+        status: "crypto_confirmed",
+        captureStatus: "CAPTURED",
+      },
+    });
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+        aggregateId: order.id,
+      }),
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      order.userId,
+      "PAYMENT_WEBHOOK_APPLIED",
+      "payment",
+      cryptoPayment.id,
+      expect.objectContaining({
+        provider: "crypto",
+        transactionHash,
+        captureStatus: "CAPTURED",
+      }),
+    );
+  });
+
+  it("sends a sponsored Sepolia USDC transfer through Privy and settles the order", async () => {
+    const payer = "0x0000000000000000000000000000000000003000";
+    const receiver = "0x0000000000000000000000000000000000002000";
+    const token = "0x0000000000000000000000000000000000001000";
+    const transactionHash =
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_sponsored_demo",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+      order: {
+        ...order,
+        user: {
+          walletAddress: payer,
+          privyWalletId: "wallet_privy_demo",
+        },
+      },
+    };
+    const updatedPayment = {
+      ...cryptoPayment,
+      stripePaymentIntentId: `crypto:${transactionHash}`,
+      status: "crypto_confirmed",
+      captureStatus: "CAPTURED",
+    };
+    const tx = {
+      payment: {
+        update: jest.fn(async () => updatedPayment),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      payment: {
+        findUnique: jest.fn(async () => cryptoPayment),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    const outbox = {
+      enqueue: jest.fn(),
+      markCompleted: jest.fn(),
+    };
+    const audit = {
+      record: jest.fn(),
+    };
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn(async () => ({
+        hash: transactionHash,
+        providerId: "privy_tx_demo",
+        rawStatus: "submitted",
+        userOperationHash: null,
+      })),
+      waitForTransactionHash: jest.fn(),
+    };
+    jest.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (body.method === "eth_getTransactionByHash") {
+        return {
+          ok: true,
+          json: async () => ({
+            result: {
+              hash: transactionHash,
+              from: payer,
+              to: token,
+            },
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          result: {
+            status: "0x1",
+            blockNumber: "0x20",
+            logs: [
+              {
+                address: token,
+                topics: [
+                  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                  `0x${payer.slice(2).padStart(64, "0")}`,
+                  `0x${receiver.slice(2).padStart(64, "0")}`,
+                ],
+                data: `0x${(999999999999n).toString(16).padStart(64, "0")}`,
+              },
+            ],
+          },
+        }),
+      } as Response;
+    });
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS: token,
+        FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+      }),
+      prisma as never,
+      outbox as never,
+      audit as never,
+      privyWallets as never,
+    );
+
+    const result = await service.sendSponsoredCryptoPayment(
+      {
+        paymentId: cryptoPayment.id,
+        idempotencyKey: "ios-v4-crypto-sponsored-demo",
+      },
+      {
+        userId: order.userId,
+        role: "FAN",
+      } as never,
+    );
+
+    expect(result.ok).toBe(true);
+    expect("transactionHash" in result ? result.transactionHash : null).toBe(
+      transactionHash,
+    );
+    expect(privyWallets.sendSponsoredEthereumTransaction).toHaveBeenCalledWith({
+      walletId: "wallet_privy_demo",
+      caip2: "eip155:11155111",
+      transaction: expect.objectContaining({
+        to: token,
+        value: "0x0",
+      }),
+    });
+    expect(tx.payment.update).toHaveBeenCalledWith({
+      where: { id: cryptoPayment.id },
+      data: {
+        stripePaymentIntentId: `crypto:${transactionHash}`,
+        status: "crypto_confirmed",
+        captureStatus: "CAPTURED",
+      },
+    });
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+        aggregateId: order.id,
+      }),
+    );
   });
 });

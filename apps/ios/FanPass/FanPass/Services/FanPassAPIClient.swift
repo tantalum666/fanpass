@@ -170,6 +170,44 @@ struct FanPassAPIClient {
         )
     }
 
+    func createCryptoQuote(orderId: String, asset: String = "USDC", idempotencyKey: String) async throws -> FanPassCryptoQuoteResponse {
+        struct CreateCryptoQuoteRequest: Encodable {
+            let orderId: String
+            let asset: String
+        }
+
+        return try await post(
+            "/payments/crypto-quotes",
+            body: CreateCryptoQuoteRequest(orderId: orderId, asset: asset),
+            headers: ["Idempotency-Key": idempotencyKey],
+            retryOnTransientNetworkLoss: true
+        )
+    }
+
+    func confirmCryptoPayment(paymentId: String, transactionHash: String, idempotencyKey: String) async throws -> FanPassCryptoConfirmationResponse {
+        struct ConfirmCryptoPaymentRequest: Encodable {
+            let transactionHash: String
+        }
+
+        return try await post(
+            "/payments/crypto-quotes/\(paymentId)/confirm",
+            body: ConfirmCryptoPaymentRequest(transactionHash: transactionHash),
+            headers: ["Idempotency-Key": idempotencyKey],
+            retryOnTransientNetworkLoss: true
+        )
+    }
+
+    func sendSponsoredCryptoPayment(paymentId: String, idempotencyKey: String) async throws -> FanPassCryptoConfirmationResponse {
+        struct SponsoredCryptoPaymentRequest: Encodable {}
+
+        return try await post(
+            "/payments/crypto-quotes/\(paymentId)/send-sponsored",
+            body: SponsoredCryptoPaymentRequest(),
+            headers: ["Idempotency-Key": idempotencyKey],
+            retryOnTransientNetworkLoss: true
+        )
+    }
+
     func walletBalances() async throws -> FanPassWalletBalancesResponse {
         try await get("/wallet/balances", retryOnTransientNetworkLoss: true)
     }

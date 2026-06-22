@@ -325,6 +325,37 @@ final class CheckoutViewModel {
         }
     }
 
+    func prepareCryptoQuote(
+        apiClient: FanPassAPIClient,
+        owner: FanPassV4.User,
+        checkoutAttemptId: String
+    ) async throws -> FanPassCryptoQuoteResponse {
+        paymentState = .authorizing
+        errorMessage = nil
+        let order = try await apiClient.createOrder(
+            userId: owner.id,
+            eventId: event.id,
+            ticketTypeId: ticketType.id,
+            side: "BUY",
+            price: quotedPrice,
+            idempotencyKey: "ios-v4-crypto-order-\(checkoutAttemptId)"
+        )
+        return try await apiClient.createCryptoQuote(
+            orderId: order.order.id,
+            idempotencyKey: "ios-v4-crypto-payment-\(checkoutAttemptId)"
+        )
+    }
+
+    func applyCryptoConfirmation(_ response: FanPassCryptoConfirmationResponse) {
+        if response.payment.captureStatus == "CAPTURED" {
+            paymentState = .authorized
+            errorMessage = "USDC transfer confirmed. Ticket assignment is syncing."
+        } else {
+            paymentState = .authorizing
+            errorMessage = "USDC transfer submitted. Waiting for chain confirmation."
+        }
+    }
+
     func applyStripeResult(_ result: FanPassStripeCheckoutResult) {
         switch result {
         case .completed:

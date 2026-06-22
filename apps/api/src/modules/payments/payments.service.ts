@@ -12,12 +12,30 @@ import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
 import { isProductionLikeEnvironment } from "../../config/security-config";
 import { AuditService } from "../audit/audit.service";
+import { PrivyWalletService } from "../privy/privy-wallet.service";
 import { SideEffectOutboxService } from "../side-effects/side-effect-outbox.service";
 
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 
 export interface CreatePaymentIntentInput {
   orderId: string;
+  idempotencyKey: string | undefined;
+}
+
+export interface CreateCryptoQuoteInput {
+  orderId: string;
+  asset: "USDC";
+  idempotencyKey: string | undefined;
+}
+
+export interface ConfirmCryptoPaymentInput {
+  paymentId: string;
+  transactionHash: string;
+  idempotencyKey: string | undefined;
+}
+
+export interface SendSponsoredCryptoPaymentInput {
+  paymentId: string;
   idempotencyKey: string | undefined;
 }
 
@@ -51,6 +69,52 @@ interface StripeEventLike {
   };
 }
 
+export interface CryptoQuote {
+  asset: "USDC";
+  chainId: string;
+  tokenContractAddress: string;
+  receiverAddress: string;
+  amountAtomic: string;
+  amountDecimal: string;
+  decimals: number;
+  hkdRate: string;
+  expiresAt: string;
+  erc20TransferData: string;
+}
+
+interface RpcTransaction {
+  hash?: string;
+  from?: string;
+  to?: string;
+  input?: string;
+}
+
+interface RpcReceipt {
+  status?: string;
+  from?: string;
+  to?: string;
+  logs?: Array<{
+    address?: string;
+    topics?: string[];
+    data?: string;
+  }>;
+  blockNumber?: string;
+}
+
+type CryptoPaymentWithOrder = Payment & {
+  order: {
+    id: string;
+    user: {
+      walletAddress: string | null;
+      privyWalletId: string | null;
+    };
+  };
+};
+
+const ERC20_TRANSFER_SELECTOR = "a9059cbb";
+const ERC20_TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -58,6 +122,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly outbox: SideEffectOutboxService,
     private readonly audit: AuditService,
+    @Optional() private readonly privyWallets?: PrivyWalletService,
   ) {}
 
   async createPaymentIntent(
@@ -163,6 +228,189 @@ export class PaymentsService {
     );
 
     return this.mapPayment(updated);
+  }
+
+  async createCryptoQuote(
+    input: CreateCryptoQuoteInput,
+    session: FanPassSession,
+  ) {
+    if (!this.prismaPaymentDataSourceEnabled()) {
+      throw new ServiceUnavailableException(
+        "Crypto payment requires the Prisma Alpha data source. Start the API with FANPASS_DATA_SOURCE=prisma before testing checkout.",
+      );
+    }
+    if (input.asset !== "USDC") {
+      throw new BadRequestException("Only USDC crypto checkout is supported");
+    }
+
+    const config = this.cryptoPaymentConfig();
+    const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
+    if (!idempotencyKey) {
+      throw new BadRequestException("Idempotency-Key is required for payments");
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: input.orderId },
+    });
+    if (!order) {
+      throw new BadRequestException(
+        "Order is not available for crypto payment",
+      );
+    }
+    if (session.role === "FAN" && order.userId !== session.userId) {
+      throw new BadRequestException("Fans can only pay for their own orders");
+    }
+    if (order.side !== "BUY") {
+      throw new BadRequestException("Only buy orders can be paid");
+    }
+    if (order.status === "CANCELLED" || order.status === "REJECTED") {
+      throw new BadRequestException(
+        `Order status ${order.status} cannot be paid`,
+      );
+    }
+
+    const amountMinor = this.amountMinor(order.price);
+    const existing = await this.prisma.payment.findFirst({
+      where: {
+        userId: order.userId,
+        idempotencyKey,
+      },
+    });
+    const payment = existing
+      ? existing
+      : await this.prisma.payment.create({
+          data: {
+            id: `pay_${randomUUID()}`,
+            userId: order.userId,
+            orderId: order.id,
+            stripePaymentIntentId: null,
+            clientSecret: null,
+            amount: amountMinor,
+            currency: "usdc",
+            status: "PENDING",
+            captureStatus: "NOT_CAPTURED",
+            idempotencyKey,
+          },
+        });
+
+    this.assertPaymentMatchesOrder(payment, order.id, amountMinor);
+    if (payment.currency !== "usdc") {
+      throw new BadRequestException(
+        "Idempotency key already belongs to a non-crypto payment request",
+      );
+    }
+
+    const quote = this.cryptoQuoteForPayment(payment, config);
+    return {
+      payment: this.mapPayment(payment),
+      quote,
+    };
+  }
+
+  async confirmCryptoPayment(
+    input: ConfirmCryptoPaymentInput,
+    session: FanPassSession,
+  ) {
+    if (!this.prismaPaymentDataSourceEnabled()) {
+      throw new ServiceUnavailableException(
+        "Crypto payment confirmation requires the Prisma Alpha data source.",
+      );
+    }
+    const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
+    if (!idempotencyKey) {
+      throw new BadRequestException("Idempotency-Key is required for payments");
+    }
+
+    const payment = await this.loadCryptoPayment(input.paymentId);
+    this.assertCryptoPaymentAccess(payment, session, "confirm");
+    if (payment.captureStatus === "CAPTURED") {
+      return {
+        ok: true,
+        payment: this.mapPayment(payment),
+        alreadyConfirmed: true,
+      };
+    }
+
+    const config = this.cryptoPaymentConfig();
+    const quote = this.cryptoQuoteForPayment(payment, config);
+    return this.confirmCryptoPaymentRecord(
+      payment,
+      input.transactionHash.toLowerCase(),
+      quote,
+      config,
+    );
+  }
+
+  async sendSponsoredCryptoPayment(
+    input: SendSponsoredCryptoPaymentInput,
+    session: FanPassSession,
+  ) {
+    if (!this.prismaPaymentDataSourceEnabled()) {
+      throw new ServiceUnavailableException(
+        "Sponsored crypto payment requires the Prisma Alpha data source.",
+      );
+    }
+    const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
+    if (!idempotencyKey) {
+      throw new BadRequestException("Idempotency-Key is required for payments");
+    }
+
+    const payment = await this.loadCryptoPayment(input.paymentId);
+    this.assertCryptoPaymentAccess(payment, session, "pay");
+    if (payment.captureStatus === "CAPTURED") {
+      return {
+        ok: true,
+        payment: this.mapPayment(payment),
+        alreadyConfirmed: true,
+      };
+    }
+
+    const walletId = payment.order.user.privyWalletId?.trim();
+    if (!walletId) {
+      throw new BadRequestException(
+        "A Privy wallet id is required before sponsored USDC payment",
+      );
+    }
+    this.requireCryptoPayerAddress(payment);
+
+    const config = this.cryptoPaymentConfig();
+    const quote = this.cryptoQuoteForPayment(payment, config);
+    const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
+    const sponsored = await sponsor.sendSponsoredEthereumTransaction({
+      walletId,
+      caip2: this.cryptoCaip2(config.chainId),
+      transaction: {
+        to: quote.tokenContractAddress,
+        data: quote.erc20TransferData,
+        value: "0x0",
+      },
+    });
+
+    let transactionHash = sponsored.hash?.toLowerCase() ?? null;
+    if (!transactionHash && sponsored.providerId) {
+      const status = await sponsor.waitForTransactionHash({
+        transactionId: sponsored.providerId,
+        timeoutMs: this.configInteger(
+          "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
+          45_000,
+          5_000,
+          180_000,
+        ),
+      });
+      transactionHash = status.hash?.toLowerCase() ?? null;
+    }
+    if (!transactionHash || !/^0x[0-9a-f]{64}$/.test(transactionHash)) {
+      throw new ServiceUnavailableException(
+        "Privy did not return a confirmed USDC transaction hash yet",
+      );
+    }
+
+    return this.confirmCryptoPaymentRecord(
+      payment,
+      transactionHash,
+      quote,
+      config,
+    );
   }
 
   async requestPaymentOperation(
@@ -840,6 +1088,305 @@ export class PaymentsService {
     return JSON.parse(rawBody.toString("utf8")) as StripeEventLike;
   }
 
+  private cryptoPaymentConfig() {
+    const rpcUrl =
+      this.nonEmptyConfig("FANPASS_WALLET_RPC_URL") ??
+      this.nonEmptyConfig("TESTNET_RPC_URL") ??
+      this.nonEmptyConfig("FANPASS_SEPOLIA_RPC_URL");
+    const chainId =
+      this.nonEmptyConfig("FANPASS_WALLET_CHAIN_ID") ??
+      this.nonEmptyConfig("TESTNET_CHAIN_ID") ??
+      "11155111";
+    const tokenContractAddress = this.normalizeAddress(
+      this.nonEmptyConfig("FANPASS_USDC_CONTRACT_ADDRESS"),
+    );
+    const receiverAddress = this.normalizeAddress(
+      this.nonEmptyConfig("FANPASS_USDC_RECEIVER_ADDRESS") ??
+        this.nonEmptyConfig("FANPASS_TREASURY_WALLET_ADDRESS"),
+    );
+    const decimals = this.configInteger("FANPASS_USDC_DECIMALS", 6, 0, 36);
+    const hkdRate = this.configPositiveNumber("FANPASS_USDC_HKD_RATE", 7.8355);
+    const quoteTtlSeconds = this.configInteger(
+      "FANPASS_USDC_QUOTE_TTL_SECONDS",
+      300,
+      30,
+      900,
+    );
+
+    if (!rpcUrl || !tokenContractAddress || !receiverAddress) {
+      throw new ServiceUnavailableException(
+        "USDC checkout is not configured. Set RPC, token contract, and receiver address before testing crypto payment.",
+      );
+    }
+
+    return {
+      rpcUrl,
+      chainId,
+      tokenContractAddress,
+      receiverAddress,
+      decimals,
+      hkdRate,
+      quoteTtlSeconds,
+    };
+  }
+
+  private cryptoQuoteForPayment(
+    payment: Payment,
+    config: ReturnType<PaymentsService["cryptoPaymentConfig"]>,
+  ): CryptoQuote {
+    const amountAtomic = this.usdcAtomicAmount(
+      payment.amount,
+      config.hkdRate,
+      config.decimals,
+    );
+    const expiresAt = new Date(
+      payment.createdAt.getTime() + config.quoteTtlSeconds * 1_000,
+    ).toISOString();
+    return {
+      asset: "USDC",
+      chainId: config.chainId,
+      tokenContractAddress: config.tokenContractAddress,
+      receiverAddress: config.receiverAddress,
+      amountAtomic: amountAtomic.toString(),
+      amountDecimal: this.formatUnits(amountAtomic, config.decimals),
+      decimals: config.decimals,
+      hkdRate: config.hkdRate.toFixed(4),
+      expiresAt,
+      erc20TransferData: this.erc20TransferData(
+        config.receiverAddress,
+        amountAtomic,
+      ),
+    };
+  }
+
+  private async loadCryptoPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        order: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+    if (!payment || !payment.order) {
+      throw new BadRequestException("Crypto payment is not available");
+    }
+    if (payment.currency !== "usdc") {
+      throw new BadRequestException("Payment is not a USDC crypto quote");
+    }
+    return payment as CryptoPaymentWithOrder;
+  }
+
+  private assertCryptoPaymentAccess(
+    payment: Payment,
+    session: FanPassSession,
+    verb: "confirm" | "pay",
+  ) {
+    if (session.role === "FAN" && payment.userId !== session.userId) {
+      throw new BadRequestException(
+        `Fans can only ${verb} their own payments`,
+      );
+    }
+  }
+
+  private async confirmCryptoPaymentRecord(
+    payment: CryptoPaymentWithOrder,
+    transactionHash: string,
+    quote: CryptoQuote,
+    config: ReturnType<PaymentsService["cryptoPaymentConfig"]>,
+  ) {
+    const payerAddress = this.requireCryptoPayerAddress(payment);
+
+    await this.assertConfirmedUsdcTransfer({
+      rpcUrl: config.rpcUrl,
+      transactionHash,
+      tokenContractAddress: quote.tokenContractAddress,
+      payerAddress,
+      receiverAddress: quote.receiverAddress,
+      amountAtomic: BigInt(quote.amountAtomic),
+    });
+
+    const orderId = payment.orderId ?? payment.order.id;
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          stripePaymentIntentId: `crypto:${transactionHash}`,
+          status: "crypto_confirmed",
+          captureStatus: "CAPTURED",
+        },
+      });
+      await this.outbox.enqueue(tx, {
+        type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+        idempotencyKey: this.orderMatchAfterPaymentAuthSideEffectKey(
+          orderId,
+          payment.id,
+        ),
+        aggregateType: "order",
+        aggregateId: orderId,
+        payload: {
+          paymentId: payment.id,
+          orderId,
+          cryptoTransactionHash: transactionHash,
+          captureStatus: "CAPTURED",
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: payment.userId,
+          action: "CRYPTO_PAYMENT_CONFIRMED",
+          entityType: "payment",
+          entityId: payment.id,
+          metadataJson: {
+            orderId: payment.orderId,
+            asset: quote.asset,
+            chainId: quote.chainId,
+            tokenContractAddress: quote.tokenContractAddress,
+            receiverAddress: quote.receiverAddress,
+            amountAtomic: quote.amountAtomic,
+            transactionHash,
+          },
+        },
+      });
+      return nextPayment;
+    });
+
+    await this.audit.record(
+      updated.userId,
+      "PAYMENT_WEBHOOK_APPLIED",
+      "payment",
+      updated.id,
+      {
+        provider: "crypto",
+        orderId: updated.orderId,
+        transactionHash,
+        status: updated.status,
+        captureStatus: updated.captureStatus,
+      },
+    );
+
+    return {
+      ok: true,
+      payment: this.mapPayment(updated),
+      transactionHash,
+    };
+  }
+
+  private requireCryptoPayerAddress(payment: CryptoPaymentWithOrder) {
+    const payerAddress = this.normalizeAddress(payment.order.user.walletAddress);
+    if (!payerAddress) {
+      throw new BadRequestException(
+        "A verified wallet address is required before USDC payment",
+      );
+    }
+    return payerAddress;
+  }
+
+  private async assertConfirmedUsdcTransfer(input: {
+    rpcUrl: string;
+    transactionHash: string;
+    tokenContractAddress: string;
+    payerAddress: string;
+    receiverAddress: string;
+    amountAtomic: bigint;
+  }) {
+    const [transaction, receipt] = await Promise.all([
+      this.rpcCall<RpcTransaction | null>(input.rpcUrl, "eth_getTransactionByHash", [
+        input.transactionHash,
+      ]),
+      this.rpcCall<RpcReceipt | null>(input.rpcUrl, "eth_getTransactionReceipt", [
+        input.transactionHash,
+      ]),
+    ]);
+    if (!transaction || !receipt) {
+      throw new BadRequestException(
+        "USDC transaction is not confirmed on Sepolia yet",
+      );
+    }
+    if (receipt.status !== "0x1" || !receipt.blockNumber) {
+      throw new BadRequestException("USDC transaction failed or is pending");
+    }
+    if (this.normalizeAddress(transaction.from) !== input.payerAddress) {
+      throw new BadRequestException(
+        "USDC transaction was not sent from the signed-in wallet",
+      );
+    }
+    if (this.normalizeAddress(transaction.to) !== input.tokenContractAddress) {
+      throw new BadRequestException(
+        "USDC transaction did not target the configured token contract",
+      );
+    }
+
+    const matchingTransfer = receipt.logs?.some((log) =>
+      this.isMatchingUsdcTransferLog(log, input),
+    );
+    if (!matchingTransfer) {
+      throw new BadRequestException(
+        "USDC transaction does not contain the required FanPass transfer",
+      );
+    }
+  }
+
+  private isMatchingUsdcTransferLog(
+    log: NonNullable<RpcReceipt["logs"]>[number],
+    expected: {
+      tokenContractAddress: string;
+      payerAddress: string;
+      receiverAddress: string;
+      amountAtomic: bigint;
+    },
+  ) {
+    const topics = log.topics ?? [];
+    if (
+      this.normalizeAddress(log.address) !== expected.tokenContractAddress ||
+      topics[0]?.toLowerCase() !== ERC20_TRANSFER_TOPIC ||
+      topics.length < 3
+    ) {
+      return false;
+    }
+    const from = this.addressFromTopic(topics[1]);
+    const to = this.addressFromTopic(topics[2]);
+    if (from !== expected.payerAddress || to !== expected.receiverAddress) {
+      return false;
+    }
+    const value = this.bigIntFromHex(log.data);
+    return value >= expected.amountAtomic;
+  }
+
+  private async rpcCall<T>(
+    rpcUrl: string,
+    method: string,
+    params: unknown[],
+  ): Promise<T> {
+    const response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    });
+    if (!response.ok) {
+      throw new ServiceUnavailableException(
+        `Chain RPC request failed with HTTP ${response.status}`,
+      );
+    }
+    const body = (await response.json()) as {
+      result?: T;
+      error?: { message?: string };
+    };
+    if (body.error || body.result === undefined) {
+      throw new ServiceUnavailableException(
+        body.error?.message ?? "Chain RPC response missing result",
+      );
+    }
+    return body.result;
+  }
+
   private async claimWebhookEvent(
     tx: Prisma.TransactionClient,
     input: {
@@ -910,6 +1457,85 @@ export class PaymentsService {
 
   private amountMinor(price: number) {
     return price * 100;
+  }
+
+  private usdcAtomicAmount(
+    hkdMinorAmount: number,
+    hkdPerUsdc: number,
+    decimals: number,
+  ) {
+    const multiplier = 10 ** decimals;
+    return BigInt(Math.ceil((hkdMinorAmount * multiplier) / (hkdPerUsdc * 100)));
+  }
+
+  private erc20TransferData(receiverAddress: string, amountAtomic: bigint) {
+    const receiver = receiverAddress.slice(2).toLowerCase().padStart(64, "0");
+    const amount = amountAtomic.toString(16).padStart(64, "0");
+    return `0x${ERC20_TRANSFER_SELECTOR}${receiver}${amount}`;
+  }
+
+  private cryptoCaip2(chainId: string) {
+    return chainId.startsWith("eip155:") ? chainId : `eip155:${chainId}`;
+  }
+
+  private formatUnits(value: bigint, decimals: number) {
+    const base = 10n ** BigInt(decimals);
+    const whole = value / base;
+    const fraction = value % base;
+    if (fraction === 0n) {
+      return whole.toString();
+    }
+    const fractionText = fraction
+      .toString()
+      .padStart(decimals, "0")
+      .replace(/0+$/, "");
+    return `${whole}.${fractionText}`;
+  }
+
+  private addressFromTopic(topic: string | undefined) {
+    const normalized = topic?.toLowerCase();
+    if (!normalized || !/^0x[0-9a-f]{64}$/.test(normalized)) {
+      return null;
+    }
+    return this.normalizeAddress(`0x${normalized.slice(-40)}`);
+  }
+
+  private bigIntFromHex(value: string | undefined) {
+    if (!value || !/^0x[0-9a-fA-F]+$/.test(value)) {
+      return 0n;
+    }
+    return BigInt(value);
+  }
+
+  private normalizeAddress(value: string | null | undefined) {
+    const trimmed = value?.trim();
+    if (!trimmed || !/^0x[0-9a-fA-F]{40}$/.test(trimmed)) {
+      return null;
+    }
+    return trimmed.toLowerCase();
+  }
+
+  private configInteger(
+    key: string,
+    fallback: number,
+    minimum: number,
+    maximum: number,
+  ) {
+    const value = Number(this.config.get<string>(key));
+    if (!Number.isInteger(value) || value < minimum || value > maximum) {
+      return fallback;
+    }
+    return value;
+  }
+
+  private configPositiveNumber(key: string, fallback: number) {
+    const value = Number(this.config.get<string>(key));
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private nonEmptyConfig(key: string) {
+    const value = this.config.get<string>(key)?.trim();
+    return value ? value : null;
   }
 
   private assertPaymentMatchesOrder(

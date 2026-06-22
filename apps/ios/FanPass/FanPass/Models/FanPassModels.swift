@@ -263,6 +263,39 @@ struct FanPassPaymentIntent: Codable, Identifiable, Hashable {
     }
 }
 
+struct FanPassCryptoQuoteResponse: Codable, Hashable {
+    let payment: FanPassPaymentIntent
+    let quote: FanPassCryptoQuote
+}
+
+struct FanPassCryptoQuote: Codable, Hashable {
+    let asset: String
+    let chainId: String
+    let tokenContractAddress: String
+    let receiverAddress: String
+    let amountAtomic: String
+    let amountDecimal: String
+    let decimals: Int
+    let hkdRate: String
+    let expiresAt: String
+    let erc20TransferData: String
+
+    var amountLabel: String {
+        "\(amountDecimal) \(asset)"
+    }
+
+    var rateLabel: String {
+        "1 \(asset) ~= HK$\(hkdRate)"
+    }
+}
+
+struct FanPassCryptoConfirmationResponse: Codable, Hashable {
+    let ok: Bool
+    let payment: FanPassPaymentIntent
+    let transactionHash: String?
+    let alreadyConfirmed: Bool?
+}
+
 struct FanTask: Codable, Identifiable, Hashable {
     let id: String
     let eventId: String

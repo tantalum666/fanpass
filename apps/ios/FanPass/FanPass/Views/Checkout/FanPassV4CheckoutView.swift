@@ -8,6 +8,7 @@ struct FanPassV4CheckoutView: View {
     @State private var preparedPayment: FanPassPaymentIntent?
     @State private var isPreparingStripe = false
     @State private var stripeCheckoutAttemptId = UUID().uuidString
+    @State private var cryptoCheckoutAttemptId = UUID().uuidString
     @State private var showingAuthGate = false
     @State private var showingCryptoSheet = false
     @State private var checkoutOutcome: CheckoutOutcome?
@@ -141,8 +142,15 @@ struct FanPassV4CheckoutView: View {
         .sheet(isPresented: $showingCryptoSheet) {
             CryptoPaymentSheet(
                 totalHKD: viewModel.totalAmount,
-                displayTotal: viewModel.totalLabel
-            )
+                displayTotal: viewModel.totalLabel,
+                viewModel: viewModel,
+                checkoutAttemptId: cryptoCheckoutAttemptId
+            ) {
+                checkoutOutcome = .success(
+                    title: "USDC transfer confirmed",
+                    message: "FanPass confirmed the Sepolia USDC transfer. Ticket assignment is syncing; open Tickets again in a few seconds to load the server-issued ticket."
+                )
+            }
             .presentationDetents([.large])
         }
         .sheet(isPresented: $showingAuthGate) {
@@ -254,6 +262,31 @@ struct FanPassV4CheckoutView: View {
         guard canBuyTickets else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "This account is \(backend.user.role.title). Crypto checkout requires a fan account."
+            return
+        }
+        guard hasAPIBearerSession else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Your sign-in session needs to be refreshed before crypto checkout."
+            return
+        }
+        guard hasLiveAPISessionForStripe else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Sign in again before crypto checkout."
+            return
+        }
+        guard hasBackendCheckoutCatalogItem else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Crypto checkout is not available for this event yet."
+            return
+        }
+        guard viewModel.ticketType.supply > 0 else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Online checkout for this ticket category is unavailable."
+            return
+        }
+        guard backend.isPrivyAvailable else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Wallet payment is temporarily unavailable in this build."
             return
         }
         showingCryptoSheet = true
@@ -486,66 +519,73 @@ private enum FanPassCryptoAsset: String, CaseIterable, Identifiable {
 private struct CryptoPaymentSheet: View {
     let totalHKD: Int
     let displayTotal: String
+    let viewModel: CheckoutViewModel
+    let checkoutAttemptId: String
+    let onConfirmed: () -> Void
+    @Environment(FanPassBackendContext.self) private var backend
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedAsset: FanPassCryptoAsset = .usdc
-    @State private var quotePrepared = false
+    @State private var state: CryptoPaymentState = .idle
+    @State private var quoteResponse: FanPassCryptoQuoteResponse?
 
     var body: some View {
         NavigationStack {
-            FanPassV4Scaffold(title: "Pay with Crypto", subtitle: "Choose an accepted asset and confirm the quote before wallet approval.") {
+            FanPassV4Scaffold(title: "Pay with Crypto", subtitle: "FanPass sends a sponsored USDC transfer from your wallet and confirms Sepolia before ticket issue.") {
                 FPSurfaceCard {
                     VStack(alignment: .leading, spacing: FPSpacing.md) {
                         FPSectionHeader(title: "Accepted assets", subtitle: "USDC only")
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: FPSpacing.sm)], spacing: FPSpacing.sm) {
-                            ForEach(FanPassCryptoAsset.allCases) { asset in
-                                Button {
-                                    selectedAsset = asset
-                                    quotePrepared = false
-                                } label: {
-                                    VStack(spacing: FPSpacing.xs) {
-                                        Text(asset.title)
-                                            .font(FPTypography.headline)
-                                        Text(asset.networkHint)
-                                            .font(FPTypography.caption)
-                                            .foregroundStyle(asset == selectedAsset ? FPColors.backgroundNight.opacity(0.72) : FPColors.textSecondary)
-                                    }
-                                    .foregroundStyle(asset == selectedAsset ? FPColors.backgroundNight : FPColors.textPrimary)
-                                    .frame(maxWidth: .infinity, minHeight: 58)
-                                    .background(asset == selectedAsset ? FPColors.pulseCyan : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                                            .stroke(asset == selectedAsset ? FPColors.pulseCyan : FPColors.borderDivider, lineWidth: 1)
-                                    }
-                                }
-                                .buttonStyle(.plain)
+                        HStack(spacing: FPSpacing.sm) {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.title2)
+                            VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                                Text("USDC")
+                                    .font(FPTypography.headline)
+                                Text("Sepolia ERC-20 transfer")
+                                    .font(FPTypography.caption)
+                                    .foregroundStyle(FPColors.textSecondary)
                             }
+                            Spacer()
+                            FPStatusPill(title: "Wallet", systemImage: "wallet.pass.fill", foreground: FPColors.pulseCyan, background: FPColors.pulseCyan.opacity(0.12), border: FPColors.pulseCyan.opacity(0.5))
                         }
+                        .foregroundStyle(FPColors.textPrimary)
+                        .frame(maxWidth: .infinity, minHeight: 58)
                     }
                 }
 
                 FPConceptRowList(rows: [
                     .init(id: "total", icon: "cart.fill", title: "Order total", subtitle: "Ticket, platform fee, and tax.", value: displayTotal, kind: .info),
-                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: "Final rate locks before payment.", value: selectedAsset.rateLabel, kind: .warning),
-                    .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Amount due", subtitle: "Rounded for wallet display.", value: selectedAsset.amountLabel(for: totalHKD), kind: .success),
-                    .init(id: "expiry", icon: "timer", title: "Quote window", subtitle: "Refresh the quote if the payment window expires.", value: "5 min")
+                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: "Final rate locks before wallet approval.", value: quote?.rateLabel ?? "Waiting", kind: .warning),
+                    .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Amount due", subtitle: "Verified by FanPass after transfer.", value: quote?.amountLabel ?? "-- USDC", kind: .success),
+                    .init(id: "expiry", icon: "timer", title: "Quote window", subtitle: "Refresh the quote if the payment window expires.", value: quoteExpiryLabel)
                 ])
 
                 FPPolicyNotice(
-                    title: "Payment quote",
-                    message: "A locked quote includes the asset, rate, receiving address, amount, and expiry before wallet approval.",
+                    title: "On-chain confirmation",
+                    message: "FanPass checks the Sepolia transaction sender, USDC contract, receiving address, and amount before the order is settled.",
                     kind: .info
                 )
 
-                if quotePrepared {
+                switch state {
+                case .idle:
+                    EmptyView()
+                case .quoteReady:
                     FPConfirmationCard(
                         title: "Quote ready",
-                        message: "Wallet approval starts after the payment address and \(selectedAsset.title) amount are locked."
+                        message: "Next, FanPass will submit the USDC transfer through your sponsored Privy wallet."
                     )
+                case .sending:
+                    FPStateBanner(title: "Sending sponsored transfer", message: "FanPass is submitting the USDC transfer through Privy sponsorship.", kind: .info)
+                case .confirming(let hash):
+                    FPStateBanner(title: "Confirming transfer", message: "Sepolia tx \(shortHash(hash)) is being verified by FanPass.", kind: .info)
+                case .confirmed(let hash):
+                    FPConfirmationCard(title: "USDC confirmed", message: "Sepolia tx \(shortHash(hash)) is confirmed. Ticket assignment is syncing.")
+                case .failed(let message):
+                    FPStateBanner(title: "USDC payment failed", message: message, kind: .danger)
                 }
 
-                FPPrimaryButton(title: quotePrepared ? "Quote ready" : "Get \(selectedAsset.title) quote", systemImage: "lock.shield.fill") {
-                    quotePrepared = true
+                FPPrimaryButton(title: primaryButtonTitle, systemImage: primaryButtonIcon) {
+                    Task { await advance() }
                 }
+                .disabled(primaryButtonDisabled)
                 FPSecondaryButton(title: "Close", systemImage: "xmark.circle.fill") {
                     dismiss()
                 }
@@ -557,6 +597,117 @@ private struct CryptoPaymentSheet: View {
             }
         }
     }
+
+    private var quote: FanPassCryptoQuote? {
+        quoteResponse?.quote
+    }
+
+    private var quoteExpiryLabel: String {
+        guard let quote else { return "5 min" }
+        return quote.expiresAt
+    }
+
+    private var primaryButtonTitle: String {
+        switch state {
+        case .idle, .failed:
+            "Get USDC quote"
+        case .quoteReady:
+            "Pay with sponsored wallet"
+        case .sending:
+            "Sending sponsored tx"
+        case .confirming:
+            "Confirming tx"
+        case .confirmed:
+            "Confirmed"
+        }
+    }
+
+    private var primaryButtonIcon: String {
+        switch state {
+        case .idle, .failed:
+            "lock.shield.fill"
+        case .quoteReady:
+            "wallet.pass.fill"
+        case .sending, .confirming:
+            "arrow.triangle.2.circlepath"
+        case .confirmed:
+            "checkmark.seal.fill"
+        }
+    }
+
+    private var primaryButtonDisabled: Bool {
+        switch state {
+        case .sending, .confirming, .confirmed:
+            true
+        case .idle, .quoteReady, .failed:
+            false
+        }
+    }
+
+    private func advance() async {
+        switch state {
+        case .idle, .failed:
+            await prepareQuote()
+        case .quoteReady:
+            await sendWalletPayment()
+        case .sending, .confirming, .confirmed:
+            break
+        }
+    }
+
+    private func prepareQuote() async {
+        do {
+            state = .sending
+            quoteResponse = try await viewModel.prepareCryptoQuote(
+                apiClient: backend.apiClient,
+                owner: backend.user,
+                checkoutAttemptId: checkoutAttemptId
+            )
+            state = .quoteReady
+        } catch {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = error.localizedDescription
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    private func sendWalletPayment() async {
+        guard let quoteResponse else {
+            state = .failed("Create a USDC quote before wallet payment.")
+            return
+        }
+        do {
+            state = .sending
+            let confirmation = try await backend.apiClient.sendSponsoredCryptoPayment(
+                paymentId: quoteResponse.payment.id,
+                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)"
+            )
+            let transactionHash = confirmation.transactionHash ?? "confirmed"
+            state = .confirming(transactionHash)
+            viewModel.applyCryptoConfirmation(confirmation)
+            state = .confirmed(transactionHash)
+            onConfirmed()
+            dismiss()
+        } catch {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = error.localizedDescription
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    private func shortHash(_ hash: String) -> String {
+        guard hash.count > 14 else { return hash }
+        return "\(hash.prefix(8))...\(hash.suffix(6))"
+    }
+}
+
+private enum CryptoPaymentState: Equatable {
+    case idle
+    case quoteReady
+    case sending
+    case confirming(String)
+    case confirmed(String)
+    case failed(String)
 }
 
 struct FanPassV4PurchaseSuccessView: View {

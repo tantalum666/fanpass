@@ -31,6 +31,29 @@ class CreatePaymentIntentDto {
   orderId!: string;
 }
 
+class CreateCryptoQuoteDto {
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/)
+  orderId!: string;
+
+  @IsString()
+  @Matches(/^USDC$/)
+  asset!: "USDC";
+}
+
+class ConfirmCryptoPaymentDto {
+  @IsString()
+  @Matches(/^0x[0-9a-fA-F]{64}$/)
+  transactionHash!: string;
+}
+
+class SponsoredCryptoPaymentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  clientReference?: string;
+}
+
 class PaymentOperationDto {
   @IsOptional()
   @IsString()
@@ -54,6 +77,61 @@ export class PaymentsController {
     return this.payments.createPaymentIntent(
       {
         orderId: body.orderId,
+        idempotencyKey,
+      },
+      session,
+    );
+  }
+
+  @Post("/crypto-quotes")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("FAN", "ADMIN")
+  createCryptoQuote(
+    @Body() body: CreateCryptoQuoteDto,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.payments.createCryptoQuote(
+      {
+        orderId: body.orderId,
+        asset: body.asset,
+        idempotencyKey,
+      },
+      session,
+    );
+  }
+
+  @Post("/crypto-quotes/:paymentId/confirm")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("FAN", "ADMIN")
+  confirmCryptoPayment(
+    @Param("paymentId", FanPassIdParamPipe) paymentId: string,
+    @Body() body: ConfirmCryptoPaymentDto,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.payments.confirmCryptoPayment(
+      {
+        paymentId,
+        transactionHash: body.transactionHash,
+        idempotencyKey,
+      },
+      session,
+    );
+  }
+
+  @Post("/crypto-quotes/:paymentId/send-sponsored")
+  @UseGuards(FanPassAuthGuard)
+  @Roles("FAN", "ADMIN")
+  sendSponsoredCryptoPayment(
+    @Param("paymentId", FanPassIdParamPipe) paymentId: string,
+    @Body() _body: SponsoredCryptoPaymentDto,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.payments.sendSponsoredCryptoPayment(
+      {
+        paymentId,
         idempotencyKey,
       },
       session,
