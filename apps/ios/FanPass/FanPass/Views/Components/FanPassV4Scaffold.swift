@@ -10,7 +10,7 @@ struct FanPassV4Scaffold<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: verticalSpacing) {
                 VStack(alignment: .leading, spacing: FPSpacing.xs) {
                     Text(title)
@@ -26,6 +26,7 @@ struct FanPassV4Scaffold<Content: View>: View {
 
                 content
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, FPSpacing.lg)
             .padding(.bottom, bottomPadding)
         }

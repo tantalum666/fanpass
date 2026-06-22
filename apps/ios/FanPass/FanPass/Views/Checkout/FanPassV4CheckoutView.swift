@@ -147,8 +147,8 @@ struct FanPassV4CheckoutView: View {
                 checkoutAttemptId: cryptoCheckoutAttemptId
             ) {
                 checkoutOutcome = .success(
-                    title: "USDC transfer confirmed",
-                    message: "FanPass confirmed the Sepolia USDC transfer. Ticket assignment is syncing; open Tickets again in a few seconds to load the server-issued ticket."
+                    title: "Payment confirmed",
+                    message: "FanPass is adding your ticket to your account. Open Tickets again in a few seconds if it does not appear immediately."
                 )
             }
             .presentationDetents([.large])
@@ -168,10 +168,10 @@ struct FanPassV4CheckoutView: View {
 
     private var paymentControls: some View {
         VStack(spacing: FPSpacing.md) {
-            FPPrimaryButton(title: "Pay with Crypto", systemImage: "bitcoinsign.circle.fill") {
+            FPPrimaryButton(title: "Pay with USDC", systemImage: "bitcoinsign.circle.fill") {
                 prepareCryptoCheckout()
             }
-            FPSecondaryButton(title: "Pay with Stripe", systemImage: "creditcard.fill") {
+            FPSecondaryButton(title: "Pay by card", systemImage: "creditcard.fill") {
                 Task {
                     await prepareAndPresentStripe()
                 }
@@ -182,7 +182,7 @@ struct FanPassV4CheckoutView: View {
                 .foregroundStyle(isStripeReady ? FPColors.textSecondary : FPColors.warningAmber)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Crypto accepts USDC. Final quotes are locked before payment.")
+            Text("USDC payments are confirmed before the ticket is issued.")
                 .font(FPTypography.caption)
                 .foregroundStyle(FPColors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -483,17 +483,17 @@ private struct CryptoPaymentSheet: View {
 
     var body: some View {
         NavigationStack {
-            FanPassV4Scaffold(title: "Pay with Crypto", subtitle: "FanPass sends a sponsored USDC transfer from your wallet and confirms Sepolia before ticket issue.") {
+            FanPassV4Scaffold(title: "Pay with USDC", subtitle: "Review the amount and pay from your FanPass wallet.") {
                 FPSurfaceCard {
                     VStack(alignment: .leading, spacing: FPSpacing.md) {
-                        FPSectionHeader(title: "Accepted assets", subtitle: "USDC only")
+                        FPSectionHeader(title: "Payment method", subtitle: "USDC")
                         HStack(spacing: FPSpacing.sm) {
                             Image(systemName: "dollarsign.circle.fill")
                                 .font(.title2)
                             VStack(alignment: .leading, spacing: FPSpacing.xs) {
                                 Text("USDC")
                                     .font(FPTypography.headline)
-                                Text("Sepolia ERC-20 transfer")
+                                Text("Paid from your FanPass wallet")
                                     .font(FPTypography.caption)
                                     .foregroundStyle(FPColors.textSecondary)
                             }
@@ -507,15 +507,14 @@ private struct CryptoPaymentSheet: View {
 
                 FPConceptRowList(rows: [
                     .init(id: "total", icon: "cart.fill", title: "Order total", subtitle: "Ticket, platform fee, and tax.", value: displayTotal, kind: .info),
-                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: quote?.rateSourceLabel ?? "Loaded from FanPass API.", value: quote?.rateLabel ?? "Waiting", kind: .warning),
-                    .init(id: "peg", icon: "chart.line.uptrend.xyaxis", title: "USDC peg", subtitle: pegSubtitle, value: quote?.pegStatusLabel ?? "Waiting", kind: quote?.pegStatusKind ?? .neutral),
-                    .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Amount due", subtitle: "Verified by FanPass after transfer.", value: quote?.amountLabel ?? "-- USDC", kind: .success),
-                    .init(id: "expiry", icon: "timer", title: "Quote window", subtitle: "Refresh the quote if the payment window expires.", value: quoteExpiryLabel)
+                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Exchange rate", subtitle: "Current rate for this payment.", value: quote?.paymentRateLabel ?? "Loading", kind: .warning),
+                    .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Pay today", subtitle: "Final amount for this order.", value: quote?.amountLabel ?? "-- USDC", kind: .success),
+                    .init(id: "expiry", icon: "timer", title: "Payment window", subtitle: "The amount is held briefly while you pay.", value: quoteExpiryLabel)
                 ])
 
                 FPPolicyNotice(
-                    title: "On-chain confirmation",
-                    message: "FanPass checks the Sepolia transaction sender, USDC contract, receiving address, and amount before the order is settled.",
+                    title: "Secure payment",
+                    message: "FanPass confirms your payment before issuing the ticket to your account.",
                     kind: .info
                 )
 
@@ -523,20 +522,20 @@ private struct CryptoPaymentSheet: View {
                 case .idle:
                     EmptyView()
                 case .quoting:
-                    FPStateBanner(title: "Getting quote", message: "FanPass is locking the current USDC amount before wallet approval.", kind: .info)
+                    FPStateBanner(title: "Preparing amount", message: "FanPass is checking the latest USDC amount for this order.", kind: .info)
                 case .quoteReady:
                     FPConfirmationCard(
-                        title: "Quote ready",
-                        message: "Next, FanPass will submit the USDC transfer through your sponsored Privy wallet."
+                        title: "Ready to pay",
+                        message: "Tap Pay to complete the order. Your ticket will appear after payment is confirmed."
                     )
                 case .sending:
-                    FPStateBanner(title: "Sending sponsored transfer", message: "FanPass is submitting the USDC transfer through Privy sponsorship.", kind: .info)
-                case .confirming(let hash):
-                    FPStateBanner(title: "Confirming transfer", message: "Sepolia tx \(shortHash(hash)) is being verified by FanPass.", kind: .info)
-                case .confirmed(let hash):
-                    FPConfirmationCard(title: "USDC confirmed", message: "Sepolia tx \(shortHash(hash)) is confirmed. Ticket assignment is syncing.")
+                    FPStateBanner(title: "Processing payment", message: "FanPass is completing your payment.", kind: .info)
+                case .confirming:
+                    FPStateBanner(title: "Confirming payment", message: "FanPass is confirming payment before issuing your ticket.", kind: .info)
+                case .confirmed:
+                    FPConfirmationCard(title: "Payment confirmed", message: "Your ticket is being added to your account.")
                 case .failed(let message):
-                    FPStateBanner(title: "USDC payment failed", message: message, kind: .danger)
+                    FPStateBanner(title: "Payment failed", message: message, kind: .danger)
                 }
 
                 FPPrimaryButton(title: primaryButtonTitle, systemImage: primaryButtonIcon) {
@@ -565,29 +564,21 @@ private struct CryptoPaymentSheet: View {
     }
 
     private var quoteExpiryLabel: String {
-        guard let quote else { return "5 min" }
-        return quote.expiresAt
-    }
-
-    private var pegSubtitle: String {
-        guard let quote else {
-            return "Checked before FanPass locks the quote."
-        }
-        return "USDC/USD \(quote.pegLabel) checked before quote lock."
+        "5 min"
     }
 
     private var primaryButtonTitle: String {
         switch state {
         case .idle, .failed:
-            "Get USDC quote"
+            "Prepare payment"
         case .quoting:
-            "Getting quote"
+            "Preparing"
         case .quoteReady:
-            "Pay with sponsored wallet"
+            "Pay"
         case .sending:
-            "Sending sponsored tx"
+            "Processing"
         case .confirming:
-            "Confirming tx"
+            "Confirming"
         case .confirmed:
             "Confirmed"
         }
@@ -598,7 +589,7 @@ private struct CryptoPaymentSheet: View {
         case .idle, .failed:
             "lock.shield.fill"
         case .quoteReady:
-            "wallet.pass.fill"
+            "creditcard.fill"
         case .quoting, .sending, .confirming:
             "arrow.triangle.2.circlepath"
         case .confirmed:
@@ -644,7 +635,7 @@ private struct CryptoPaymentSheet: View {
 
     private func sendWalletPayment() async {
         guard let quoteResponse else {
-            state = .failed("Create a USDC quote before wallet payment.")
+            state = .failed("Prepare the payment amount before paying.")
             return
         }
         do {

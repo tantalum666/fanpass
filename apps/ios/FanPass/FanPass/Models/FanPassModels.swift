@@ -293,6 +293,13 @@ struct FanPassCryptoQuote: Codable, Hashable {
         "1 \(asset) ~= HK$\(hkdRate)"
     }
 
+    var paymentRateLabel: String {
+        guard let value = Double(hkdRate) else {
+            return "HK$\(hkdRate)"
+        }
+        return "HK$\(String(format: "%.2f", value))"
+    }
+
     var rateSourceLabel: String {
         guard let hkdRateSource, !hkdRateSource.isEmpty else {
             return "Live rate source"
