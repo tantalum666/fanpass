@@ -238,10 +238,10 @@ describe("PaymentsService", () => {
     expect(quote.quote.erc20TransferData).toMatch(/^0xa9059cbb/);
   });
 
-  it("uses the HKMA USD/HKD reference rate when no configured USDC rate is provided", async () => {
+  it("uses CoinGecko USDC/HKD market pricing when no configured USDC rate is provided", async () => {
     const cryptoPayment = {
       ...incompletePayment,
-      id: "pay_crypto_hkma_demo",
+      id: "pay_crypto_coingecko_demo",
       stripePaymentIntentId: null,
       clientSecret: null,
       currency: "usdc",
@@ -258,14 +258,10 @@ describe("PaymentsService", () => {
     jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({
-        header: { success: true },
-        result: {
-          records: [
-            {
-              end_of_day: "2026-05-30",
-              usd: 7.8385,
-            },
-          ],
+        "usd-coin": {
+          hkd: 7.84,
+          usd: 0.999687,
+          last_updated_at: 1782114288,
         },
       }),
     } as Response);
@@ -286,7 +282,7 @@ describe("PaymentsService", () => {
       {
         orderId: order.id,
         asset: "USDC",
-        idempotencyKey: "ios-v4-crypto-payment-hkma",
+        idempotencyKey: "ios-v4-crypto-payment-coingecko",
       },
       {
         userId: order.userId,
@@ -294,9 +290,66 @@ describe("PaymentsService", () => {
       } as never,
     );
 
-    expect(quote.quote.hkdRate).toBe("7.8385");
-    expect(quote.quote.hkdRateSource).toBe("hkma:er-eeri-daily");
-    expect(quote.quote.hkdRateAsOf).toBe("2026-05-30");
+    expect(quote.quote.hkdRate).toBe("7.8400");
+    expect(quote.quote.hkdRateSource).toBe("coingecko:simple-price");
+    expect(quote.quote.usdcUsdRate).toBe("0.999687");
+    expect(quote.quote.usdcPegStatus).toBe("stable");
+    expect(quote.quote.hkdRateAsOf).toBe("2026-06-22T07:44:48.000Z");
+  });
+
+  it("blocks USDC checkout when CoinGecko shows a severe USDC depeg", async () => {
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_depeg_demo",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+    };
+    const prisma = {
+      order: {
+        findUnique: jest.fn(async () => order),
+      },
+      payment: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async () => cryptoPayment),
+      },
+    };
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        "usd-coin": {
+          hkd: 7.4,
+          usd: 0.94,
+          last_updated_at: 1782114288,
+        },
+      }),
+    } as Response);
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+        FANPASS_USDC_RECEIVER_ADDRESS:
+          "0x0000000000000000000000000000000000002000",
+      }),
+      prisma as never,
+      { enqueue: jest.fn(), markCompleted: jest.fn() } as never,
+      { record: jest.fn() } as never,
+    );
+
+    await expect(
+      service.createCryptoQuote(
+        {
+          orderId: order.id,
+          asset: "USDC",
+          idempotencyKey: "ios-v4-crypto-payment-depeg",
+        },
+        {
+          userId: order.userId,
+          role: "FAN",
+        } as never,
+      ),
+    ).rejects.toThrow("USDC checkout is temporarily disabled");
   });
 
   it("confirms a Sepolia USDC transfer and enqueues order settlement", async () => {
@@ -388,6 +441,7 @@ describe("PaymentsService", () => {
         TESTNET_RPC_URL: "https://rpc.example.test",
         FANPASS_USDC_CONTRACT_ADDRESS: token,
         FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+        FANPASS_USDC_HKD_RATE: "7.8355",
       }),
       prisma as never,
       outbox as never,
@@ -533,6 +587,7 @@ describe("PaymentsService", () => {
         TESTNET_RPC_URL: "https://rpc.example.test",
         FANPASS_USDC_CONTRACT_ADDRESS: token,
         FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+        FANPASS_USDC_HKD_RATE: "7.8355",
       }),
       prisma as never,
       outbox as never,

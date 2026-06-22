@@ -280,6 +280,8 @@ struct FanPassCryptoQuote: Codable, Hashable {
     let hkdRateSource: String?
     let hkdRateAsOf: String?
     let hkdRateFetchedAt: String?
+    let usdcUsdRate: String?
+    let usdcPegStatus: String?
     let expiresAt: String
     let erc20TransferData: String
 
@@ -301,6 +303,9 @@ struct FanPassCryptoQuote: Codable, Hashable {
             }
             return "HKMA daily reference"
         }
+        if hkdRateSource.hasPrefix("coingecko:") {
+            return "CoinGecko market price"
+        }
         if hkdRateSource.hasPrefix("configured:") {
             return "Configured staging rate"
         }
@@ -308,6 +313,39 @@ struct FanPassCryptoQuote: Codable, Hashable {
             return "Fallback staging rate"
         }
         return hkdRateSource
+    }
+
+    var pegLabel: String {
+        guard let usdcUsdRate, !usdcUsdRate.isEmpty else {
+            return "Not checked"
+        }
+        return "$\(usdcUsdRate)"
+    }
+
+    var pegStatusLabel: String {
+        switch usdcPegStatus {
+        case "stable":
+            return "Stable"
+        case "watch":
+            return "Watch"
+        case "blocked":
+            return "Blocked"
+        default:
+            return "Not checked"
+        }
+    }
+
+    var pegStatusKind: FPStateKind {
+        switch usdcPegStatus {
+        case "stable":
+            return .success
+        case "watch":
+            return .warning
+        case "blocked":
+            return .danger
+        default:
+            return .neutral
+        }
     }
 }
 

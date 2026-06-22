@@ -81,6 +81,8 @@ export interface CryptoQuote {
   hkdRateSource: string;
   hkdRateAsOf: string | null;
   hkdRateFetchedAt: string;
+  usdcUsdRate: string | null;
+  usdcPegStatus: UsdcPegStatus;
   expiresAt: string;
   erc20TransferData: string;
 }
@@ -119,11 +121,17 @@ interface UsdcHkdRate {
   source: string;
   asOf: string | null;
   fetchedAt: Date;
+  usdcUsdRate: number | null;
+  pegStatus: UsdcPegStatus;
 }
+
+type UsdcPegStatus = "stable" | "watch" | "blocked" | "not_checked";
 
 const ERC20_TRANSFER_SELECTOR = "a9059cbb";
 const ERC20_TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const COINGECKO_USDC_PRICE_URL =
+  "https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=hkd,usd&include_last_updated_at=true";
 const HKMA_USD_HKD_RATE_URL =
   "https://api.hkma.gov.hk/public/market-data-and-statistics/monthly-statistical-bulletin/er-ir/er-eeri-daily?offset=0&pagesize=1";
 
@@ -1135,6 +1143,11 @@ export class PaymentsService {
         "USDC checkout is not configured. Set RPC, token contract, and receiver address before testing crypto payment.",
       );
     }
+    if (hkdRate.pegStatus === "blocked") {
+      throw new ServiceUnavailableException(
+        "USDC checkout is temporarily disabled because USDC/USD is outside the configured peg guard.",
+      );
+    }
 
     return {
       rpcUrl,
@@ -1146,6 +1159,8 @@ export class PaymentsService {
       hkdRateSource: hkdRate.source,
       hkdRateAsOf: hkdRate.asOf,
       hkdRateFetchedAt: hkdRate.fetchedAt,
+      usdcUsdRate: hkdRate.usdcUsdRate,
+      usdcPegStatus: hkdRate.pegStatus,
       quoteTtlSeconds,
     };
   }
@@ -1174,6 +1189,9 @@ export class PaymentsService {
       hkdRateSource: config.hkdRateSource,
       hkdRateAsOf: config.hkdRateAsOf,
       hkdRateFetchedAt: config.hkdRateFetchedAt.toISOString(),
+      usdcUsdRate:
+        config.usdcUsdRate === null ? null : config.usdcUsdRate.toFixed(6),
+      usdcPegStatus: config.usdcPegStatus,
       expiresAt,
       erc20TransferData: this.erc20TransferData(
         config.receiverAddress,
@@ -1501,6 +1519,8 @@ export class PaymentsService {
         source: "configured:FANPASS_USDC_HKD_RATE",
         asOf: null,
         fetchedAt: new Date(),
+        usdcUsdRate: null,
+        pegStatus: "not_checked",
       };
     }
 
@@ -1510,7 +1530,7 @@ export class PaymentsService {
     }
 
     try {
-      const rate = await this.fetchHkmaUsdHkdRate();
+      const rate = await this.fetchCoinGeckoUsdcHkdRate();
       this.usdcHkdRateCache = {
         rate,
         expiresAt:
@@ -1524,18 +1544,86 @@ export class PaymentsService {
             1_000,
       };
       return rate;
-    } catch (error) {
-      const fallback = this.configPositiveNumber(
-        "FANPASS_USDC_HKD_RATE_FALLBACK",
-        7.8355,
-      );
-      return {
-        value: fallback,
-        source: "fallback:FANPASS_USDC_HKD_RATE_FALLBACK",
-        asOf: null,
-        fetchedAt: new Date(),
-      };
+    } catch {
+      try {
+        const rate = await this.fetchHkmaUsdHkdRate();
+        this.usdcHkdRateCache = {
+          rate,
+          expiresAt:
+            now +
+            this.configInteger(
+              "FANPASS_USDC_HKD_RATE_CACHE_SECONDS",
+              900,
+              60,
+              86_400,
+            ) *
+              1_000,
+        };
+        return rate;
+      } catch {
+        const fallback = this.configPositiveNumber(
+          "FANPASS_USDC_HKD_RATE_FALLBACK",
+          7.8355,
+        );
+        return {
+          value: fallback,
+          source: "fallback:FANPASS_USDC_HKD_RATE_FALLBACK",
+          asOf: null,
+          fetchedAt: new Date(),
+          usdcUsdRate: null,
+          pegStatus: "not_checked",
+        };
+      }
     }
+  }
+
+  private async fetchCoinGeckoUsdcHkdRate(): Promise<UsdcHkdRate> {
+    const url =
+      this.nonEmptyConfig("FANPASS_USDC_COINGECKO_PRICE_URL") ??
+      COINGECKO_USDC_PRICE_URL;
+    const timeoutMs = this.configInteger(
+      "FANPASS_USDC_HKD_RATE_TIMEOUT_MS",
+      4_000,
+      500,
+      15_000,
+    );
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `CoinGecko USDC rate request failed with HTTP ${response.status}`,
+      );
+    }
+    const body = (await response.json()) as {
+      "usd-coin"?: {
+        hkd?: unknown;
+        usd?: unknown;
+        last_updated_at?: unknown;
+      };
+    };
+    const quote = body["usd-coin"];
+    const hkd = Number(quote?.hkd);
+    const usd = Number(quote?.usd);
+    if (!Number.isFinite(hkd) || hkd <= 0) {
+      throw new Error("CoinGecko USDC rate response missing HKD value");
+    }
+    if (!Number.isFinite(usd) || usd <= 0) {
+      throw new Error("CoinGecko USDC rate response missing USD value");
+    }
+    const lastUpdatedAt = Number(quote?.last_updated_at);
+    const asOf =
+      Number.isFinite(lastUpdatedAt) && lastUpdatedAt > 0
+        ? new Date(lastUpdatedAt * 1_000).toISOString()
+        : null;
+    return {
+      value: hkd,
+      source: "coingecko:simple-price",
+      asOf,
+      fetchedAt: new Date(),
+      usdcUsdRate: usd,
+      pegStatus: this.usdcPegStatus(usd),
+    };
   }
 
   private async fetchHkmaUsdHkdRate(): Promise<UsdcHkdRate> {
@@ -1577,7 +1665,35 @@ export class PaymentsService {
       asOf:
         typeof record?.end_of_day === "string" ? record.end_of_day : null,
       fetchedAt: new Date(),
+      usdcUsdRate: null,
+      pegStatus: "not_checked",
     };
+  }
+
+  private usdcPegStatus(usdcUsdRate: number): UsdcPegStatus {
+    const blockBelow = this.configPositiveNumber(
+      "FANPASS_USDC_DEPEG_BLOCK_BELOW",
+      0.98,
+    );
+    const blockAbove = this.configPositiveNumber(
+      "FANPASS_USDC_DEPEG_BLOCK_ABOVE",
+      1.02,
+    );
+    const warnBelow = this.configPositiveNumber(
+      "FANPASS_USDC_DEPEG_WARN_BELOW",
+      0.995,
+    );
+    const warnAbove = this.configPositiveNumber(
+      "FANPASS_USDC_DEPEG_WARN_ABOVE",
+      1.005,
+    );
+    if (usdcUsdRate < blockBelow || usdcUsdRate > blockAbove) {
+      return "blocked";
+    }
+    if (usdcUsdRate < warnBelow || usdcUsdRate > warnAbove) {
+      return "watch";
+    }
+    return "stable";
   }
 
   private erc20TransferData(receiverAddress: string, amountAtomic: bigint) {

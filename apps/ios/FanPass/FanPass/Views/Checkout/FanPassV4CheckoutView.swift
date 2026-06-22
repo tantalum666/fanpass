@@ -507,6 +507,7 @@ private struct CryptoPaymentSheet: View {
                 FPConceptRowList(rows: [
                     .init(id: "total", icon: "cart.fill", title: "Order total", subtitle: "Ticket, platform fee, and tax.", value: displayTotal, kind: .info),
                     .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: quote?.rateSourceLabel ?? "Loaded from FanPass API.", value: quote?.rateLabel ?? "Waiting", kind: .warning),
+                    .init(id: "peg", icon: "chart.line.uptrend.xyaxis", title: "USDC peg", subtitle: pegSubtitle, value: quote?.pegStatusLabel ?? "Waiting", kind: quote?.pegStatusKind ?? .neutral),
                     .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Amount due", subtitle: "Verified by FanPass after transfer.", value: quote?.amountLabel ?? "-- USDC", kind: .success),
                     .init(id: "expiry", icon: "timer", title: "Quote window", subtitle: "Refresh the quote if the payment window expires.", value: quoteExpiryLabel)
                 ])
@@ -558,6 +559,13 @@ private struct CryptoPaymentSheet: View {
     private var quoteExpiryLabel: String {
         guard let quote else { return "5 min" }
         return quote.expiresAt
+    }
+
+    private var pegSubtitle: String {
+        guard let quote else {
+            return "Checked before FanPass locks the quote."
+        }
+        return "USDC/USD \(quote.pegLabel) checked before quote lock."
     }
 
     private var primaryButtonTitle: String {
