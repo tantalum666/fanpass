@@ -479,6 +479,7 @@ private struct CryptoPaymentSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var state: CryptoPaymentState = .idle
     @State private var quoteResponse: FanPassCryptoQuoteResponse?
+    @State private var didStartInitialQuote = false
 
     var body: some View {
         NavigationStack {
@@ -521,6 +522,8 @@ private struct CryptoPaymentSheet: View {
                 switch state {
                 case .idle:
                     EmptyView()
+                case .quoting:
+                    FPStateBanner(title: "Getting quote", message: "FanPass is locking the current USDC amount before wallet approval.", kind: .info)
                 case .quoteReady:
                     FPConfirmationCard(
                         title: "Quote ready",
@@ -549,6 +552,11 @@ private struct CryptoPaymentSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .task {
+                guard !didStartInitialQuote else { return }
+                didStartInitialQuote = true
+                await prepareQuote()
+            }
         }
     }
 
@@ -572,6 +580,8 @@ private struct CryptoPaymentSheet: View {
         switch state {
         case .idle, .failed:
             "Get USDC quote"
+        case .quoting:
+            "Getting quote"
         case .quoteReady:
             "Pay with sponsored wallet"
         case .sending:
@@ -589,7 +599,7 @@ private struct CryptoPaymentSheet: View {
             "lock.shield.fill"
         case .quoteReady:
             "wallet.pass.fill"
-        case .sending, .confirming:
+        case .quoting, .sending, .confirming:
             "arrow.triangle.2.circlepath"
         case .confirmed:
             "checkmark.seal.fill"
@@ -598,7 +608,7 @@ private struct CryptoPaymentSheet: View {
 
     private var primaryButtonDisabled: Bool {
         switch state {
-        case .sending, .confirming, .confirmed:
+        case .quoting, .sending, .confirming, .confirmed:
             true
         case .idle, .quoteReady, .failed:
             false
@@ -611,14 +621,14 @@ private struct CryptoPaymentSheet: View {
             await prepareQuote()
         case .quoteReady:
             await sendWalletPayment()
-        case .sending, .confirming, .confirmed:
+        case .quoting, .sending, .confirming, .confirmed:
             break
         }
     }
 
     private func prepareQuote() async {
         do {
-            state = .sending
+            state = .quoting
             quoteResponse = try await viewModel.prepareCryptoQuote(
                 apiClient: backend.apiClient,
                 owner: backend.user,
@@ -664,6 +674,7 @@ private struct CryptoPaymentSheet: View {
 
 private enum CryptoPaymentState: Equatable {
     case idle
+    case quoting
     case quoteReady
     case sending
     case confirming(String)
