@@ -469,53 +469,6 @@ private struct CheckoutOutcomeSheet: View {
     }
 }
 
-private enum FanPassCryptoAsset: String, CaseIterable, Identifiable {
-    case usdc
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .usdc: "USDC"
-        }
-    }
-
-    var networkHint: String {
-        switch self {
-        case .usdc: "Stablecoin"
-        }
-    }
-
-    var hkdRate: Double {
-        switch self {
-        case .usdc: 7.8355
-        }
-    }
-
-    var amountPrecision: Int {
-        switch self {
-        case .usdc: 2
-        }
-    }
-
-    func amountLabel(for totalHKD: Int) -> String {
-        let amount = Double(totalHKD) / hkdRate
-        return "\(Self.format(amount, fractionDigits: amountPrecision)) \(title)"
-    }
-
-    var rateLabel: String {
-        "1 \(title) ~= HK$\(Self.format(hkdRate, fractionDigits: hkdRate < 10 ? 4 : 0))"
-    }
-
-    private static func format(_ value: Double, fractionDigits: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = fractionDigits
-        formatter.maximumFractionDigits = fractionDigits
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(fractionDigits)f", value)
-    }
-}
-
 private struct CryptoPaymentSheet: View {
     let totalHKD: Int
     let displayTotal: String
@@ -553,7 +506,7 @@ private struct CryptoPaymentSheet: View {
 
                 FPConceptRowList(rows: [
                     .init(id: "total", icon: "cart.fill", title: "Order total", subtitle: "Ticket, platform fee, and tax.", value: displayTotal, kind: .info),
-                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: "Final rate locks before wallet approval.", value: quote?.rateLabel ?? "Waiting", kind: .warning),
+                    .init(id: "rate", icon: "arrow.left.arrow.right", title: "Reference rate", subtitle: quote?.rateSourceLabel ?? "Loaded from FanPass API.", value: quote?.rateLabel ?? "Waiting", kind: .warning),
                     .init(id: "amount", icon: "bitcoinsign.circle.fill", title: "Amount due", subtitle: "Verified by FanPass after transfer.", value: quote?.amountLabel ?? "-- USDC", kind: .success),
                     .init(id: "expiry", icon: "timer", title: "Quote window", subtitle: "Refresh the quote if the payment window expires.", value: quoteExpiryLabel)
                 ])

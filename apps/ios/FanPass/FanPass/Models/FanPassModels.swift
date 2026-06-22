@@ -277,6 +277,9 @@ struct FanPassCryptoQuote: Codable, Hashable {
     let amountDecimal: String
     let decimals: Int
     let hkdRate: String
+    let hkdRateSource: String?
+    let hkdRateAsOf: String?
+    let hkdRateFetchedAt: String?
     let expiresAt: String
     let erc20TransferData: String
 
@@ -286,6 +289,25 @@ struct FanPassCryptoQuote: Codable, Hashable {
 
     var rateLabel: String {
         "1 \(asset) ~= HK$\(hkdRate)"
+    }
+
+    var rateSourceLabel: String {
+        guard let hkdRateSource, !hkdRateSource.isEmpty else {
+            return "Live rate source"
+        }
+        if hkdRateSource.hasPrefix("hkma:") {
+            if let hkdRateAsOf, !hkdRateAsOf.isEmpty {
+                return "HKMA daily reference · \(hkdRateAsOf)"
+            }
+            return "HKMA daily reference"
+        }
+        if hkdRateSource.hasPrefix("configured:") {
+            return "Configured staging rate"
+        }
+        if hkdRateSource.hasPrefix("fallback:") {
+            return "Fallback staging rate"
+        }
+        return hkdRateSource
     }
 }
 

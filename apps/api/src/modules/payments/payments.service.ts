@@ -78,6 +78,9 @@ export interface CryptoQuote {
   amountDecimal: string;
   decimals: number;
   hkdRate: string;
+  hkdRateSource: string;
+  hkdRateAsOf: string | null;
+  hkdRateFetchedAt: string;
   expiresAt: string;
   erc20TransferData: string;
 }
@@ -111,12 +114,26 @@ type CryptoPaymentWithOrder = Payment & {
   };
 };
 
+interface UsdcHkdRate {
+  value: number;
+  source: string;
+  asOf: string | null;
+  fetchedAt: Date;
+}
+
 const ERC20_TRANSFER_SELECTOR = "a9059cbb";
 const ERC20_TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const HKMA_USD_HKD_RATE_URL =
+  "https://api.hkma.gov.hk/public/market-data-and-statistics/monthly-statistical-bulletin/er-ir/er-eeri-daily?offset=0&pagesize=1";
 
 @Injectable()
 export class PaymentsService {
+  private usdcHkdRateCache: {
+    rate: UsdcHkdRate;
+    expiresAt: number;
+  } | null = null;
+
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
@@ -243,7 +260,7 @@ export class PaymentsService {
       throw new BadRequestException("Only USDC crypto checkout is supported");
     }
 
-    const config = this.cryptoPaymentConfig();
+    const config = await this.cryptoPaymentConfig();
     const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
     if (!idempotencyKey) {
       throw new BadRequestException("Idempotency-Key is required for payments");
@@ -331,7 +348,7 @@ export class PaymentsService {
       };
     }
 
-    const config = this.cryptoPaymentConfig();
+    const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
     return this.confirmCryptoPaymentRecord(
       payment,
@@ -373,7 +390,7 @@ export class PaymentsService {
     }
     this.requireCryptoPayerAddress(payment);
 
-    const config = this.cryptoPaymentConfig();
+    const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
     const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
     const sponsored = await sponsor.sendSponsoredEthereumTransaction({
@@ -1088,7 +1105,7 @@ export class PaymentsService {
     return JSON.parse(rawBody.toString("utf8")) as StripeEventLike;
   }
 
-  private cryptoPaymentConfig() {
+  private async cryptoPaymentConfig() {
     const rpcUrl =
       this.nonEmptyConfig("FANPASS_WALLET_RPC_URL") ??
       this.nonEmptyConfig("TESTNET_RPC_URL") ??
@@ -1105,7 +1122,7 @@ export class PaymentsService {
         this.nonEmptyConfig("FANPASS_TREASURY_WALLET_ADDRESS"),
     );
     const decimals = this.configInteger("FANPASS_USDC_DECIMALS", 6, 0, 36);
-    const hkdRate = this.configPositiveNumber("FANPASS_USDC_HKD_RATE", 7.8355);
+    const hkdRate = await this.usdcHkdRate();
     const quoteTtlSeconds = this.configInteger(
       "FANPASS_USDC_QUOTE_TTL_SECONDS",
       300,
@@ -1125,14 +1142,17 @@ export class PaymentsService {
       tokenContractAddress,
       receiverAddress,
       decimals,
-      hkdRate,
+      hkdRate: hkdRate.value,
+      hkdRateSource: hkdRate.source,
+      hkdRateAsOf: hkdRate.asOf,
+      hkdRateFetchedAt: hkdRate.fetchedAt,
       quoteTtlSeconds,
     };
   }
 
   private cryptoQuoteForPayment(
     payment: Payment,
-    config: ReturnType<PaymentsService["cryptoPaymentConfig"]>,
+    config: Awaited<ReturnType<PaymentsService["cryptoPaymentConfig"]>>,
   ): CryptoQuote {
     const amountAtomic = this.usdcAtomicAmount(
       payment.amount,
@@ -1151,6 +1171,9 @@ export class PaymentsService {
       amountDecimal: this.formatUnits(amountAtomic, config.decimals),
       decimals: config.decimals,
       hkdRate: config.hkdRate.toFixed(4),
+      hkdRateSource: config.hkdRateSource,
+      hkdRateAsOf: config.hkdRateAsOf,
+      hkdRateFetchedAt: config.hkdRateFetchedAt.toISOString(),
       expiresAt,
       erc20TransferData: this.erc20TransferData(
         config.receiverAddress,
@@ -1195,7 +1218,7 @@ export class PaymentsService {
     payment: CryptoPaymentWithOrder,
     transactionHash: string,
     quote: CryptoQuote,
-    config: ReturnType<PaymentsService["cryptoPaymentConfig"]>,
+    config: Awaited<ReturnType<PaymentsService["cryptoPaymentConfig"]>>,
   ) {
     const payerAddress = this.requireCryptoPayerAddress(payment);
 
@@ -1468,6 +1491,95 @@ export class PaymentsService {
     return BigInt(Math.ceil((hkdMinorAmount * multiplier) / (hkdPerUsdc * 100)));
   }
 
+  private async usdcHkdRate(): Promise<UsdcHkdRate> {
+    const configured = this.configPositiveNumberOrNull(
+      "FANPASS_USDC_HKD_RATE",
+    );
+    if (configured) {
+      return {
+        value: configured,
+        source: "configured:FANPASS_USDC_HKD_RATE",
+        asOf: null,
+        fetchedAt: new Date(),
+      };
+    }
+
+    const now = Date.now();
+    if (this.usdcHkdRateCache && this.usdcHkdRateCache.expiresAt > now) {
+      return this.usdcHkdRateCache.rate;
+    }
+
+    try {
+      const rate = await this.fetchHkmaUsdHkdRate();
+      this.usdcHkdRateCache = {
+        rate,
+        expiresAt:
+          now +
+          this.configInteger(
+            "FANPASS_USDC_HKD_RATE_CACHE_SECONDS",
+            900,
+            60,
+            86_400,
+          ) *
+            1_000,
+      };
+      return rate;
+    } catch (error) {
+      const fallback = this.configPositiveNumber(
+        "FANPASS_USDC_HKD_RATE_FALLBACK",
+        7.8355,
+      );
+      return {
+        value: fallback,
+        source: "fallback:FANPASS_USDC_HKD_RATE_FALLBACK",
+        asOf: null,
+        fetchedAt: new Date(),
+      };
+    }
+  }
+
+  private async fetchHkmaUsdHkdRate(): Promise<UsdcHkdRate> {
+    const url =
+      this.nonEmptyConfig("FANPASS_USDC_HKD_RATE_URL") ??
+      HKMA_USD_HKD_RATE_URL;
+    const timeoutMs = this.configInteger(
+      "FANPASS_USDC_HKD_RATE_TIMEOUT_MS",
+      4_000,
+      500,
+      15_000,
+    );
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) {
+      throw new Error(`HKMA rate request failed with HTTP ${response.status}`);
+    }
+    const body = (await response.json()) as {
+      header?: { success?: boolean };
+      result?: {
+        records?: Array<{
+          end_of_day?: unknown;
+          usd?: unknown;
+        }>;
+      };
+    };
+    if (body.header?.success === false) {
+      throw new Error("HKMA rate response was not successful");
+    }
+    const record = body.result?.records?.[0];
+    const value = Number(record?.usd);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error("HKMA rate response missing USD/HKD value");
+    }
+    return {
+      value,
+      source: "hkma:er-eeri-daily",
+      asOf:
+        typeof record?.end_of_day === "string" ? record.end_of_day : null,
+      fetchedAt: new Date(),
+    };
+  }
+
   private erc20TransferData(receiverAddress: string, amountAtomic: bigint) {
     const receiver = receiverAddress.slice(2).toLowerCase().padStart(64, "0");
     const amount = amountAtomic.toString(16).padStart(64, "0");
@@ -1529,8 +1641,12 @@ export class PaymentsService {
   }
 
   private configPositiveNumber(key: string, fallback: number) {
+    return this.configPositiveNumberOrNull(key) ?? fallback;
+  }
+
+  private configPositiveNumberOrNull(key: string) {
     const value = Number(this.config.get<string>(key));
-    return Number.isFinite(value) && value > 0 ? value : fallback;
+    return Number.isFinite(value) && value > 0 ? value : null;
   }
 
   private nonEmptyConfig(key: string) {

@@ -238,6 +238,67 @@ describe("PaymentsService", () => {
     expect(quote.quote.erc20TransferData).toMatch(/^0xa9059cbb/);
   });
 
+  it("uses the HKMA USD/HKD reference rate when no configured USDC rate is provided", async () => {
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_hkma_demo",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+    };
+    const prisma = {
+      order: {
+        findUnique: jest.fn(async () => order),
+      },
+      payment: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async () => cryptoPayment),
+      },
+    };
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        header: { success: true },
+        result: {
+          records: [
+            {
+              end_of_day: "2026-05-30",
+              usd: 7.8385,
+            },
+          ],
+        },
+      }),
+    } as Response);
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS:
+          "0x0000000000000000000000000000000000001000",
+        FANPASS_USDC_RECEIVER_ADDRESS:
+          "0x0000000000000000000000000000000000002000",
+      }),
+      prisma as never,
+      { enqueue: jest.fn(), markCompleted: jest.fn() } as never,
+      { record: jest.fn() } as never,
+    );
+
+    const quote = await service.createCryptoQuote(
+      {
+        orderId: order.id,
+        asset: "USDC",
+        idempotencyKey: "ios-v4-crypto-payment-hkma",
+      },
+      {
+        userId: order.userId,
+        role: "FAN",
+      } as never,
+    );
+
+    expect(quote.quote.hkdRate).toBe("7.8385");
+    expect(quote.quote.hkdRateSource).toBe("hkma:er-eeri-daily");
+    expect(quote.quote.hkdRateAsOf).toBe("2026-05-30");
+  });
+
   it("confirms a Sepolia USDC transfer and enqueues order settlement", async () => {
     const payer = "0x0000000000000000000000000000000000003000";
     const receiver = "0x0000000000000000000000000000000000002000";
