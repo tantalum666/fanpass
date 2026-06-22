@@ -1127,7 +1127,8 @@ export class PaymentsService {
     );
     const receiverAddress = this.normalizeAddress(
       this.nonEmptyConfig("FANPASS_USDC_RECEIVER_ADDRESS") ??
-        this.nonEmptyConfig("FANPASS_TREASURY_WALLET_ADDRESS"),
+        this.nonEmptyConfig("FANPASS_TREASURY_WALLET_ADDRESS") ??
+        this.nonEmptyConfig("FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS"),
     );
     const decimals = this.configInteger("FANPASS_USDC_DECIMALS", 6, 0, 36);
     const hkdRate = await this.usdcHkdRate();
