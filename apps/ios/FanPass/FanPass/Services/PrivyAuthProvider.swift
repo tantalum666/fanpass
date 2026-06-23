@@ -40,6 +40,7 @@ enum PrivyAuthProviderError: LocalizedError, Equatable {
     case sdkUnavailable
     case missingAccessToken
     case missingEmbeddedWallet
+    case invalidTransferRequest
 
     var errorDescription: String? {
         switch self {
@@ -51,6 +52,8 @@ enum PrivyAuthProviderError: LocalizedError, Equatable {
             "Sign-in did not return a valid session."
         case .missingEmbeddedWallet:
             "Embedded wallet is unavailable for this account."
+        case .invalidTransferRequest:
+            "Wallet payment could not be prepared."
         }
     }
 }
@@ -62,6 +65,7 @@ protocol PrivyAuthProviding: AnyObject {
     func sendEmailCode(to email: String) async throws
     func loginWithEmailCode(_ code: String, sentTo email: String) async throws -> PrivyLoginResult
     func loginWithOAuth(_ provider: PrivyOAuthLoginProvider) async throws -> PrivyLoginResult
+    func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String
     func signOut() async
 }
 
@@ -149,6 +153,42 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
         #endif
     }
 
+    func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String {
+        #if canImport(PrivySDK)
+        guard let privy,
+              let user = await privy.getUser()
+        else {
+            throw PrivyAuthProviderError.notConfigured
+        }
+
+        let wallet = try await ethereumWallet(for: user)
+        let chainId = try chainId(from: quote.chainId)
+        let currentChainId = await wallet.provider.chainId
+        if currentChainId != chainId {
+            await wallet.provider.switchChain(chainId: chainId, rpcUrl: nil)
+        }
+
+        let transaction = EthereumRpcRequest.UnsignedEthTransaction(
+            from: wallet.address,
+            to: quote.tokenContractAddress,
+            data: quote.erc20TransferData,
+            value: .hexadecimalNumber("0x0"),
+            chainId: .int(chainId)
+        )
+        let request = try EthereumRpcRequest.ethSendTransaction(transaction: transaction)
+        let transactionHash = try await wallet.provider.request(request).lowercased()
+        guard transactionHash.range(
+            of: #"^0x[0-9a-f]{64}$"#,
+            options: .regularExpression
+        ) != nil else {
+            throw PrivyAuthProviderError.invalidTransferRequest
+        }
+        return transactionHash
+        #else
+        throw PrivyAuthProviderError.sdkUnavailable
+        #endif
+    }
+
     #if canImport(PrivySDK)
     private func loginResult(for user: any PrivyUser, fallbackEmail: String?) async throws -> PrivyLoginResult {
         let accessToken = try await user.getAccessToken()
@@ -174,6 +214,14 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
             throw PrivyAuthProviderError.missingEmbeddedWallet
         }
         return wallet
+    }
+
+    private func chainId(from value: String) throws -> Int {
+        let raw = value.split(separator: ":").last.map(String.init) ?? value
+        guard let chainId = Int(raw), chainId > 0 else {
+            throw PrivyAuthProviderError.invalidTransferRequest
+        }
+        return chainId
     }
 
     private func emailAddress(for user: any PrivyUser) -> String? {

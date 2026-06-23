@@ -50,6 +50,10 @@ final class FanPassBackendContext {
         apiProvider.scannerService()
     }
 
+    func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String {
+        try await privyAuthProvider.sendUSDCTransfer(quote: quote)
+    }
+
     func bootstrapDemoSessionIfAvailable() async {
         #if DEBUG
         guard session == nil else { return }

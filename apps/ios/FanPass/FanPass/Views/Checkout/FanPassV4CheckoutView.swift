@@ -653,12 +653,15 @@ private struct CryptoPaymentSheet: View {
         }
         do {
             state = .sending
-            let confirmation = try await backend.apiClient.sendSponsoredCryptoPayment(
-                paymentId: quoteResponse.payment.id,
-                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)"
+            let transactionHash = try await backend.sendUSDCTransfer(
+                quote: quoteResponse.quote
             )
-            let transactionHash = confirmation.transactionHash ?? "confirmed"
             state = .confirming(transactionHash)
+            let confirmation = try await backend.apiClient.confirmCryptoPayment(
+                paymentId: quoteResponse.payment.id,
+                transactionHash: transactionHash,
+                idempotencyKey: "ios-v4-crypto-confirm-\(checkoutAttemptId)"
+            )
             viewModel.applyCryptoConfirmation(confirmation)
             state = .confirmed(transactionHash)
             onConfirmed()
