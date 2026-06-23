@@ -686,7 +686,9 @@ private struct CryptoPaymentSheet: View {
         }
         if lowercased.contains("rpc") ||
             lowercased.contains("contract") ||
-            lowercased.contains("receiver address") {
+            lowercased.contains("receiver address") ||
+            lowercased.contains("internal server error") ||
+            lowercased.contains("temporarily unavailable") {
             return "Wallet payment is temporarily unavailable. Try card payment or try again later."
         }
         return raw

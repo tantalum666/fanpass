@@ -401,32 +401,44 @@ export class PaymentsService {
     const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
     const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
-    const sponsored = await sponsor.sendSponsoredEthereumTransaction({
-      walletId,
-      caip2: this.cryptoCaip2(config.chainId),
-      transaction: {
-        to: quote.tokenContractAddress,
-        data: quote.erc20TransferData,
-        value: "0x0",
-      },
-    });
+    let sponsored: Awaited<
+      ReturnType<PrivyWalletService["sendSponsoredEthereumTransaction"]>
+    >;
+    try {
+      sponsored = await sponsor.sendSponsoredEthereumTransaction({
+        walletId,
+        caip2: this.cryptoCaip2(config.chainId),
+        transaction: {
+          to: quote.tokenContractAddress,
+          data: quote.erc20TransferData,
+          value: "0x0",
+        },
+      });
+    } catch (error) {
+      throw this.sponsoredCryptoPaymentUnavailable(error);
+    }
 
     let transactionHash = sponsored.hash?.toLowerCase() ?? null;
     if (!transactionHash && sponsored.providerId) {
-      const status = await sponsor.waitForTransactionHash({
-        transactionId: sponsored.providerId,
-        timeoutMs: this.configInteger(
-          "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
-          45_000,
-          5_000,
-          180_000,
-        ),
-      });
+      let status: Awaited<ReturnType<PrivyWalletService["waitForTransactionHash"]>>;
+      try {
+        status = await sponsor.waitForTransactionHash({
+          transactionId: sponsored.providerId,
+          timeoutMs: this.configInteger(
+            "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
+            45_000,
+            5_000,
+            180_000,
+          ),
+        });
+      } catch (error) {
+        throw this.sponsoredCryptoPaymentUnavailable(error);
+      }
       transactionHash = status.hash?.toLowerCase() ?? null;
     }
     if (!transactionHash || !/^0x[0-9a-f]{64}$/.test(transactionHash)) {
       throw new ServiceUnavailableException(
-        "Privy did not return a confirmed USDC transaction hash yet",
+        "Wallet payment is still processing. Try again shortly.",
       );
     }
 
@@ -435,6 +447,12 @@ export class PaymentsService {
       transactionHash,
       quote,
       config,
+    );
+  }
+
+  private sponsoredCryptoPaymentUnavailable(_error: unknown) {
+    return new ServiceUnavailableException(
+      "Wallet payment is temporarily unavailable. Try card payment or try again later.",
     );
   }
 

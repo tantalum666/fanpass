@@ -634,4 +634,77 @@ describe("PaymentsService", () => {
       }),
     );
   });
+
+  it("maps Privy sponsored wallet authorization failures to payment-unavailable copy", async () => {
+    const payer = "0x0000000000000000000000000000000000003000";
+    const receiver = "0x0000000000000000000000000000000000002000";
+    const token = "0x0000000000000000000000000000000000001000";
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_sponsored_auth_error",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+      order: {
+        ...order,
+        user: {
+          walletAddress: payer,
+          privyWalletId: "wallet_privy_demo",
+        },
+      },
+    };
+    const prisma = {
+      payment: {
+        findUnique: jest.fn(async () => cryptoPayment),
+      },
+    };
+    const outbox = {
+      enqueue: jest.fn(),
+      markCompleted: jest.fn(),
+    };
+    const audit = {
+      record: jest.fn(),
+    };
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn(async () => {
+        throw new Error(
+          "No valid authorization keys or user signing keys available",
+        );
+      }),
+      waitForTransactionHash: jest.fn(),
+    };
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS: token,
+        FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+        FANPASS_USDC_HKD_RATE: "7.8355",
+      }),
+      prisma as never,
+      outbox as never,
+      audit as never,
+      privyWallets as never,
+    );
+
+    await expect(
+      service.sendSponsoredCryptoPayment(
+        {
+          paymentId: cryptoPayment.id,
+          idempotencyKey: "ios-v4-crypto-sponsored-auth-error",
+        },
+        {
+          userId: order.userId,
+          role: "FAN",
+        } as never,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        message:
+          "Wallet payment is temporarily unavailable. Try card payment or try again later.",
+      },
+      status: 503,
+    });
+    expect(privyWallets.sendSponsoredEthereumTransaction).toHaveBeenCalled();
+    expect(privyWallets.waitForTransactionHash).not.toHaveBeenCalled();
+  });
 });
