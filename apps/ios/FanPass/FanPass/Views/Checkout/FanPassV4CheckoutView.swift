@@ -289,6 +289,11 @@ struct FanPassV4CheckoutView: View {
             viewModel.errorMessage = "Wallet payment is temporarily unavailable in this build."
             return
         }
+        guard hasFanPassPaymentWallet else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Sign in with FanPass wallet before paying with USDC."
+            return
+        }
         showingCryptoSheet = true
     }
 
@@ -363,6 +368,13 @@ struct FanPassV4CheckoutView: View {
             return false
         }
         return !token.isEmpty
+    }
+
+    private var hasFanPassPaymentWallet: Bool {
+        guard let walletId = backend.session?.privyWalletId?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !walletId.isEmpty
     }
 
     private var canBuyTickets: Bool {
@@ -628,8 +640,9 @@ private struct CryptoPaymentSheet: View {
             state = .quoteReady
         } catch {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = error.localizedDescription
-            state = .failed(error.localizedDescription)
+            let message = paymentErrorMessage(error)
+            viewModel.errorMessage = message
+            state = .failed(message)
         }
     }
 
@@ -652,14 +665,31 @@ private struct CryptoPaymentSheet: View {
             dismiss()
         } catch {
             viewModel.paymentState = .failed
-            viewModel.errorMessage = error.localizedDescription
-            state = .failed(error.localizedDescription)
+            let message = paymentErrorMessage(error)
+            viewModel.errorMessage = message
+            state = .failed(message)
         }
     }
 
     private func shortHash(_ hash: String) -> String {
         guard hash.count > 14 else { return hash }
         return "\(hash.prefix(8))...\(hash.suffix(6))"
+    }
+
+    private func paymentErrorMessage(_ error: Error) -> String {
+        let raw = error.localizedDescription
+        let lowercased = raw.lowercased()
+        if lowercased.contains("privy") ||
+            lowercased.contains("sponsored") ||
+            lowercased.contains("wallet id") {
+            return "Sign in with FanPass wallet before paying with USDC."
+        }
+        if lowercased.contains("rpc") ||
+            lowercased.contains("contract") ||
+            lowercased.contains("receiver address") {
+            return "Wallet payment is temporarily unavailable. Try card payment or try again later."
+        }
+        return raw
     }
 }
 

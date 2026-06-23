@@ -108,7 +108,9 @@ final class FanPassBackendContext {
             email: reviewUser.email,
             role: reviewUser.role.apiRole,
             walletAddress: reviewUser.walletReference?.addressFragment,
+            privyWalletId: nil,
             accessToken: "local-review-token",
+            authProvider: "local",
             expiresAt: nil
         )
         apply(session: reviewSession)
@@ -154,7 +156,8 @@ final class FanPassBackendContext {
         let fanPassSession = try await apiClient.syncPrivySession(
             privyAccessToken: privySession.accessToken,
             email: privySession.email,
-            walletAddress: privySession.walletAddress
+            walletAddress: privySession.walletAddress,
+            walletId: privySession.walletId
         )
         apply(
             session: fanPassSession.withAccessToken(

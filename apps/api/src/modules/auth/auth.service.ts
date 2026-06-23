@@ -63,7 +63,9 @@ export class AuthService {
       email: payload.email,
       role: payload.role,
       walletAddress: payload.walletAddress,
+      privyWalletId: user.privyWalletId ?? null,
       accessToken: this.signPayload(payload),
+      authProvider: "local" as const,
       expiresAt: new Date(payload.exp * 1000).toISOString(),
     };
   }
@@ -116,6 +118,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       walletAddress: user.walletAddress,
+      privyWalletId: user.privyWalletId ?? null,
       accessToken: null,
       authProvider: "privy" as const,
       privyId: payload.sub,
@@ -246,6 +249,7 @@ export class AuthService {
       email: accepted.email,
       role: accepted.role,
       walletAddress: accepted.walletAddress,
+      privyWalletId: accepted.privyWalletId,
       accessToken: null,
       authProvider: "privy" as const,
       privyId,

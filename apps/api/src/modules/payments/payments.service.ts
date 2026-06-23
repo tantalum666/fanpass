@@ -393,7 +393,7 @@ export class PaymentsService {
     const walletId = payment.order.user.privyWalletId?.trim();
     if (!walletId) {
       throw new BadRequestException(
-        "A Privy wallet id is required before sponsored USDC payment",
+        "Connect your FanPass wallet before paying with USDC",
       );
     }
     this.requireCryptoPayerAddress(payment);

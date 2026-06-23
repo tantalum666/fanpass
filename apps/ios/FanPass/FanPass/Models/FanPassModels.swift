@@ -6,7 +6,9 @@ struct UserSession: Codable, Hashable {
     let email: String
     let role: String
     let walletAddress: String?
+    let privyWalletId: String?
     let accessToken: String?
+    let authProvider: String?
     let expiresAt: String?
 
     var isFan: Bool { role == "FAN" }
@@ -21,7 +23,9 @@ struct UserSession: Codable, Hashable {
             email: email,
             role: role,
             walletAddress: walletAddress,
+            privyWalletId: privyWalletId,
             accessToken: token,
+            authProvider: authProvider,
             expiresAt: expiresAt
         )
     }
@@ -32,7 +36,9 @@ struct UserSession: Codable, Hashable {
         email: "fan@example.com",
         role: "FAN",
         walletAddress: "0x0000000000000000000000000000000000002001",
+        privyWalletId: nil,
         accessToken: nil,
+        authProvider: "local",
         expiresAt: nil
     )
 
@@ -42,7 +48,9 @@ struct UserSession: Codable, Hashable {
         email: "gate@example.com",
         role: "GATE_STAFF",
         walletAddress: nil,
+        privyWalletId: nil,
         accessToken: nil,
+        authProvider: "local",
         expiresAt: nil
     )
 }
