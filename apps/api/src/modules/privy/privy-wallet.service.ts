@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { createPrivateKey, sign } from "crypto";
 
 export interface PrivyEthereumTransaction {
   to: string;
@@ -30,52 +31,58 @@ export class PrivyWalletService {
     caip2: string;
     transaction: PrivyEthereumTransaction;
   }): Promise<PrivySponsoredTransactionReceipt> {
-    const response = await fetch(this.walletRpcUrl(input.walletId), {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({
-        caip2: input.caip2,
-        chain_type: "ethereum",
-        method: "eth_sendTransaction",
-        params: {
-          transaction: {
-            to: input.transaction.to,
-            data: input.transaction.data,
-            value: input.transaction.value ?? "0x0",
-          },
+    const url = this.walletRpcUrl(input.walletId);
+    const requestBody = {
+      caip2: input.caip2,
+      chain_type: "ethereum",
+      method: "eth_sendTransaction",
+      params: {
+        transaction: {
+          to: input.transaction.to,
+          data: input.transaction.data,
+          value: input.transaction.value ?? "0x0",
         },
-        sponsor: true,
+      },
+      sponsor: true,
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.headers({
+        method: "POST",
+        url,
+        body: requestBody,
       }),
+      body: JSON.stringify(requestBody),
     });
 
-    const body = (await response.json().catch(() => null)) as
+    const responseBody = (await response.json().catch(() => null)) as
       | Record<string, unknown>
       | null;
     if (!response.ok) {
       const message =
-        this.readString(body?.error) ??
-        this.readString(body?.message) ??
+        this.readString(responseBody?.error) ??
+        this.readString(responseBody?.message) ??
         `Privy wallet RPC failed with HTTP ${response.status}`;
       throw new Error(message);
     }
 
     return {
-      hash: this.readHash(body),
+      hash: this.readHash(responseBody),
       providerId:
-        this.readString(body?.id) ??
-        this.readString(body?.transactionId) ??
-        this.readString(body?.transaction_id) ??
-        this.readString(this.readPath(body, ["data", "id"])) ??
-        this.readString(this.readPath(body, ["data", "transactionId"])) ??
-        this.readString(this.readPath(body, ["data", "transaction_id"])),
+        this.readString(responseBody?.id) ??
+        this.readString(responseBody?.transactionId) ??
+        this.readString(responseBody?.transaction_id) ??
+        this.readString(this.readPath(responseBody, ["data", "id"])) ??
+        this.readString(this.readPath(responseBody, ["data", "transactionId"])) ??
+        this.readString(this.readPath(responseBody, ["data", "transaction_id"])),
       rawStatus:
-        this.readString(body?.status) ??
-        this.readString(this.readPath(body, ["data", "status"])),
+        this.readString(responseBody?.status) ??
+        this.readString(this.readPath(responseBody, ["data", "status"])),
       userOperationHash:
-        this.readString(body?.userOperationHash) ??
-        this.readString(body?.user_operation_hash) ??
-        this.readString(this.readPath(body, ["data", "userOperationHash"])) ??
-        this.readString(this.readPath(body, ["data", "user_operation_hash"])),
+        this.readString(responseBody?.userOperationHash) ??
+        this.readString(responseBody?.user_operation_hash) ??
+        this.readString(this.readPath(responseBody, ["data", "userOperationHash"])) ??
+        this.readString(this.readPath(responseBody, ["data", "user_operation_hash"])),
     };
   }
 
@@ -134,7 +141,13 @@ export class PrivyWalletService {
     )}`;
   }
 
-  private headers() {
+  private headers(
+    signedRequest?: {
+      method: "POST" | "PUT" | "PATCH" | "DELETE";
+      url: string;
+      body: unknown;
+    },
+  ) {
     const appId = this.requiredConfig("PRIVY_APP_ID");
     const appSecret = this.requiredConfig("PRIVY_APP_SECRET");
     const headers: Record<string, string> = {
@@ -142,13 +155,144 @@ export class PrivyWalletService {
       Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString("base64")}`,
       "privy-app-id": appId,
     };
-    const authorizationSignature = this.nonEmptyConfig(
-      "PRIVY_WALLET_AUTHORIZATION_SIGNATURE",
-    );
-    if (authorizationSignature) {
-      headers["privy-authorization-signature"] = authorizationSignature;
+    if (signedRequest) {
+      const requestExpiry = this.privyRequestExpiry();
+      const authorizationSignatures = this.authorizationSignatures({
+        appId,
+        requestExpiry,
+        ...signedRequest,
+      });
+      if (authorizationSignatures.length > 0) {
+        headers["privy-authorization-signature"] =
+          authorizationSignatures.join(",");
+        headers["privy-request-expiry"] = String(requestExpiry);
+      }
     }
     return headers;
+  }
+
+  private authorizationSignatures(input: {
+    appId: string;
+    method: "POST" | "PUT" | "PATCH" | "DELETE";
+    url: string;
+    body: unknown;
+    requestExpiry: number;
+  }) {
+    const staticSignature = this.nonEmptyConfig(
+      "PRIVY_WALLET_AUTHORIZATION_SIGNATURE",
+    );
+    const privateKeys = this.authorizationPrivateKeys();
+    const generated = privateKeys.map((authorizationPrivateKey) =>
+      this.generateAuthorizationSignature({
+        authorizationPrivateKey,
+        input: {
+          version: 1,
+          method: input.method,
+          url: input.url,
+          body: input.body,
+          headers: {
+            "privy-app-id": input.appId,
+            "privy-request-expiry": String(input.requestExpiry),
+          },
+        },
+      }),
+    );
+    return [
+      ...(staticSignature ? [staticSignature] : []),
+      ...generated,
+    ];
+  }
+
+  private generateAuthorizationSignature(input: {
+    authorizationPrivateKey: string;
+    input: {
+      version: 1;
+      method: "POST" | "PUT" | "PATCH" | "DELETE";
+      url: string;
+      body: unknown;
+      headers: Record<string, string>;
+    };
+  }) {
+    const serializedInput = this.canonicalJson({
+      ...input.input,
+      body: this.authorizationBody(input.input.body),
+    });
+    const key = createPrivateKey({
+      key: Buffer.from(input.authorizationPrivateKey, "base64"),
+      format: "der",
+      type: "pkcs8",
+    });
+    return sign("sha256", Buffer.from(serializedInput), key).toString("base64");
+  }
+
+  private canonicalJson(value: unknown): string {
+    if (value === null) {
+      return "null";
+    }
+    if (typeof value === "string") {
+      return JSON.stringify(value);
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.canonicalJson(item)).join(",")}]`;
+    }
+    if (typeof value === "object") {
+      return `{${Object.entries(value as Record<string, unknown>)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(
+          ([key, entryValue]) =>
+            `${JSON.stringify(key)}:${this.canonicalJson(entryValue)}`,
+        )
+        .join(",")}}`;
+    }
+    throw new Error("Unsupported Privy wallet authorization payload value");
+  }
+
+  private authorizationBody(body: unknown) {
+    if (
+      body &&
+      typeof body === "object" &&
+      !Array.isArray(body) &&
+      Object.keys(body).length === 0
+    ) {
+      return "";
+    }
+    return body;
+  }
+
+  private authorizationPrivateKeys() {
+    const raw =
+      this.nonEmptyConfig("PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEYS") ??
+      this.nonEmptyConfig("PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEY");
+    if (!raw) {
+      return [];
+    }
+    return raw
+      .split(",")
+      .map((value) => this.normalizePkcs8PrivateKey(value))
+      .filter((value): value is string => Boolean(value));
+  }
+
+  private normalizePkcs8PrivateKey(value: string) {
+    const normalized = value
+      .replace(/\\n/g, "\n")
+      .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+      .replace(/-----END PRIVATE KEY-----/g, "")
+      .replace(/\s+/g, "");
+    return normalized || null;
+  }
+
+  private privyRequestExpiry() {
+    const ttlMs = this.configInteger(
+      "PRIVY_WALLET_AUTHORIZATION_EXPIRY_MS",
+      60_000,
+      5_000,
+      300_000,
+    );
+    return Date.now() + ttlMs;
   }
 
   private apiBaseUrl() {
@@ -168,6 +312,23 @@ export class PrivyWalletService {
   private nonEmptyConfig(key: string) {
     const value = this.config.get<string>(key)?.trim();
     return value ? value : null;
+  }
+
+  private configInteger(
+    key: string,
+    fallback: number,
+    minimum: number,
+    maximum: number,
+  ) {
+    const raw = this.nonEmptyConfig(key);
+    if (!raw) {
+      return fallback;
+    }
+    const value = Number.parseInt(raw, 10);
+    if (!Number.isFinite(value)) {
+      return fallback;
+    }
+    return Math.min(Math.max(value, minimum), maximum);
   }
 
   private readHash(body: Record<string, unknown> | null) {

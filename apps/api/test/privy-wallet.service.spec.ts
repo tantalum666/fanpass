@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import { generateKeyPairSync } from "crypto";
 import { PrivyWalletService } from "../src/modules/privy/privy-wallet.service";
 
 describe("PrivyWalletService", () => {
@@ -100,5 +101,47 @@ describe("PrivyWalletService", () => {
       providerId: "tx_fixture",
       rawStatus: "confirmed",
     });
+  });
+
+  it("signs sponsored wallet RPC requests with a Privy authorization private key", async () => {
+    const keyPair = generateKeyPairSync("ec", {
+      namedCurve: "prime256v1",
+    });
+    const privateKey = keyPair.privateKey
+      .export({ format: "der", type: "pkcs8" })
+      .toString("base64");
+    jest.spyOn(Date, "now").mockReturnValue(1_000_000);
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "wallet_rpc_fixture",
+        result: {
+          transactionHash:
+            "0x3333333333333333333333333333333333333333333333333333333333333333",
+        },
+      }),
+    } as Response);
+    const service = new PrivyWalletService(
+      new ConfigService({
+        PRIVY_APP_ID: "app_fixture",
+        PRIVY_APP_SECRET: "secret_fixture",
+        PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEY: privateKey,
+        PRIVY_WALLET_AUTHORIZATION_EXPIRY_MS: "45000",
+      }),
+    );
+
+    await service.sendSponsoredEthereumTransaction({
+      walletId: "wallet_fixture",
+      caip2: "eip155:11155111",
+      transaction: {
+        to: "0x0000000000000000000000000000000000001000",
+        data: "0x1234",
+      },
+    });
+
+    const headers = (fetch as jest.Mock).mock.calls[0][1]
+      .headers as Record<string, string>;
+    expect(headers["privy-authorization-signature"]).toMatch(/^[A-Za-z0-9+/=]+$/);
+    expect(headers["privy-request-expiry"]).toBe("1045000");
   });
 });

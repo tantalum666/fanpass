@@ -67,6 +67,7 @@ function checkRequiredRuntimeConfig() {
   requirePresent("DATABASE_URL");
   requirePresent("PRIVY_APP_ID");
   requirePresent("PRIVY_APP_SECRET");
+  requirePresent("PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEY");
   requirePresent("FANPASS_PRIVY_SPONSOR_WALLET_ID");
   requireAddress("FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS");
   requireAddress("FANPASS_TICKET_CONTRACT_ADDRESS");

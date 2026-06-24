@@ -38,6 +38,8 @@ services:
         sync: false
       - key: PRIVY_APP_SECRET
         sync: false
+      - key: PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEY
+        sync: false
       - key: FANPASS_PRIVY_SPONSOR_WALLET_ID
         sync: false
       - key: FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS

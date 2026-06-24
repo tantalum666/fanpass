@@ -653,17 +653,13 @@ private struct CryptoPaymentSheet: View {
         }
         do {
             state = .sending
-            let transactionHash = try await backend.sendUSDCTransfer(
-                quote: quoteResponse.quote
-            )
-            state = .confirming(transactionHash)
-            let confirmation = try await backend.apiClient.confirmCryptoPayment(
+            let confirmation = try await backend.apiClient.sendSponsoredCryptoPayment(
                 paymentId: quoteResponse.payment.id,
-                transactionHash: transactionHash,
-                idempotencyKey: "ios-v4-crypto-confirm-\(checkoutAttemptId)"
+                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)"
             )
+            state = .confirming(confirmation.transactionHash ?? "")
             viewModel.applyCryptoConfirmation(confirmation)
-            state = .confirmed(transactionHash)
+            state = .confirmed(confirmation.transactionHash ?? "")
             onConfirmed()
             dismiss()
         } catch {
@@ -682,6 +678,11 @@ private struct CryptoPaymentSheet: View {
     private func paymentErrorMessage(_ error: Error) -> String {
         let raw = error.localizedDescription
         let lowercased = raw.lowercased()
+        if lowercased.contains("transaction_broadcast_failure") ||
+            lowercased.contains("insufficient funds for gas") ||
+            lowercased.contains("gas * price") {
+            return "Wallet payment is temporarily unavailable. Try card payment or try again later."
+        }
         if lowercased.contains("privy") ||
             lowercased.contains("sponsored") ||
             lowercased.contains("wallet id") {
