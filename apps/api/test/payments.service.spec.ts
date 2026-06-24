@@ -599,6 +599,7 @@ describe("PaymentsService", () => {
       {
         paymentId: cryptoPayment.id,
         idempotencyKey: "ios-v4-crypto-sponsored-demo",
+        privyAccessToken: "privy.jwt.fixture",
       },
       {
         userId: order.userId,
@@ -613,6 +614,7 @@ describe("PaymentsService", () => {
     expect(privyWallets.sendSponsoredEthereumTransaction).toHaveBeenCalledWith({
       walletId: "wallet_privy_demo",
       caip2: "eip155:11155111",
+      userJwt: "privy.jwt.fixture",
       transaction: expect.objectContaining({
         to: token,
         value: "0x0",

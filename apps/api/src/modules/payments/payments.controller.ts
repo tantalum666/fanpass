@@ -127,12 +127,14 @@ export class PaymentsController {
     @Param("paymentId", FanPassIdParamPipe) paymentId: string,
     @Body() _body: SponsoredCryptoPaymentDto,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Headers("authorization") authorization: string | undefined,
     @CurrentSession() session: FanPassSession,
   ) {
     return this.payments.sendSponsoredCryptoPayment(
       {
         paymentId,
         idempotencyKey,
+        privyAccessToken: this.bearerToken(authorization),
       },
       session,
     );
@@ -205,5 +207,10 @@ export class PaymentsController {
     @Headers("stripe-signature") signature: string | undefined,
   ) {
     return this.payments.handleWebhook(request.body, signature);
+  }
+
+  private bearerToken(authorization: string | undefined) {
+    const match = authorization?.match(/^Bearer\s+(.+)$/i);
+    return match?.[1]?.trim() || undefined;
   }
 }

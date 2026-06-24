@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
+import { CipherSuite, DhkemP256HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { ConfigService } from "@nestjs/config";
 import { createPrivateKey, sign } from "crypto";
 
@@ -22,14 +24,29 @@ export interface PrivyTransactionStatus {
   userOperationHash: string | null;
 }
 
+interface HpkeRecipient {
+  publicKeySpki: Uint8Array;
+  decryptPayload: (
+    encapsulatedKey: Uint8Array,
+    ciphertext: Uint8Array,
+  ) => Promise<Uint8Array>;
+}
+
 @Injectable()
 export class PrivyWalletService {
+  private hpkeRecipient: Promise<HpkeRecipient> | null = null;
+  private readonly userAuthorizationKeyCache = new Map<
+    string,
+    { authorizationKey: string; expiresAt: number }
+  >();
+
   constructor(private readonly config: ConfigService) {}
 
   async sendSponsoredEthereumTransaction(input: {
     walletId: string;
     caip2: string;
     transaction: PrivyEthereumTransaction;
+    userJwt?: string | null;
   }): Promise<PrivySponsoredTransactionReceipt> {
     const url = this.walletRpcUrl(input.walletId);
     const requestBody = {
@@ -47,10 +64,11 @@ export class PrivyWalletService {
     };
     const response = await fetch(url, {
       method: "POST",
-      headers: this.headers({
+      headers: await this.headers({
         method: "POST",
         url,
         body: requestBody,
+        userJwt: input.userJwt,
       }),
       body: JSON.stringify(requestBody),
     });
@@ -91,7 +109,7 @@ export class PrivyWalletService {
   ): Promise<PrivyTransactionStatus> {
     const response = await fetch(this.transactionUrl(transactionId), {
       method: "GET",
-      headers: this.headers(),
+      headers: await this.headers(),
     });
     const body = (await response.json().catch(() => null)) as
       | Record<string, unknown>
@@ -141,23 +159,19 @@ export class PrivyWalletService {
     )}`;
   }
 
-  private headers(
+  private async headers(
     signedRequest?: {
       method: "POST" | "PUT" | "PATCH" | "DELETE";
       url: string;
       body: unknown;
+      userJwt?: string | null;
     },
   ) {
+    const headers = this.baseHeaders();
     const appId = this.requiredConfig("PRIVY_APP_ID");
-    const appSecret = this.requiredConfig("PRIVY_APP_SECRET");
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString("base64")}`,
-      "privy-app-id": appId,
-    };
     if (signedRequest) {
       const requestExpiry = this.privyRequestExpiry();
-      const authorizationSignatures = this.authorizationSignatures({
+      const authorizationSignatures = await this.authorizationSignatures({
         appId,
         requestExpiry,
         ...signedRequest,
@@ -171,17 +185,34 @@ export class PrivyWalletService {
     return headers;
   }
 
-  private authorizationSignatures(input: {
+  private baseHeaders(): Record<string, string> {
+    const appId = this.requiredConfig("PRIVY_APP_ID");
+    const appSecret = this.requiredConfig("PRIVY_APP_SECRET");
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString("base64")}`,
+      "privy-app-id": appId,
+    };
+  }
+
+  private async authorizationSignatures(input: {
     appId: string;
     method: "POST" | "PUT" | "PATCH" | "DELETE";
     url: string;
     body: unknown;
     requestExpiry: number;
+    userJwt?: string | null;
   }) {
     const staticSignature = this.nonEmptyConfig(
       "PRIVY_WALLET_AUTHORIZATION_SIGNATURE",
     );
-    const privateKeys = this.authorizationPrivateKeys();
+    const userAuthorizationKey = await this.userAuthorizationPrivateKey(
+      input.userJwt,
+    );
+    const privateKeys = [
+      ...this.authorizationPrivateKeys(),
+      ...(userAuthorizationKey ? [userAuthorizationKey] : []),
+    ];
     const generated = privateKeys.map((authorizationPrivateKey) =>
       this.generateAuthorizationSignature({
         authorizationPrivateKey,
@@ -201,6 +232,131 @@ export class PrivyWalletService {
       ...(staticSignature ? [staticSignature] : []),
       ...generated,
     ];
+  }
+
+  private async userAuthorizationPrivateKey(userJwt?: string | null) {
+    const normalizedJwt = userJwt?.trim();
+    if (!normalizedJwt) {
+      return null;
+    }
+
+    const cached = this.userAuthorizationKeyCache.get(normalizedJwt);
+    if (cached && cached.expiresAt > Date.now() + 5_000) {
+      return cached.authorizationKey;
+    }
+    this.userAuthorizationKeyCache.delete(normalizedJwt);
+
+    const { authorizationKey, expiresAt } =
+      await this.exchangeJwtForAuthorizationKey(normalizedJwt);
+    this.userAuthorizationKeyCache.set(normalizedJwt, {
+      authorizationKey,
+      expiresAt,
+    });
+    return authorizationKey;
+  }
+
+  private async exchangeJwtForAuthorizationKey(userJwt: string) {
+    const hpkeRecipient = await this.getHpkeRecipient();
+    const requestBody = {
+      user_jwt: userJwt,
+      encryption_type: "HPKE",
+      recipient_public_key: Buffer.from(hpkeRecipient.publicKeySpki).toString(
+        "base64",
+      ),
+    };
+    const response = await fetch(`${this.apiBaseUrl()}/v1/wallets/authenticate`, {
+      method: "POST",
+      headers: this.baseHeaders(),
+      body: JSON.stringify(requestBody),
+    });
+    const responseBody = (await response.json().catch(() => null)) as
+      | Record<string, unknown>
+      | null;
+    if (!response.ok) {
+      const message =
+        this.readString(responseBody?.error) ??
+        this.readString(responseBody?.message) ??
+        `Privy wallet JWT exchange failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const expiresAt =
+      this.readNumber(responseBody?.expires_at) ?? Date.now() + 60_000;
+    const rawAuthorizationKey = this.readString(
+      responseBody?.authorization_key,
+    );
+    if (rawAuthorizationKey) {
+      const authorizationKey = this.normalizePkcs8PrivateKey(rawAuthorizationKey);
+      if (!authorizationKey) {
+        throw new Error("Privy wallet JWT exchange returned an empty key");
+      }
+      return {
+        authorizationKey,
+        expiresAt,
+      };
+    }
+
+    const encrypted = this.readPath(responseBody, [
+      "encrypted_authorization_key",
+    ]);
+    if (!encrypted || typeof encrypted !== "object" || Array.isArray(encrypted)) {
+      throw new Error("Privy wallet JWT exchange did not return an authorization key");
+    }
+    const encryptedRecord = encrypted as Record<string, unknown>;
+    if (encryptedRecord.encryption_type !== "HPKE") {
+      throw new Error("Privy wallet JWT exchange returned an unsupported key type");
+    }
+    const encapsulatedKey = this.readString(encryptedRecord.encapsulated_key);
+    const ciphertext = this.readString(encryptedRecord.ciphertext);
+    if (!encapsulatedKey || !ciphertext) {
+      throw new Error("Privy wallet JWT exchange returned an invalid encrypted key");
+    }
+
+    const decrypted = await hpkeRecipient.decryptPayload(
+      Buffer.from(encapsulatedKey, "base64"),
+      Buffer.from(ciphertext, "base64"),
+    );
+    const authorizationKey = this.normalizePkcs8PrivateKey(
+      new TextDecoder().decode(decrypted),
+    );
+    if (!authorizationKey) {
+      throw new Error("Privy wallet JWT exchange returned an empty encrypted key");
+    }
+    return {
+      authorizationKey,
+      expiresAt,
+    };
+  }
+
+  private getHpkeRecipient() {
+    if (!this.hpkeRecipient) {
+      this.hpkeRecipient = this.setupHpkeRecipient();
+    }
+    return this.hpkeRecipient;
+  }
+
+  private async setupHpkeRecipient(): Promise<HpkeRecipient> {
+    const suite = new CipherSuite({
+      kem: new DhkemP256HkdfSha256(),
+      kdf: new HkdfSha256(),
+      aead: new Chacha20Poly1305(),
+    });
+    const keypair = await suite.kem.generateKeyPair();
+    const publicKeySpki = await crypto.subtle.exportKey(
+      "spki",
+      keypair.publicKey,
+    );
+    return {
+      publicKeySpki: new Uint8Array(publicKeySpki),
+      decryptPayload: async (encapsulatedKey, ciphertext) => {
+        const recipient = await suite.createRecipientContext({
+          recipientKey: keypair.privateKey,
+          enc: encapsulatedKey,
+        });
+        const decoded = await recipient.open(ciphertext);
+        return new Uint8Array(decoded);
+      },
+    };
   }
 
   private generateAuthorizationSignature(input: {
@@ -364,6 +520,10 @@ export class PrivyWalletService {
 
   private readString(value: unknown) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
+  }
+
+  private readNumber(value: unknown) {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
 
   private readPath(value: unknown, path: string[]) {

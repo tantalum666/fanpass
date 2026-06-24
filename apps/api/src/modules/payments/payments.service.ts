@@ -37,6 +37,7 @@ export interface ConfirmCryptoPaymentInput {
 export interface SendSponsoredCryptoPaymentInput {
   paymentId: string;
   idempotencyKey: string | undefined;
+  privyAccessToken?: string;
 }
 
 type PaymentOperation = "cancel_authorization" | "refund" | "reconcile";
@@ -408,6 +409,7 @@ export class PaymentsService {
       sponsored = await sponsor.sendSponsoredEthereumTransaction({
         walletId,
         caip2: this.cryptoCaip2(config.chainId),
+        userJwt: input.privyAccessToken,
         transaction: {
           to: quote.tokenContractAddress,
           data: quote.erc20TransferData,
