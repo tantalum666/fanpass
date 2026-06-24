@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
 import { CipherSuite, DhkemP256HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { ConfigService } from "@nestjs/config";
-import { createPrivateKey, sign } from "crypto";
+import { createPrivateKey, sign, webcrypto } from "crypto";
 
 export interface PrivyEthereumTransaction {
   to: string;
@@ -342,7 +342,7 @@ export class PrivyWalletService {
       aead: new Chacha20Poly1305(),
     });
     const keypair = await suite.kem.generateKeyPair();
-    const publicKeySpki = await crypto.subtle.exportKey(
+    const publicKeySpki = await webcrypto.subtle.exportKey(
       "spki",
       keypair.publicKey,
     );
