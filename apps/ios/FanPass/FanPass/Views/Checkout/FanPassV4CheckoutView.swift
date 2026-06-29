@@ -541,9 +541,13 @@ private struct CryptoPaymentSheet: View {
                         message: "Tap Pay to complete the order. Your ticket will appear after payment is confirmed."
                     )
                 case .sending:
-                    FPStateBanner(title: "Processing payment", message: "FanPass is completing your payment.", kind: .info)
+                    FPStateBanner(
+                        title: "Waiting for network confirmation",
+                        message: "This can take a minute. Keep FanPass open and do not tap Pay again; your ticket appears after confirmation.",
+                        kind: .info
+                    )
                 case .confirming:
-                    FPStateBanner(title: "Confirming payment", message: "FanPass is confirming payment before issuing your ticket.", kind: .info)
+                    FPStateBanner(title: "Finalizing ticket", message: "Payment was received. FanPass is adding the ticket to your account.", kind: .info)
                 case .confirmed:
                     FPConfirmationCard(title: "Payment confirmed", message: "Your ticket is being added to your account.")
                 case .failed(let message):
@@ -588,9 +592,9 @@ private struct CryptoPaymentSheet: View {
         case .quoteReady:
             "Pay"
         case .sending:
-            "Processing"
+            "Waiting"
         case .confirming:
-            "Confirming"
+            "Finalizing"
         case .confirmed:
             "Confirmed"
         }
