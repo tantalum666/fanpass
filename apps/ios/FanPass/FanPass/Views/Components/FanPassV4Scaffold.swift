@@ -10,7 +10,7 @@ struct FanPassV4Scaffold<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: true) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: verticalSpacing) {
                 VStack(alignment: .leading, spacing: FPSpacing.xs) {
                     Text(title)

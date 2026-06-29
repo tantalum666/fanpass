@@ -58,7 +58,7 @@ struct FanPassV4ProfileView: View {
             subtitle: "Identity, privacy, orders, alerts, and support.",
             verticalSpacing: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
             topPadding: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
-            bottomPadding: backend.isAuthenticated ? FPSpacing.threeXL + 96 : FPSpacing.sixXL + FPSpacing.sm,
+            bottomPadding: backend.isAuthenticated ? FPSpacing.sixXL + FPSpacing.twoXL : FPSpacing.sixXL + FPSpacing.sm,
             scrollDisabled: !backend.isAuthenticated
         ) {
             accountHeader
@@ -66,16 +66,12 @@ struct FanPassV4ProfileView: View {
             if backend.session != nil {
                 signOutButton
             }
-            if backend.isAuthenticated {
-                Color.clear
-                    .frame(height: 88)
-            }
         }
         .navigationDestination(isPresented: $showSignInPage) {
             FanPassV4Scaffold(
                 title: "Sign in / Sign up",
                 subtitle: "Use email code or a linked social account.",
-                bottomPadding: FPSpacing.threeXL + 96
+                bottomPadding: FPSpacing.threeXL
             ) {
                 signInContent
             }
@@ -88,7 +84,7 @@ struct FanPassV4ProfileView: View {
                 subtitle: route.subtitle,
                 verticalSpacing: FPSpacing.lg,
                 topPadding: FPSpacing.fourXL,
-                bottomPadding: FPSpacing.threeXL + 96
+                bottomPadding: FPSpacing.threeXL
             ) {
                 routeContent(for: route)
             }

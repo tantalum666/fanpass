@@ -147,6 +147,25 @@ Verification:
 - `npm run security:ios-distribution-boundaries` passed.
 - `git diff --check` passed.
 
+## 2026-06-29 Account Spacing And Scrollbar Repair
+
+After the owner showed Account pages with large empty space below the final rows and a visible right-side scroll indicator, the shared iOS scaffold and Account route spacing were tightened.
+
+Changes applied:
+
+- `FanPassV4Scaffold` now hides vertical scroll indicators.
+- Account root removed the extra 88pt transparent spacer that was added after `Sign out`.
+- Account root keeps only the bottom padding needed for the tab bar.
+- Account child routes and the sign-in page use normal bottom padding because the tab bar is hidden on those pages.
+
+Verification:
+
+- Full Markdown startup pass completed before work: 4,315 files, 759,772 lines, SHA-256 `789ab0fbf6e689b8fd0098fa72da6d1553e1edc2691f6ffc080919f748db823b`.
+- XcodeBuildMCP `FanPass` Debug simulator build/run passed on `FanPass-iPhone-17` with `CODE_SIGNING_ALLOWED=NO`.
+- Runtime Account root snapshot/screenshot confirmed no visible right-side scrollbar in the signed-out simulator state; screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_c89edbad-e8a2-44aa-b4ea-6c115488fc08.jpg`.
+- `npm run security:ios-distribution-boundaries` passed.
+- `git diff --check` passed.
+
 ## 2026-06-29 Account Simplification Redesign
 
 After the owner rejected the Account/Profile redesign as too card-heavy and text-heavy, the Account UI was simplified while preserving the newly added functionality.
