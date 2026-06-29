@@ -8,6 +8,8 @@
 	<string>FanPass Ops</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -37,6 +39,8 @@
 	<string>$(FANPASS_PRIVY_APP_CLIENT_ID)</string>
 	<key>FanPassPrivyAppID</key>
 	<string>$(FANPASS_PRIVY_APP_ID)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NFCReaderUsageDescription</key>
 	<string>FanPass Ops uses NFC to scan supported venue tags and ticket wristbands.</string>
 	<key>NSCameraUsageDescription</key>

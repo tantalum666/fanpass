@@ -48,11 +48,21 @@ targets:
       path: FanPass/Generated/Info.plist
       properties:
         CFBundleDisplayName: FanPass
+        CFBundleIconName: AppIcon
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "2"
         FanPassAPIBaseURL: $(FANPASS_API_BASE_URL)
         FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)
         FanPassPrivyAppClientID: $(FANPASS_PRIVY_APP_CLIENT_ID)
         FanPassStripePublishableKey: $(FANPASS_STRIPE_PUBLISHABLE_KEY)
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: FanPass uses the camera to scan ticket QR codes when you choose a camera-based entry or support flow.
         UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         CFBundleURLTypes:
           - CFBundleURLName: fun.fanpass.app
             CFBundleURLSchemes:
@@ -71,6 +81,7 @@ targets:
         excludes:
           - README.md
       - FanPass/MockData
+      - FanPass/Assets.xcassets
       - FanPass/Features/Scanner
     dependencies:
       - package: Privy
@@ -90,10 +101,17 @@ targets:
       path: FanPassOps/Generated/Info.plist
       properties:
         CFBundleDisplayName: FanPass Ops
+        CFBundleIconName: AppIcon
         FanPassAPIBaseURL: $(FANPASS_API_BASE_URL)
         FanPassPrivyAppID: $(FANPASS_PRIVY_APP_ID)
         FanPassPrivyAppClientID: $(FANPASS_PRIVY_APP_CLIENT_ID)
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NFCReaderUsageDescription: FanPass Ops uses NFC to scan supported venue tags and ticket wristbands.
         NSCameraUsageDescription: FanPass Ops uses the camera to scan ticket QR codes at venue entry.
         CFBundleURLTypes:

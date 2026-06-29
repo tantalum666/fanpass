@@ -52,8 +52,10 @@ console.log(
     {
       ok: true,
       iosDistributionBoundaries: {
-        fanPassCapabilities: "consumer app has no camera or NFC permission",
-        fanPassOpsCapabilities: "Ops owns camera and NFC capability",
+        fanPassCapabilities:
+          "consumer app has camera purpose string but no scanner source or NFC capability",
+        fanPassOpsCapabilities:
+          "Ops owns QR camera scanning; native NFC remains DEBUG-only for release",
         releaseApiConfigs: "staging/beta/production configs are HTTPS-only",
         localApiConfig: "local debug may use localhost HTTP",
         providerSecrets: "checked iOS configs for server-side secret markers",
@@ -113,12 +115,17 @@ function validateXcodeTargets() {
     errors.push("FanPass target must exclude Features/Scanner");
   }
   if (
-    /CODE_SIGN_ENTITLEMENTS|NFCReaderUsageDescription|NSCameraUsageDescription/.test(
+    /CODE_SIGN_ENTITLEMENTS|NFCReaderUsageDescription|fanpass-ops/.test(
       fanPassBlock,
     )
   ) {
     errors.push(
-      "FanPass target must not declare camera, NFC, or Ops entitlements",
+      "FanPass target must not declare NFC, Ops URL, or Ops entitlements",
+    );
+  }
+  if (!/NSCameraUsageDescription:/.test(fanPassBlock)) {
+    errors.push(
+      "FanPass target must keep a camera purpose string for App Store validation",
     );
   }
   if (
@@ -237,7 +244,6 @@ function validateInfoPlistsAndEntitlements() {
   const opsEntitlements = read(files.fanPassOpsEntitlements);
 
   for (const forbidden of [
-    "NSCameraUsageDescription",
     "NFCReaderUsageDescription",
     "com.apple.developer.nfc.readersession.formats",
     "fanpass-ops",
@@ -248,6 +254,9 @@ function validateInfoPlistsAndEntitlements() {
   }
   for (const marker of [
     "FanPassStripePublishableKey",
+    "NSCameraUsageDescription",
+    "CFBundleIconName",
+    "ITSAppUsesNonExemptEncryption",
     "fanpass-payments",
     "$(FANPASS_API_BASE_URL)",
   ]) {
@@ -272,12 +281,14 @@ function validateInfoPlistsAndEntitlements() {
     }
   }
   if (
-    !opsEntitlements.includes(
+    opsEntitlements.includes(
       "com.apple.developer.nfc.readersession.formats",
     ) ||
-    !opsEntitlements.includes("<string>NDEF</string>")
+    opsEntitlements.includes("<string>NDEF</string>")
   ) {
-    errors.push("FanPassOps entitlements must keep Core NFC NDEF capability");
+    errors.push(
+      "FanPassOps release entitlements must not include Core NFC NDEF capability",
+    );
   }
 }
 
@@ -419,11 +430,11 @@ function validatePrivyPublicConfigBoundary(environment) {
 
 function validateWalletPrototypeBoundary() {
   const wallet = read(files.ticketWallet);
-  if (!wallet.includes('StatusPill(text: "Prototype"')) {
-    errors.push("Apple Wallet UI must label barcode metadata as Prototype");
-  }
   if (!wallet.includes("AppleWalletBarcodePrototype")) {
     errors.push("Apple Wallet barcode must remain explicit prototype metadata");
+  }
+  if (!wallet.includes('Text("Apple Wallet barcode")')) {
+    errors.push("Apple Wallet UI must keep explicit barcode-only labeling");
   }
   for (const forbidden of [
     "PKAddPassesViewController",
@@ -446,7 +457,8 @@ function validateDebugPayloadBoundary() {
 
   for (const marker of [
     "Copy barcode JSON",
-    "Copy entry payload",
+    "Copy entry code",
+    "copyPayload()",
     "UIPasteboard.general.string = payload.qrCodeString",
     "UIPasteboard.general.string = payload.walletBarcode.jsonString",
   ]) {
@@ -458,11 +470,10 @@ function validateDebugPayloadBoundary() {
   }
 
   for (const marker of [
-    "Paste QR payload JSON",
-    'Label("Paste"',
+    "Manual QR code",
+    'Label("Clipboard"',
     "pasteFromClipboard()",
     "UIPasteboard.general.string ?? qrText",
-    "Waiting for QR, NFC, or paste fallback",
   ]) {
     if (!isMarkerInsideDebugBlock(scanner, marker)) {
       errors.push(
@@ -494,8 +505,8 @@ function validateDocs() {
 
   for (const marker of [
     "security:ios-distribution-boundaries",
-    "FanPass target has no Camera/NFC permissions",
-    "FanPass Ops owns Camera/NFC capability",
+    "FanPass target has a camera purpose string but no scanner source or NFC capability",
+    "FanPass Ops owns QR camera scanning and keeps native Core NFC DEBUG-only",
     "signed `.pkpass`",
     "real HTTPS staging",
     "debug-gated payload copy/paste",

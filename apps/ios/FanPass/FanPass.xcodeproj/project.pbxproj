@@ -21,6 +21,7 @@
 		1964ED8B1D1775F93F200CD6 /* FanPassMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5C91E54D2A16699A77F9FD /* FanPassMockData.swift */; };
 		1AFAEBDC7F763A3F64CFA3B7 /* FPAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39113753AE5F5E59E381D399 /* FPAnimation.swift */; };
 		1B8EA1FB5C015DB2612C1F51 /* event-cover-neon.png in Resources */ = {isa = PBXBuildFile; fileRef = 12F9B5287845DDE1188961F3 /* event-cover-neon.png */; };
+		2526673E9FD6DAEC9E4EECFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 473E7165A26D223815FDE2B8 /* Assets.xcassets */; };
 		25E6A12B7EB542968FBBCBF5 /* FanPassPaymentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */; };
 		2C75E513CF25191AB52CBE8C /* FanPassV4APIDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7369C3315C5A2175F622B71 /* FanPassV4APIDataProvider.swift */; };
 		36CC2FF4976FDD89D7AC77E3 /* event-cover-midnight.png in Resources */ = {isa = PBXBuildFile; fileRef = EA59478F5D29634F2FF71FC8 /* event-cover-midnight.png */; };
@@ -83,6 +84,7 @@
 		B4B756DB65B440329F1562C1 /* FanPassV4ScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1617AE89F0612F6B233595F0 /* FanPassV4ScannerView.swift */; };
 		B6B51F4B1BDA88426B9FF9BF /* FanPassBackendContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */; };
 		B6F551CDFE6E70F69026CE78 /* FanPassV4MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8451AE9AFD1DBE8488F3C6B4 /* FanPassV4MainTabView.swift */; };
+		BF3F8C401500EFFDC7A457FE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 473E7165A26D223815FDE2B8 /* Assets.xcassets */; };
 		C069BB47D3EF5E65A6C8A9E1 /* Privy in Frameworks */ = {isa = PBXBuildFile; productRef = DCE64064F89C3CF02DA2E285 /* Privy */; };
 		C28F19DA69439C2F07450A5C /* FanPassAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */; };
 		C32220E93578C4B47E5D47A2 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = D1F1607EC3317D06D17CB777 /* StripePaymentSheet */; };
@@ -135,6 +137,7 @@
 		44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassAPIClient.swift; sourceTree = "<group>"; };
 		45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassEnvironment.swift; sourceTree = "<group>"; };
 		466CDBBDA22A363300286D44 /* FPColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPColors.swift; sourceTree = "<group>"; };
+		473E7165A26D223815FDE2B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		47C1C8DF80310AB09917884E /* FPTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPTypography.swift; sourceTree = "<group>"; };
 		516CD6E90C1CC30E57B240DA /* fanpass-brand-sheet-v4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "fanpass-brand-sheet-v4.png"; sourceTree = "<group>"; };
 		539C03177CDD4FF9E415A6E6 /* FanPass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FanPass.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -302,6 +305,7 @@
 		3FD8C719F8F751EAEF4B3BE1 /* FanPass */ = {
 			isa = PBXGroup;
 			children = (
+				473E7165A26D223815FDE2B8 /* Assets.xcassets */,
 				C1D9BA6679BECD125325B56D /* App */,
 				5571592606060DB301361F44 /* Assets */,
 				959706655FE8185946AB9309 /* DesignSystem */,
@@ -601,6 +605,7 @@
 			buildConfigurationList = E3F3373713C6CAFF357D9DCD /* Build configuration list for PBXNativeTarget "FanPassOps" */;
 			buildPhases = (
 				057A43CEF0B7C42EC34CEE18 /* Sources */,
+				57E823A4A2E496E5FFFCE89A /* Resources */,
 				6535E31D7B67ABAA55E21D0D /* Frameworks */,
 			);
 			buildRules = (
@@ -645,6 +650,12 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					345B967D8CB66448FED74826 = {
+						DevelopmentTeam = "$(FANPASS_APPLE_TEAM_ID)";
+						ProvisioningStyle = Manual;
+					};
+				};
 			};
 			buildConfigurationList = 5E981ACB0CA70CBB9A2AF2A7 /* Build configuration list for PBXProject "FanPass" */;
 			developmentRegion = en;
@@ -672,10 +683,19 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		57E823A4A2E496E5FFFCE89A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2526673E9FD6DAEC9E4EECFA /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D1E145F5D57C8A37FCA1AF45 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BF3F8C401500EFFDC7A457FE /* Assets.xcassets in Resources */,
 				E0B02E8135224A070BA97883 /* auth-discord-symbol.png in Resources */,
 				729B03E146D922CACF53BB47 /* auth-google-logo.png in Resources */,
 				918240ECB0A0090AD7A1CD2B /* auth-x-logo.png in Resources */,
@@ -819,16 +839,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8L99CFNK24;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
 				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -840,16 +860,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8L99CFNK24;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
 				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1007,16 +1027,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8L99CFNK24;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
 				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1180,16 +1200,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FanPassOps/FanPassOps.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8L99CFNK24;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "$(FANPASS_APPLE_TEAM_ID)";
 				INFOPLIST_FILE = FanPassOps/Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.ops;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

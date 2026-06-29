@@ -8,6 +8,8 @@
 	<string>FanPass</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -30,7 +32,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>FanPassAPIBaseURL</key>
 	<string>$(FANPASS_API_BASE_URL)</string>
 	<key>FanPassPrivyAppClientID</key>
@@ -39,6 +41,10 @@
 	<string>$(FANPASS_PRIVY_APP_ID)</string>
 	<key>FanPassStripePublishableKey</key>
 	<string>$(FANPASS_STRIPE_PUBLISHABLE_KEY)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>FanPass uses the camera to scan ticket QR codes when you choose a camera-based entry or support flow.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

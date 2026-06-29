@@ -56,23 +56,33 @@ const cases = [
       ),
   },
   {
-    label: "rejects FanPass camera permission drift",
+    label: "rejects missing FanPass camera purpose string",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPass/Generated/Info.plist",
+        fanPassInfoPlist({ cameraPurpose: false }),
+      ),
+  },
+  {
+    label: "rejects FanPass NFC permission drift",
     expected: "fail",
     mutate: (fixtureRoot) =>
       appendFixtureFile(
         fixtureRoot,
         "apps/ios/FanPass/FanPass/Generated/Info.plist",
-        "\n<key>NSCameraUsageDescription</key>\n<string>camera</string>\n",
+        "\n<key>NFCReaderUsageDescription</key>\n<string>NFC</string>\n",
       ),
   },
   {
-    label: "rejects FanPassOps missing NFC entitlement",
+    label: "rejects FanPassOps release NFC entitlement",
     expected: "fail",
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
         "apps/ios/FanPass/FanPassOps/FanPassOps.entitlements",
-        plist("<dict></dict>"),
+        opsEntitlements({ includeNdef: true }),
       ),
   },
   {
@@ -485,6 +495,7 @@ targets:
         CFBundleURLTypes:
         - CFBundleURLSchemes:
             - fanpass-payments
+        NSCameraUsageDescription: FanPass uses the camera to scan ticket QR codes when you choose a camera-based entry or support flow.
   FanPassOps:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.fanpass.ops${opsSigningSettings}
@@ -502,15 +513,21 @@ targets:
 `;
 }
 
-function fanPassInfoPlist() {
+function fanPassInfoPlist(options = {}) {
+  const cameraPurpose = options.cameraPurpose !== false;
   return plist(`
 <dict>
+  <key>CFBundleIconName</key>
+  <string>AppIcon</string>
   <key>CFBundleURLTypes</key>
   <array><dict><key>CFBundleURLSchemes</key><array><string>fanpass-payments</string></array></dict></array>
   <key>FanPassAPIBaseURL</key>
   <string>$(FANPASS_API_BASE_URL)</string>
   <key>FanPassStripePublishableKey</key>
   <string>$(FANPASS_STRIPE_PUBLISHABLE_KEY)</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+${cameraPurpose ? "  <key>NSCameraUsageDescription</key>\n  <string>FanPass uses the camera to scan ticket QR codes when you choose a camera-based entry or support flow.</string>\n" : ""}
 </dict>`);
 }
 
@@ -528,18 +545,21 @@ function opsInfoPlist() {
 </dict>`);
 }
 
-function opsEntitlements() {
-  return plist(`
+function opsEntitlements(options = {}) {
+  if (options.includeNdef) {
+    return plist(`
 <dict>
   <key>com.apple.developer.nfc.readersession.formats</key>
   <array><string>NDEF</string></array>
 </dict>`);
+  }
+  return plist("<dict></dict>");
 }
 
 function walletView(options = {}) {
   const debugWrap = options.debugWrap !== false;
   return `
-StatusPill(text: "Prototype", color: FanPassTheme.amber)
+Text("Apple Wallet barcode")
 struct AppleWalletBarcodePrototype {}
 ${debug(
   debugWrap,
@@ -547,7 +567,10 @@ ${debug(
 Button("Copy barcode JSON") {
   UIPasteboard.general.string = payload.walletBarcode.jsonString
 }
-Button("Copy entry payload") {
+Button("Copy entry code") {
+  copyPayload()
+}
+private func copyPayload() {
   UIPasteboard.general.string = payload.qrCodeString
 }
 `,
@@ -561,13 +584,12 @@ function scannerView(options = {}) {
 ${debug(
   debugWrap,
   `
-TextField("Paste QR payload JSON", text: $qrText)
+TextField("Manual QR code", text: $qrText)
 Button {
   pasteFromClipboard()
 } label: {
-  Label("Paste", systemImage: "doc.on.clipboard")
+  Label("Clipboard", systemImage: "doc.on.clipboard")
 }
-return "Waiting for QR, NFC, or paste fallback"
 private func pasteFromClipboard() {
   qrText = UIPasteboard.general.string ?? qrText
 }
@@ -592,7 +614,7 @@ function debug(debugWrap, contents) {
 }
 
 function docs() {
-  return "security:ios-distribution-boundaries\nFanPass target has no Camera/NFC permissions\nFanPass Ops owns Camera/NFC capability\nsigned `.pkpass`\nreal HTTPS staging\ndebug-gated payload copy/paste\nplaceholder Apple signing settings\ntest publishable-key runtime guard\nPrivy public-config secret guard\n";
+  return "security:ios-distribution-boundaries\nFanPass target has a camera purpose string but no scanner source or NFC capability\nFanPass Ops owns QR camera scanning and keeps native Core NFC DEBUG-only\nsigned `.pkpass`\nreal HTTPS staging\ndebug-gated payload copy/paste\nplaceholder Apple signing settings\ntest publishable-key runtime guard\nPrivy public-config secret guard\n";
 }
 
 function plist(body) {

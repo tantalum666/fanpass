@@ -26,6 +26,7 @@ Do not use real personal data, production credentials, production Stripe or Priv
 - Wallet, marketplace, fan access, profile, and checkout actions require an authenticated session.
 - Entry presentation for near-term testing is a dynamic, short-lived QR shown on the fan's phone; do not design the consumer flow around users carrying separate NFC/RFID tags.
 - Dynamic QR expires after 30 seconds and should auto-refresh before expiry while the entry-code sheet is visible. If auto-refresh fails, the app should show a refresh failure state and the backend must reject expired/superseded credentials.
+- Backend redemption must reject QR credentials that are not active yet, whose signed lifetime is longer than the server TTL, or whose signed timing differs from the stored active credential. Do not rely on fan-device or scanner-device clocks as the gate authority.
 - Payment UI uses the Stripe iOS PaymentSheet presenter boundary only when a test publishable key and staging PaymentIntent are available.
 - Wallet barcode remains a prototype unless saved Apple Wallet signed-pass evidence passes `npm run security:apple-wallet:evidence -- <saved-json-output>`.
 
@@ -34,6 +35,7 @@ Do not use real personal data, production credentials, production Stripe or Priv
 - Gate staff can sign in with verified auth and only see assigned event/gate access.
 - QR camera scanning accepts the first valid staging payload and rejects duplicate replay.
 - Same-ticket race coverage is required: two scans for the same ticket, including different signed nonces when a code has been copied/refreshed, must result in exactly one accepted backend redemption and the rest rejected as duplicate/invalid. Do not rely on UI disabled states, scanner throttling, chain settlement, or client clocks as the gate authority.
+- Screenshot/clock-window coverage is required: an expired QR, a superseded QR after refresh, a future-issued credential, a signed credential with an overlong lifetime, and a signed credential whose timing does not match the stored credential must all be rejected by the backend.
 - For the current TestFlight/internal release path, Ops is QR-first because App Store Connect rejected the release NDEF entitlement. Native Core NFC evidence is a separate future fixture path, not a prerequisite for initial internal QR testing.
 - When NFC is explicitly re-enabled later, it must read a supported physical NDEF tag into the same backend redemption path as QR. Generic RFID cards that cannot store/read NDEF are not sufficient for that future check.
 - Accepted and rejected counts update after scan results.
