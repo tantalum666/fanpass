@@ -51,7 +51,7 @@ Known gaps:
 
 - A compatible NFC tag is not currently available. EP8280/iPhone Wallet reaction proves the reader can see some NFC field/card activity, but not a FanPass NFC tag payload. The current validated ticket path is QR over TTL/Wiegand plus local duplicate rejection.
 - The bench setup is powered from Arduino/breadboard rails and may brown out under scanner/servo load until a separate regulated 5V supply is added.
-- No enclosure, two-servo lane, production turnstile controller, backend API redemption, HTTPS staging configuration, real signed FanPass credential, or persistent replay rejection is connected to this Arduino prototype. The duplicate QR guard is local RAM only and resets when the Arduino reboots.
+- Enclosure CAD/STL exists under `hardware/fanpass_turnstile/enclosure/outputs/`, with the current preferred local print candidate being the computer-use/Blender-native V2 front-panel fit check and shell. No physical enclosure has been printed or fit-tested yet. No two-servo lane, production turnstile controller, backend API redemption, HTTPS staging configuration, real signed FanPass credential, or persistent replay rejection is connected to this Arduino prototype. The duplicate QR guard is local RAM only and resets when the Arduino reboots.
 
 Evidence boundary:
 

@@ -227,7 +227,7 @@ Status: backend QR verification path unit-verified; physical scanner evidence st
 - FanPass iOS V4 encodes the returned backend payload into a QR image without displaying raw payload JSON, nonce, or signature.
 - `FanPassV4APIScannerService.refreshQRCredential` no longer silently falls back to `local-review` when `/verification/qr` fails. API-backed tickets must display a backend QR or show a refresh/error state.
 - FanPass Ops `ScannerView` treats `kid == "local-review"` as simulator-only local review. For normal backend payloads it decodes the QR JSON and calls `/verification/redeem`.
-- Backend redemption verifies scanner role/gate assignment, signature, expiry, active credential state, duplicate nonce/ticket redemption, current ticket ownership, and ticket lifecycle status.
+- Backend redemption verifies scanner role/gate assignment, signature, expiry, active credential state, stored credential timing match, duplicate nonce/ticket redemption, current ticket ownership, ticket lifecycle status, future-issued credential rejection, and signed credential lifetime enforcement.
 - Focused verification passed:
 
 ```bash
@@ -235,7 +235,22 @@ npm run test -w apps/api -- --runTestsByPath test/verification.service.spec.ts
 xcodebuild -quiet -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Beta -destination 'platform=iOS Simulator,id=41D28602-FF01-4E4C-98AA-DA7F4FC93D27' -derivedDataPath outputs/ios-sim-build/FanPassBeta build
 ```
 
-The verification suite covers accepted once, concurrent duplicate rejection for the same payload, duplicate rejection across refreshed signed nonces for the same ticket, NFC signed-entry redemption, previous QR credential revocation on refresh, wrong selected event, unassigned gate staff, listed-ticket QR generation blocking, production QR signing secret requirement, and 30-second TTL cap.
+The verification suite covers accepted once, concurrent duplicate rejection for the same payload, duplicate rejection across refreshed signed nonces for the same ticket, NFC signed-entry redemption, previous QR credential revocation on refresh, wrong selected event, unassigned gate staff, listed-ticket QR generation blocking, production QR signing secret requirement, 30-second TTL cap, signed credentials that are not active yet, signed credentials with a lifetime beyond the server TTL, and signed payload timing that differs from the stored credential.
+
+## 2026-06-24 Admission Timing Boundary Hardening
+
+Status: API unit-verified; physical scanner evidence still open
+
+- Redemption now rejects signed entry credentials whose `issuedAt` is more than 5 seconds in the future. This prevents a future-valid code from being accepted early if a client clock, test path, or stale signer produces an invalid window.
+- Redemption now rejects signed entry credentials whose `expiresAt - issuedAt` exceeds the server TTL plus 5 seconds of clock skew. This prevents a valid signature from turning into a long-lived screenshot credential.
+- For backend-issued credentials with `credentialId`, redemption now also requires the signed `issuedAt` and `expiresAt` to match the stored active credential. This prevents a validly signed payload from shifting the server-issued credential window.
+- Existing behavior remains: expired credentials are rejected, superseded credentials are rejected after QR refresh, and same-ticket races produce exactly one accepted redemption.
+- Verification passed:
+
+```bash
+scripts/with-node-22.sh npm run test -w apps/api -- --runTestsByPath test/verification.service.spec.ts
+scripts/with-node-22.sh npm run typecheck -w apps/api
+```
 
 Remaining evidence:
 
@@ -257,6 +272,7 @@ Current verified bench behavior:
 - LCD status copy is configured for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data states.
 - The servo gate opens for real QR payloads containing `FANPASS`.
 - The ultrasonic sensor detects pass-through and marks the local gate flow as passed.
+- Enclosure CAD/STL planning exists under `docs/hardware/FanPass_Turnstile_Enclosure_Spec.md` and `hardware/fanpass_turnstile/enclosure/`. The current preferred local print candidate is `fanpass_turnstile_front_panel_fitcheck_computeruse_v5.stl`, followed by `fanpass_turnstile_shell_computeruse_v5.stl` and `fanpass_turnstile_rear_lid_computeruse_v5.stl` only after fit-check. This is mechanical cleanup only, not product QR/NFC evidence.
 
 Current bench limitations:
 
@@ -264,6 +280,7 @@ Current bench limitations:
 - Pin7 decode-success alone does not provide QR text and is denied by default now that TTL content works.
 - The bench prototype is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging.
 - Arduino/breadboard rail power may be unstable under scanner/servo load until a separate regulated 5V supply is added.
+- No physical enclosure print or fit-test has been completed yet.
 
 Boundary:
 

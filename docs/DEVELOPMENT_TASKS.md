@@ -117,7 +117,7 @@ Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup 
 
 Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock turnstile prototype now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. It is local learning/prototype work only and does not close any native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, backend-authority, or chain-custody release blocker.
 
-TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR-first. App Store Connect rejected the `FanPassOps` release archive when it carried the Core NFC NDEF entitlement, so native NFC is DEBUG-only until a supported entitlement/profile path is reintroduced. The later App Store Connect orientation failure was fixed by adding all four required `UISupportedInterfaceOrientations` values to both iOS app Info.plists; old archives still need to be discarded and recreated.
+TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR-first. App Store Connect rejected the `FanPassOps` release archive when it carried the Core NFC NDEF entitlement, so native NFC is DEBUG-only until a supported entitlement/profile path is reintroduced. Later upload failures were fixed by adding all four required `UISupportedInterfaceOrientations` values, adding `CFBundleIconName: AppIcon`, and adding a shared asset-catalog `AppIcon` to both iOS app targets. The Ops build then appeared in TestFlight with `Missing Export Compliance`; for the current app behavior, answer `None of the above` in App Store Connect, and fresh archives now carry `ITSAppUsesNonExemptEncryption: false` for both iOS targets. The first main `FanPass` upload was rejected by email with `ITMS-90683` because `FanPass.app` lacked `NSCameraUsageDescription`; the main app now declares a camera purpose string and should be re-uploaded as version `1.0` build `2`. Old archives still need to be discarded and recreated for plist/asset fixes.
 
 - [x] Build a local Arduino/EP8280 mock turnstile bench that reads real QR text over TTL, displays LCD status, moves one servo gate, and uses ultrasonic pass-through detection.
 - [x] Update the iOS FanPass ticket detail `On-chain status` card to distinguish a current ticket with no Sepolia transaction from dev contract activity, and add Sepolia Etherscan links for ticket tx, contract, and latest observed tx where available.
@@ -125,6 +125,11 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
   - [x] Wire EP8280 Pin7 decode-success output to Arduino `D2` as diagnostics/fallback and delay fallback so TTL QR text has priority.
   - [x] Configure LCD states for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data.
   - [x] Require real QR content containing `FANPASS` before opening the servo gate in the bench sketch.
+  - [x] Draft the 3D-print enclosure dimension/cutout baseline in `docs/hardware/FanPass_Turnstile_Enclosure_Spec.md`.
+  - [x] Generate CAD/STL V1 for the shell, rear lid, and front-panel fit-check under `hardware/fanpass_turnstile/enclosure/outputs/`.
+  - [x] Generate CLI V2 and computer-use/Blender-native V2 enclosure variants after owner feedback: one enlarged rectangular ultrasonic slot, larger front cutouts, EP8280 screw centers tied to the vendor 58 mm x 44 mm drawing, and a visible right-side SG90-class servo bracket.
+  - [ ] Measure the actual LCD, HC-SR04 board, servo geometry, EP8280 cable bend, Arduino orientation, and 5V regulator before final CAD lock.
+  - [ ] Print and test `fanpass_turnstile_front_panel_fitcheck_computeruse_v2.stl` before printing the full enclosure.
   - [ ] Add a separate regulated 5V supply for servo/scanner stability instead of relying on Arduino/breadboard rail power.
   - [ ] Resolve EP8280 NFC card/tag behavior or document that the bench remains QR-only.
   - [ ] Connect the hardware bench to real FanPass API redemption only if explicitly scoped later; until then it remains separate from release evidence.
@@ -407,6 +412,14 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
     - [x] Enqueue payment capture after a settled Prisma trade.
     - [x] Add admin-protected, idempotent payment operation triggers for authorization cancellation, refund, and reconciliation.
     - [x] Verify cancellation, refund, and reconciliation with real Stripe test-mode keys and signed webhooks.
+  - [x] Add dev/staging USDC wallet payment path.
+    - [x] Add backend USDC quote and tx-confirmation routes guarded by fan/admin auth and idempotency.
+    - [x] Verify Sepolia ERC-20 `Transfer` logs for signed-in wallet, configured token contract, FanPass receiver, and quoted amount before marking payment captured.
+    - [x] Add backend Privy-sponsored USDC transfer route so iOS can request a sponsored Sepolia `transfer` and reuse backend chain confirmation before settlement.
+    - [x] Route confirmed USDC payments through the existing `ORDER_MATCH_AFTER_PAYMENT_AUTH` settlement path.
+    - [x] Add iOS crypto checkout state UI that creates quotes and calls the backend sponsored-send boundary instead of sending raw client-side wallet transactions.
+    - USDC/HKD quotes currently use configured staging rate `FANPASS_USDC_HKD_RATE` with fallback `7.8355`; this is close to the HKD/USD peg but is not live FX/oracle pricing until a quote provider is deliberately integrated.
+    - The sponsored USDC path remains dev/staging payment plumbing, not release-grade custody, real-money compliance, or audited FX evidence.
   - Status note on 2026-06-03: dashboard webhook setup, native iOS PaymentSheet authorization, capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against Render staging. The saved redacted evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passes `npm run security:stripe-testmode:evidence`.
 - [x] Add WebSocket orderbook updates.
   - [x] Wire FanPass Console market panel to the realtime orderbook feed.

@@ -45,6 +45,8 @@ Do not treat a blank card, generic RFID tag, or EP8280 NFC no-response test as p
 
 The EP8280 bench may remain useful as a local QR/NFC hardware experiment, but it is separate from the iPhone Core NFC NDEF fixture contract and cannot close physical-device NFC evidence.
 
+The 2026-06-24 enclosure CAD/STL work under `hardware/fanpass_turnstile/enclosure/` is mechanical cleanup for this local bench only. It does not change the NFC fixture contract, does not prove EP8280 NDEF behavior, and does not close physical-device NFC evidence.
+
 ## Supported NDEF Records
 
 Use one of these NDEF record types for internal QA tags:
