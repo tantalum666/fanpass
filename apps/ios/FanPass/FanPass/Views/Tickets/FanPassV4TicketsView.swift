@@ -506,9 +506,25 @@ struct FanPassV4TicketDetailView: View {
         case "linked":
             return "This ticket has a matching Sepolia record."
         case "mismatch":
-            return response.transaction == nil
-                ? "Ticket transaction is not attached yet."
-                : "Ticket metadata does not match the Sepolia record."
+            if response.transaction == nil {
+                return "Ticket transaction is not attached yet."
+            }
+            if response.wallet.matches == false {
+                return "Ticket holder does not match the Sepolia record."
+            }
+            if response.event.matches == false {
+                return "Ticket event does not match the Sepolia record."
+            }
+            if response.proof.ticketIdHashMatches == false || response.proof.ticketTypeHashMatches == false {
+                return "Ticket identity does not match the Sepolia record."
+            }
+            if response.proof.policyHashMatches == false {
+                return "Ticket rules do not match the Sepolia record."
+            }
+            if response.proof.metadataHashMatches == false {
+                return "Ticket metadata does not match the Sepolia record."
+            }
+            return "Ticket chain checks did not fully match."
         case "no_chain_record":
             return "No Sepolia token record is available for this ticket."
         case "not_configured":
