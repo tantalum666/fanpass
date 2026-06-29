@@ -91,13 +91,6 @@ export interface CryptoQuote {
   erc20TransferData: string;
 }
 
-interface RpcTransaction {
-  hash?: string;
-  from?: string;
-  to?: string;
-  input?: string;
-}
-
 interface RpcReceipt {
   status?: string;
   from?: string;
@@ -1468,31 +1461,18 @@ export class PaymentsService {
     receiverAddress: string;
     amountAtomic: bigint;
   }) {
-    const [transaction, receipt] = await Promise.all([
-      this.rpcCall<RpcTransaction | null>(input.rpcUrl, "eth_getTransactionByHash", [
-        input.transactionHash,
-      ]),
-      this.rpcCall<RpcReceipt | null>(input.rpcUrl, "eth_getTransactionReceipt", [
-        input.transactionHash,
-      ]),
-    ]);
-    if (!transaction || !receipt) {
+    const receipt = await this.rpcCall<RpcReceipt | null>(
+      input.rpcUrl,
+      "eth_getTransactionReceipt",
+      [input.transactionHash],
+    );
+    if (!receipt) {
       throw new BadRequestException(
         "USDC transaction is not confirmed on Sepolia yet",
       );
     }
     if (receipt.status !== "0x1" || !receipt.blockNumber) {
       throw new BadRequestException("USDC transaction failed or is pending");
-    }
-    if (this.normalizeAddress(transaction.from) !== input.payerAddress) {
-      throw new BadRequestException(
-        "USDC transaction was not sent from the signed-in wallet",
-      );
-    }
-    if (this.normalizeAddress(transaction.to) !== input.tokenContractAddress) {
-      throw new BadRequestException(
-        "USDC transaction did not target the configured token contract",
-      );
     }
 
     const matchingTransfer = receipt.logs?.some((log) =>

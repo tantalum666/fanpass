@@ -409,7 +409,7 @@ describe("PaymentsService", () => {
           json: async () => ({
             result: {
               hash: transactionHash,
-              from: payer,
+              from: "0x0000000000000000000000000000000000009999",
               to: token,
             },
           }),
@@ -564,7 +564,7 @@ describe("PaymentsService", () => {
           json: async () => ({
             result: {
               hash: transactionHash,
-              from: payer,
+              from: "0x0000000000000000000000000000000000009999",
               to: token,
             },
           }),
