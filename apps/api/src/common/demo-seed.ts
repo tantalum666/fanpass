@@ -26,6 +26,7 @@ export const demoSeedIds = {
   arenaGeneralTicketTypeId: "evt_aurora_ga",
   finalsLowerTicketTypeId: "evt_finals_premium",
   theatreBalconyTicketTypeId: "evt_family_ga",
+  comedyPreviewTicketTypeId: "evt_comedy_preview",
   ticketId: "tkt_demo_001",
   listedTicketId: "tkt_demo_002",
   settledTicketId: "tkt_demo_003",
@@ -405,7 +406,7 @@ function ticketTypesForEvent(event: PublicEventSpec): TicketTypeRecord[] {
     event.premiumSupply,
     event.generalSupply === 0 ? 0 : Math.max(2, Math.floor(event.premiumSupply / 4)),
   ];
-  return names.map((name, index) => ({
+  const ticketTypes = names.map((name, index) => ({
     id: [`${event.id}_ga`, `${event.id}_premium`, `${event.id}_vip`][index],
     eventId: event.id,
     name,
@@ -413,9 +414,26 @@ function ticketTypesForEvent(event: PublicEventSpec): TicketTypeRecord[] {
     currency: "HKD",
     supply: supplies[index],
     transferable: event.transferable,
-    resaleCap: resaleCap(prices[index]),
+    resaleCap:
+      event.id === "evt_family" && index === 0
+        ? null
+        : resaleCap(prices[index]),
     maxTransferCount: event.transferable ? (index === 0 ? 2 : 1) : 0,
   }));
+  if (event.id === "evt_comedy") {
+    ticketTypes.unshift({
+      id: demoSeedIds.comedyPreviewTicketTypeId,
+      eventId: event.id,
+      name: "Preview Pass",
+      faceValue: 6,
+      currency: "HKD",
+      supply: 120,
+      transferable: true,
+      resaleCap: null,
+      maxTransferCount: 2,
+    });
+  }
+  return ticketTypes;
 }
 
 function ticketTierNames(category: PublicEventSpec["category"]) {
