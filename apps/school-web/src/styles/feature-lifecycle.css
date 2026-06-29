@@ -1,0 +1,131 @@
+/* Settings-only lifecycle fixture panel for secondary route QA coverage. */
+
+.feature-workspace .feature-lifecycle-panel {
+  display: grid !important;
+  gap: 12px !important;
+  padding: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.105) !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014) 52%, transparent),
+    rgba(10, 12, 16, 0.86) !important;
+  box-shadow: none !important;
+}
+
+.feature-workspace .feature-lifecycle-panel > p {
+  max-width: 780px !important;
+  margin: 0 !important;
+  color: #aab5c4 !important;
+  font-size: 11px !important;
+  line-height: 1.42 !important;
+}
+
+.feature-workspace .feature-lifecycle-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+.feature-workspace .feature-lifecycle-grid > div {
+  display: grid !important;
+  align-content: start !important;
+  gap: 7px !important;
+  min-width: 0 !important;
+}
+
+.feature-workspace .feature-state-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 3px 10px !important;
+  min-height: 72px !important;
+  border: 1px solid rgba(255, 255, 255, 0.095) !important;
+  border-radius: 7px !important;
+  padding: 10px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.feature-workspace .feature-state-row span,
+.feature-workspace .feature-state-row p,
+.feature-workspace .feature-state-row b {
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.feature-workspace .feature-state-row span {
+  grid-column: 1 !important;
+  color: #8f9bad !important;
+  font-size: 9px !important;
+  font-weight: 860 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.feature-workspace .feature-state-row strong {
+  grid-column: 1 !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  line-height: 1.08 !important;
+}
+
+.feature-workspace .feature-state-row p {
+  grid-column: 1 !important;
+  display: -webkit-box !important;
+  color: #aab5c4 !important;
+  font-size: 10px !important;
+  line-height: 1.34 !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  white-space: normal !important;
+}
+
+.feature-workspace .feature-state-row b {
+  grid-column: 2 !important;
+  grid-row: 1 / span 3 !important;
+  align-self: center !important;
+  justify-self: end !important;
+  max-width: 170px !important;
+  color: #e7eef8 !important;
+  font-size: 10px !important;
+  font-weight: 850 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+.feature-workspace .feature-state-row.state-tone-ready,
+.feature-workspace .feature-state-row.state-tone-settled,
+.feature-workspace .feature-state-row.order-tone-ready,
+.feature-workspace .feature-state-row.order-tone-settled {
+  border-color: rgba(118, 246, 180, 0.22) !important;
+}
+
+.feature-workspace .feature-state-row.state-tone-pending,
+.feature-workspace .feature-state-row.state-tone-listed,
+.feature-workspace .feature-state-row.order-tone-pending,
+.feature-workspace .feature-state-row.order-tone-listed {
+  border-color: rgba(252, 211, 77, 0.24) !important;
+}
+
+.feature-workspace .feature-state-row.state-tone-blocked,
+.feature-workspace .feature-state-row.order-tone-blocked {
+  border-color: rgba(252, 165, 165, 0.24) !important;
+}
+
+@media (max-width: 720px) {
+  .feature-workspace .feature-lifecycle-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .feature-workspace .feature-state-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .feature-workspace .feature-state-row b {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    justify-self: start !important;
+    max-width: 100% !important;
+    text-align: left !important;
+  }
+}

@@ -6,6 +6,7 @@
   "workspaces": [
     "apps/api",
     "apps/dashboard",
+    "apps/school-web",
     "apps/web",
     "packages/contracts",
     "packages/shared"
@@ -14,8 +15,11 @@
     "dev": "npm run dev -w apps/api",
     "dev:api": "npm run dev -w apps/api",
     "dev:dashboard": "npm run dev -w apps/dashboard",
+    "dev:school-web": "npm run dev -w apps/school-web",
     "dev:web": "npm run dev -w apps/web",
+    "build:school-web": "npm run build -w apps/school-web",
     "build:web": "npm run build -w apps/web",
+    "typecheck:school-web": "npm run typecheck -w apps/school-web",
     "typecheck:web": "npm run typecheck -w apps/web",
     "prototype:start": "bash scripts/prototype-start.sh",
     "prototype:stop": "bash scripts/prototype-stop.sh",

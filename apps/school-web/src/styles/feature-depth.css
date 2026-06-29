@@ -1,0 +1,235 @@
+/* Secondary route depth panels for Venues, Artists, Collections, and Alerts. */
+
+.feature-workspace .feature-depth-panel,
+.feature-workspace .feature-depth-cards article,
+.feature-workspace .feature-depth-rows button {
+  border: 1px solid rgba(255, 255, 255, 0.105) !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014) 52%, transparent),
+    rgba(10, 12, 16, 0.86) !important;
+  box-shadow: none !important;
+}
+
+.feature-workspace .feature-depth-header span,
+.feature-workspace .feature-depth-cards span,
+.feature-workspace .feature-depth-rows span {
+  color: #838d9f !important;
+  font-size: 9px !important;
+  font-weight: 860 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
+}
+
+.feature-workspace .feature-depth-header p,
+.feature-workspace .feature-depth-cards p,
+.feature-workspace .feature-depth-rows p {
+  margin: 7px 0 0 !important;
+  color: #9fa9ba !important;
+  font-size: 10px !important;
+  line-height: 1.34 !important;
+}
+
+.feature-workspace .feature-depth-panel {
+  display: grid !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(244, 63, 218, 0.08), transparent 32%),
+    radial-gradient(circle at 82% 0%, rgba(79, 232, 255, 0.09), transparent 34%),
+    rgba(7, 9, 13, 0.92) !important;
+}
+
+.feature-workspace .feature-depth-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  gap: 18px !important;
+  min-width: 0 !important;
+  padding: 9px 10px 6px !important;
+}
+
+.feature-workspace .feature-depth-header strong {
+  display: block !important;
+  max-width: 820px !important;
+  margin-top: 5px !important;
+  color: #f8fafc !important;
+  font-size: 16px !important;
+  font-weight: 860 !important;
+  line-height: 1.08 !important;
+}
+
+.feature-workspace .feature-depth-header p {
+  max-width: 780px !important;
+  font-size: 11px !important;
+}
+
+.feature-workspace .feature-depth-header b {
+  justify-self: end !important;
+  color: #68e9ff !important;
+  font-size: 20px !important;
+  font-weight: 880 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.feature-workspace .feature-depth-body {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(254px, 0.48fr) !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.feature-workspace .feature-depth-rows {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.feature-workspace .feature-depth-rows button {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-content: start !important;
+  gap: 6px 10px !important;
+  min-height: 118px !important;
+  padding: 10px !important;
+  overflow: hidden !important;
+  text-align: left !important;
+}
+
+.feature-workspace .feature-depth-rows button:disabled {
+  cursor: default !important;
+}
+
+.feature-workspace .feature-depth-rows button::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-left: 1px solid rgba(79, 232, 255, 0.32) !important;
+  pointer-events: none !important;
+}
+
+.feature-workspace .feature-depth-rows button > span {
+  grid-column: 1 / -1 !important;
+  min-width: 0 !important;
+  color: #68e9ff !important;
+}
+
+.feature-workspace .feature-depth-rows button > div {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  align-content: start !important;
+  min-width: 0 !important;
+}
+
+.feature-workspace .feature-depth-rows strong {
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  line-height: 1.08 !important;
+}
+
+.feature-workspace .feature-depth-rows p {
+  display: -webkit-box !important;
+  min-height: 28px !important;
+  overflow: hidden !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.feature-workspace .feature-depth-rows i {
+  display: block !important;
+  min-width: 24px !important;
+  max-width: 100% !important;
+  height: 2px !important;
+  margin-top: 10px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #68e9ff, #f43fda) !important;
+  opacity: 0.86 !important;
+}
+
+.feature-workspace .feature-depth-rows b {
+  grid-column: 1 !important;
+  align-self: end !important;
+  color: #f8fafc !important;
+  font-size: 12px !important;
+  font-weight: 860 !important;
+  white-space: nowrap !important;
+}
+
+.feature-workspace .feature-depth-rows em {
+  grid-column: 2 !important;
+  align-self: end !important;
+  justify-self: end !important;
+  color: rgba(248, 250, 252, 0.26) !important;
+  font-size: 22px !important;
+  font-style: normal !important;
+  font-weight: 880 !important;
+  line-height: 0.9 !important;
+}
+
+.feature-workspace .feature-depth-cards {
+  display: grid !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.feature-workspace .feature-depth-cards article {
+  display: grid !important;
+  align-content: start !important;
+  min-height: 76px !important;
+  padding: 10px !important;
+  background:
+    linear-gradient(90deg, rgba(244, 63, 218, 0.07), transparent 52%),
+    rgba(255, 255, 255, 0.034) !important;
+}
+
+.feature-workspace .feature-depth-cards strong {
+  margin-top: 6px !important;
+  color: #f8fafc !important;
+  font-size: 15px !important;
+  line-height: 1.05 !important;
+}
+
+.feature-workspace .feature-depth-cards p {
+  margin-top: 6px !important;
+}
+
+@media (max-width: 1180px) {
+  .feature-workspace .feature-depth-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .feature-workspace .feature-depth-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  .feature-workspace .feature-depth-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .feature-workspace .feature-depth-header,
+  .feature-workspace .feature-depth-rows,
+  .feature-workspace .feature-depth-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .feature-workspace .feature-depth-header {
+    align-items: start !important;
+    gap: 8px !important;
+  }
+
+  .feature-workspace .feature-depth-header b {
+    justify-self: start !important;
+  }
+
+  .feature-workspace .feature-depth-rows button {
+    min-height: 108px !important;
+  }
+}

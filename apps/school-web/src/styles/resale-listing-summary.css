@@ -1,0 +1,164 @@
+/* List Ticket For Resale summary, payout, execution, and rule panels. */
+
+.resale-summary-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.016)),
+    rgba(10, 13, 18, 0.9);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.28);
+}
+
+.resale-ticket-strip {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.resale-ticket-strip img {
+  width: 74px;
+  height: 74px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.resale-ticket-strip span,
+.resale-rule-stack span,
+.resale-payout-table dt {
+  color: #929cab;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.resale-ticket-strip strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fafc;
+  font-size: 18px;
+}
+
+.resale-ticket-strip p {
+  margin: 3px 0 0;
+  color: #aab5c4;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.resale-payout-table {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.resale-payout-table div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 42px;
+  border-top: 1px solid rgba(255, 255, 255, 0.085);
+}
+
+.resale-payout-table div:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.085);
+}
+
+.resale-payout-table dd {
+  margin: 0;
+  color: #f8fafc;
+  font-weight: 900;
+}
+
+.resale-execution-path {
+  display: grid;
+  gap: 8px;
+}
+
+.resale-execution-path article {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 10px 10px 10px 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.resale-execution-path article::before {
+  content: "";
+  position: absolute;
+  inset: 9px auto 9px 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: #4fe8ff;
+}
+
+.resale-execution-path article:nth-of-type(3)::before {
+  background: #f5bf4f;
+}
+
+.resale-execution-path span {
+  display: block;
+  color: #929cab;
+  font-size: 9px;
+  font-weight: 860;
+  text-transform: uppercase;
+}
+
+.resale-execution-path strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.resale-execution-path p {
+  margin: 6px 0 0;
+  color: #aab5c4;
+  font-size: 11px;
+  line-height: 1.36;
+}
+
+.resale-rule-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.resale-rule-stack div {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.resale-rule-stack svg {
+  color: #55f19d;
+}
+
+.resale-rule-stack strong {
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .resale-rule-stack div {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .resale-rule-stack strong {
+    grid-column: 2;
+  }
+}

@@ -1,0 +1,143 @@
+/* Unified product-view frame.
+   This is the last visual layer for app pages: keep route-specific concepts inside one shell
+   without adding more broad overrides to global.css. */
+
+.product-view {
+  width: 100%;
+  max-width: var(--content);
+  margin: 0;
+  color: #f8fafc;
+}
+
+.product-view,
+.product-view * {
+  box-sizing: border-box;
+}
+
+.product-view :is(.panel-heading, .section-title, .feature-masthead-copy) span {
+  letter-spacing: 0;
+}
+
+.product-view :is(
+  .editorial-checkout,
+  .terminal-event-strip,
+  .terminal-grid > section,
+  .tickets-drawer,
+  .order-card,
+  .feature-masthead-copy,
+  .feature-metric-strip,
+  .feature-canvas-grid > section,
+  .ticket-pass-panel,
+  .entry-code-panel,
+  .ticket-rule-panel,
+  .proof-history-panel,
+  .checkout-main,
+  .order-summary,
+  .event-detail-ticket-stack,
+  .event-detail-story,
+  .event-detail-market,
+  .event-detail-principles,
+  .event-detail-policy
+) {
+  border-color: rgba(255, 255, 255, 0.105);
+  border-radius: 8px;
+  background-color: rgba(10, 12, 16, 0.82);
+}
+
+.product-view:is(.feature-workspace, .pulse-concept, .terminal-concept) {
+  min-height: calc(100vh - 112px);
+}
+
+.terminal-concept {
+  align-content: start;
+  gap: 10px;
+}
+
+.terminal-event-strip,
+.terminal-grid {
+  max-width: 100%;
+}
+
+.terminal-grid > section {
+  min-height: clamp(390px, 54vh, 520px);
+}
+
+.pulse-concept,
+.feature-workspace {
+  align-content: start;
+}
+
+.product-view:is(.feature-workspace, .pulse-concept, .terminal-concept, .ticket-detail-view, .event-view, .checkout-view) {
+  gap: 10px;
+}
+
+.feature-workspace .feature-masthead,
+.feature-workspace .feature-canvas-grid,
+.pulse-concept,
+.terminal-grid,
+.ticket-detail-grid,
+.checkout-terminal-grid,
+.event-detail-grid {
+  max-width: 100%;
+}
+
+.feature-workspace .feature-masthead-copy h1,
+.feature-workspace .feature-masthead-copy p,
+.feature-workspace .feature-list-panel strong,
+.feature-workspace .feature-list-panel p {
+  letter-spacing: 0;
+}
+
+.product-view :is(
+  .feature-masthead-copy,
+  .feature-metric-strip,
+  .feature-canvas-grid > section,
+  .pulse-status-rail > div,
+  .pulse-status-rail > p,
+  .pulse-activity-strip > section,
+  .tickets-drawer,
+  .order-card,
+  .drawer-tabs,
+  .feature-rows button,
+  .feature-system-flow div,
+  .feature-checks div
+) {
+  border-color: rgba(255, 255, 255, 0.105);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.016)),
+    rgba(10, 12, 16, 0.82);
+  box-shadow: none;
+}
+
+.pulse-concept .tickets-drawer,
+.pulse-concept .order-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.016)),
+    rgba(10, 12, 16, 0.86);
+}
+
+.pulse-wallet .tickets-drawer,
+.pulse-orders .tickets-drawer,
+.pulse-wallet .drawer-tabs button:first-child,
+.pulse-orders .drawer-tabs button:first-child {
+  border-color: rgba(79, 232, 255, 0.22);
+  color: #e8f6ff;
+}
+
+.feature-workspace .feature-masthead-copy h1,
+.feature-workspace .feature-masthead-copy p,
+.pulse-concept .section-title,
+.pulse-status-rail > p {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .product-view {
+    max-width: none;
+  }
+
+  .terminal-grid > section {
+    min-height: 0;
+  }
+}

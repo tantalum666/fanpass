@@ -1,0 +1,97 @@
+/* Shared search and topbar controls rendered above every product route. */
+
+.command-strip {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(280px, 580px) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  width: var(--content);
+  height: 36px;
+  margin: 0 0 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.search-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 0 13px;
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(18px);
+}
+
+.search-box span {
+  color: #7c828d;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: none;
+}
+
+.search-box input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.topbar-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 11px;
+  min-width: 0;
+}
+
+.topbar-controls > button {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #f0f2f6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.utility-actions {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.utility-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.utility-actions button svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 720px) {
+  .command-strip {
+    grid-template-columns: 1fr;
+    height: auto;
+    gap: 8px;
+    margin-top: 104px;
+  }
+
+  .topbar-controls {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+}

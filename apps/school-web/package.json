@@ -1,0 +1,33 @@
+{
+  "name": "@fanpass/school-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "node server/index.js",
+    "dev:web": "vite --host 0.0.0.0",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "start": "node server/index.js",
+    "preview": "npm run build && node server/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "lucide-react": "^1.17.0",
+    "mongodb": "^6.21.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.2.6"
+  }
+}

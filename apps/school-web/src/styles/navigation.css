@@ -1,0 +1,155 @@
+/* Runtime navigation stability.
+   This file intentionally loads last so legacy concept-mode CSS cannot reshape the sidebar per route. */
+
+.app-header {
+  width: 178px !important;
+  min-width: 178px !important;
+}
+
+.app-header .top-nav {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-header .nav-button,
+.app-header .nav-button:hover,
+.app-header .nav-button:focus-visible,
+.app-header .nav-button.active,
+.app-header .nav-button[aria-current="page"],
+.app-header .nav-button[data-active="true"],
+.app-shell[data-route] .app-header .nav-button,
+.app-shell[data-route] .app-header .nav-button:hover,
+.app-shell[data-route] .app-header .nav-button:focus-visible,
+.app-shell[data-route] .app-header .nav-button.active,
+.app-shell[data-route] .app-header .nav-button[aria-current="page"],
+.app-shell[data-route] .app-header .nav-button[data-active="true"],
+.design-pulse .app-header .nav-button.active,
+.design-terminal .app-header .nav-button.active {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 3px 16px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 28px !important;
+  border-color: transparent !important;
+  border-radius: 5px !important;
+  outline: 0 !important;
+  outline-offset: 0 !important;
+  padding: 0 8px 0 6px !important;
+  color: #c7cbd4 !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  font-weight: 720 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+  transition: none !important;
+  contain: layout style !important;
+}
+
+.app-header .nav-button:hover,
+.app-header .nav-button:focus-visible {
+  color: #f2f4f8 !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.app-header .nav-button:focus-visible .nav-active-marker {
+  opacity: 1 !important;
+}
+
+.app-header .nav-button.active,
+.app-header .nav-button[data-active="true"],
+.app-header .nav-button[aria-current="page"],
+.app-shell[data-route] .app-header .nav-button.active,
+.app-shell[data-route] .app-header .nav-button[data-active="true"],
+.app-shell[data-route] .app-header .nav-button[aria-current="page"],
+.design-pulse .app-header .nav-button.active,
+.design-terminal .app-header .nav-button.active {
+  color: #eef3f8 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none !important;
+}
+
+.app-header .nav-active-marker {
+  grid-column: 1 !important;
+  display: block !important;
+  width: 3px !important;
+  height: 14px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, #ff4bb0, #4fe8ff) !important;
+  opacity: 0 !important;
+  transform: none !important;
+}
+
+.app-header .nav-button.active .nav-active-marker,
+.app-header .nav-button[data-active="true"] .nav-active-marker,
+.app-header .nav-button[aria-current="page"] .nav-active-marker {
+  opacity: 1 !important;
+}
+
+.app-header .nav-button svg {
+  grid-column: 2 !important;
+  width: 14px !important;
+  height: 14px !important;
+  color: currentColor !important;
+  transform: none !important;
+}
+
+.app-header .nav-button .nav-label,
+.app-header .nav-button > span.nav-label {
+  grid-column: 3 !important;
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: inherit !important;
+  line-height: 1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  .app-header .top-nav {
+    display: flex !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+  }
+
+  .app-header .top-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .app-header .nav-group {
+    display: contents !important;
+  }
+
+  .app-header .nav-button,
+  .app-header .nav-button:hover,
+  .app-header .nav-button:focus-visible,
+  .app-header .nav-button.active {
+    width: auto !important;
+    flex: 0 0 116px !important;
+    min-height: 34px !important;
+    grid-template-columns: 3px 16px minmax(0, 1fr) !important;
+  }
+
+  .app-header .nav-button.active,
+  .app-header .nav-button[data-active="true"],
+  .app-header .nav-button[aria-current="page"] {
+    order: -1 !important;
+  }
+}

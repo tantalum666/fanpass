@@ -1,0 +1,692 @@
+/* Pulse drawer and order fidelity layer.
+   Keep tickets, proof tiles, order cards, and settlement/provenance styling separate from the Pulse command shell. */
+
+.pulse-concept .tickets-drawer,
+.pulse-concept .order-card {
+  width: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018) 42%, transparent),
+    rgba(14, 16, 20, 0.92);
+  box-shadow: 0 18px 72px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(18px);
+}
+
+.pulse-concept .tickets-drawer,
+.pulse-concept .order-card {
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 65, 170, 0.1), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018)),
+    rgba(10, 12, 16, 0.86);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+}
+
+.pulse-concept .drawer-heading {
+  min-height: 24px;
+}
+
+.pulse-concept .drawer-heading span {
+  color: #f8fafc;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pulse-concept .drawer-heading button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #c7cfdb;
+  cursor: pointer;
+}
+
+.pulse-concept .drawer-heading button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.pulse-concept .drawer-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 2px 0 12px;
+}
+
+.pulse-concept .drawer-tabs button {
+  min-height: 36px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 860;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pulse-concept .drawer-tabs button:first-child {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pulse-concept .tickets-drawer article {
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: 12px;
+  min-height: 126px;
+  margin-top: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 12px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.64), rgba(0, 0, 0, 0.18)),
+    rgba(255, 255, 255, 0.035);
+}
+
+.pulse-concept .tickets-drawer article::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(9, 10, 13, 0.76) 0%, rgba(9, 10, 13, 0.5) 50%, rgba(9, 10, 13, 0.22) 100%);
+  pointer-events: none;
+}
+
+.pulse-concept .tickets-drawer article > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.52;
+  transform: scale(1.08);
+}
+
+.pulse-concept .tickets-drawer article > div {
+  z-index: 1;
+}
+
+.pulse-concept .ticket-date-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 5px;
+  margin-right: 9px;
+  background: #f8fafc;
+  color: #080a0f;
+  font-size: 10px;
+  font-weight: 920;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  vertical-align: middle;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+.pulse-concept .tickets-drawer article > div > small {
+  color: #c7cfdb;
+  font-size: 9px;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.pulse-concept .tickets-drawer h3 {
+  margin: 8px 0 4px;
+  color: #fff;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.pulse-concept .tickets-drawer p {
+  margin: 0;
+  color: #d8dee9;
+  line-height: 1.25;
+}
+
+.pulse-concept .ticket-seat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 188px;
+  margin-top: 13px;
+}
+
+.pulse-concept .ticket-seat-grid small {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.pulse-concept .ticket-seat-grid b {
+  color: #f8fafc;
+  font-size: 11px;
+}
+
+.pulse-concept .tickets-drawer em {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 860;
+}
+
+.pulse-concept .tickets-drawer em::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.pulse-concept .tickets-drawer article[data-ticket-status="active"] em,
+.pulse-concept .tickets-drawer article[data-ticket-status="transferred"] em {
+  color: #76f6b4;
+}
+
+.pulse-concept .tickets-drawer article[data-ticket-status="listed"] em,
+.pulse-concept .tickets-drawer article[data-ticket-status="transfer-pending"] em {
+  color: #fcd34d;
+}
+
+.pulse-concept .tickets-drawer article[data-ticket-status="redeemed"] em {
+  color: #c4b5fd;
+}
+
+.pulse-concept .tickets-drawer article[data-ticket-status="cancelled"] em,
+.pulse-concept .tickets-drawer article[data-ticket-status="refunded"] em,
+.pulse-concept .tickets-drawer article[data-ticket-status="expired"] em {
+  color: #fca5a5;
+}
+
+.pulse-concept .tickets-drawer article[data-ticket-status="cancelled"],
+.pulse-concept .tickets-drawer article[data-ticket-status="refunded"],
+.pulse-concept .tickets-drawer article[data-ticket-status="expired"] {
+  opacity: 0.76;
+}
+
+.pulse-concept .qr-box {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  align-self: end;
+  width: 74px;
+  height: 74px;
+  border: 7px solid #f8fafc;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, #0a0a0a 10px, transparent 10px) 0 0 / 20px 20px,
+    linear-gradient(#0a0a0a 10px, transparent 10px) 0 0 / 20px 20px,
+    radial-gradient(circle at 78% 22%, #0a0a0a 0 7px, transparent 8px),
+    #f8fafc;
+  color: #111;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+.pulse-concept .qr-box span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 20px;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  background: #f8fafc;
+  color: #111;
+  font-size: 8px;
+}
+
+.pulse-concept .proof-tile {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  width: 70px;
+  height: 70px;
+  padding: 7px;
+  border: 4px solid rgba(255, 255, 255, 0.96);
+  border-radius: 4px;
+  background: #f8fafc;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
+}
+
+.pulse-concept .proof-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  gap: 1px;
+  width: 46px;
+  height: 46px;
+}
+
+.pulse-concept .proof-grid span {
+  display: block;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.pulse-concept .proof-grid span.active {
+  background: #111318;
+}
+
+.pulse-concept .proof-tile small {
+  color: #111318;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.pulse-concept .drawer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pulse-concept .drawer-actions button,
+.pulse-concept .order-card > button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 20px;
+  background: #f8fafc;
+  color: #080a0f;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.pulse-concept .drawer-actions button:hover,
+.pulse-concept .order-card > button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 34px rgba(255, 255, 255, 0.12);
+}
+
+.pulse-concept .drawer-actions button:first-child {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.pulse-concept .drawer-actions button:last-child,
+.pulse-concept .order-card > button {
+  background: linear-gradient(135deg, #ff4bb0, #e82d8f);
+  color: #fff;
+}
+
+.pulse-concept .drawer-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.pulse-concept .order-mini {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: start;
+  margin: 15px 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  padding-bottom: 16px;
+}
+
+.pulse-concept .order-mini img {
+  width: 56px;
+  height: 56px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.pulse-concept .order-mini p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.pulse-concept .order-mini strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #fff;
+  font-size: 16px;
+}
+
+.pulse-concept .order-card dl {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 10px;
+}
+
+.pulse-concept .order-card dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pulse-concept .order-card dt {
+  color: #d8dee9;
+  font-size: 11px;
+}
+
+.pulse-concept .order-card dd {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.pulse-concept .order-card dl div:last-child {
+  border-top: 1px solid rgba(255, 255, 255, 0.11);
+  margin-top: 4px;
+  padding-top: 14px;
+}
+
+.pulse-concept .order-card dl div:last-child dt,
+.pulse-concept .order-card dl div:last-child dd {
+  font-size: 14px;
+}
+
+.pulse-concept .order-card > button {
+  width: 100%;
+  min-height: 42px;
+}
+
+.pulse-concept .order-trust-stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pulse-concept .order-trust-stack p {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 9px;
+  row-gap: 2px;
+  margin: 0;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.pulse-concept .order-trust-stack p > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 75, 176, 0.48);
+  border-radius: 999px;
+  background: rgba(255, 75, 176, 0.1);
+  color: #ff4bb0;
+}
+
+.pulse-concept .order-trust-stack small {
+  display: block;
+  grid-column: 2;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.pulse-concept .order-timeline {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  padding-top: 11px;
+}
+
+.pulse-concept .order-timeline p {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  color: #dbe5f0;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.pulse-concept .order-timeline svg {
+  color: #67e8a5;
+}
+
+.pulse-concept .pulse-order-row {
+  position: relative;
+}
+
+.pulse-concept .pulse-order-row em {
+  display: inline-block;
+  width: max-content;
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #dce5f0;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.pulse-concept .pulse-order-row.order-tone-settled em,
+.pulse-concept .pulse-order-row.order-tone-ready em {
+  border-color: rgba(118, 246, 180, 0.24);
+  color: #76f6b4;
+  background: rgba(118, 246, 180, 0.07);
+}
+
+.pulse-concept .pulse-order-row.order-tone-listed em,
+.pulse-concept .pulse-order-row.order-tone-pending em {
+  border-color: rgba(252, 211, 77, 0.24);
+  color: #fcd34d;
+  background: rgba(252, 211, 77, 0.07);
+}
+
+.pulse-concept .pulse-order-row.order-tone-blocked em {
+  border-color: rgba(252, 165, 165, 0.24);
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.07);
+}
+
+.pulse-concept .order-settlement-card {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(79, 232, 255, 0.1), transparent 42%),
+    rgba(0, 0, 0, 0.2);
+}
+
+.pulse-concept .order-settlement-card > span {
+  color: #8792a2;
+  font-size: 9px;
+  font-weight: 860;
+  text-transform: uppercase;
+}
+
+.pulse-concept .order-settlement-card > strong {
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.pulse-concept .order-settlement-card > p {
+  margin: 0;
+  color: #aab5c4;
+  font-size: 10px;
+  line-height: 1.36;
+}
+
+.pulse-concept .order-settlement-card > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pulse-concept .order-settlement-card small {
+  display: grid;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 7px;
+  color: #8994a5;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pulse-concept .order-settlement-card b {
+  color: #f8fafc;
+  font-size: 10px;
+  font-weight: 880;
+  text-transform: none;
+}
+
+.pulse-concept .order-provenance-list {
+  display: grid;
+  gap: 6px;
+}
+
+.pulse-concept .order-provenance-list article {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.pulse-concept .order-provenance-list span {
+  color: #8d98a8;
+  font-size: 8px;
+  font-weight: 880;
+  text-transform: uppercase;
+}
+
+.pulse-concept .order-provenance-list strong {
+  color: #f8fafc;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.pulse-concept .order-provenance-list p {
+  margin: 0;
+  color: #9ea9b8;
+  font-size: 9px;
+  line-height: 1.34;
+}
+
+.pulse-concept .order-provenance-list .order-tone-ready {
+  border-color: rgba(118, 246, 180, 0.16);
+}
+
+.pulse-concept .order-provenance-list .order-tone-settled {
+  border-color: rgba(79, 232, 255, 0.18);
+}
+
+.pulse-concept .order-provenance-list .order-tone-listed,
+.pulse-concept .order-provenance-list .order-tone-pending {
+  border-color: rgba(252, 211, 77, 0.16);
+}
+
+.pulse-concept .order-provenance-list .order-tone-blocked {
+  border-color: rgba(252, 165, 165, 0.18);
+}
+
+.pulse-concept .order-card.order-tone-settled .panel-heading strong,
+.pulse-concept .order-timeline .order-tone-ready svg,
+.pulse-concept .order-timeline .order-tone-settled svg {
+  color: #76f6b4;
+}
+
+.pulse-concept .order-card.order-tone-listed .panel-heading strong,
+.pulse-concept .order-card.order-tone-pending .panel-heading strong,
+.pulse-concept .order-timeline .order-tone-listed svg,
+.pulse-concept .order-timeline .order-tone-pending svg {
+  color: #fcd34d;
+}
+
+.pulse-concept .order-card.order-tone-blocked .panel-heading strong,
+.pulse-concept .order-timeline .order-tone-blocked svg {
+  color: #fca5a5;
+}
+
+.pulse-concept .order-timeline p span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulse-wallet .tickets-drawer,
+.pulse-orders .tickets-drawer {
+  border-color: rgba(79, 232, 255, 0.22);
+}
+
+.pulse-wallet .drawer-tabs button:first-child,
+.pulse-orders .drawer-tabs button:first-child {
+  border-color: #4fe8ff;
+  color: #4fe8ff;
+}
+
+.pulse-concept .ticket-open-link {
+  width: max-content;
+  min-height: 0;
+  margin-top: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.075);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .pulse-concept .tickets-drawer,
+  .pulse-concept .order-card {
+    width: 100%;
+  }
+
+  .pulse-concept .tickets-drawer article {
+    grid-template-columns: minmax(0, 1fr) 70px;
+  }
+
+  .pulse-concept .order-settlement-card > div {
+    grid-template-columns: 1fr;
+  }
+}
