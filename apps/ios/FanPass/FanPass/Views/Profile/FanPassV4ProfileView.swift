@@ -16,6 +16,23 @@ struct FanPassV4ProfileView: View {
     @State private var walletBalanceError: String?
     @State private var isLoadingWalletBalances = false
     @State private var copiedWalletAddress = false
+    @State private var displayNameDraft = ""
+    @State private var profileSaved = false
+    @State private var dataExportRequested = false
+    @State private var pushAlertsEnabled = true
+    @State private var emailReceiptsEnabled = true
+    @State private var priceAlertsEnabled = true
+    @State private var entryRemindersEnabled = true
+    @State private var marketingUpdatesEnabled = false
+    @State private var trustedDeviceEnabled = true
+    @State private var friendDiscoveryEnabled = false
+    @State private var usageAnalyticsEnabled = false
+    @State private var selectedCurrency = "HKD"
+    @State private var selectedRegion = "Hong Kong"
+    @State private var selectedAppearance = "System"
+    @State private var selectedSupportTopic = "Order"
+    @State private var supportDraft = ""
+    @State private var supportSubmitted = false
     let showStaffMode: Bool
     let onSignOut: () -> Void
     let onScenarioApplied: (FanPassV4.DemoUserScenario) -> Void
@@ -32,6 +49,7 @@ struct FanPassV4ProfileView: View {
         self.onScenarioApplied = onScenarioApplied
         _selectedSection = selectedSection
         _viewModel = State(initialValue: ProfileViewModel(user: user))
+        _displayNameDraft = State(initialValue: user.displayName)
     }
 
     var body: some View {
@@ -77,6 +95,7 @@ struct FanPassV4ProfileView: View {
         }
         .task(id: backend.user.id) {
             viewModel.user = backend.user
+            displayNameDraft = backend.user.displayName
             walletBalances = nil
             walletBalanceError = nil
             isLoadingWalletBalances = false
@@ -158,8 +177,14 @@ struct FanPassV4ProfileView: View {
                 alerts
             case .security:
                 securityPrivacy
+            case .paymentMethods:
+                paymentMethods
             case .wallet:
                 walletAndKeys
+            case .sellerPayouts:
+                sellerPayouts
+            case .credits:
+                creditsAndPromos
             case .settings:
                 settings
             case .support:
@@ -171,48 +196,92 @@ struct FanPassV4ProfileView: View {
     }
 
     private var accountMenu: some View {
-        AccountSettingsGroup(items: AccountMenuItem.allCases, compact: !backend.isAuthenticated) { item in
-            guard backend.isAuthenticated else {
-                showSignInPage = true
-                return
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            ForEach(AccountMenuSection.allCases) { section in
+                VStack(alignment: .leading, spacing: FPSpacing.sm) {
+                    FPSectionHeader(title: section.title, subtitle: section.subtitle)
+                    AccountSettingsGroup(items: section.items, compact: !backend.isAuthenticated) { item in
+                        guard backend.isAuthenticated else {
+                            showSignInPage = true
+                            return
+                        }
+                        if let section = item.section {
+                            selectedSection = section
+                        }
+                        accountRoute = .menu(item)
+                    }
+                }
             }
-            if let section = item.section {
-                selectedSection = section
-            }
-            accountRoute = .menu(item)
         }
     }
 
     private var profileDetails: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Profile details", subtitle: "Private details stay masked")
+            FPSectionHeader(title: "Profile details", subtitle: "Private details stay masked until needed")
+            FPSurfaceCard {
+                VStack(alignment: .leading, spacing: FPSpacing.md) {
+                    Text("Display name")
+                        .font(FPTypography.caption)
+                        .foregroundStyle(FPColors.textSecondary)
+                    TextField("Display name", text: $displayNameDraft)
+                        .textInputAutocapitalization(.words)
+                        .font(FPTypography.callout)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .padding(FPSpacing.md)
+                        .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                    FPPrimaryButton(title: profileSaved ? "Saved" : "Save profile", systemImage: profileSaved ? "checkmark" : "person.crop.circle.fill") {
+                        saveProfileDraft()
+                    }
+                    .disabled(displayNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
             FPConceptRowList(rows: [
-                .init(id: "name", icon: FPIcons.profile, title: "Display name", subtitle: viewModel.user.displayName, value: "Editable"),
-                .init(id: "email", icon: "envelope.fill", title: "Email", subtitle: viewModel.user.maskedEmail, value: "Masked", kind: .info),
-                .init(id: "data", icon: "tray.and.arrow.down.fill", title: "Data export", subtitle: "Request account and ticket lifecycle records.", value: "Request")
+                .init(id: "email", icon: "envelope.fill", title: "Email", subtitle: viewModel.user.maskedEmail, value: "Verified", kind: .success),
+                .init(id: "phone", icon: "phone.fill", title: "Phone", subtitle: "Optional for event day support.", value: "Not set", kind: .warning),
+                .init(id: "social", icon: "person.2.fill", title: "Connected sign-in", subtitle: "Email code and linked social sign-in stay available.", value: "Ready", kind: .success),
+                .init(id: "data", icon: "tray.and.arrow.down.fill", title: "Data export", subtitle: "Request account, order, ticket lifecycle, and support records.", value: dataExportRequested ? "Requested" : "Request", kind: dataExportRequested ? .success : .info)
             ])
+            FPSecondaryButton(title: dataExportRequested ? "Export requested" : "Request data export", systemImage: "tray.and.arrow.down.fill") {
+                dataExportRequested = true
+            }
+            .disabled(dataExportRequested)
+            FPPolicyNotice(
+                title: "Profile boundary",
+                message: "Account stores contact and preference details. Ticket entry, resale, and transfer actions remain inside Tickets.",
+                kind: .info
+            )
         }
     }
 
     private var orders: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Orders and receipts", subtitle: "Order references and receipts")
+            FPSectionHeader(title: "Orders and receipts", subtitle: "Purchase history, refunds, and support references")
+            FPConceptRowList(rows: [
+                .init(id: "receipt", icon: "doc.text.fill", title: "Receipt delivery", subtitle: emailReceiptsEnabled ? "Send receipts to \(viewModel.user.maskedEmail)." : "Email receipts are paused.", value: emailReceiptsEnabled ? "On" : "Off", kind: emailReceiptsEnabled ? .success : .warning),
+                .init(id: "fee", icon: "list.bullet.rectangle.fill", title: "Fee breakdown", subtitle: "Show ticket price, platform fee, tax, and refund outcome.", value: "Visible", kind: .success),
+                .init(id: "supportRef", icon: "number.circle.fill", title: "Support reference", subtitle: "Use masked order references instead of raw provider IDs.", value: "Safe", kind: .success)
+            ])
             FPConceptMiniTimeline(rows: [
                 .init(id: "ord1", icon: "receipt.fill", title: "ORD-AUR-1024", subtitle: "Aurora Nights • payment captured • ticket issued", value: "HK$1,348", kind: .success),
                 .init(id: "ord2", icon: "arrow.uturn.backward.circle.fill", title: "ORD-FIN-0441", subtitle: "City Finals • refund completed", value: "Refunded", kind: .neutral),
                 .init(id: "ord3", icon: FPIcons.error, title: "ORD-LAB-0990", subtitle: "Reservation expired before authorization", value: "Expired", kind: .warning)
             ])
-            FPStateBanner(title: "Receipt detail", message: "Order detail screens show references, fees, refunds, and ticket outcome.", kind: .info)
+            FPStateBanner(title: "Receipts are account-scoped", message: "Order detail screens should show masked references, fees, refunds, and ticket outcome without exposing payment provider internals.", kind: .info)
         }
     }
 
     private var alerts: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Alerts", subtitle: "Rule builder for drops, prices, and ticket state")
+            AccountToggleRow(title: "Push notifications", subtitle: "Fast updates for gate, resale, and order state.", systemImage: "bell.fill", isOn: $pushAlertsEnabled)
+            AccountToggleRow(title: "Email receipts", subtitle: "Order receipts and refund updates.", systemImage: "envelope.fill", isOn: $emailReceiptsEnabled)
+            AccountToggleRow(title: "Price alerts", subtitle: "Notify when resale falls under saved targets.", systemImage: FPIcons.market, isOn: $priceAlertsEnabled)
+            AccountToggleRow(title: "Entry reminders", subtitle: "Remind before gate opens and when QR refresh is needed.", systemImage: FPIcons.qr, isOn: $entryRemindersEnabled)
+            AccountToggleRow(title: "Fan Access updates", subtitle: "Task approval and access badge updates.", systemImage: FPIcons.fanAccess, isOn: $marketingUpdatesEnabled)
             FPConceptRowList(rows: [
-                .init(id: "drop", icon: "bell.badge.fill", title: "Artist drop alert", subtitle: "Notify when saved artists announce verified events.", value: "On", kind: .success),
-                .init(id: "price", icon: FPIcons.market, title: "Price below target", subtitle: "Aurora Nights under HK$1,400.", value: "HK$1,400", kind: .info),
-                .init(id: "entry", icon: FPIcons.qr, title: "Entry readiness", subtitle: "Remind 2 hours before gate opens.", value: "2h", kind: .warning)
+                .init(id: "drop", icon: "bell.badge.fill", title: "Artist drop alert", subtitle: "Notify when saved artists announce verified events.", value: pushAlertsEnabled ? "On" : "Off", kind: pushAlertsEnabled ? .success : .warning),
+                .init(id: "price", icon: FPIcons.market, title: "Price below target", subtitle: "Aurora Nights under HK$1,400.", value: priceAlertsEnabled ? "HK$1,400" : "Off", kind: priceAlertsEnabled ? .info : .warning),
+                .init(id: "entry", icon: FPIcons.qr, title: "Entry readiness", subtitle: "Remind 2 hours before gate opens.", value: entryRemindersEnabled ? "2h" : "Off", kind: entryRemindersEnabled ? .warning : .neutral)
             ])
         }
     }
@@ -220,12 +289,20 @@ struct FanPassV4ProfileView: View {
     private var securityPrivacy: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Security and privacy")
+            AccountToggleRow(title: "Trusted device", subtitle: "Keep this phone signed in for ticket retrieval.", systemImage: "iphone.gen3", isOn: $trustedDeviceEnabled)
+            AccountToggleRow(title: "Friend discovery", subtitle: "Let contacts find your FanPass profile.", systemImage: "person.2.fill", isOn: $friendDiscoveryEnabled)
+            AccountToggleRow(title: "Usage analytics", subtitle: "Share app diagnostics without personal ticket payloads.", systemImage: "waveform.path.ecg", isOn: $usageAnalyticsEnabled)
             FPConceptRowList(rows: [
                 .init(id: "login", icon: "lock.shield.fill", title: "Sign-in protection", subtitle: "Email code and account session controls.", value: "Enabled", kind: .success),
                 .init(id: "sessions", icon: "iphone.gen3", title: "Sessions and devices", subtitle: "Manage active sessions and sign out.", value: backend.session == nil ? "0" : "1"),
                 .init(id: "privacy", icon: "eye.slash.fill", title: "Privacy", subtitle: "Sensitive account and payment details stay private.", value: "Protected", kind: .success),
                 .init(id: "delete", icon: "trash.fill", title: "Delete account", subtitle: "Requires confirmation.", value: "Locked", kind: .danger)
             ])
+            FPPolicyNotice(
+                title: "Private by default",
+                message: "FanPass never displays raw payment provider tokens, QR payloads, private keys, or full chain proof internals in Account.",
+                kind: .success
+            )
         }
     }
 
@@ -289,6 +366,30 @@ struct FanPassV4ProfileView: View {
         }
     }
 
+    private var paymentMethods: some View {
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            FPSectionHeader(title: "Payment methods", subtitle: "Checkout options and safe payment state")
+            FPConceptRowList(rows: [
+                .init(id: "card", icon: "creditcard.fill", title: "Card checkout", subtitle: "Cards are collected in secure checkout UI, not stored in Account.", value: "Stripe", kind: .success),
+                .init(id: "wallet", icon: FPIcons.wallet, title: "USDC wallet", subtitle: walletAddressLabel, value: walletStatusValue, kind: walletKind),
+                .init(id: "applePay", icon: "apple.logo", title: "Apple Pay", subtitle: "Available when card checkout provider enables it.", value: "Checkout", kind: .info),
+                .init(id: "receipts", icon: "receipt.fill", title: "Default receipt", subtitle: emailReceiptsEnabled ? "Email receipt after authorization or refund." : "Receipt email is paused.", value: emailReceiptsEnabled ? "On" : "Off", kind: emailReceiptsEnabled ? .success : .warning)
+            ])
+            FPPolicyNotice(
+                title: "Payment boundary",
+                message: "Saved cards and card changes stay inside secure checkout. FanPass Account only shows safe readiness and receipt preferences.",
+                kind: .info
+            )
+            FPSecondaryButton(title: isLoadingWalletBalances ? "Refreshing wallet" : "Refresh wallet", systemImage: "arrow.clockwise") {
+                Task { await refreshWalletBalances(force: true) }
+            }
+            .disabled(isLoadingWalletBalances)
+        }
+        .task {
+            await refreshWalletBalances()
+        }
+    }
+
     private var walletAndKeys: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Wallet", subtitle: "Address, balances, and key controls")
@@ -320,6 +421,62 @@ struct FanPassV4ProfileView: View {
         }
         .task {
             await refreshWalletBalances()
+        }
+    }
+
+    private var sellerPayouts: some View {
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            FPSectionHeader(title: "Selling and payouts", subtitle: "Resale proceeds, payout setup, and listing status")
+            let openListings = FanPassMockData.listings.filter { $0.ticket.ownerId == viewModel.user.id && $0.status == .open }
+            FPConceptRowList(rows: [
+                .init(id: "available", icon: "banknote.fill", title: "Available payout", subtitle: "Settled resale proceeds ready to withdraw.", value: "HK$0", kind: .neutral),
+                .init(id: "pending", icon: "clock.badge.checkmark.fill", title: "Pending payout", subtitle: "Releases after organizer and event settlement windows.", value: "HK$0", kind: .info),
+                .init(id: "listings", icon: FPIcons.resale, title: "Open listings", subtitle: "Tickets listed for resale cannot be used for entry.", value: "\(openListings.count)", kind: openListings.isEmpty ? .neutral : .warning),
+                .init(id: "method", icon: "building.columns.fill", title: "Payout method", subtitle: "Bank details are not collected in this prototype.", value: "Not set", kind: .warning)
+            ])
+            FPStateBanner(
+                title: "Seller controls live in Tickets",
+                message: "Create, cancel, and review listing eligibility from the owned ticket. Account summarizes payout and settlement state only.",
+                kind: .info
+            )
+        }
+    }
+
+    private var creditsAndPromos: some View {
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            FPSectionHeader(title: "Credits and promos", subtitle: "Fan Access rewards, vouchers, and account credit")
+            FPConceptRowList(rows: [
+                .init(id: "credit", icon: "giftcard.fill", title: "FanPass credit", subtitle: "Refund or promo credit available at checkout.", value: "HK$0", kind: .neutral),
+                .init(id: "badge", icon: FPIcons.fanAccess, title: "Fan Access badge", subtitle: firstAccessBadgeSubtitle, value: firstAccessBadgeValue, kind: firstAccessBadgeKind),
+                .init(id: "promo", icon: "tag.fill", title: "Promo codes", subtitle: "Apply eligible organizer offers during checkout.", value: "None", kind: .info),
+                .init(id: "expiry", icon: "calendar.badge.clock", title: "Expiring soon", subtitle: "Credits appear here before they expire.", value: "0", kind: .neutral)
+            ])
+            FPPolicyNotice(
+                title: "Checkout applies credits",
+                message: "Credits and promos are shown here for awareness. Final eligibility is checked again when the order is created.",
+                kind: .info
+            )
+        }
+    }
+
+    private var firstAccessBadgeSubtitle: String {
+        viewModel.user.accessBadges.first?.benefit ?? "Earn badges from organizer-approved Fan Access tasks."
+    }
+
+    private var firstAccessBadgeValue: String {
+        viewModel.user.accessBadges.first?.status.title ?? "None"
+    }
+
+    private var firstAccessBadgeKind: FPStateKind {
+        switch viewModel.user.accessBadges.first?.status {
+        case .earned:
+            return .success
+        case .inReview:
+            return .warning
+        case .locked, .expired:
+            return .neutral
+        case nil:
+            return .info
         }
     }
 
@@ -465,25 +622,76 @@ struct FanPassV4ProfileView: View {
         }
     }
 
+    private func saveProfileDraft() {
+        let trimmed = displayNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        viewModel.user.displayName = trimmed
+        profileSaved = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            await MainActor.run {
+                profileSaved = false
+            }
+        }
+    }
+
     private var settings: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Settings")
+            FPSectionHeader(title: "Settings", subtitle: "Region, currency, display, and communication defaults")
+            AccountSegmentedChoice(
+                title: "Currency",
+                subtitle: "Used for browsing and checkout display.",
+                systemImage: "dollarsign.circle.fill",
+                options: ["HKD", "USD"],
+                selection: $selectedCurrency
+            )
+            AccountSegmentedChoice(
+                title: "Region",
+                subtitle: "Controls event times and local discovery defaults.",
+                systemImage: "globe.asia.australia.fill",
+                options: ["Hong Kong", "Singapore"],
+                selection: $selectedRegion
+            )
+            AccountSegmentedChoice(
+                title: "Appearance",
+                subtitle: "Match device settings or keep FanPass dark.",
+                systemImage: "paintpalette.fill",
+                options: ["System", "Dark"],
+                selection: $selectedAppearance
+            )
             FPConceptRowList(rows: [
-                .init(id: "notifications", icon: "bell.fill", title: "Notifications", subtitle: "Choose which updates appear on this device.", value: "On", kind: .success),
-                .init(id: "region", icon: "globe.asia.australia.fill", title: "Region and currency", subtitle: "Hong Kong dollar pricing and local event times.", value: "HK"),
-                .init(id: "appearance", icon: "paintpalette.fill", title: "Appearance", subtitle: "Use the current app theme.", value: "Auto", kind: .info)
+                .init(id: "notifications", icon: "bell.fill", title: "Notifications", subtitle: "Choose which updates appear on this device.", value: pushAlertsEnabled ? "On" : "Off", kind: pushAlertsEnabled ? .success : .warning),
+                .init(id: "region", icon: "globe.asia.australia.fill", title: "Region and currency", subtitle: "\(selectedRegion) events shown in \(selectedCurrency).", value: selectedCurrency),
+                .init(id: "appearance", icon: "paintpalette.fill", title: "Appearance", subtitle: "Use the current app theme.", value: selectedAppearance, kind: .info)
             ])
         }
     }
 
     private var support: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Help and support")
+            FPSectionHeader(title: "Help and support", subtitle: "Ticket, order, entry, and account recovery")
+            AccountSegmentedChoice(
+                title: "Support topic",
+                subtitle: "Routes your request to the right help queue.",
+                systemImage: "questionmark.circle.fill",
+                options: ["Order", "Ticket", "Entry"],
+                selection: $selectedSupportTopic
+            )
+            TextField("Describe the issue", text: $supportDraft, axis: .vertical)
+                .lineLimit(3...5)
+                .font(FPTypography.callout)
+                .foregroundStyle(FPColors.textPrimary)
+                .padding(FPSpacing.md)
+                .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
             FPConceptRowList(rows: [
                 .init(id: "orders", icon: "receipt.fill", title: "Order help", subtitle: "Use order references when contacting support.", value: "Open", kind: .info),
                 .init(id: "tickets", icon: FPIcons.tickets, title: "Ticket help", subtitle: "Resolve entry, transfer, and resale questions.", value: "Guide"),
-                .init(id: "contact", icon: "message.fill", title: "Contact support", subtitle: "Send a support request.", value: "Start", kind: .success)
+                .init(id: "contact", icon: "message.fill", title: "Contact support", subtitle: supportSubmitted ? "Support request saved locally for this session." : "Send a support request.", value: supportSubmitted ? "Sent" : "Start", kind: supportSubmitted ? .success : .info)
             ])
+            FPPrimaryButton(title: supportSubmitted ? "Request sent" : "Send support request", systemImage: supportSubmitted ? "checkmark" : "paperplane.fill") {
+                supportSubmitted = true
+            }
+            .disabled(supportDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || supportSubmitted)
         }
     }
 
@@ -610,7 +818,10 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
     case orders
     case alerts
     case security
+    case paymentMethods
     case wallet
+    case sellerPayouts
+    case credits
     case settings
     case support
 
@@ -622,7 +833,10 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
         case .orders: "Orders"
         case .alerts: "Alerts"
         case .security: "Privacy and security"
+        case .paymentMethods: "Payment methods"
         case .wallet: "Wallet"
+        case .sellerPayouts: "Selling and payouts"
+        case .credits: "Credits and promos"
         case .settings: "Settings"
         case .support: "Help and support"
         }
@@ -634,7 +848,10 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
         case .orders: "Purchases and receipts"
         case .alerts: "Notifications and price rules"
         case .security: "Sign-in and data controls"
+        case .paymentMethods: "Cards, wallet checkout, and receipts"
         case .wallet: "Address, balances, and private key"
+        case .sellerPayouts: "Resale proceeds and payout setup"
+        case .credits: "Fan Access rewards and account credit"
         case .settings: "App preferences"
         case .support: "Get help with tickets"
         }
@@ -646,7 +863,10 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
         case .orders: "receipt.fill"
         case .alerts: "bell.badge.fill"
         case .security: "lock.shield.fill"
+        case .paymentMethods: "creditcard.fill"
         case .wallet: FPIcons.wallet
+        case .sellerPayouts: "banknote.fill"
+        case .credits: "giftcard.fill"
         case .settings: "gearshape.fill"
         case .support: "questionmark.circle.fill"
         }
@@ -655,7 +875,8 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
     var kind: FPStateKind {
         switch self {
         case .security: .success
-        case .alerts, .wallet, .settings: .info
+        case .alerts, .paymentMethods, .wallet, .credits, .settings: .info
+        case .sellerPayouts: .warning
         default: .neutral
         }
     }
@@ -667,7 +888,47 @@ private enum AccountMenuItem: String, CaseIterable, Identifiable, Hashable {
         case .alerts: .alerts
         case .security: .security
         case .wallet: .wallet
-        case .settings, .support: nil
+        case .paymentMethods, .sellerPayouts, .credits, .settings, .support: nil
+        }
+    }
+}
+
+private enum AccountMenuSection: String, CaseIterable, Identifiable {
+    case identity
+    case activity
+    case money
+    case preferences
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .identity: "Account"
+        case .activity: "Activity"
+        case .money: "Money"
+        case .preferences: "Preferences and help"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .identity: "Profile, sign-in, privacy"
+        case .activity: "Orders, alerts, rewards"
+        case .money: "Payment, wallet, payouts"
+        case .preferences: "App settings and support"
+        }
+    }
+
+    var items: [AccountMenuItem] {
+        switch self {
+        case .identity:
+            return [.profile, .security]
+        case .activity:
+            return [.orders, .alerts, .credits]
+        case .money:
+            return [.paymentMethods, .wallet, .sellerPayouts]
+        case .preferences:
+            return [.settings, .support]
         }
     }
 }
@@ -732,6 +993,75 @@ private struct AccountSettingsRow: View {
         .onTapGesture(perform: action)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+private struct AccountToggleRow: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        FPSurfaceCard(cornerRadius: FPRadius.md) {
+            HStack(alignment: .center, spacing: FPSpacing.md) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(isOn ? FPColors.verifiedGreen : FPColors.textSecondary)
+                    .frame(width: 34, height: 34)
+                    .background((isOn ? FPColors.verifiedGreen : FPColors.textSecondary).opacity(0.12), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                    Text(title)
+                        .font(FPTypography.headline)
+                        .foregroundStyle(FPColors.textPrimary)
+                    Text(subtitle)
+                        .font(FPTypography.caption)
+                        .foregroundStyle(FPColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: FPSpacing.sm)
+                Toggle(title, isOn: $isOn)
+                    .labelsHidden()
+                    .tint(FPColors.verifiedGreen)
+            }
+        }
+    }
+}
+
+private struct AccountSegmentedChoice: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let options: [String]
+    @Binding var selection: String
+
+    var body: some View {
+        FPSurfaceCard(cornerRadius: FPRadius.md) {
+            VStack(alignment: .leading, spacing: FPSpacing.md) {
+                HStack(alignment: .top, spacing: FPSpacing.md) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(FPColors.pulseCyan)
+                        .frame(width: 34, height: 34)
+                        .background(FPColors.pulseCyan.opacity(0.12), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                    VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                        Text(title)
+                            .font(FPTypography.headline)
+                            .foregroundStyle(FPColors.textPrimary)
+                        Text(subtitle)
+                            .font(FPTypography.caption)
+                            .foregroundStyle(FPColors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Picker(title, selection: $selection) {
+                    ForEach(options, id: \.self) { option in
+                        Text(option).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
     }
 }
 

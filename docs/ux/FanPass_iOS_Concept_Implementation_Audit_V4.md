@@ -116,3 +116,33 @@ Verification:
 
 - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPass -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
 - `xcodebuild -project apps/ios/FanPass/FanPass.xcodeproj -scheme FanPassOps -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+
+## 2026-06-29 Account Subpage Completion Pass
+
+After reviewing current public App Store descriptions for Ticketmaster, Eventbrite, AXS, and DICE, Account was expanded from a mostly static menu into a more complete ticketing account hub. The public references reinforce the expected Account surface: ticket apps commonly expose account-managed payment choices, receipt/order support, alerts/notifications, friend/following preferences, ticket transfer/resale adjacency, and safe support handoff.
+
+Changes applied:
+
+- Account root is now grouped into `Account`, `Activity`, `Money`, and `Preferences and help` sections.
+- Added Account routes for `Payment methods`, `Selling and payouts`, and `Credits and promos`.
+- Expanded `Profile` with editable local display-name state, verified email/contact rows, social sign-in status, and a data-export request state.
+- Expanded `Orders` with receipt delivery, fee-breakdown, masked support reference, and order/refund/expired timeline rows.
+- Expanded `Alerts` with toggles for push, email receipts, price alerts, entry reminders, and Fan Access updates.
+- Expanded `Privacy and security` with trusted-device, friend-discovery, and diagnostics toggles, plus explicit privacy boundary copy.
+- Expanded `Settings` with segmented currency, region, and appearance controls.
+- Expanded `Help and support` with support-topic selection, issue text entry, and local submitted state.
+
+Safety boundaries preserved:
+
+- Ticket entry, resale actions, transfer eligibility, and QR refresh remain in Tickets.
+- Account does not display raw provider IDs, PaymentIntent/client secret values, raw QR payloads, private keys, seed phrases, or full chain proof internals.
+- Card management remains represented as secure checkout-owned; Account does not collect or store card numbers.
+- Payout method is presentation-only in this prototype and does not collect bank details.
+
+Verification:
+
+- Full Markdown startup pass completed before work: 4,315 files, 759,704 lines, SHA-256 `4634a8700d94d85e146f2cd8face4b5a1245e9950b0368ed876604a1b5b07110`.
+- XcodeBuildMCP `FanPass` Debug simulator build/run passed on `FanPass-iPhone-17` with `CODE_SIGNING_ALLOWED=NO`.
+- Simulator screenshot captured after launch at `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_fd5f3690-85f3-4daf-aa39-b6231c3527cb.jpg`.
+- `npm run security:ios-distribution-boundaries` passed.
+- `git diff --check` passed.
