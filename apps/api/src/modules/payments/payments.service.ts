@@ -129,6 +129,7 @@ interface UsdcHkdRate {
 type UsdcPegStatus = "stable" | "watch" | "blocked" | "not_checked";
 
 const ERC20_TRANSFER_SELECTOR = "a9059cbb";
+const ERC20_BALANCE_OF_SELECTOR = "70a08231";
 const ERC20_TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const COINGECKO_USDC_PRICE_URL =
@@ -397,10 +398,16 @@ export class PaymentsService {
         "Connect your FanPass wallet before paying with USDC",
       );
     }
-    this.requireCryptoPayerAddress(payment);
+    const payerAddress = this.requireCryptoPayerAddress(payment);
 
     const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
+    await this.assertSufficientUsdcBalance({
+      rpcUrl: config.rpcUrl,
+      tokenContractAddress: quote.tokenContractAddress,
+      payerAddress,
+      amountAtomic: BigInt(quote.amountAtomic),
+    });
     const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
     let sponsored: Awaited<
       ReturnType<PrivyWalletService["sendSponsoredEthereumTransaction"]>
@@ -1346,6 +1353,44 @@ export class PaymentsService {
     return payerAddress;
   }
 
+  private async assertSufficientUsdcBalance(input: {
+    rpcUrl: string;
+    tokenContractAddress: string;
+    payerAddress: string;
+    amountAtomic: bigint;
+  }) {
+    const balance = await this.readErc20Balance({
+      rpcUrl: input.rpcUrl,
+      tokenContractAddress: input.tokenContractAddress,
+      walletAddress: input.payerAddress,
+    });
+    if (balance < input.amountAtomic) {
+      throw new BadRequestException({
+        result: "INSUFFICIENT_USDC_BALANCE",
+        message:
+          "Your FanPass wallet does not have enough USDC for this order.",
+      });
+    }
+  }
+
+  private async readErc20Balance(input: {
+    rpcUrl: string;
+    tokenContractAddress: string;
+    walletAddress: string;
+  }) {
+    const result = await this.rpcCall<string>(input.rpcUrl, "eth_call", [
+      {
+        to: input.tokenContractAddress,
+        data: this.erc20BalanceOfData(input.walletAddress),
+      },
+      "latest",
+    ]);
+    if (typeof result !== "string" || !/^0x[0-9a-fA-F]+$/.test(result)) {
+      throw new ServiceUnavailableException("Invalid ERC20 balance response");
+    }
+    return BigInt(result);
+  }
+
   private async assertConfirmedUsdcTransfer(input: {
     rpcUrl: string;
     transactionHash: string;
@@ -1721,6 +1766,11 @@ export class PaymentsService {
     const receiver = receiverAddress.slice(2).toLowerCase().padStart(64, "0");
     const amount = amountAtomic.toString(16).padStart(64, "0");
     return `0x${ERC20_TRANSFER_SELECTOR}${receiver}${amount}`;
+  }
+
+  private erc20BalanceOfData(walletAddress: string) {
+    const wallet = walletAddress.slice(2).toLowerCase().padStart(64, "0");
+    return `0x${ERC20_BALANCE_OF_SELECTOR}${wallet}`;
   }
 
   private cryptoCaip2(chainId: string) {

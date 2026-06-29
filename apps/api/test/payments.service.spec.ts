@@ -549,6 +549,14 @@ describe("PaymentsService", () => {
     };
     jest.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
       const body = JSON.parse(String(init?.body ?? "{}"));
+      if (body.method === "eth_call") {
+        return {
+          ok: true,
+          json: async () => ({
+            result: `0x${(999999999999n).toString(16)}`,
+          }),
+        } as Response;
+      }
       if (body.method === "eth_getTransactionByHash") {
         return {
           ok: true,
@@ -637,6 +645,84 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("rejects sponsored USDC payment before Privy when wallet balance is too low", async () => {
+    const payer = "0x0000000000000000000000000000000000003000";
+    const receiver = "0x0000000000000000000000000000000000002000";
+    const token = "0x0000000000000000000000000000000000001000";
+    const cryptoPayment = {
+      ...incompletePayment,
+      id: "pay_crypto_sponsored_low_balance",
+      stripePaymentIntentId: null,
+      clientSecret: null,
+      currency: "usdc",
+      order: {
+        ...order,
+        user: {
+          walletAddress: payer,
+          privyWalletId: "wallet_privy_demo",
+        },
+      },
+    };
+    const prisma = {
+      payment: {
+        findUnique: jest.fn(async () => cryptoPayment),
+      },
+    };
+    const outbox = {
+      enqueue: jest.fn(),
+      markCompleted: jest.fn(),
+    };
+    const audit = {
+      record: jest.fn(),
+    };
+    const privyWallets = {
+      sendSponsoredEthereumTransaction: jest.fn(),
+      waitForTransactionHash: jest.fn(),
+    };
+    jest.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      expect(body.method).toBe("eth_call");
+      return {
+        ok: true,
+        json: async () => ({
+          result: "0x0",
+        }),
+      } as Response;
+    });
+    const service = new PaymentsService(
+      new ConfigService({
+        TESTNET_RPC_URL: "https://rpc.example.test",
+        FANPASS_USDC_CONTRACT_ADDRESS: token,
+        FANPASS_USDC_RECEIVER_ADDRESS: receiver,
+        FANPASS_USDC_HKD_RATE: "7.8355",
+      }),
+      prisma as never,
+      outbox as never,
+      audit as never,
+      privyWallets as never,
+    );
+
+    await expect(
+      service.sendSponsoredCryptoPayment(
+        {
+          paymentId: cryptoPayment.id,
+          idempotencyKey: "ios-v4-crypto-sponsored-low-balance",
+        },
+        {
+          userId: order.userId,
+          role: "FAN",
+        } as never,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        result: "INSUFFICIENT_USDC_BALANCE",
+        message: "Your FanPass wallet does not have enough USDC for this order.",
+      },
+      status: 400,
+    });
+    expect(privyWallets.sendSponsoredEthereumTransaction).not.toHaveBeenCalled();
+  });
+
   it("maps Privy sponsored wallet authorization failures to payment-unavailable copy", async () => {
     const payer = "0x0000000000000000000000000000000000003000";
     const receiver = "0x0000000000000000000000000000000000002000";
@@ -675,6 +761,16 @@ describe("PaymentsService", () => {
       }),
       waitForTransactionHash: jest.fn(),
     };
+    jest.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      expect(body.method).toBe("eth_call");
+      return {
+        ok: true,
+        json: async () => ({
+          result: `0x${(999999999999n).toString(16)}`,
+        }),
+      } as Response;
+    });
     const service = new PaymentsService(
       new ConfigService({
         TESTNET_RPC_URL: "https://rpc.example.test",

@@ -676,8 +676,17 @@ private struct CryptoPaymentSheet: View {
     }
 
     private func paymentErrorMessage(_ error: Error) -> String {
+        if let apiError = error as? APIClientError,
+           apiError.resultCode == "INSUFFICIENT_USDC_BALANCE" {
+            return "Your FanPass wallet needs more USDC for this order."
+        }
         let raw = error.localizedDescription
         let lowercased = raw.lowercased()
+        if lowercased.contains("not have enough usdc") ||
+            lowercased.contains("needs more usdc") ||
+            lowercased.contains("insufficient_usdc_balance") {
+            return "Your FanPass wallet needs more USDC for this order."
+        }
         if lowercased.contains("transaction_broadcast_failure") ||
             lowercased.contains("insufficient funds for gas") ||
             lowercased.contains("gas * price") {
