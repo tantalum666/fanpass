@@ -146,3 +146,37 @@ Verification:
 - Simulator screenshot captured after launch at `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_fd5f3690-85f3-4daf-aa39-b6231c3527cb.jpg`.
 - `npm run security:ios-distribution-boundaries` passed.
 - `git diff --check` passed.
+
+## 2026-06-29 Account Simplification Redesign
+
+After the owner rejected the Account/Profile redesign as too card-heavy and text-heavy, the Account UI was simplified while preserving the newly added functionality.
+
+Reference direction:
+
+- Public App Store descriptions for Ticketmaster, Eventbrite, AXS, and DICE were reviewed for current ticketing-account expectations.
+- Those references were used for information architecture only: account identity, orders/receipts, payment readiness, transfer/resale adjacency, notifications, support, and privacy/security controls.
+- The implementation does not copy a specific app's visual treatment.
+
+Changes applied:
+
+- Account root now uses compact section labels and single-line entry rows; per-row explanatory subtitles were removed from the root.
+- Account child pages now share compact list groups with thin rows, short right-side status values, inline toggles, inline segmented choices, inline issue text entry, and small footer notes.
+- Removed the previous repeated large-card pattern from Profile, Orders, Alerts, Privacy and security, Payment methods, Wallet, Selling and payouts, Credits and promos, Settings, Help and support, and private-key export.
+- Profile replaced the large display-name card plus gradient save button with an inline editable row and compact Save action.
+- Account detail navigation adds extra top padding so the large page title does not sit under the iOS back affordance.
+
+Boundaries preserved:
+
+- Ticket entry, resale, transfer, and QR refresh still remain in Tickets.
+- Card management remains secure-checkout-owned; Account only shows safe payment readiness and receipt preference state.
+- Wallet and private-key surfaces still avoid raw secrets, seed phrases, and fabricated private-key display.
+- Account still avoids raw provider IDs, PaymentIntent/client secret values, QR payloads, and full chain proof internals.
+
+Verification:
+
+- Context-compaction Markdown resume pass completed before continuation: 102 files, 27,733 lines, SHA-256 `a0a26dcd4281e07171c47638edd0c6c87a4162d47da84a3120e1def0cdf0794d`.
+- XcodeBuildMCP `FanPass` Debug simulator build/run passed on `FanPass-iPhone-17` with `CODE_SIGNING_ALLOWED=NO`.
+- Runtime Account root snapshot confirmed simplified entry labels only; screenshot: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_b3fb5a63-15b3-4576-9391-989ce36e03a6.jpg`.
+- The current simulator session was signed out, so authenticated Profile/detail pages were build/runtime-path verified but not live-screenshot verified in an authenticated state.
+- `npm run security:ios-distribution-boundaries` passed.
+- `git diff --check` passed.
