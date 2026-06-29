@@ -213,4 +213,47 @@ describe("PrivyWalletService", () => {
     );
     expect(rpcHeaders["privy-request-expiry"]).toBe("2045000");
   });
+
+  it("uses a client-generated user authorization signature without exchanging the JWT", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(3_000_000);
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "wallet_rpc_fixture",
+        result: {
+          transactionHash:
+            "0x5555555555555555555555555555555555555555555555555555555555555555",
+        },
+      }),
+    } as Response);
+    const service = new PrivyWalletService(
+      new ConfigService({
+        PRIVY_APP_ID: "app_fixture",
+        PRIVY_APP_SECRET: "secret_fixture",
+      }),
+    );
+
+    await service.sendSponsoredEthereumTransaction({
+      walletId: "wallet_fixture",
+      caip2: "eip155:11155111",
+      userJwt: "privy.jwt.fixture",
+      userAuthorizationSignature: "clientSignatureFixture==",
+      requestExpiry: 3_060_000,
+      transaction: {
+        to: "0x0000000000000000000000000000000000001000",
+        data: "0x1234",
+      },
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.privy.io/v1/wallets/wallet_fixture/rpc",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "privy-authorization-signature": "clientSignatureFixture==",
+          "privy-request-expiry": "3060000",
+        }),
+      }),
+    );
+  });
 });

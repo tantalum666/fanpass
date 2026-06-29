@@ -159,6 +159,14 @@ Current dev/staging implementation:
 - Run `npm run chain:privy-sponsorship:readiness` before deploying this path. The check verifies required env, the `users.privy_wallet_id` database column, and the chain `owner()` match against `FANPASS_PRIVY_SPONSOR_WALLET_ADDRESS` without printing secrets or full addresses.
 - For the temporary test-owner path only, `npm run privy:import-owner-wallet` can import the existing Sepolia owner private key into Privy using HPKE. The key must be entered interactively or passed through a short-lived environment variable and must never be committed, logged, written to evidence, or copied into deployment configuration.
 
+Current USDC checkout sponsorship path as of 2026-06-29:
+
+- iOS still asks the API to execute the sponsored USDC `transfer`; the app does not broadcast a direct user-funded `eth_sendTransaction`.
+- Before calling `/payments/crypto-quotes/:paymentId/send-sponsored`, iOS uses Privy SDK `generateAuthorizationSignature(payload:)` to sign the exact wallet RPC request body, request URL, `privy-app-id`, and short `privy-request-expiry`.
+- The API accepts only the base64 authorization signature and expiry from iOS, validates that expiry is live and bounded, then forwards the signature to Privy alongside server-side authorization signatures.
+- This replaces the attempted backend `/v1/wallets/authenticate` exchange for iOS checkout, which was observed on staging to fail with `Invalid JWT token provided` even when the payer wallet had Sepolia USDC.
+- The displayed checkout total must match the backend order price used for USDC quoting. The iOS V4 checkout now creates BUY orders using the visible total amount rather than only the face-value line item, so the locked quote should no longer undercharge relative to the sheet total.
+
 ## Backend-Controlled Settlement Flow
 
 1. Payment succeeds.

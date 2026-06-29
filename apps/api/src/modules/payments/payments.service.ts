@@ -39,6 +39,8 @@ export interface SendSponsoredCryptoPaymentInput {
   paymentId: string;
   idempotencyKey: string | undefined;
   privyAccessToken?: string;
+  privyAuthorizationSignature?: string;
+  privyRequestExpiry?: number;
 }
 
 type PaymentOperation = "cancel_authorization" | "refund" | "reconcile";
@@ -404,6 +406,10 @@ export class PaymentsService {
 
     const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
+    const privyRequestExpiry = this.validatedPrivyAuthorizationExpiry({
+      signature: input.privyAuthorizationSignature,
+      requestExpiry: input.privyRequestExpiry,
+    });
     await this.assertSufficientUsdcBalance({
       rpcUrl: config.rpcUrl,
       tokenContractAddress: quote.tokenContractAddress,
@@ -419,6 +425,8 @@ export class PaymentsService {
         walletId,
         caip2: this.cryptoCaip2(config.chainId),
         userJwt: input.privyAccessToken,
+        userAuthorizationSignature: input.privyAuthorizationSignature,
+        requestExpiry: privyRequestExpiry,
         transaction: {
           to: quote.tokenContractAddress,
           data: quote.erc20TransferData,
@@ -434,6 +442,9 @@ export class PaymentsService {
         payerAddress,
         walletId,
         hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
+        hasPrivyAuthorizationSignature: Boolean(
+          input.privyAuthorizationSignature?.trim(),
+        ),
       });
     }
 
@@ -462,6 +473,9 @@ export class PaymentsService {
           rawStatus: sponsored.rawStatus,
           userOperationHash: sponsored.userOperationHash,
           hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
+          hasPrivyAuthorizationSignature: Boolean(
+            input.privyAuthorizationSignature?.trim(),
+          ),
         });
       }
       transactionHash = status.hash?.toLowerCase() ?? null;
@@ -493,6 +507,7 @@ export class PaymentsService {
       rawStatus?: string | null;
       userOperationHash?: string | null;
       hasPrivyAccessToken: boolean;
+      hasPrivyAuthorizationSignature: boolean;
     },
   ) {
     this.logger.warn(
@@ -510,6 +525,8 @@ export class PaymentsService {
         rawStatus: context.rawStatus ?? null,
         userOperationHash: this.shortHash(context.userOperationHash),
         hasPrivyAccessToken: context.hasPrivyAccessToken,
+        hasPrivyAuthorizationSignature:
+          context.hasPrivyAuthorizationSignature,
       }),
     );
     return new ServiceUnavailableException(
@@ -1612,6 +1629,30 @@ export class PaymentsService {
   private normalizeIdempotencyKey(value: string | undefined) {
     const trimmed = value?.trim();
     return trimmed ? trimmed.slice(0, 255) : null;
+  }
+
+  private validatedPrivyAuthorizationExpiry(input: {
+    signature?: string;
+    requestExpiry?: number;
+  }) {
+    const signature = input.signature?.trim();
+    if (!signature && input.requestExpiry !== undefined) {
+      throw new BadRequestException("Wallet payment authorization is invalid");
+    }
+    if (!signature) {
+      return undefined;
+    }
+    const requestExpiry = input.requestExpiry;
+    const now = Date.now();
+    if (
+      typeof requestExpiry !== "number" ||
+      !Number.isSafeInteger(requestExpiry) ||
+      requestExpiry <= now + 1_000 ||
+      requestExpiry > now + 300_000
+    ) {
+      throw new BadRequestException("Wallet payment authorization expired");
+    }
+    return requestExpiry;
   }
 
   private amountMinor(price: number) {

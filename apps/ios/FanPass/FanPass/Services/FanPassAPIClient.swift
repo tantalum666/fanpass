@@ -197,12 +197,22 @@ struct FanPassAPIClient {
         )
     }
 
-    func sendSponsoredCryptoPayment(paymentId: String, idempotencyKey: String) async throws -> FanPassCryptoConfirmationResponse {
-        struct SponsoredCryptoPaymentRequest: Encodable {}
+    func sendSponsoredCryptoPayment(
+        paymentId: String,
+        idempotencyKey: String,
+        authorization: FanPassPrivySponsoredAuthorization? = nil
+    ) async throws -> FanPassCryptoConfirmationResponse {
+        struct SponsoredCryptoPaymentRequest: Encodable {
+            let authorizationSignature: String?
+            let requestExpiry: Int64?
+        }
 
         return try await post(
             "/payments/crypto-quotes/\(paymentId)/send-sponsored",
-            body: SponsoredCryptoPaymentRequest(),
+            body: SponsoredCryptoPaymentRequest(
+                authorizationSignature: authorization?.authorizationSignature,
+                requestExpiry: authorization?.requestExpiry
+            ),
             headers: ["Idempotency-Key": idempotencyKey],
             retryOnTransientNetworkLoss: true
         )

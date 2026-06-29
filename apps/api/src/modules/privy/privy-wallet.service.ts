@@ -47,6 +47,8 @@ export class PrivyWalletService {
     caip2: string;
     transaction: PrivyEthereumTransaction;
     userJwt?: string | null;
+    userAuthorizationSignature?: string | null;
+    requestExpiry?: number | null;
   }): Promise<PrivySponsoredTransactionReceipt> {
     const url = this.walletRpcUrl(input.walletId);
     const requestBody = {
@@ -69,6 +71,8 @@ export class PrivyWalletService {
         url,
         body: requestBody,
         userJwt: input.userJwt,
+        userAuthorizationSignature: input.userAuthorizationSignature,
+        requestExpiry: input.requestExpiry,
       }),
       body: JSON.stringify(requestBody),
     });
@@ -165,16 +169,24 @@ export class PrivyWalletService {
       url: string;
       body: unknown;
       userJwt?: string | null;
+      userAuthorizationSignature?: string | null;
+      requestExpiry?: number | null;
     },
   ) {
     const headers = this.baseHeaders();
     const appId = this.requiredConfig("PRIVY_APP_ID");
     if (signedRequest) {
-      const requestExpiry = this.privyRequestExpiry();
+      const requestExpiry =
+        typeof signedRequest.requestExpiry === "number"
+          ? signedRequest.requestExpiry
+          : this.privyRequestExpiry();
+      if (!Number.isSafeInteger(requestExpiry)) {
+        throw new Error("Privy wallet authorization expiry is invalid");
+      }
       const authorizationSignatures = await this.authorizationSignatures({
+        ...signedRequest,
         appId,
         requestExpiry,
-        ...signedRequest,
       });
       if (authorizationSignatures.length > 0) {
         headers["privy-authorization-signature"] =
@@ -202,13 +214,16 @@ export class PrivyWalletService {
     body: unknown;
     requestExpiry: number;
     userJwt?: string | null;
+    userAuthorizationSignature?: string | null;
   }) {
     const staticSignature = this.nonEmptyConfig(
       "PRIVY_WALLET_AUTHORIZATION_SIGNATURE",
     );
-    const userAuthorizationKey = await this.userAuthorizationPrivateKey(
-      input.userJwt,
-    );
+    const providedUserAuthorizationSignature =
+      input.userAuthorizationSignature?.trim() || null;
+    const userAuthorizationKey = providedUserAuthorizationSignature
+      ? null
+      : await this.userAuthorizationPrivateKey(input.userJwt);
     const privateKeys = [
       ...this.authorizationPrivateKeys(),
       ...(userAuthorizationKey ? [userAuthorizationKey] : []),
@@ -229,6 +244,9 @@ export class PrivyWalletService {
       }),
     );
     return [
+      ...(providedUserAuthorizationSignature
+        ? [providedUserAuthorizationSignature]
+        : []),
       ...(staticSignature ? [staticSignature] : []),
       ...generated,
     ];

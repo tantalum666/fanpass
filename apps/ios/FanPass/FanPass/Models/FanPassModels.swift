@@ -364,6 +364,11 @@ struct FanPassCryptoQuote: Codable, Hashable {
     }
 }
 
+struct FanPassPrivySponsoredAuthorization: Codable, Hashable {
+    let authorizationSignature: String
+    let requestExpiry: Int64
+}
+
 struct FanPassCryptoConfirmationResponse: Codable, Hashable {
     let ok: Bool
     let payment: FanPassPaymentIntent

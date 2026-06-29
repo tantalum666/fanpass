@@ -9,11 +9,15 @@ import {
 } from "@nestjs/common";
 import {
   IsOptional,
+  IsInt,
   IsString,
   Matches,
   MaxLength,
   MinLength,
+  Min,
+  Max,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { Request } from "express";
 import {
   CurrentSession,
@@ -52,6 +56,20 @@ class SponsoredCryptoPaymentDto {
   @IsString()
   @MaxLength(64)
   clientReference?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(16)
+  @MaxLength(1024)
+  @Matches(/^[A-Za-z0-9+/=]+$/)
+  authorizationSignature?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1_000_000_000_000)
+  @Max(9_999_999_999_999)
+  requestExpiry?: number;
 }
 
 class PaymentOperationDto {
@@ -125,7 +143,7 @@ export class PaymentsController {
   @Roles("FAN", "ADMIN")
   sendSponsoredCryptoPayment(
     @Param("paymentId", FanPassIdParamPipe) paymentId: string,
-    @Body() _body: SponsoredCryptoPaymentDto,
+    @Body() body: SponsoredCryptoPaymentDto,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
     @Headers("authorization") authorization: string | undefined,
     @CurrentSession() session: FanPassSession,
@@ -135,6 +153,8 @@ export class PaymentsController {
         paymentId,
         idempotencyKey,
         privyAccessToken: this.bearerToken(authorization),
+        privyAuthorizationSignature: body.authorizationSignature,
+        privyRequestExpiry: body.requestExpiry,
       },
       session,
     );

@@ -66,6 +66,7 @@ protocol PrivyAuthProviding: AnyObject {
     func loginWithEmailCode(_ code: String, sentTo email: String) async throws -> PrivyLoginResult
     func loginWithOAuth(_ provider: PrivyOAuthLoginProvider) async throws -> PrivyLoginResult
     func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String
+    func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization
     func signOut() async
 }
 
@@ -189,6 +190,54 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
         #endif
     }
 
+    func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization {
+        #if canImport(PrivySDK)
+        guard let configuration = FanPassEnvironment.privyConfiguration,
+              let privy,
+              let user = await privy.getUser()
+        else {
+            throw PrivyAuthProviderError.notConfigured
+        }
+
+        let wallet = try await ethereumWallet(for: user)
+        guard wallet.id == walletId else {
+            throw PrivyAuthProviderError.missingEmbeddedWallet
+        }
+
+        let requestExpiry = Int64(Date().timeIntervalSince1970 * 1_000) + 60_000
+        let body = PrivySponsoredEthereumRpcBody(
+            caip2: "eip155:\(try chainId(from: quote.chainId))",
+            params: .init(
+                transaction: .init(
+                    to: quote.tokenContractAddress,
+                    data: quote.erc20TransferData,
+                    value: "0x0"
+                )
+            )
+        )
+        let payload = WalletApiPayload(
+            version: 1,
+            url: Self.walletRpcUrl(walletId: walletId),
+            method: "POST",
+            headers: [
+                "privy-app-id": configuration.appId,
+                "privy-request-expiry": String(requestExpiry)
+            ],
+            body: body
+        )
+        let signature = try await user.generateAuthorizationSignature(payload: payload)
+        guard !signature.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw PrivyAuthProviderError.invalidTransferRequest
+        }
+        return FanPassPrivySponsoredAuthorization(
+            authorizationSignature: signature,
+            requestExpiry: requestExpiry
+        )
+        #else
+        throw PrivyAuthProviderError.sdkUnavailable
+        #endif
+    }
+
     #if canImport(PrivySDK)
     private func loginResult(for user: any PrivyUser, fallbackEmail: String?) async throws -> PrivyLoginResult {
         let accessToken = try await user.getAccessToken()
@@ -224,6 +273,10 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
         return chainId
     }
 
+    private static func walletRpcUrl(walletId: String) -> String {
+        "https://api.privy.io/v1/wallets/\(walletId)/rpc"
+    }
+
     private func emailAddress(for user: any PrivyUser) -> String? {
         for account in user.linkedAccounts {
             switch account {
@@ -249,6 +302,32 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
 }
 
 #if canImport(PrivySDK)
+private struct PrivySponsoredEthereumRpcBody: Encodable {
+    let caip2: String
+    let chainType = "ethereum"
+    let method = "eth_sendTransaction"
+    let params: Params
+    let sponsor = true
+
+    enum CodingKeys: String, CodingKey {
+        case caip2
+        case chainType = "chain_type"
+        case method
+        case params
+        case sponsor
+    }
+
+    struct Params: Encodable {
+        let transaction: Transaction
+    }
+
+    struct Transaction: Encodable {
+        let to: String
+        let data: String
+        let value: String
+    }
+}
+
 private extension PrivyOAuthLoginProvider {
     var oauthProvider: OAuthProvider {
         switch self {

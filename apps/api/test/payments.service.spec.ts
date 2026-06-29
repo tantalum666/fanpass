@@ -490,6 +490,7 @@ describe("PaymentsService", () => {
   });
 
   it("sends a sponsored Sepolia USDC transfer through Privy and settles the order", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(2_000_000);
     const payer = "0x0000000000000000000000000000000000003000";
     const receiver = "0x0000000000000000000000000000000000002000";
     const token = "0x0000000000000000000000000000000000001000";
@@ -608,6 +609,8 @@ describe("PaymentsService", () => {
         paymentId: cryptoPayment.id,
         idempotencyKey: "ios-v4-crypto-sponsored-demo",
         privyAccessToken: "privy.jwt.fixture",
+        privyAuthorizationSignature: "clientSignatureFixture==",
+        privyRequestExpiry: 2_060_000,
       },
       {
         userId: order.userId,
@@ -623,6 +626,8 @@ describe("PaymentsService", () => {
       walletId: "wallet_privy_demo",
       caip2: "eip155:11155111",
       userJwt: "privy.jwt.fixture",
+      userAuthorizationSignature: "clientSignatureFixture==",
+      requestExpiry: 2_060_000,
       transaction: expect.objectContaining({
         to: token,
         value: "0x0",

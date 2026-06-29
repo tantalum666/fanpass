@@ -296,7 +296,7 @@ final class CheckoutViewModel {
                 eventId: event.id,
                 ticketTypeId: ticketType.id,
                 side: "BUY",
-                price: quotedPrice,
+                price: totalAmount,
                 idempotencyKey: "ios-v4-order-\(checkoutAttemptId)"
             )
             let payment = try await apiClient.createPaymentIntent(
@@ -337,7 +337,7 @@ final class CheckoutViewModel {
             eventId: event.id,
             ticketTypeId: ticketType.id,
             side: "BUY",
-            price: quotedPrice,
+            price: totalAmount,
             idempotencyKey: "ios-v4-crypto-order-\(checkoutAttemptId)"
         )
         return try await apiClient.createCryptoQuote(

@@ -651,11 +651,22 @@ private struct CryptoPaymentSheet: View {
             state = .failed("Prepare the payment amount before paying.")
             return
         }
+        guard let walletId = backend.session?.privyWalletId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !walletId.isEmpty
+        else {
+            state = .failed("Sign in with FanPass wallet before paying with USDC.")
+            return
+        }
         do {
             state = .sending
+            let authorization = try await backend.sponsoredPaymentAuthorization(
+                quote: quoteResponse.quote,
+                walletId: walletId
+            )
             let confirmation = try await backend.apiClient.sendSponsoredCryptoPayment(
                 paymentId: quoteResponse.payment.id,
-                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)"
+                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)",
+                authorization: authorization
             )
             state = .confirming(confirmation.transactionHash ?? "")
             viewModel.applyCryptoConfirmation(confirmation)
