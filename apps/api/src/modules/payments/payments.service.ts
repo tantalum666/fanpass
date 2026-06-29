@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
@@ -139,6 +140,7 @@ const HKMA_USD_HKD_RATE_URL =
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
   private usdcHkdRateCache: {
     rate: UsdcHkdRate;
     expiresAt: number;
@@ -424,7 +426,15 @@ export class PaymentsService {
         },
       });
     } catch (error) {
-      throw this.sponsoredCryptoPaymentUnavailable(error);
+      throw this.sponsoredCryptoPaymentUnavailable(error, {
+        stage: "privy_send",
+        paymentId: payment.id,
+        orderId: payment.orderId ?? payment.order.id,
+        userId: payment.userId,
+        payerAddress,
+        walletId,
+        hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
+      });
     }
 
     let transactionHash = sponsored.hash?.toLowerCase() ?? null;
@@ -441,7 +451,18 @@ export class PaymentsService {
           ),
         });
       } catch (error) {
-        throw this.sponsoredCryptoPaymentUnavailable(error);
+        throw this.sponsoredCryptoPaymentUnavailable(error, {
+          stage: "privy_status",
+          paymentId: payment.id,
+          orderId: payment.orderId ?? payment.order.id,
+          userId: payment.userId,
+          payerAddress,
+          walletId,
+          providerId: sponsored.providerId,
+          rawStatus: sponsored.rawStatus,
+          userOperationHash: sponsored.userOperationHash,
+          hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
+        });
       }
       transactionHash = status.hash?.toLowerCase() ?? null;
     }
@@ -459,7 +480,38 @@ export class PaymentsService {
     );
   }
 
-  private sponsoredCryptoPaymentUnavailable(_error: unknown) {
+  private sponsoredCryptoPaymentUnavailable(
+    error: unknown,
+    context: {
+      stage: "privy_send" | "privy_status";
+      paymentId: string;
+      orderId: string;
+      userId: string;
+      payerAddress: string;
+      walletId: string;
+      providerId?: string | null;
+      rawStatus?: string | null;
+      userOperationHash?: string | null;
+      hasPrivyAccessToken: boolean;
+    },
+  ) {
+    this.logger.warn(
+      JSON.stringify({
+        event: "sponsored_usdc_payment_failed",
+        stage: context.stage,
+        reason: this.sponsoredCryptoPaymentFailureReason(error),
+        errorMessage: this.safeProviderErrorMessage(error),
+        paymentId: this.shortIdentifier(context.paymentId),
+        orderId: this.shortIdentifier(context.orderId),
+        userId: this.shortIdentifier(context.userId),
+        payerAddress: this.shortAddress(context.payerAddress),
+        walletId: this.shortIdentifier(context.walletId),
+        providerId: this.shortIdentifier(context.providerId),
+        rawStatus: context.rawStatus ?? null,
+        userOperationHash: this.shortHash(context.userOperationHash),
+        hasPrivyAccessToken: context.hasPrivyAccessToken,
+      }),
+    );
     return new ServiceUnavailableException(
       "Wallet payment is temporarily unavailable. Try card payment or try again later.",
     );
@@ -1771,6 +1823,89 @@ export class PaymentsService {
   private erc20BalanceOfData(walletAddress: string) {
     const wallet = walletAddress.slice(2).toLowerCase().padStart(64, "0");
     return `0x${ERC20_BALANCE_OF_SELECTOR}${wallet}`;
+  }
+
+  private sponsoredCryptoPaymentFailureReason(error: unknown) {
+    const message = this.safeProviderErrorMessage(error).toLowerCase();
+    if (message.includes("wallet jwt exchange")) {
+      return "privy_wallet_jwt_exchange_failed";
+    }
+    if (
+      message.includes("authorization keys") ||
+      message.includes("authorization key") ||
+      message.includes("user signing keys")
+    ) {
+      return "privy_authorization_key_unavailable";
+    }
+    if (message.includes("policy")) {
+      return "privy_policy_rejected";
+    }
+    if (message.includes("sponsor") || message.includes("paymaster")) {
+      return "privy_sponsorship_unavailable";
+    }
+    if (
+      message.includes("insufficient funds") ||
+      message.includes("gas * price") ||
+      message.includes("gas")
+    ) {
+      return "provider_gas_or_value_unavailable";
+    }
+    if (message.includes("http 401") || message.includes("unauthorized")) {
+      return "privy_api_unauthorized";
+    }
+    if (message.includes("http 403") || message.includes("forbidden")) {
+      return "privy_api_forbidden";
+    }
+    if (message.includes("http 429") || message.includes("rate")) {
+      return "privy_api_rate_limited";
+    }
+    if (message.includes("rpc failed") || message.includes("transaction lookup")) {
+      return "privy_rpc_failed";
+    }
+    return "privy_provider_failed";
+  }
+
+  private safeProviderErrorMessage(error: unknown) {
+    const raw =
+      error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    const message = raw || "Unknown sponsored USDC payment failure";
+    return message
+      .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+      .replace(/Basic\s+[A-Za-z0-9+/=]+/gi, "Basic <redacted>")
+      .replace(/eyJ[A-Za-z0-9._-]+/g, "<jwt:redacted>")
+      .replace(/0x[a-fA-F0-9]{64}/g, "<hash:redacted>")
+      .replace(
+        /0x[a-fA-F0-9]{40}/g,
+        (value) => this.shortAddress(value) ?? "<address:redacted>",
+      );
+  }
+
+  private shortIdentifier(value: string | null | undefined) {
+    if (!value) {
+      return null;
+    }
+    if (value.length <= 12) {
+      return value;
+    }
+    return `${value.slice(0, 6)}...${value.slice(-4)}`;
+  }
+
+  private shortAddress(value: string | null | undefined) {
+    const normalized = this.normalizeAddress(value);
+    if (!normalized) {
+      return null;
+    }
+    return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`;
+  }
+
+  private shortHash(value: string | null | undefined) {
+    if (!value) {
+      return null;
+    }
+    if (!/^0x[a-fA-F0-9]{64}$/.test(value)) {
+      return this.shortIdentifier(value);
+    }
+    return `${value.slice(0, 10)}...${value.slice(-6)}`;
   }
 
   private cryptoCaip2(chainId: string) {
