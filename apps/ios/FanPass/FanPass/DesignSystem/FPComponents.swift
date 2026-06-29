@@ -223,15 +223,16 @@ struct FPGlassCard<Content: View>: View {
 
 struct FPSurfaceCard<Content: View>: View {
     var cornerRadius: CGFloat = FPRadius.lg
+    var padded: Bool = true
     @ViewBuilder let content: Content
 
     var body: some View {
         content
-            .padding(FPSpacing.lg)
-            .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .padding(padded ? FPSpacing.lg : 0)
+            .background(FPColors.surfaceGlass.opacity(0.54), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(FPColors.borderDivider, lineWidth: 1)
+                    .stroke(FPColors.borderDivider.opacity(0.56), lineWidth: 1)
             }
     }
 }
@@ -1109,32 +1110,34 @@ struct FPConceptRowView: View {
             Image(systemName: row.icon)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(row.kind.foreground)
-                .frame(width: 34, height: 34)
-                .background(row.kind.foreground.opacity(0.12), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                .frame(width: 30, height: 30)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(row.title)
-                    .font(FPTypography.headline)
+                    .font(FPTypography.callout.weight(.semibold))
                     .foregroundStyle(FPColors.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(row.subtitle)
                     .font(FPTypography.caption)
                     .foregroundStyle(FPColors.textSecondary)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: FPSpacing.sm)
             if let value = row.value {
                 Text(value)
-                    .font(FPTypography.monoNumber)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
                     .foregroundStyle(row.kind.foreground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
         }
-        .padding(FPSpacing.md)
-        .background(FPColors.backgroundSubtle, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
+        .padding(.horizontal, FPSpacing.sm)
+        .padding(.vertical, FPSpacing.sm)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(FPColors.borderDivider.opacity(0.42))
+                .frame(height: 1)
+                .padding(.leading, 44)
         }
     }
 }
@@ -1143,10 +1146,16 @@ struct FPConceptRowList: View {
     let rows: [FPConceptRow]
 
     var body: some View {
-        VStack(spacing: FPSpacing.sm) {
+        VStack(spacing: 0) {
             ForEach(rows) { row in
                 FPConceptRowView(row: row)
             }
+        }
+        .padding(.vertical, FPSpacing.xs)
+        .background(FPColors.surfaceGlass.opacity(0.38), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
+                .stroke(FPColors.borderDivider.opacity(0.48), lineWidth: 1)
         }
     }
 }

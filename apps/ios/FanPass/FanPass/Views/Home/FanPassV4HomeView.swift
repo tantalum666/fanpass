@@ -7,8 +7,8 @@ struct FanPassV4HomeView: View {
     @State private var selectedHeroIndex = 0
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: FPSpacing.xl) {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: FPSpacing.lg) {
                 brandHeader
                 headlineSection
                 searchBar
@@ -63,12 +63,16 @@ struct FanPassV4HomeView: View {
                 .foregroundStyle(FPColors.textSecondary)
                 .contentTransition(.opacity)
                 .id(headlineGreeting)
-            Text("Find verified tickets")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+            Text("Tonight in \(homeCity)")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundStyle(FPColors.textPrimary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.82)
         }
+    }
+
+    private var homeCity: String {
+        viewModel.featuredEvents.first?.venue.city ?? "Hong Kong"
     }
 
     private var headlineGreeting: String {
@@ -89,11 +93,12 @@ struct FanPassV4HomeView: View {
             }
             .font(FPTypography.callout)
             .foregroundStyle(FPColors.textSecondary)
-            .padding(FPSpacing.md)
-            .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            .padding(.horizontal, FPSpacing.md)
+            .padding(.vertical, FPSpacing.sm)
+            .background(FPColors.surfaceGlass.opacity(0.58), in: Capsule())
             .overlay {
-                RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                    .stroke(FPColors.borderDivider, lineWidth: 1)
+                Capsule()
+                    .stroke(FPColors.borderDivider.opacity(0.52), lineWidth: 1)
             }
             .contentShape(Rectangle())
         }
@@ -150,7 +155,7 @@ struct FanPassV4HomeView: View {
     private var nextTicketSection: some View {
         if let ticket = viewModel.nextTicket {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                FPSectionHeader(title: "Next ticket", subtitle: "Entry readiness stays separate from account settings.")
+                FPSectionHeader(title: "Next ticket")
                 NavigationLink {
                     FanPassV4TicketDetailView(ticket: ticket)
                 } label: {
@@ -218,11 +223,6 @@ struct FanPassV4HomeView: View {
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(FPColors.textSecondary)
                 .frame(width: 28, height: 28)
-                .background(FPColors.surfaceGlass, in: Circle())
-                .overlay {
-                    Circle()
-                        .stroke(FPColors.borderDivider, lineWidth: 1)
-                }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(systemImage == "chevron.left" ? "Previous event" : "Next event")
@@ -247,78 +247,63 @@ private struct FanPassHomeFeaturedCard: View {
     let event: FanPassV4.Event
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            FanPassHomePoster(event: event, height: 270)
-                .overlay(alignment: .topLeading) {
-                    FanPassHomeDateBadge(event: event)
-                        .padding(FPSpacing.lg)
-                }
-                .overlay(alignment: .bottomLeading) {
-                    VStack(alignment: .leading, spacing: FPSpacing.sm) {
+        FanPassHomePoster(event: event, height: 360)
+            .overlay(alignment: .topLeading) {
+                FanPassHomeDateBadge(event: event)
+                    .padding(FPSpacing.lg)
+            }
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "heart")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(FPColors.textPrimary)
+                    .frame(width: 42, height: 42)
+                    .background(Color.black.opacity(0.38), in: Circle())
+                    .padding(FPSpacing.lg)
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: FPSpacing.md) {
+                    HStack(spacing: FPSpacing.sm) {
                         FPStatusPill(
-                            title: "Next up",
-                            foreground: Color(hex: UInt32(event.heroGradient.accentHex)),
-                            background: Color.black.opacity(0.35),
+                            title: "Verified",
+                            systemImage: FPIcons.verified,
+                            foreground: FPColors.verifiedGreen,
+                            background: Color.black.opacity(0.42),
                             border: Color.white.opacity(0.16)
                         )
-                        Text(event.title)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(FPColors.textPrimary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.76)
-                        Text("\(event.venue.name)\n\(event.venue.city), \(event.venue.country)")
+                        FPStatusPill(
+                            title: event.marketSummary.floorPriceLabel,
+                            foreground: FPColors.textPrimary,
+                            background: Color.black.opacity(0.42),
+                            border: Color.white.opacity(0.16)
+                        )
+                    }
+                    Text(event.title)
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
+                        .foregroundStyle(FPColors.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.74)
+                    HStack(alignment: .center, spacing: FPSpacing.sm) {
+                        Text("\(event.venue.name) · \(event.venue.city)")
                             .font(FPTypography.callout)
-                            .foregroundStyle(Color.white.opacity(0.78))
-                            .lineLimit(2)
+                            .foregroundStyle(Color.white.opacity(0.80))
+                            .lineLimit(1)
+                        Spacer(minLength: FPSpacing.sm)
+                        Label("Tickets", systemImage: "arrow.right")
+                            .font(FPTypography.caption.weight(.bold))
+                            .foregroundStyle(FPColors.backgroundNight)
+                            .padding(.horizontal, FPSpacing.md)
+                            .padding(.vertical, FPSpacing.sm)
+                            .background(FPColors.textPrimary, in: Capsule())
                     }
-                    .padding(FPSpacing.lg)
                 }
-
-            HStack(spacing: FPSpacing.md) {
-                FPStatusPill(
-                    title: "Verified Ticket",
-                    systemImage: FPIcons.verified,
-                    foreground: FPColors.verifiedGreen,
-                    background: FPColors.verifiedGreen.opacity(0.16),
-                    border: FPColors.verifiedGreen.opacity(0.5)
-                )
-                FPStatusPill(
-                    title: "Organizer cap",
-                    systemImage: "shield.lefthalf.filled",
-                    foreground: FPColors.warningAmber,
-                    background: FPColors.warningAmber.opacity(0.14),
-                    border: FPColors.warningAmber.opacity(0.48)
-                )
-                Spacer(minLength: 0)
+                .padding(FPSpacing.lg)
             }
-            .padding(.horizontal, FPSpacing.lg)
-            .padding(.top, FPSpacing.lg)
-
-            HStack(spacing: FPSpacing.md) {
-                Text("Find tickets")
-                    .font(FPTypography.headline)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(FPGradients.passAurora, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                Image(systemName: "heart")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(FPColors.textPrimary)
-                    .frame(width: 60, height: 52)
-                    .background(FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                            .stroke(FPColors.borderDivider, lineWidth: 1)
-                    }
+            .clipShape(RoundedRectangle(cornerRadius: FPRadius.xl, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: FPRadius.xl, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
             }
-            .padding(FPSpacing.lg)
-        }
-        .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
-        .fpShadow(FPShadows.card)
+            .fpShadow(FPShadows.card)
     }
 }
 
@@ -350,45 +335,28 @@ private struct FanPassHomeEventTile: View {
     let event: FanPassV4.Event
 
     var body: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FanPassHomePoster(event: event, height: 112)
+        VStack(alignment: .leading, spacing: FPSpacing.sm) {
+            FanPassHomePoster(event: event, height: 148)
                 .overlay(alignment: .topLeading) {
                     FanPassHomeDateBadge(event: event)
-                        .scaleEffect(0.82, anchor: .topLeading)
+                        .scaleEffect(0.74, anchor: .topLeading)
                         .padding(FPSpacing.sm)
                 }
-                .overlay(alignment: .topTrailing) {
-                    Image(systemName: "heart")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(FPColors.textPrimary)
-                        .padding(FPSpacing.md)
-                }
+                .clipShape(RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
 
             VStack(alignment: .leading, spacing: FPSpacing.xs) {
                 Text(event.title)
-                    .font(FPTypography.headline)
+                    .font(FPTypography.callout.weight(.semibold))
                     .foregroundStyle(FPColors.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.78)
-                Text(event.venue.name)
-                    .font(FPTypography.caption)
-                    .foregroundStyle(FPColors.textSecondary)
-                    .lineLimit(1)
                 Text("From \(event.marketSummary.floorPriceLabel)")
-                    .font(FPTypography.callout)
+                    .font(FPTypography.caption.weight(.semibold))
                     .foregroundStyle(FPColors.pulseCyan)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
             }
-            .padding(.horizontal, FPSpacing.md)
-            .padding(.bottom, FPSpacing.md)
         }
-        .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
     }
 }
 
@@ -398,6 +366,8 @@ private struct FanPassHomeAnnouncementRow: View {
     var body: some View {
         HStack(spacing: FPSpacing.md) {
             FanPassHomeDateBadge(event: event)
+                .scaleEffect(0.78)
+                .frame(width: 46, height: 58)
             FanPassHomePoster(event: event, height: 64)
                 .frame(width: 70)
                 .clipShape(RoundedRectangle(cornerRadius: FPRadius.sm, style: .continuous))
@@ -426,11 +396,12 @@ private struct FanPassHomeAnnouncementRow: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(FPColors.textSecondary)
         }
-        .padding(FPSpacing.md)
-        .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
+        .padding(.vertical, FPSpacing.sm)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(FPColors.borderDivider.opacity(0.42))
+                .frame(height: 1)
+                .padding(.leading, 132)
         }
     }
 }

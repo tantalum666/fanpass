@@ -55,7 +55,7 @@ struct FanPassV4ProfileView: View {
     var body: some View {
         FanPassV4Scaffold(
             title: "Account",
-            subtitle: "Identity, privacy, orders, alerts, and support.",
+            subtitle: backend.isAuthenticated ? viewModel.user.maskedEmail : nil,
             verticalSpacing: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
             topPadding: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
             bottomPadding: backend.isAuthenticated ? FPSpacing.sixXL + FPSpacing.twoXL : FPSpacing.sixXL + FPSpacing.sm,
@@ -81,7 +81,7 @@ struct FanPassV4ProfileView: View {
         .navigationDestination(item: $accountRoute) { route in
             FanPassV4Scaffold(
                 title: route.title,
-                subtitle: route.subtitle,
+                subtitle: nil,
                 verticalSpacing: FPSpacing.lg,
                 topPadding: FPSpacing.fourXL,
                 bottomPadding: FPSpacing.threeXL
@@ -234,7 +234,6 @@ struct FanPassV4ProfileView: View {
                     action: { dataExportRequested = true }
                 )
             }
-            AccountFooterNote("Ticket entry, resale, and transfer actions stay inside Tickets.")
         }
     }
 
@@ -250,7 +249,6 @@ struct FanPassV4ProfileView: View {
                 AccountListRow(systemImage: "arrow.uturn.backward.circle.fill", title: "ORD-FIN-0441", subtitle: "City Finals", value: "Refunded")
                 AccountListRow(systemImage: FPIcons.error, title: "ORD-LAB-0990", subtitle: "Reservation expired", value: "Expired", kind: .warning)
             }
-            AccountFooterNote("Order records use masked references and hide provider internals.")
         }
     }
 
@@ -285,7 +283,6 @@ struct FanPassV4ProfileView: View {
                 AccountSwitchListRow(title: "Usage analytics", subtitle: "Diagnostics only", systemImage: "waveform.path.ecg", isOn: $usageAnalyticsEnabled)
                 AccountListRow(systemImage: "trash.fill", title: "Delete account", value: "Locked", kind: .danger)
             }
-            AccountFooterNote("Raw provider tokens, QR payloads, private keys, and chain internals stay out of Account.")
         }
     }
 
@@ -366,7 +363,6 @@ struct FanPassV4ProfileView: View {
                     action: { Task { await refreshWalletBalances(force: true) } }
                 )
             }
-            AccountFooterNote("Saved cards stay inside secure checkout. Account shows payment readiness only.")
         }
         .task {
             await refreshWalletBalances()
@@ -424,7 +420,6 @@ struct FanPassV4ProfileView: View {
                 AccountListRow(systemImage: FPIcons.resale, title: "Open listings", value: "\(openListings.count)", kind: openListings.isEmpty ? .neutral : .warning)
                 AccountListRow(systemImage: FPIcons.tickets, title: "Listing controls", value: "Tickets", kind: .info)
             }
-            AccountFooterNote("Create, cancel, and review resale eligibility from the owned ticket.")
         }
     }
 
@@ -438,7 +433,6 @@ struct FanPassV4ProfileView: View {
                 AccountListRow(systemImage: FPIcons.fanAccess, title: "Fan Access badge", subtitle: firstAccessBadgeSubtitle, value: firstAccessBadgeValue, kind: firstAccessBadgeKind)
                 AccountListRow(systemImage: "tag.fill", title: "Promo codes", value: "None", kind: .info)
             }
-            AccountFooterNote("Final credit and promo eligibility is checked again at checkout.")
         }
     }
 

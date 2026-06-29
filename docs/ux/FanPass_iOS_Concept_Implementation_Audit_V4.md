@@ -199,3 +199,37 @@ Verification:
 - The current simulator session was signed out, so authenticated Profile/detail pages were build/runtime-path verified but not live-screenshot verified in an authenticated state.
 - `npm run security:ios-distribution-boundaries` passed.
 - `git diff --check` passed.
+
+## 2026-06-29 Design-System And Home Simplification Pass
+
+After the owner called out that Home and other pages still felt too card-heavy and text-heavy, a durable design guide was added and the fan-facing surfaces were simplified.
+
+Reference direction:
+
+- DICE, SeatGeek, and Eventbrite App Store/iTunes Lookup data and screenshots were reviewed for current ticketing app patterns: image-led discovery, concise event rows, clear pricing, and account/ticket readiness separation.
+- GitHub `VoltAgent/awesome-design-md`, `bergside/awesome-design-skills`, and `bergside/design-md-chrome` were read for safe DESIGN.md structure and AI-agent design rules. No external repo scripts or extension code were executed.
+- The new `docs/design.md` is the local agent-readable design standard for future FanPass iOS work.
+
+Changes applied:
+
+- Home now leads with a poster-sized hero instead of a multi-part card. Verified state, price, venue, and `Tickets` action sit on the image.
+- Home search became a light pill, popular events became cardless poster tiles, and `Just announced` became compact list rows with dividers.
+- Explore route and section subtitles were removed where they only explained the obvious. `Signals` now uses row-list content instead of two stacked cards.
+- Tickets route subtitle and signed-out copy were shortened while preserving entry/payment/security explanations where needed.
+- Shared `FPSurfaceCard` and `FPConceptRowList` were made lighter so repeated rows do not default to heavy boxed cards.
+- Account root remained a compact settings-style list and was re-smoked with Computer Use.
+
+Boundaries preserved:
+
+- Payment, entry QR, resale rules, wallet/private-key, and chain-proof screens may still use more explicit safety copy.
+- No external visual assets, screenshots, or proprietary layouts from competitor apps were copied into source.
+- Provider/payment/credential secrecy boundaries remain unchanged.
+
+Verification:
+
+- Context-compaction Markdown resume pass completed before continuation: 102 files, 27,790 lines, SHA-256 `892aaef2f659041f926cc908d144a8dfaa0d97f9ddf031b8bb448f90fed626bb`.
+- XcodeBuildMCP `FanPass` Debug simulator build/run passed twice on `FanPass-iPhone-17` with `CODE_SIGNING_ALLOWED=NO`.
+- Computer Use visually checked Home, Explore, Tickets, and Account on the simulator. Home and Account showed no visible right-side scroll indicator.
+- Home screenshot evidence from XcodeBuildMCP: `/var/folders/w9/57v4cx3137g74nh7t0g2g2qc0000gn/T/screenshot_optimized_b9afd830-6e2c-4796-9e36-7c49c7fbec01.jpg`.
+- `npm run security:ios-distribution-boundaries` passed.
+- `git diff --check` passed.

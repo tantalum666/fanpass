@@ -18,7 +18,7 @@ struct FanPassV4TicketsView: View {
     }
 
     var body: some View {
-        FanPassV4Scaffold(title: "Tickets", subtitle: "Owned ticket retrieval, entry readiness, and safe lifecycle state.") {
+        FanPassV4Scaffold(title: "Tickets", subtitle: nil) {
             if backend.isAuthenticated {
                 walletSummary
                 FPConceptSegmentedControl(options: TicketFilter.allCases, selection: $selectedFilter) { $0.title }
@@ -52,7 +52,7 @@ struct FanPassV4TicketsView: View {
                         Text("Sign in to view tickets")
                             .font(FPTypography.title3)
                             .foregroundStyle(FPColors.textPrimary)
-                        Text("Ticket wallet, entry credentials, resale, and ownership history require a fan session.")
+                        Text("Sign in to manage entry and resale.")
                             .font(FPTypography.callout)
                             .foregroundStyle(FPColors.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -71,7 +71,7 @@ struct FanPassV4TicketsView: View {
 
     private var ticketList: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: selectedFilter.title, subtitle: "\(filteredTickets.count) ticket\(filteredTickets.count == 1 ? "" : "s")")
+            FPSectionHeader(title: "\(selectedFilter.title) · \(filteredTickets.count)")
             if filteredTickets.isEmpty {
                 FPEmptyStateView(title: "No tickets here", message: selectedFilter.emptyMessage, systemImage: FPIcons.tickets)
                     .frame(maxWidth: .infinity)
@@ -188,7 +188,7 @@ struct FanPassV4TicketDetailView: View {
     private var entryReadinessCard: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.lg) {
-                FPSectionHeader(title: "Entry QR", subtitle: "Refreshes automatically every 30 seconds")
+                FPSectionHeader(title: "Entry QR", subtitle: "Refreshes every 30s")
                 if currentTicket.status.allowsEntryCode {
                     entryQRCodePanel
                     FPSecondaryButton(
@@ -279,7 +279,7 @@ struct FanPassV4TicketDetailView: View {
 
     private var ticketRules: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Ticket rules", subtitle: "Entry and resale rules")
+            FPSectionHeader(title: "Ticket rules")
             FPConceptRowList(rows: [
                 .init(id: "type", icon: FPIcons.tickets, title: currentTicket.ticketType.name, subtitle: "Face value \(currentTicket.ticketType.priceLabel)", value: currentTicket.status.title),
                 .init(id: "transfer", icon: "arrow.left.arrow.right", title: "Transfer rule", subtitle: currentTicket.ticketType.transferRule.summary, value: "\(currentTicket.transferCount)/\(currentTicket.ticketType.transferRule.maxTransferCount)"),
@@ -709,7 +709,7 @@ struct FanPassV4TicketDetailView: View {
     private var ticketPrimaryActions: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                FPSectionHeader(title: "Ticket actions", subtitle: "Sell this ticket or open the market")
+                FPSectionHeader(title: "Ticket actions")
                 if currentTicket.status.allowsResale {
                     NavigationLink {
                         FanPassV4ListTicketView(ticket: currentTicket)
