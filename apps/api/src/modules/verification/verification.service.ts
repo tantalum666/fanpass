@@ -141,10 +141,13 @@ export class VerificationService {
       this.recordCheckin(payload, scannerUserId, gate, "INVALID_SIGNATURE");
       this.throwRedemptionFailure("INVALID_SIGNATURE", "Invalid QR signature");
     }
-    if (new Date(payload.expiresAt).getTime() < Date.now()) {
-      this.expireMemoryCredential(payload.credentialId);
-      this.recordCheckin(payload, scannerUserId, gate, "EXPIRED");
-      this.throwRedemptionFailure("EXPIRED", "QR payload has expired");
+    const timingFailure = this.payloadTimingFailure(payload);
+    if (timingFailure) {
+      if (timingFailure.result === "EXPIRED") {
+        this.expireMemoryCredential(payload.credentialId);
+      }
+      this.recordCheckin(payload, scannerUserId, gate, timingFailure.result);
+      this.throwRedemptionFailure(timingFailure.result, timingFailure.message);
     }
     const memoryCredentialResult = this.assertMemoryCredentialActive(payload);
     if (memoryCredentialResult) {
@@ -424,6 +427,51 @@ export class VerificationService {
     return Math.min(ttlSeconds, QR_TTL_SECONDS) * 1000;
   }
 
+  private clockSkewMs() {
+    return 5_000;
+  }
+
+  private payloadTimingFailure(
+    payload: SignedQrPayload,
+  ): { result: "EXPIRED" | "INVALID_TICKET"; message: string } | null {
+    const issuedAt = Date.parse(payload.issuedAt);
+    const expiresAt = Date.parse(payload.expiresAt);
+    if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) {
+      return {
+        result: "INVALID_TICKET",
+        message: "Entry credential has invalid timing",
+      };
+    }
+    if (expiresAt <= issuedAt) {
+      return {
+        result: "INVALID_TICKET",
+        message: "Entry credential has invalid timing",
+      };
+    }
+
+    const now = Date.now();
+    if (issuedAt - now > this.clockSkewMs()) {
+      return {
+        result: "INVALID_TICKET",
+        message: "Entry credential is not active yet",
+      };
+    }
+    if (expiresAt - issuedAt > this.ttlMs() + this.clockSkewMs()) {
+      return {
+        result: "INVALID_TICKET",
+        message: "Entry credential lifetime is too long",
+      };
+    }
+    if (expiresAt < now) {
+      return {
+        result: "EXPIRED",
+        message: "QR payload has expired",
+      };
+    }
+
+    return null;
+  }
+
   private recordCheckin(
     payload: Pick<SignedQrPayload, "ticketId" | "nonce">,
     scannerUserId: string,
@@ -504,16 +552,19 @@ export class VerificationService {
       this.throwRedemptionFailure("INVALID_SIGNATURE", "Invalid QR signature");
     }
 
-    if (new Date(payload.expiresAt).getTime() < Date.now()) {
-      await this.expirePrismaCredential(prisma, payload.credentialId);
+    const timingFailure = this.payloadTimingFailure(payload);
+    if (timingFailure) {
+      if (timingFailure.result === "EXPIRED") {
+        await this.expirePrismaCredential(prisma, payload.credentialId);
+      }
       await this.recordPrismaCheckin(
         prisma,
         payload,
         scannerUserId,
         gate,
-        "EXPIRED",
+        timingFailure.result,
       );
-      this.throwRedemptionFailure("EXPIRED", "QR payload has expired");
+      this.throwRedemptionFailure(timingFailure.result, timingFailure.message);
     }
 
     const credentialResult = await this.assertPrismaCredentialActive(
@@ -895,7 +946,9 @@ export class VerificationService {
       return "INVALID_TICKET";
     }
     if (!this.credentialMatchesPayload(credential, payload)) {
-      return "OWNER_MISMATCH";
+      return credential.ownerIdHash === payload.ownerIdHash
+        ? "INVALID_TICKET"
+        : "OWNER_MISMATCH";
     }
     if (credential.status === "CONSUMED") {
       return "DUPLICATE";
@@ -929,7 +982,9 @@ export class VerificationService {
       return "INVALID_TICKET";
     }
     if (!this.credentialMatchesPayload(credential, payload)) {
-      return "OWNER_MISMATCH";
+      return credential.ownerIdHash === payload.ownerIdHash
+        ? "INVALID_TICKET"
+        : "OWNER_MISMATCH";
     }
     if (credential.status === "CONSUMED") {
       return "DUPLICATE";
@@ -954,6 +1009,8 @@ export class VerificationService {
       ticketTypeId?: string | null;
       ownerIdHash: string;
       nonce: string;
+      issuedAt: string | Date;
+      expiresAt: string | Date;
       entryMode: string;
       keyId?: string | null;
     },
@@ -965,9 +1022,15 @@ export class VerificationService {
       (credential.ticketTypeId ?? undefined) === payload.ticketTypeId &&
       credential.ownerIdHash === payload.ownerIdHash &&
       credential.nonce === payload.nonce &&
+      this.credentialTimestamp(credential.issuedAt) === payload.issuedAt &&
+      this.credentialTimestamp(credential.expiresAt) === payload.expiresAt &&
       credential.entryMode === (payload.entryMode ?? "qr") &&
       (credential.keyId ?? undefined) === payload.kid
     );
+  }
+
+  private credentialTimestamp(value: string | Date) {
+    return value instanceof Date ? value.toISOString() : value;
   }
 
   private async expirePrismaCredential(

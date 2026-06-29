@@ -399,6 +399,80 @@ describe("VerificationService", () => {
     ).toBe(30_000);
   });
 
+  it("rejects signed entry credentials that are not active yet", async () => {
+    const payload = await verification.createPayload("tkt_demo_001");
+    const issuedAt = new Date(Date.now() + 60_000);
+    const notYetActivePayload = resignPayload({
+      ...payload,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: new Date(issuedAt.getTime() + 30_000).toISOString(),
+    });
+
+    await expect(
+      verification.redeem(notYetActivePayload, "usr_gate_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        result: "INVALID_TICKET",
+        message: "Entry credential is not active yet",
+      }),
+    });
+    expect(store.getTicket("tkt_demo_001").status).toBe("ACTIVE");
+    expect(resultCounts()).toEqual({ INVALID_TICKET: 1 });
+  });
+
+  it("rejects signed entry credentials with a lifetime beyond the server TTL", async () => {
+    const payload = await verification.createPayload("tkt_demo_001");
+    const issuedAt = new Date();
+    const longLivedPayload = resignPayload({
+      ...payload,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: new Date(issuedAt.getTime() + 120_000).toISOString(),
+    });
+
+    await expect(
+      verification.redeem(longLivedPayload, "usr_gate_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        result: "INVALID_TICKET",
+        message: "Entry credential lifetime is too long",
+      }),
+    });
+    expect(store.getTicket("tkt_demo_001").status).toBe("ACTIVE");
+    expect(resultCounts()).toEqual({ INVALID_TICKET: 1 });
+  });
+
+  it("rejects signed entry credentials whose timing differs from the stored credential", async () => {
+    const payload = await verification.createPayload("tkt_demo_001");
+    const shiftedIssuedAt = new Date(
+      new Date(payload.issuedAt).getTime() - 1_000,
+    );
+    const shiftedPayload = resignPayload({
+      ...payload,
+      issuedAt: shiftedIssuedAt.toISOString(),
+      expiresAt: new Date(shiftedIssuedAt.getTime() + 30_000).toISOString(),
+    });
+
+    await expect(
+      verification.redeem(shiftedPayload, "usr_gate_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        result: "INVALID_TICKET",
+        message: "Entry credential is no longer valid",
+      }),
+    });
+    expect(store.getTicket("tkt_demo_001").status).toBe("ACTIVE");
+    expect(resultCounts()).toEqual({ INVALID_TICKET: 1 });
+  });
+
   function resultCounts() {
     return store.checkins.reduce<Record<string, number>>((counts, checkin) => {
       counts[checkin.result] = (counts[checkin.result] ?? 0) + 1;
@@ -421,6 +495,26 @@ function buildLegacySignedPayload(
   };
   return {
     ...unsigned,
+    signature: signPayload(unsigned),
+  };
+}
+
+function resignPayload(payload: SignedQrPayload): SignedQrPayload {
+  const unsigned = {
+    v: payload.v,
+    credentialId: payload.credentialId,
+    ticketId: payload.ticketId,
+    eventId: payload.eventId,
+    ticketTypeId: payload.ticketTypeId,
+    ownerIdHash: payload.ownerIdHash,
+    nonce: payload.nonce,
+    issuedAt: payload.issuedAt,
+    expiresAt: payload.expiresAt,
+    entryMode: payload.entryMode,
+    kid: payload.kid,
+  };
+  return {
+    ...payload,
     signature: signPayload(unsigned),
   };
 }
