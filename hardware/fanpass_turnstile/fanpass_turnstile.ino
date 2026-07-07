@@ -33,6 +33,7 @@ const unsigned long SCAN_COOLDOWN_MS = 1200;
 const unsigned long SENSOR_ARM_DELAY_MS = 2000;
 const unsigned long SCANNER_IDLE_COMPLETE_MS = 700;
 const unsigned long WIEGAND_PROBE_INTERVAL_MS = 300;
+const unsigned long SCANNER_NOISE_LOG_INTERVAL_MS = 1500;
 const int PASS_DISTANCE_CM = 5;
 const int MAX_REDEEMED_TICKET_KEYS = 24;
 const int MAX_SCAN_PAYLOAD_CHARS = 4096;
@@ -61,6 +62,8 @@ unsigned long lastScanCompletedAt = 0;
 bool scannerReadStatusShown = false;
 String redeemedTicketKeys[MAX_REDEEMED_TICKET_KEYS];
 int redeemedTicketKeyCursor = 0;
+unsigned long scannerNoiseByteCount = 0;
+unsigned long lastScannerNoiseLogAt = 0;
 
 volatile uint64_t wiegandValue = 0;
 volatile byte wiegandBits = 0;
@@ -273,6 +276,11 @@ void readScanner() {
       continue;
     }
 
+    if (!isScannerPayloadByte(c)) {
+      recordScannerNoiseByte((byte)c);
+      continue;
+    }
+
     if (scanBuffer.length() == 0 && !scannerReadStatusShown) {
       showLine("PASS READ", "Checking");
       scannerReadStatusShown = true;
@@ -298,6 +306,27 @@ void readScanner() {
     scanBuffer = "";
     scannerReadStatusShown = false;
   }
+}
+
+bool isScannerPayloadByte(char c) {
+  return c >= 0x20 && c <= 0x7E;
+}
+
+void recordScannerNoiseByte(byte value) {
+  scannerNoiseByteCount++;
+  unsigned long now = millis();
+  if (now - lastScannerNoiseLogAt < SCANNER_NOISE_LOG_INTERVAL_MS) {
+    return;
+  }
+
+  lastScannerNoiseLogAt = now;
+  Serial.print("SCANNER_NOISE ignored=");
+  Serial.print(scannerNoiseByteCount);
+  Serial.print(" last=0x");
+  if (value < 0x10) {
+    Serial.print("0");
+  }
+  Serial.println(value, HEX);
 }
 
 void handleScannerLine(String payload) {
