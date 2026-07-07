@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createReadStream } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { EOL, platform } from "node:os";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -17,11 +17,10 @@ if (!turnstileRedeemKey && !staffAccessToken) {
 }
 const gate = process.env.FANPASS_TURNSTILE_GATE?.trim() || "GATE-A";
 const baud = process.env.FANPASS_TURNSTILE_BAUD?.trim() || "115200";
+const readMode = process.env.FANPASS_TURNSTILE_READ_MODE?.trim() || "pyserial";
 
 const seenCredentialKeys = new Set();
 let lineBuffer = "";
-
-configureSerialDevice(serialDevice, baud);
 
 console.log(
   [
@@ -31,15 +30,141 @@ console.log(
     `gate=${gate}`,
     `baud=${baud}`,
     `auth=${turnstileRedeemKey ? "turnstile_key" : "staff_bearer"}`,
+    `read_mode=${readMode}`,
   ].join(" "),
 );
 
-const stream = createReadStream(serialDevice, {
-  encoding: "utf8",
-  highWaterMark: 512,
-});
+startSerialReader();
 
-stream.on("data", (chunk) => {
+function startSerialReader() {
+  if (readMode === "direct") {
+    configureSerialDevice(serialDevice, baud);
+    const stream = createReadStream(serialDevice, {
+      encoding: "utf8",
+      highWaterMark: 512,
+    });
+
+    stream.on("data", appendSerialChunk);
+    stream.on("error", (error) => {
+      console.error(`turnstile_bridge=serial_error message=${JSON.stringify(error.message)}`);
+      process.exitCode = 1;
+    });
+    return;
+  }
+
+  if (readMode === "pyserial") {
+    const reader = spawn("python3", [
+      "-u",
+      "-c",
+      [
+        "import serial, sys, time",
+        "device = sys.argv[1]",
+        "baud = int(sys.argv[2])",
+        "ser = serial.Serial(device, baudrate=baud, timeout=1, dsrdtr=False, rtscts=False)",
+        "ser.dtr = True",
+        "ser.rts = True",
+        "time.sleep(0.2)",
+        "while True:",
+        "    data = ser.read(512)",
+        "    if data:",
+        "        sys.stdout.buffer.write(data)",
+        "        sys.stdout.buffer.flush()",
+      ].join("\n"),
+      serialDevice,
+      baud,
+    ], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    reader.stdout.on("data", appendSerialChunk);
+    reader.stderr.setEncoding("utf8");
+    reader.stderr.on("data", (chunk) => {
+      for (const line of String(chunk).split(/\r?\n/)) {
+        if (line.trim()) {
+          console.log(`turnstile_bridge=pyserial message=${JSON.stringify(line.trim())}`);
+        }
+      }
+    });
+    reader.on("error", (error) => {
+      console.error(`turnstile_bridge=pyserial_error message=${JSON.stringify(error.message)}`);
+      process.exitCode = 1;
+    });
+    reader.on("exit", (code, signal) => {
+      if (signal === "SIGINT") {
+        return;
+      }
+      console.log(`turnstile_bridge=pyserial_exit code=${code ?? "null"} signal=${signal ?? "null"}`);
+      if (code && code !== 0) {
+        process.exitCode = code;
+      }
+    });
+
+    const stopReader = () => {
+      if (!reader.killed) {
+        reader.kill("SIGINT");
+      }
+    };
+    process.on("SIGINT", () => {
+      stopReader();
+      process.exit(130);
+    });
+    process.on("SIGTERM", () => {
+      stopReader();
+      process.exit(143);
+    });
+    return;
+  }
+
+  const monitor = spawn("arduino-cli", [
+    "monitor",
+    "-p",
+    serialDevice,
+    "--config",
+    `baudrate=${baud}`,
+  ], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  monitor.stdout.setEncoding("utf8");
+  monitor.stderr.setEncoding("utf8");
+  monitor.stdout.on("data", appendSerialChunk);
+  monitor.stderr.on("data", (chunk) => {
+    for (const line of String(chunk).split(/\r?\n/)) {
+      if (line.trim()) {
+        console.log(`turnstile_bridge=monitor message=${JSON.stringify(line.trim())}`);
+      }
+    }
+  });
+  monitor.on("error", (error) => {
+    console.error(`turnstile_bridge=monitor_error message=${JSON.stringify(error.message)}`);
+    process.exitCode = 1;
+  });
+  monitor.on("exit", (code, signal) => {
+    if (signal === "SIGINT") {
+      return;
+    }
+    console.log(`turnstile_bridge=monitor_exit code=${code ?? "null"} signal=${signal ?? "null"}`);
+    if (code && code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+  const stopMonitor = () => {
+    if (!monitor.killed) {
+      monitor.kill("SIGINT");
+    }
+  };
+  process.on("SIGINT", () => {
+    stopMonitor();
+    process.exit(130);
+  });
+  process.on("SIGTERM", () => {
+    stopMonitor();
+    process.exit(143);
+  });
+}
+
+function appendSerialChunk(chunk) {
   lineBuffer += chunk;
   let newlineIndex = findNewline(lineBuffer);
   while (newlineIndex !== -1) {
@@ -48,12 +173,7 @@ stream.on("data", (chunk) => {
     void handleLine(line);
     newlineIndex = findNewline(lineBuffer);
   }
-});
-
-stream.on("error", (error) => {
-  console.error(`turnstile_bridge=serial_error message=${JSON.stringify(error.message)}`);
-  process.exitCode = 1;
-});
+}
 
 async function handleLine(line) {
   if (!line) {
@@ -64,6 +184,8 @@ async function handleLine(line) {
   if (!payload) {
     return;
   }
+
+  console.log("turnstile_bridge=scan_detected");
 
   if (payload === "EP8280:DECODE_PIN") {
     console.log("turnstile_bridge=ignored_decode_fallback");
@@ -230,5 +352,6 @@ Required environment:
 Optional environment:
   FANPASS_TURNSTILE_GATE            Gate code, default GATE-A
   FANPASS_TURNSTILE_BAUD            Serial baud, default 115200
+  FANPASS_TURNSTILE_READ_MODE       pyserial (default), arduino-monitor, or direct
 `);
 }

@@ -43,7 +43,7 @@ const bool DEBUG_SCANNER_BYTES = false;
 // proves the scanner reported decode success but does not contain payload text.
 // It opens the gate in this bench demo only.
 const char REQUIRED_QR_MARKER[] = "FANPASS";
-const bool ALLOW_ANY_QR_FOR_TESTING = true;
+const bool ALLOW_ANY_QR_FOR_TESTING = false;
 const bool ALLOW_DECODE_FALLBACK_OPEN = true;
 
 Servo gateServo;
@@ -440,6 +440,10 @@ bool isAuthorized(String payload) {
     return ALLOW_DECODE_FALLBACK_OPEN;
   }
 
+  if (isSignedFanPassPayload(payload)) {
+    return true;
+  }
+
   if (ALLOW_ANY_QR_FOR_TESTING) {
     return true;
   }
@@ -453,18 +457,27 @@ bool isDecodeFallbackPayload(String payload) {
   return payload == "EP8280:DECODE_PIN";
 }
 
+bool isSignedFanPassPayload(String payload) {
+  return extractJsonStringField(payload, "ticketId").length() > 0 &&
+    extractJsonStringField(payload, "credentialId").length() > 0 &&
+    extractJsonStringField(payload, "nonce").length() > 0 &&
+    extractJsonStringField(payload, "signature").length() > 0;
+}
+
 String redemptionKeyForPayload(String payload) {
   payload.trim();
   if (payload.length() == 0 || isDecodeFallbackPayload(payload)) {
     return "";
   }
 
-  String ticketId = extractJsonStringField(payload, "ticketId");
-  if (ticketId.length() == 0) {
-    ticketId = extractJsonStringField(payload, "ticket_id");
+  String credentialId = extractJsonStringField(payload, "credentialId");
+  if (credentialId.length() > 0) {
+    return "credential:" + credentialId;
   }
-  if (ticketId.length() > 0) {
-    return "ticket:" + ticketId;
+
+  String nonce = extractJsonStringField(payload, "nonce");
+  if (nonce.length() > 0) {
+    return "nonce:" + nonce;
   }
 
   return "payload:" + payloadFingerprint(payload);
