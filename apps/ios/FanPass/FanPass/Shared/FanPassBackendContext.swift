@@ -212,10 +212,10 @@ private struct FanPassV4SessionTicketService: FanPassV4TicketServicing {
     }
 
     func ticket(id: String) async -> FanPassV4.Ticket? {
-        if let pending = pendingTickets.first(where: { $0.id == id }) {
-            return pending
+        if let remote = await base.ticket(id: id) {
+            return remote
         }
-        return await base.ticket(id: id)
+        return pendingTickets.first(where: { $0.id == id })
     }
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {
