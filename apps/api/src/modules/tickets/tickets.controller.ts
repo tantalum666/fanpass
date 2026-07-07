@@ -96,7 +96,7 @@ export class TicketsController {
 
   @Get(":id")
   @UseGuards(FanPassAuthGuard)
-  @Roles("ORGANIZER", "ADMIN")
+  @Roles("FAN", "ORGANIZER", "ADMIN")
   getTicket(
     @Param("id", FanPassIdParamPipe) id: string,
     @CurrentSession() session: FanPassSession,

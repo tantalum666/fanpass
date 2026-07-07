@@ -647,11 +647,20 @@ struct FanPassV4TicketDetailView: View {
             return
         }
 
+        if let updatedTicket = await backend.ticketService().ticket(id: ticket.id) {
+            applyTicketStatusRefresh(updatedTicket)
+            return
+        }
+
         let walletTickets = await backend.ticketService().walletTickets(for: backend.user, statusOverride: nil)
         guard let updatedTicket = walletTickets.first(where: { $0.id == ticket.id }) else {
             return
         }
 
+        applyTicketStatusRefresh(updatedTicket)
+    }
+
+    private func applyTicketStatusRefresh(_ updatedTicket: FanPassV4.Ticket) {
         liveTicket = updatedTicket
         if updatedTicket.status == .redeemed {
             credentialError = nil

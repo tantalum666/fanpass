@@ -128,7 +128,17 @@ struct FanPassV4APITicketService: FanPassV4TicketServicing {
     }
 
     func ticket(id: String) async -> FanPassV4.Ticket? {
-        nil
+        do {
+            async let apiEvents = apiClient.events()
+            async let apiTicket = apiClient.ticket(ticketId: id)
+
+            let eventRecords = try await apiEvents
+            let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
+            let ticketRecord = try await apiTicket
+            return FanPassV4APIMapper.ticket(ticketRecord, context: context)
+        } catch {
+            return nil
+        }
     }
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {

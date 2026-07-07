@@ -112,6 +112,10 @@ struct FanPassAPIClient {
         try await get("/tickets/owner/\(ownerId)")
     }
 
+    func ticket(ticketId: String) async throws -> FanPassTicket {
+        try await get("/tickets/\(ticketId)")
+    }
+
     func proofHistory(ticketId: String) async throws -> FanPassProofHistoryResponse {
         try await get("/tickets/\(ticketId)/proof-history")
     }

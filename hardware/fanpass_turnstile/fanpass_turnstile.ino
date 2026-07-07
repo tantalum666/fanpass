@@ -24,6 +24,7 @@ const int SERVO_CLOSED_ANGLE = 0;
 const int SERVO_OPEN_ANGLE = 85;
 
 const unsigned long GATE_OPEN_TIMEOUT_MS = 4000;
+const unsigned long GATE_HARD_CLOSE_MS = 10000;
 const unsigned long SENSOR_CONFIRM_MS = 350;
 const unsigned long HEARTBEAT_INTERVAL_MS = 15000;
 const unsigned long DISTANCE_LOG_INTERVAL_MS = 500;
@@ -34,7 +35,8 @@ const unsigned long SCANNER_IDLE_COMPLETE_MS = 700;
 const unsigned long WIEGAND_PROBE_INTERVAL_MS = 300;
 const int PASS_DISTANCE_CM = 5;
 const int MAX_REDEEMED_TICKET_KEYS = 24;
-const int MAX_SCAN_PAYLOAD_CHARS = 1400;
+const int MAX_SCAN_PAYLOAD_CHARS = 4096;
+const bool DEBUG_SCANNER_BYTES = false;
 
 // Gate policy for the bench prototype:
 // First-use QR/Wiegand payloads open the gate. The EP8280 decode pin fallback
@@ -86,6 +88,8 @@ void setup() {
 
   Serial.begin(115200);
   Serial1.begin(9600);
+  scanBuffer.reserve(MAX_SCAN_PAYLOAD_CHARS);
+  hostCommandBuffer.reserve(128);
 
   Wire.begin();
   scanI2cBus();
@@ -244,18 +248,20 @@ void readScanner() {
     char c = (char)Serial1.read();
     lastScannerByteAt = millis();
 
-    Serial.print("EP8280 BYTE 0x");
-    if ((byte)c < 0x10) {
-      Serial.print("0");
+    if (DEBUG_SCANNER_BYTES) {
+      Serial.print("EP8280 BYTE 0x");
+      if ((byte)c < 0x10) {
+        Serial.print("0");
+      }
+      Serial.print((byte)c, HEX);
+      Serial.print(" ");
+      if (isPrintable(c)) {
+        Serial.print("'");
+        Serial.print(c);
+        Serial.print("'");
+      }
+      Serial.println();
     }
-    Serial.print((byte)c, HEX);
-    Serial.print(" ");
-    if (isPrintable(c)) {
-      Serial.print("'");
-      Serial.print(c);
-      Serial.print("'");
-    }
-    Serial.println();
 
     if (c == '\r' || c == '\n') {
       if (scanBuffer.length() > 0) {
@@ -277,6 +283,7 @@ void readScanner() {
     } else {
       scanBuffer = "";
       scannerReadStatusShown = false;
+      Serial.println("SCAN_TOO_LONG");
       showLine("SCAN ERROR", "Please rescan");
       delay(1200);
       showReady();
@@ -538,6 +545,7 @@ void waitBeforeSensorArmed() {
 }
 
 bool holdGateUntilClear() {
+  unsigned long gateOpenedAt = millis();
   unsigned long noObjectSince = millis();
   unsigned long firstDetectedAt = 0;
   unsigned long lastDistanceLogAt = 0;
@@ -545,6 +553,11 @@ bool holdGateUntilClear() {
   bool objectConfirmed = false;
 
   while (true) {
+    if (millis() - gateOpenedAt >= GATE_HARD_CLOSE_MS) {
+      Serial.println("GATE_HARD_TIMEOUT");
+      return objectConfirmed;
+    }
+
     int distance = readDistanceCm();
 
     if (millis() - lastDistanceLogAt >= DISTANCE_LOG_INTERVAL_MS) {
@@ -602,6 +615,8 @@ void openGate() {
 }
 
 void closeGate() {
+  gateServo.write(SERVO_CLOSED_ANGLE);
+  delay(250);
   gateServo.write(SERVO_CLOSED_ANGLE);
 }
 
@@ -685,6 +700,7 @@ void scanI2cBus() {
 }
 
 void showReady() {
+  resetLcdController();
   showLine("FanPass Gate", "Scan QR/NFC");
 }
 
@@ -706,6 +722,16 @@ void showLine(String line1, String line2) {
   lcd->print(line1);
   lcd->setCursor(0, 1);
   lcd->print(line2);
+}
+
+void resetLcdController() {
+  if (!lcd) {
+    return;
+  }
+
+  lcd->init();
+  lcd->backlight();
+  lcd->clear();
 }
 
 String shortText(String value) {

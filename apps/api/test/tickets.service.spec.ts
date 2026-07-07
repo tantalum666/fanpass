@@ -67,6 +67,25 @@ describe("TicketsService", () => {
     expect(ticket.status).toBe("ACTIVE");
   });
 
+  it("allows fans to fetch only their own ticket by id", () => {
+    expect(
+      tickets.getTicket("tkt_demo_001", {
+        userId: "usr_fan_demo",
+        role: "FAN",
+      }),
+    ).toMatchObject({
+      id: "tkt_demo_001",
+      ownerId: "usr_fan_demo",
+    });
+
+    expect(() =>
+      tickets.getTicket("tkt_demo_001", {
+        userId: "usr_buyer_demo",
+        role: "FAN",
+      }),
+    ).toThrow(ForbiddenException);
+  });
+
   it("scopes organizer ticket inventory to owned events", async () => {
     store.users.push({
       id: "usr_other_organizer",

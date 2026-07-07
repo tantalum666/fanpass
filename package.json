@@ -70,6 +70,7 @@
     "release:evidence:draft": "node scripts/release-evidence-draft.js",
     "release:evidence:draft:self-test": "node scripts/release-evidence-draft-self-test.js",
     "ios:archive:beta": "bash scripts/ios-beta-archive.sh",
+    "hardware:turnstile:bridge": "node scripts/fanpass-turnstile-redemption-bridge.mjs",
     "security:privy-plan:evidence": "node scripts/privy-plan-evidence-audit.js",
     "security:privy-plan:evidence:self-test": "node scripts/privy-plan-evidence-audit-self-test.js",
     "security:privy-mobile-app-config:evidence": "node scripts/privy-mobile-app-config-evidence-audit.js",

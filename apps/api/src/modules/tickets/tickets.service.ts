@@ -144,7 +144,7 @@ export class TicketsService {
     }
 
     const ticket = this.store.getTicket(id);
-    this.assertMemoryEventAccess(ticket.eventId, session);
+    this.assertMemoryTicketAccess(ticket, session);
     return this.expandTicket(ticket.id);
   }
 
@@ -1312,9 +1312,15 @@ export class TicketsService {
   }
 
   private assertPrismaExpandedTicketAccess(
-    ticket: { event: unknown },
+    ticket: { ownerId: string; event: unknown },
     session: FanPassSession | undefined,
   ) {
+    if (session?.role === "FAN") {
+      if (ticket.ownerId === session.userId) {
+        return;
+      }
+      throw new ForbiddenException("Ticket is not accessible");
+    }
     const event = ticket.event as { organizer?: { userId?: string } };
     this.assertPrismaEventAccess(event, session);
   }
@@ -1384,6 +1390,19 @@ export class TicketsService {
     if (!this.memoryCanAccessEvent(eventId, session)) {
       throw new ForbiddenException("Organizer is not assigned to this event");
     }
+  }
+
+  private assertMemoryTicketAccess(
+    ticket: TicketRecord,
+    session: FanPassSession | undefined,
+  ) {
+    if (session?.role === "FAN") {
+      if (ticket.ownerId === session.userId) {
+        return;
+      }
+      throw new ForbiddenException("Ticket is not accessible");
+    }
+    this.assertMemoryEventAccess(ticket.eventId, session);
   }
 
   private assertMemoryProofAccess(
