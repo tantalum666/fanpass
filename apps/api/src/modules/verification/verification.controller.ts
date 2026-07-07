@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  ServiceUnavailableException,
+  UnauthorizedException,
+  UseGuards,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { timingSafeEqual } from "crypto";
 import {
   IsISO8601,
   IsIn,
@@ -9,7 +21,11 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { CurrentSession, Roles } from "../../common/auth.decorators";
+import {
+  CurrentSession,
+  PublicRoute,
+  Roles,
+} from "../../common/auth.decorators";
 import { FanPassAuthGuard } from "../../common/fanpass-auth.guard";
 import {
   FanPassIdParamPipe,
@@ -101,7 +117,10 @@ class ValidateNfcDto {
 
 @Controller("/verification")
 export class VerificationController {
-  constructor(private readonly verification: VerificationService) {}
+  constructor(
+    private readonly verification: VerificationService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post("/qr")
   @UseGuards(FanPassAuthGuard)
@@ -118,6 +137,19 @@ export class VerificationController {
   @Roles("GATE_STAFF", "ADMIN")
   redeem(@Body() body: RedeemDto, @CurrentSession() session: FanPassSession) {
     return this.verification.redeem(body, session.userId, body.gate, session);
+  }
+
+  @Post("/turnstile/redeem")
+  @PublicRoute()
+  redeemTurnstile(
+    @Body() body: RedeemDto,
+    @Headers("x-fanpass-turnstile-key") turnstileKey: string | string[] | undefined,
+  ) {
+    const scannerUserId = this.verifyTurnstileKey(turnstileKey);
+    return this.verification.redeem(body, scannerUserId, body.gate, {
+      userId: scannerUserId,
+      role: "GATE_STAFF",
+    });
   }
 
   @Post("/nfc/validate")
@@ -162,5 +194,33 @@ export class VerificationController {
     @CurrentSession() session: FanPassSession,
   ) {
     return this.verification.createPayload(ticketId, session);
+  }
+
+  private verifyTurnstileKey(header: string | string[] | undefined) {
+    const configuredKey = this.config
+      .get<string>("FANPASS_TURNSTILE_REDEEM_KEY")
+      ?.trim();
+    if (!configuredKey) {
+      throw new ServiceUnavailableException("Turnstile redemption is not configured");
+    }
+
+    const suppliedKey = (Array.isArray(header) ? header[0] : header)?.trim();
+    if (!suppliedKey || !this.constantTimeEqual(suppliedKey, configuredKey)) {
+      throw new UnauthorizedException("Invalid turnstile key");
+    }
+
+    return (
+      this.config.get<string>("FANPASS_TURNSTILE_STAFF_USER_ID")?.trim() ||
+      "usr_gate_demo"
+    );
+  }
+
+  private constantTimeEqual(actual: string, expected: string) {
+    const actualBuffer = Buffer.from(actual);
+    const expectedBuffer = Buffer.from(expected);
+    return (
+      actualBuffer.length === expectedBuffer.length &&
+      timingSafeEqual(actualBuffer, expectedBuffer)
+    );
   }
 }

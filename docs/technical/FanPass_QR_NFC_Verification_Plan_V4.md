@@ -268,7 +268,7 @@ Current verified bench behavior:
 
 - EP8280 is connected through the 8-pin interface in TTL mode.
 - QR scans can now produce real TTL bytes on Arduino `Serial1`; serial output includes `SCAN: <real QR text>`. Per-byte EP8280 diagnostics remain available behind a disabled debug flag, but are off by default so long signed QR payloads do not stall scanner reads.
-- `scripts/fanpass-turnstile-redemption-bridge.mjs` can be run through `npm run hardware:turnstile:bridge` to read those `SCAN: <real QR text>` serial lines from the USB-connected Arduino and submit signed FanPass QR JSON to `POST /verification/redeem` with a staff/admin bearer token supplied only through `FANPASS_STAFF_ACCESS_TOKEN`. This is required for a scanned fan-phone QR to become `REDEEMED` in the backend and then display as used in the FanPass phone app.
+- `scripts/fanpass-turnstile-redemption-bridge.mjs` can be run through `npm run hardware:turnstile:bridge` to read those `SCAN: <real QR text>` serial lines from the USB-connected Arduino and submit signed FanPass QR JSON to `POST /verification/turnstile/redeem` with `FANPASS_TURNSTILE_REDEEM_KEY`, or to the existing staff route with `FANPASS_STAFF_ACCESS_TOKEN`. This is required for a scanned fan-phone QR to become `REDEEMED` in the backend and then display as used in the FanPass phone app.
 - EP8280 Pin7 decode-success output is still monitored for diagnostics, but the code now delays that fallback to let TTL payloads arrive first.
 - LCD status copy is configured for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data states.
 - The servo gate opens for real QR payloads containing `FANPASS`.
@@ -279,7 +279,7 @@ Current bench limitations:
 
 - EP8280 NFC card/tag behavior is not working yet in this setup.
 - Pin7 decode-success alone does not provide QR text. It remains enabled only as temporary bench-open fallback behavior and is not FanPass ticket validation.
-- The bench prototype itself is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging unless the separate host bridge is running. Without that bridge, the Arduino can open the servo and reject a repeated local scan, but the phone will not show the ticket as used because no backend ticket state changed. The servo hold loop has a 10-second hard-close guard and the ready screen reinitializes the I2C LCD to recover from scanner/servo noise during long QR scans.
+- The bench prototype itself is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging unless the separate host bridge is running with a Render-configured turnstile key or staff/admin bearer token. Without that bridge, the Arduino can open the servo and reject a repeated local scan, but the phone will not show the ticket as used because no backend ticket state changed. The servo hold loop has a 10-second hard-close guard and the ready screen reinitializes the I2C LCD to recover from scanner/servo noise during long QR scans.
 - Arduino/breadboard rail power may be unstable under scanner/servo load until a separate regulated 5V supply is added.
 - No physical enclosure print or fit-test has been completed yet.
 

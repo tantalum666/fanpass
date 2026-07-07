@@ -10,7 +10,11 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const serialDevice = readRequiredEnv("FANPASS_TURNSTILE_SERIAL_DEVICE");
 const apiBaseUrl = normalizeBaseUrl(readRequiredEnv("FANPASS_API_BASE_URL"));
-const staffAccessToken = readRequiredEnv("FANPASS_STAFF_ACCESS_TOKEN");
+const turnstileRedeemKey = process.env.FANPASS_TURNSTILE_REDEEM_KEY?.trim() || "";
+const staffAccessToken = process.env.FANPASS_STAFF_ACCESS_TOKEN?.trim() || "";
+if (!turnstileRedeemKey && !staffAccessToken) {
+  throw new Error("FANPASS_TURNSTILE_REDEEM_KEY or FANPASS_STAFF_ACCESS_TOKEN is required");
+}
 const gate = process.env.FANPASS_TURNSTILE_GATE?.trim() || "GATE-A";
 const baud = process.env.FANPASS_TURNSTILE_BAUD?.trim() || "115200";
 
@@ -26,6 +30,7 @@ console.log(
     `api=${new URL(apiBaseUrl).origin}`,
     `gate=${gate}`,
     `baud=${baud}`,
+    `auth=${turnstileRedeemKey ? "turnstile_key" : "staff_bearer"}`,
   ].join(" "),
 );
 
@@ -85,12 +90,9 @@ async function handleLine(line) {
   seenCredentialKeys.add(credentialKey);
 
   try {
-    const response = await fetch(`${apiBaseUrl}/verification/redeem`, {
+    const response = await fetch(`${apiBaseUrl}${redeemPath()}`, {
       method: "POST",
-      headers: {
-        authorization: `Bearer ${staffAccessToken}`,
-        "content-type": "application/json",
-      },
+      headers: redeemHeaders(),
       body: JSON.stringify({
         ...body,
         gate,
@@ -164,6 +166,24 @@ function readRequiredEnv(name) {
   return value;
 }
 
+function redeemPath() {
+  return turnstileRedeemKey
+    ? "/verification/turnstile/redeem"
+    : "/verification/redeem";
+}
+
+function redeemHeaders() {
+  const headers = {
+    "content-type": "application/json",
+  };
+  if (turnstileRedeemKey) {
+    headers["x-fanpass-turnstile-key"] = turnstileRedeemKey;
+  } else {
+    headers.authorization = `Bearer ${staffAccessToken}`;
+  }
+  return headers;
+}
+
 function findNewline(value) {
   const lf = value.indexOf("\n");
   const cr = value.indexOf("\r");
@@ -198,12 +218,14 @@ function printHelp() {
   console.log(`FanPass turnstile redemption bridge
 
 Reads Arduino Serial lines like "SCAN: { ...signed QR JSON... }" and posts them
-to FanPass API /verification/redeem. Secrets are read only from environment.
+to FanPass API redemption endpoints. Secrets are read only from environment.
 
 Required environment:
   FANPASS_TURNSTILE_SERIAL_DEVICE   Serial device, for example /dev/cu.usbmodemXXXX
   FANPASS_API_BASE_URL              FanPass API base URL
-  FANPASS_STAFF_ACCESS_TOKEN        Staff/admin bearer token for redemption
+  FANPASS_TURNSTILE_REDEEM_KEY      Hardware key for /verification/turnstile/redeem
+    or
+  FANPASS_STAFF_ACCESS_TOKEN        Staff/admin bearer token for /verification/redeem
 
 Optional environment:
   FANPASS_TURNSTILE_GATE            Gate code, default GATE-A
