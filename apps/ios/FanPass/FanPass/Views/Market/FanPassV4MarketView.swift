@@ -54,7 +54,11 @@ struct FanPassV4MarketView: View {
         }
         .sheet(isPresented: $showSellFlow) {
             NavigationStack {
-                FanPassV4ListTicketView(ticket: selectedEventTicket)
+                FanPassV4ListTicketView(
+                    ticket: selectedEventTicket,
+                    isAuthenticated: backend.isAuthenticated,
+                    onAuthRequired: openSignInFromSellSheet
+                )
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button {
@@ -200,6 +204,10 @@ struct FanPassV4MarketView: View {
             .buttonStyle(.plain)
 
             Button {
+                guard backend.isAuthenticated else {
+                    openSignInFromMarket()
+                    return
+                }
                 withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
                     selectedMode = .sell
                     showSellFlow = true
@@ -255,6 +263,18 @@ struct FanPassV4MarketView: View {
             try? await Task.sleep(for: .milliseconds(180))
             appViewModel.openPrivySignIn()
         }
+    }
+
+    private func openSignInFromSellSheet() {
+        showSellFlow = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(180))
+            appViewModel.openPrivySignIn()
+        }
+    }
+
+    private func openSignInFromMarket() {
+        appViewModel.openPrivySignIn()
     }
 
 }
@@ -1327,6 +1347,8 @@ struct FanPassV4ResaleReviewView: View {
 
 struct FanPassV4ListTicketView: View {
     let ticket: FanPassV4.Ticket?
+    let isAuthenticated: Bool
+    let onAuthRequired: () -> Void
     @State private var listed = false
     @State private var cancelled = false
     @State private var selectedPrice: Double
@@ -1337,8 +1359,14 @@ struct FanPassV4ListTicketView: View {
         ticket ?? FanPassMockData.tickets.first!
     }
 
-    init(ticket: FanPassV4.Ticket?) {
+    init(
+        ticket: FanPassV4.Ticket?,
+        isAuthenticated: Bool = true,
+        onAuthRequired: @escaping () -> Void = {}
+    ) {
         self.ticket = ticket
+        self.isAuthenticated = isAuthenticated
+        self.onAuthRequired = onAuthRequired
         let fallback = ticket ?? FanPassMockData.tickets.first!
         _selectedPrice = State(initialValue: Double(min(fallback.event.marketSummary.floorPrice, fallback.ticketType.transferRule.resaleCap ?? fallback.event.marketSummary.floorPrice)))
     }
@@ -1357,76 +1385,87 @@ struct FanPassV4ListTicketView: View {
 
     var body: some View {
         FanPassV4Scaffold(title: "List ticket", subtitle: "Set a price inside organizer rules.") {
-            FPTicketCard(
-                eventTitle: selectedTicket.event.title,
-                metadata: "\(selectedTicket.event.dateLine) • \(selectedTicket.ticketType.name)",
-                section: selectedTicket.section,
-                row: selectedTicket.row,
-                seat: selectedTicket.seat,
-                ticketId: selectedTicket.shortId,
-                statusTitle: selectedTicket.status.title,
-                nfcReady: false,
-                entryModeTitle: "Entry reserved"
-            )
+            if !isAuthenticated {
+                FPStateBanner(
+                    title: "Sign in required",
+                    message: "Only the signed-in ticket owner can list a ticket for resale.",
+                    kind: .warning
+                )
+                FPPrimaryButton(title: "Sign in to sell", systemImage: "person.crop.circle.badge.checkmark") {
+                    onAuthRequired()
+                }
+            } else {
+                FPTicketCard(
+                    eventTitle: selectedTicket.event.title,
+                    metadata: "\(selectedTicket.event.dateLine) • \(selectedTicket.ticketType.name)",
+                    section: selectedTicket.section,
+                    row: selectedTicket.row,
+                    seat: selectedTicket.seat,
+                    ticketId: selectedTicket.shortId,
+                    statusTitle: selectedTicket.status.title,
+                    nfcReady: false,
+                    entryModeTitle: "Entry reserved"
+                )
 
-            FPSurfaceCard {
-                VStack(alignment: .leading, spacing: FPSpacing.md) {
-                    FPSectionHeader(title: "Listing price", subtitle: "Choose a price inside organizer rules")
-                    FPConceptRowList(rows: [
-                        .init(id: "face", icon: "tag", title: "Face value", subtitle: "Original organizer price.", value: selectedTicket.ticketType.priceLabel),
-                        .init(id: "suggested", icon: "sparkles", title: "Suggested resale", subtitle: "Based on current market context.", value: selectedTicket.event.marketSummary.suggestedResalePriceLabel, kind: .info),
-                        .init(id: "cap", icon: "lock.shield.fill", title: "Organizer cap", subtitle: selectedTicket.ticketType.transferRule.summary, value: MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency), kind: .warning)
-                    ])
-                    Stepper(
-                        "Listing price: \(MoneyFormatter.format(suggestedPrice, currency: selectedTicket.ticketType.currency))",
-                        value: $selectedPrice,
-                        in: 0...Double(resaleCap + 300),
-                        step: 20
-                    )
+                FPSurfaceCard {
+                    VStack(alignment: .leading, spacing: FPSpacing.md) {
+                        FPSectionHeader(title: "Listing price", subtitle: "Choose a price inside organizer rules")
+                        FPConceptRowList(rows: [
+                            .init(id: "face", icon: "tag", title: "Face value", subtitle: "Original organizer price.", value: selectedTicket.ticketType.priceLabel),
+                            .init(id: "suggested", icon: "sparkles", title: "Suggested resale", subtitle: "Based on current market context.", value: selectedTicket.event.marketSummary.suggestedResalePriceLabel, kind: .info),
+                            .init(id: "cap", icon: "lock.shield.fill", title: "Organizer cap", subtitle: selectedTicket.ticketType.transferRule.summary, value: MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency), kind: .warning)
+                        ])
+                        Stepper(
+                            "Listing price: \(MoneyFormatter.format(suggestedPrice, currency: selectedTicket.ticketType.currency))",
+                            value: $selectedPrice,
+                            in: 0...Double(resaleCap + 300),
+                            step: 20
+                        )
+                        .font(FPTypography.callout)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .tint(FPColors.pulseCyan)
+                    }
+                }
+
+                FPConceptRowList(rows: [
+                    .init(id: "fee", icon: "creditcard.fill", title: "Platform fee", subtitle: "Visible before submitting.", value: MoneyFormatter.format(platformFee, currency: selectedTicket.ticketType.currency)),
+                    .init(id: "payout", icon: "banknote.fill", title: "Estimated payout", subtitle: "After fee and settlement.", value: MoneyFormatter.format(suggestedPrice - platformFee, currency: selectedTicket.ticketType.currency), kind: .success)
+                ])
+
+                Toggle("Smart pricing guard", isOn: $smartPricing)
                     .font(FPTypography.callout)
                     .foregroundStyle(FPColors.textPrimary)
                     .tint(FPColors.pulseCyan)
+                Toggle("Auto relist if buyer times out", isOn: $autoRelist)
+                    .font(FPTypography.callout)
+                    .foregroundStyle(FPColors.textPrimary)
+                    .tint(FPColors.pulseCyan)
+
+                if suggestedPrice > resaleCap {
+                    FPStateBanner(title: "Price above cap", message: "Lower the price before listing. Organizer cap is \(MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency)).", kind: .danger)
                 }
-            }
 
-            FPConceptRowList(rows: [
-                .init(id: "fee", icon: "creditcard.fill", title: "Platform fee", subtitle: "Visible before submitting.", value: MoneyFormatter.format(platformFee, currency: selectedTicket.ticketType.currency)),
-                .init(id: "payout", icon: "banknote.fill", title: "Estimated payout", subtitle: "After fee and settlement.", value: MoneyFormatter.format(suggestedPrice - platformFee, currency: selectedTicket.ticketType.currency), kind: .success)
-            ])
-
-            Toggle("Smart pricing guard", isOn: $smartPricing)
-                .font(FPTypography.callout)
-                .foregroundStyle(FPColors.textPrimary)
-                .tint(FPColors.pulseCyan)
-            Toggle("Auto relist if buyer times out", isOn: $autoRelist)
-                .font(FPTypography.callout)
-                .foregroundStyle(FPColors.textPrimary)
-                .tint(FPColors.pulseCyan)
-
-            if suggestedPrice > resaleCap {
-                FPStateBanner(title: "Price above cap", message: "Lower the price before listing. Organizer cap is \(MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency)).", kind: .danger)
-            }
-
-            if !selectedTicket.status.allowsResale {
-                FPStateBanner(title: "\(selectedTicket.status.title) ticket", message: "Only active tickets can be listed for resale.", kind: .warning)
-            }
-
-            if listed {
-                FPConfirmationCard(title: "Listing created", message: "Entry code is unavailable while the listing is open.")
-                FPSecondaryButton(title: "Cancel listing", systemImage: "xmark.circle.fill") {
-                    listed = false
-                    cancelled = true
+                if !selectedTicket.status.allowsResale {
+                    FPStateBanner(title: "\(selectedTicket.status.title) ticket", message: "Only active tickets can be listed for resale.", kind: .warning)
                 }
-            } else if cancelled {
-                FPStateBanner(title: "Listing cancelled", message: "The ticket returns to its wallet state.", kind: .success)
-            }
 
-            FPPrimaryButton(title: listed ? "Listing submitted" : "Submit listing", systemImage: listed ? FPIcons.verified : FPIcons.resale) {
-                guard canList else { return }
-                listed = true
-                cancelled = false
+                if listed {
+                    FPConfirmationCard(title: "Listing created", message: "Entry code is unavailable while the listing is open.")
+                    FPSecondaryButton(title: "Cancel listing", systemImage: "xmark.circle.fill") {
+                        listed = false
+                        cancelled = true
+                    }
+                } else if cancelled {
+                    FPStateBanner(title: "Listing cancelled", message: "The ticket returns to its wallet state.", kind: .success)
+                }
+
+                FPPrimaryButton(title: listed ? "Listing submitted" : "Submit listing", systemImage: listed ? FPIcons.verified : FPIcons.resale) {
+                    guard canList else { return }
+                    listed = true
+                    cancelled = false
+                }
+                .disabled(!canList || listed)
             }
-            .disabled(!canList || listed)
         }
     }
 }
