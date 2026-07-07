@@ -13,14 +13,23 @@ final class FanPassBackendContext {
 
     @ObservationIgnored
     private let privyAuthProvider: PrivyAuthProviding
+    @ObservationIgnored
+    private let sessionStore: FanPassSessionStoring
 
     init(
         apiClient: FanPassAPIClient = FanPassAPIClient(baseURL: FanPassEnvironment.apiBaseURL),
-        privyAuthProvider: PrivyAuthProviding? = nil
+        privyAuthProvider: PrivyAuthProviding? = nil,
+        sessionStore: FanPassSessionStoring? = nil
     ) {
         self.apiClient = apiClient
         self.privyAuthProvider = privyAuthProvider ?? FanPassPrivyAuthProvider()
+        self.sessionStore = sessionStore ?? FanPassKeychainSessionStore()
         self.user = FanPassMockData.guestFan
+        if let storedSession = self.sessionStore.loadValidSession(now: Date()) {
+            apply(session: storedSession, persist: false)
+            connectionState = .online
+            authMessage = "Signed in."
+        }
     }
 
     var isAuthenticated: Bool {
@@ -124,7 +133,7 @@ final class FanPassBackendContext {
             authProvider: "local",
             expiresAt: nil
         )
-        apply(session: reviewSession)
+        apply(session: reviewSession, persist: false)
         user = reviewUser
         connectionState = .degraded
         authMessage = "Signed in."
@@ -150,6 +159,7 @@ final class FanPassBackendContext {
 
     func signOut() async {
         await privyAuthProvider.signOut()
+        sessionStore.clear()
         session = nil
         apiClient = apiClient.withAccessToken(nil)
         user = FanPassMockData.guestFan
@@ -157,10 +167,13 @@ final class FanPassBackendContext {
         authMessage = "Signed out."
     }
 
-    private func apply(session: UserSession) {
+    private func apply(session: UserSession, persist: Bool = true) {
         self.session = session
         self.apiClient = apiClient.withAccessToken(session.accessToken)
         self.user = session.fanPassV4User
+        if persist {
+            sessionStore.save(session)
+        }
     }
 
     private func syncPrivySession(_ privySession: PrivyLoginResult, message: String) async throws {

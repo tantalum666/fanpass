@@ -62,6 +62,7 @@
 		7BFD92F23491FC5FAEF07D6D /* FPRadius.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25EFA9A1526704A653359A78 /* FPRadius.swift */; };
 		7D286E36C5A4E43D3697550E /* FPComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A826851EF726D84FC7B6861B /* FPComponents.swift */; };
 		7F6642D7C8D2DF957B97BDD6 /* FanPassV4PreviewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB560F40DCCF06D0C5829A74 /* FanPassV4PreviewContent.swift */; };
+		847A85C2970FD31D20E4BDF1 /* FanPassSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */; };
 		9074D1BC32869372EFDE9FB9 /* FanPassV4APIDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7369C3315C5A2175F622B71 /* FanPassV4APIDataProvider.swift */; };
 		9136AF410B71C3979395D74F /* FanPassV4TicketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDFC6E2547F8FEDA377F8294 /* FanPassV4TicketsView.swift */; };
 		918240ECB0A0090AD7A1CD2B /* auth-x-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = D61895A750E4EDF69B399EA2 /* auth-x-logo.png */; };
@@ -84,6 +85,7 @@
 		B4B756DB65B440329F1562C1 /* FanPassV4ScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1617AE89F0612F6B233595F0 /* FanPassV4ScannerView.swift */; };
 		B6B51F4B1BDA88426B9FF9BF /* FanPassBackendContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */; };
 		B6F551CDFE6E70F69026CE78 /* FanPassV4MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8451AE9AFD1DBE8488F3C6B4 /* FanPassV4MainTabView.swift */; };
+		BC8F40D67BA250DD10648C36 /* FanPassSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */; };
 		BF3F8C401500EFFDC7A457FE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 473E7165A26D223815FDE2B8 /* Assets.xcassets */; };
 		C069BB47D3EF5E65A6C8A9E1 /* Privy in Frameworks */ = {isa = PBXBuildFile; productRef = DCE64064F89C3CF02DA2E285 /* Privy */; };
 		C28F19DA69439C2F07450A5C /* FanPassAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D0BBBCBB7E625C8563A382 /* FanPassAPIClient.swift */; };
@@ -170,6 +172,7 @@
 		A899C01D115AD5C714FA6746 /* fanpass-app-icon-v4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "fanpass-app-icon-v4.png"; sourceTree = "<group>"; };
 		AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
 		B486094255C7EBE12AB8DEE9 /* auth-discord-symbol.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "auth-discord-symbol.png"; sourceTree = "<group>"; };
+		B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassSessionStore.swift; sourceTree = "<group>"; };
 		BB05C222CE37C825C107D52F /* FanPassV4AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4AppShellView.swift; sourceTree = "<group>"; };
 		C15E5A77AF5B5A3C3E937498 /* event-cover-future.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "event-cover-future.png"; sourceTree = "<group>"; };
 		C1C52320FF767BBB7D680D47 /* fanpass-mark-v4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "fanpass-mark-v4.png"; sourceTree = "<group>"; };
@@ -392,6 +395,7 @@
 			children = (
 				5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */,
 				45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */,
+				B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */,
 				E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */,
 			);
 			path = Shared;
@@ -743,6 +747,7 @@
 				4847300CA98AA06856BF674C /* FanPassModels.swift in Sources */,
 				3B08B941F64FC5E1E6F01F48 /* FanPassOpsApp.swift in Sources */,
 				25E6A12B7EB542968FBBCBF5 /* FanPassPaymentCoordinator.swift in Sources */,
+				847A85C2970FD31D20E4BDF1 /* FanPassSessionStore.swift in Sources */,
 				65C335331B3DD2B77AEDA2AF /* FanPassUI.swift in Sources */,
 				9074D1BC32869372EFDE9FB9 /* FanPassV4APIDataProvider.swift in Sources */,
 				0C86299A1FB6E202E17C2D15 /* FanPassV4MockServices.swift in Sources */,
@@ -781,6 +786,7 @@
 				5B7D01AE542F5148C8A37757 /* FanPassModels.swift in Sources */,
 				4E85BA855EEA6F9219CAD86E /* FanPassOrderbookRealtimeClient.swift in Sources */,
 				0524F542ECACC2B02380040B /* FanPassPaymentCoordinator.swift in Sources */,
+				BC8F40D67BA250DD10648C36 /* FanPassSessionStore.swift in Sources */,
 				F2B26350700886792237B23A /* FanPassUI.swift in Sources */,
 				2C75E513CF25191AB52CBE8C /* FanPassV4APIDataProvider.swift in Sources */,
 				CB8E946245A3B78AA5FA041E /* FanPassV4AppShellView.swift in Sources */,
