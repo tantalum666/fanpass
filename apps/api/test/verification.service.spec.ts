@@ -231,6 +231,88 @@ describe("VerificationService", () => {
     expect(resultCounts()).toEqual({ ACCEPTED: 1, DUPLICATE: 1 });
   });
 
+  it("keeps Ops and turnstile redemption mutually exclusive for the same ticket", async () => {
+    let releaseOwnership: (() => void) | undefined;
+    const ownershipReleased = new Promise<void>((resolve) => {
+      releaseOwnership = resolve;
+    });
+    const slowOwnership = {
+      redeemTicket: jest.fn(async () => {
+        await ownershipReleased;
+        return {
+          adapter: "mock",
+          status: "CONFIRMED",
+          tokenId: "1",
+          ownershipRef: "mock:redeem:tkt_demo_001",
+          transactionHash: "mock_redeem_tx",
+        };
+      }),
+      issueTicket: jest.fn(),
+      adapterName: jest.fn(() => "mock"),
+    };
+    const audit = new AuditService(store);
+    const ticketOwnership = new TicketOwnershipSideEffectsService(
+      slowOwnership as never,
+    );
+    verification = new VerificationService(
+      new ConfigService({ QR_SIGNING_SECRET: "test-secret" }),
+      store,
+      audit,
+      new TicketsService(store, audit, ticketOwnership),
+      ticketOwnership,
+    );
+    store.users.push({
+      id: "usr_ops_gate_demo",
+      name: "Ops Gate Staff",
+      email: "ops-gate@fanpass.test",
+      role: "GATE_STAFF",
+      privyId: "did:privy:ops-gate-demo",
+      walletAddress: null,
+      riskScore: 0,
+    });
+
+    const basePayload = await verification.createPayload("tkt_demo_001");
+    const turnstilePayload = buildLegacySignedPayload(
+      basePayload,
+      "nonce_turnstile_gate",
+    );
+    const opsPayload = buildLegacySignedPayload(basePayload, "nonce_ops_gate");
+
+    const turnstileScan = verification.redeem(
+      turnstilePayload,
+      "usr_gate_demo",
+      "A1",
+      {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      },
+    );
+    const opsScan = verification.redeem(
+      opsPayload,
+      "usr_ops_gate_demo",
+      "OPS",
+      {
+        userId: "usr_ops_gate_demo",
+        role: "GATE_STAFF",
+      },
+    );
+
+    await expect(opsScan).rejects.toMatchObject({
+      response: expect.objectContaining({
+        result: "DUPLICATE",
+      }),
+    });
+
+    releaseOwnership?.();
+    await expect(turnstileScan).resolves.toMatchObject({
+      ticketId: "tkt_demo_001",
+      eventId: "evt_weekend_demo",
+      result: "ACCEPTED",
+    });
+    expect(store.getTicket("tkt_demo_001").status).toBe("REDEEMED");
+    expect(resultCounts()).toEqual({ ACCEPTED: 1, DUPLICATE: 1 });
+  });
+
   it("redeems an NFC NDEF URI payload through the signed entry path", async () => {
     const payload = await verification.createPayload("tkt_demo_001");
     const ndefPayload = `fanpass://entry?payload=${encodeURIComponent(

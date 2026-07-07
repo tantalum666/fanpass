@@ -158,6 +158,8 @@ MVP should require online check-in unless a formal offline policy is implemented
 - Redis nonce lock for fast gate response.
 - Idempotent check-in request ID.
 - Staff UI shows already redeemed with last safe gate/time summary.
+- Ops QR/NFC scans and physical turnstile scans must converge on the same backend redemption boundary. The first request that atomically updates the ticket from `ACTIVE` or `TRANSFERRED` to `REDEEMED` wins; every later or concurrent request for that ticket returns `DUPLICATE`, even if a second fan device presents a different signed QR nonce for the same ticket.
+- Client, Arduino, LCD, servo, or scanner-local duplicate state is never the final source of truth. It may short-circuit obvious repeat reads for UX, but accepted entry must come from FanPass API.
 
 ## Failure States
 

@@ -60,6 +60,13 @@ Evidence boundary:
 - It does not satisfy `ops-scanner` physical-device evidence because the release gate still requires FanPass Ops on a real iPhone, HTTPS API configuration, camera QR scan, physical NFC NDEF tag read, duplicate replay rejection, backend gate assignment enforcement, scanner identity from verified auth, and validator-passing redacted evidence.
 - Do not use Arduino serial logs, LCD/servo behavior, or EP8280 Pin7 decode-success as substitutes for FanPass API signature verification, nonce replay rejection, TestFlight evidence, Apple Wallet evidence, or chain custody evidence.
 
+Backend authority rule:
+
+- FanPass API is the single source of truth for entry. FanPass Ops calls `POST /verification/redeem`; the physical turnstile bridge calls `POST /verification/turnstile/redeem`; both routes execute the same `VerificationService.redeem` path.
+- A successful redemption must atomically move the ticket to `REDEEMED`. Fan-facing ticket detail must poll the exact ticket API and render the QR as used when that status is observed.
+- If the same ticket is scanned by Ops and by the physical turnstile at the same time, only the request that wins the backend ticket-status claim may return `ACCEPTED`. The other request must return `DUPLICATE`, even if it carries a different currently signed nonce for the same ticket.
+- Local Arduino duplicate memory, LCD text, servo state, or Ops UI scan state cannot override backend authority. They are presentation/device behavior only.
+
 Required JSON shape:
 
 ```json

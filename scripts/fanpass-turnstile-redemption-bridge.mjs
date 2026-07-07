@@ -230,7 +230,12 @@ async function handleLine(line) {
         response.statusText ||
         "redemption rejected";
       console.log(
-        `turnstile_bridge=api_rejected status=${response.status} message=${JSON.stringify(message)}`,
+        [
+          "turnstile_bridge=api_rejected",
+          `status=${response.status}`,
+          `result=${safeToken(responseBody?.result)}`,
+          `message=${JSON.stringify(message)}`,
+        ].join(" "),
       );
       return;
     }
