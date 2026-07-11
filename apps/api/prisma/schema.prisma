@@ -196,6 +196,7 @@ model Order {
   ticketTypeId      String      @map("ticket_type_id")
   ticketId          String?     @map("ticket_id")
   side              OrderSide
+  fulfillmentMode   String      @default("ANY") @map("fulfillment_mode")
   price             Int
   quantity          Int         @default(1)
   remainingQuantity Int         @default(1) @map("remaining_quantity")

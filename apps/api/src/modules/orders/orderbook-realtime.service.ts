@@ -18,6 +18,7 @@ export interface OrderbookUpdatePayload {
   reason:
     | "order_created"
     | "order_cancelled"
+    | "order_rejected"
     | "trade_settled"
     | "primary_ticket_issued";
   orderId?: string;

@@ -21,6 +21,7 @@ function createService(prisma: unknown) {
       new TicketOwnershipSideEffectsService(ownership),
     ),
     prisma as any,
+    new ConfigService({ FANPASS_DATA_SOURCE: "prisma" }),
   );
 }
 

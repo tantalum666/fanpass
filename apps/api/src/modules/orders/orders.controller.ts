@@ -45,6 +45,10 @@ class CreateOrderDto {
   @IsIn(["BUY", "SELL"])
   side!: "BUY" | "SELL";
 
+  @IsOptional()
+  @IsIn(["ANY", "PRIMARY_ONLY", "RESALE_ONLY"])
+  fulfillmentMode?: "ANY" | "PRIMARY_ONLY" | "RESALE_ONLY";
+
   @IsNumber()
   @IsInt()
   @Min(1)

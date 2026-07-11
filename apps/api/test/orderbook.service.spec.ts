@@ -22,6 +22,8 @@ describe("OrderbookService", () => {
       audit,
       settlementSideEffects,
       new TicketsService(store, audit, ticketOwnership),
+      undefined,
+      new ConfigService({ FANPASS_REQUIRE_PAYMENT_AUTHORIZATION: "false" }),
     );
   });
 
@@ -60,6 +62,7 @@ describe("OrderbookService", () => {
       eventId: "evt_weekend_demo",
       ticketTypeId: "tt_cat2_demo",
       side: "BUY",
+      fulfillmentMode: "RESALE_ONLY",
       price: 1400,
     });
 
@@ -75,6 +78,7 @@ describe("OrderbookService", () => {
       transferCount: 1,
     });
     expect(buy.order.status).toBe("SETTLED");
+    expect(buy.order.fulfillmentMode).toBe("RESALE_ONLY");
     expect(store.auditLogs[0]).toMatchObject({
       action: "TRADE_SETTLED",
       metadata: expect.objectContaining({
@@ -227,5 +231,141 @@ describe("OrderbookService", () => {
           log.entityId === buy.order.id,
       ),
     ).toBe(true);
+  });
+
+  it("rejects a resale-only market buy instead of issuing primary inventory when the ask is gone", async () => {
+    const buy = await orderbook.createOrder({
+      userId: "usr_buyer_demo",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      side: "BUY",
+      fulfillmentMode: "RESALE_ONLY",
+      price: 1288,
+    });
+
+    const settlement = await orderbook.settleAfterPaymentAuthorization(
+      buy.order.id,
+    );
+
+    expect(settlement).toBeNull();
+    expect(buy.order).toMatchObject({
+      fulfillmentMode: "RESALE_ONLY",
+      status: "REJECTED",
+      remainingQuantity: 0,
+      ticketId: null,
+    });
+    expect(
+      store.auditLogs.some(
+        (log) =>
+          log.action === "RESALE_ORDER_UNAVAILABLE" &&
+          log.entityId === buy.order.id,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps primary-only checkout out of the resale book even when an ask is open", async () => {
+    await orderbook.createOrder({
+      userId: "usr_fan_demo",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      side: "SELL",
+      price: 1288,
+      ticketId: "tkt_demo_001",
+    });
+
+    const buy = await orderbook.createOrder({
+      userId: "usr_buyer_demo",
+      eventId: "evt_weekend_demo",
+      ticketTypeId: "tt_cat2_demo",
+      side: "BUY",
+      fulfillmentMode: "PRIMARY_ONLY",
+      price: 1288,
+    });
+
+    expect(buy.trade).toBeNull();
+    expect(store.getTicket("tkt_demo_001")).toMatchObject({
+      ownerId: "usr_fan_demo",
+      status: "LISTED_FOR_RESALE",
+    });
+
+    const settlement = await orderbook.settleAfterPaymentAuthorization(
+      buy.order.id,
+    );
+    expect(settlement).toMatchObject({
+      fulfillmentType: "PRIMARY",
+      issued: true,
+      matched: false,
+    });
+    expect(store.getTicket("tkt_demo_001").ownerId).toBe("usr_fan_demo");
+  });
+
+  it("rolls back every claim when another buyer wins the same sell order", async () => {
+    let transactionRolledBack = false;
+    const tx = {
+      order: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: "ord_buy_loser",
+            userId: "usr_buyer_demo",
+            status: "OPEN",
+            fulfillmentMode: "RESALE_ONLY",
+          })
+          .mockResolvedValueOnce({
+            id: "ord_sell_winner",
+            userId: "usr_fan_demo",
+            ticketId: "tkt_demo_001",
+            status: "OPEN",
+          }),
+        updateMany: jest
+          .fn()
+          .mockResolvedValueOnce({ count: 1 })
+          .mockResolvedValueOnce({ count: 0 }),
+      },
+      ticket: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: "tkt_demo_001",
+          tokenId: "1",
+          ownerId: "usr_fan_demo",
+          owner: { walletAddress: null },
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: "usr_buyer_demo",
+          walletAddress: null,
+        }),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      trade: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      $transaction: jest.fn(
+        async (operation: (client: typeof tx) => unknown) => {
+          try {
+            return await operation(tx);
+          } catch (error) {
+            transactionRolledBack = true;
+            throw error;
+          }
+        },
+      ),
+    };
+
+    const result = await (orderbook as any).settlePrisma(
+      prisma,
+      "ord_buy_loser",
+      "ord_sell_winner",
+      1288,
+    );
+
+    expect(result).toBeNull();
+    expect(transactionRolledBack).toBe(true);
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
   });
 });

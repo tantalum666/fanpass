@@ -6,7 +6,6 @@
   "workspaces": [
     "apps/api",
     "apps/dashboard",
-    "apps/school-web",
     "apps/web",
     "packages/contracts",
     "packages/shared"
@@ -15,11 +14,8 @@
     "dev": "npm run dev -w apps/api",
     "dev:api": "npm run dev -w apps/api",
     "dev:dashboard": "npm run dev -w apps/dashboard",
-    "dev:school-web": "npm run dev -w apps/school-web",
     "dev:web": "npm run dev -w apps/web",
-    "build:school-web": "npm run build -w apps/school-web",
     "build:web": "npm run build -w apps/web",
-    "typecheck:school-web": "npm run typecheck -w apps/school-web",
     "typecheck:web": "npm run typecheck -w apps/web",
     "prototype:start": "bash scripts/prototype-start.sh",
     "prototype:stop": "bash scripts/prototype-stop.sh",
@@ -70,7 +66,6 @@
     "release:evidence:draft": "node scripts/release-evidence-draft.js",
     "release:evidence:draft:self-test": "node scripts/release-evidence-draft-self-test.js",
     "ios:archive:beta": "bash scripts/ios-beta-archive.sh",
-    "hardware:turnstile:bridge": "node scripts/fanpass-turnstile-redemption-bridge.mjs",
     "security:privy-plan:evidence": "node scripts/privy-plan-evidence-audit.js",
     "security:privy-plan:evidence:self-test": "node scripts/privy-plan-evidence-audit-self-test.js",
     "security:privy-mobile-app-config:evidence": "node scripts/privy-mobile-app-config-evidence-audit.js",

@@ -10,6 +10,7 @@ export type TicketStatus =
   | "REFUNDED"
   | "EXPIRED";
 export type OrderSide = "BUY" | "SELL";
+export type OrderFulfillmentMode = "ANY" | "PRIMARY_ONLY" | "RESALE_ONLY";
 export type OrderStatus =
   | "OPEN"
   | "MATCHED"
@@ -88,6 +89,7 @@ export interface OrderRecord {
   ticketTypeId: string;
   ticketId: string | null;
   side: OrderSide;
+  fulfillmentMode?: OrderFulfillmentMode;
   price: number;
   quantity: number;
   remainingQuantity: number;

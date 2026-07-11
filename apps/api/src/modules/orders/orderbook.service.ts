@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { DemoStore } from "../../common/demo-store";
-import { OrderRecord } from "../../common/domain";
+import { OrderFulfillmentMode, OrderRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SettlementSideEffectsService } from "../side-effects/settlement-side-effects.service";
@@ -18,6 +18,7 @@ export interface CreateOrderInput {
   eventId: string;
   ticketTypeId: string;
   side: "BUY" | "SELL";
+  fulfillmentMode?: OrderFulfillmentMode;
   price: number;
   ticketId?: string;
   idempotencyKey?: string;
@@ -37,6 +38,8 @@ interface FinalizeOwnershipTransferInput {
     transactionHash: string | null;
   };
 }
+
+class OrderClaimConflictError extends Error {}
 
 export interface PaymentAuthorizedSettlementResult {
   orderId: string;
@@ -72,7 +75,11 @@ export class OrderbookService {
         order.status === "OPEN",
     );
     const bids = this.aggregateLevels(
-      orders.filter((order) => order.side === "BUY"),
+      orders.filter(
+        (order) =>
+          order.side === "BUY" &&
+          this.allowsResaleFulfillment(order.fulfillmentMode),
+      ),
       "desc",
     );
     const asks = this.aggregateLevels(
@@ -147,6 +154,7 @@ export class OrderbookService {
       ticketTypeId: input.ticketTypeId,
       ticketId: input.ticketId ?? null,
       side: input.side,
+      fulfillmentMode: this.fulfillmentModeFor(input),
       price: input.price,
       quantity: 1,
       remainingQuantity: 1,
@@ -280,16 +288,27 @@ export class OrderbookService {
     }
 
     const settledTrade = await prisma.$transaction(async (tx) => {
-      const existing = await tx.trade.findFirst({
-        where: {
-          OR: [
-            { buyOrderId: input.buyOrderId },
-            { sellOrderId: input.sellOrderId },
-          ],
-        },
+      const existing = await tx.trade.findUnique({
+        where: { buyOrderId: input.buyOrderId },
       });
       if (existing) {
+        if (
+          existing.sellOrderId !== input.sellOrderId ||
+          existing.ticketId !== input.ticketId
+        ) {
+          throw new BadRequestException(
+            "Ownership settlement does not match the existing trade",
+          );
+        }
         return this.mapPrismaTrade(existing);
+      }
+      const existingSellTrade = await tx.trade.findUnique({
+        where: { sellOrderId: input.sellOrderId },
+      });
+      if (existingSellTrade) {
+        throw new BadRequestException(
+          "Sell order has already settled with another buyer",
+        );
       }
 
       const [buyOrder, sellOrder, ticket] = await Promise.all([
@@ -407,6 +426,9 @@ export class OrderbookService {
     }
 
     if (incoming.side === "BUY") {
+      if (!this.allowsResaleFulfillment(incoming.fulfillmentMode)) {
+        return null;
+      }
       const ask = this.store.orders
         .filter(
           (order) =>
@@ -431,6 +453,7 @@ export class OrderbookService {
           order.side === "BUY" &&
           order.eventId === incoming.eventId &&
           order.ticketTypeId === incoming.ticketTypeId &&
+          this.allowsResaleFulfillment(order.fulfillmentMode) &&
           order.price >= incoming.price,
       )
       .sort(
@@ -461,6 +484,28 @@ export class OrderbookService {
       };
     }
     if (order.status !== "OPEN") {
+      return null;
+    }
+    if (!this.allowsPrimaryFulfillment(order.fulfillmentMode)) {
+      order.status = "REJECTED";
+      order.remainingQuantity = 0;
+      this.audit.record(
+        order.userId,
+        "RESALE_ORDER_UNAVAILABLE",
+        "order",
+        order.id,
+        {
+          eventId: order.eventId,
+          ticketTypeId: order.ticketTypeId,
+          price: order.price,
+        },
+      );
+      await this.publishOrderbookUpdate({
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        reason: "order_rejected",
+        orderId: order.id,
+      });
       return null;
     }
 
@@ -631,7 +676,11 @@ export class OrderbookService {
       );
     }
     const bids = this.aggregateLevels(
-      orders.filter((order) => order.side === "BUY"),
+      orders.filter(
+        (order) =>
+          order.side === "BUY" &&
+          this.allowsResaleFulfillment(order.fulfillmentMode),
+      ),
       "desc",
     );
     const asks = this.aggregateLevels(
@@ -737,6 +786,7 @@ export class OrderbookService {
         ticketTypeId: input.ticketTypeId,
         ticketId: input.ticketId ?? null,
         side: input.side,
+        fulfillmentMode: this.fulfillmentModeFor(input),
         price: input.price,
         quantity: 1,
         remainingQuantity: 1,
@@ -839,6 +889,9 @@ export class OrderbookService {
     const paymentAuthorizationRequired = this.requiresPaymentAuthorization();
 
     if (incoming.side === "BUY") {
+      if (!this.allowsResaleFulfillment(incoming.fulfillmentMode)) {
+        return null;
+      }
       if (
         paymentAuthorizationRequired &&
         !(await this.hasAuthorizedPaymentForOrder(prisma, incoming.id))
@@ -851,6 +904,9 @@ export class OrderbookService {
           side: "SELL",
           eventId: incoming.eventId,
           ticketTypeId: incoming.ticketTypeId,
+          fulfillmentMode: {
+            in: ["ANY", "RESALE_ONLY"],
+          },
           price: {
             lte: incoming.price,
           },
@@ -868,6 +924,9 @@ export class OrderbookService {
         side: "BUY",
         eventId: incoming.eventId,
         ticketTypeId: incoming.ticketTypeId,
+        fulfillmentMode: {
+          in: ["ANY", "RESALE_ONLY"],
+        },
         price: {
           gte: incoming.price,
         },
@@ -920,6 +979,10 @@ export class OrderbookService {
       return null;
     }
     if (!(await this.hasAuthorizedPaymentForOrder(prisma, order.id))) {
+      return null;
+    }
+    if (!this.allowsPrimaryFulfillment(order.fulfillmentMode)) {
+      await this.rejectUnavailableResaleOrder(prisma, order);
       return null;
     }
 
@@ -1043,118 +1106,129 @@ export class OrderbookService {
     sellOrderId: string,
     price: number,
   ) {
-    const existingTrade = await prisma.trade.findFirst({
-      where: {
-        OR: [{ buyOrderId }, { sellOrderId }],
-      },
+    const existingTrade = await prisma.trade.findUnique({
+      where: { buyOrderId },
     });
     if (existingTrade) {
       return this.mapPrismaTrade(existingTrade);
     }
 
-    const claimed = await prisma.$transaction(async (tx) => {
-      const buyOrder = await tx.order.findUnique({ where: { id: buyOrderId } });
-      const sellOrder = await tx.order.findUnique({
-        where: { id: sellOrderId },
-      });
-      if (!buyOrder || !sellOrder || !sellOrder.ticketId) {
-        throw new BadRequestException("Cannot settle invalid order pair");
-      }
-      if (buyOrder.status !== "OPEN" || sellOrder.status !== "OPEN") {
-        return null;
-      }
-      if (
-        this.requiresPaymentAuthorization() &&
-        !(await this.hasAuthorizedPaymentForOrder(tx, buyOrder.id))
-      ) {
-        return null;
-      }
+    let claimed;
+    try {
+      claimed = await prisma.$transaction(async (tx) => {
+        const buyOrder = await tx.order.findUnique({
+          where: { id: buyOrderId },
+        });
+        const sellOrder = await tx.order.findUnique({
+          where: { id: sellOrderId },
+        });
+        if (!buyOrder || !sellOrder || !sellOrder.ticketId) {
+          throw new BadRequestException("Cannot settle invalid order pair");
+        }
+        if (!this.allowsResaleFulfillment(buyOrder.fulfillmentMode)) {
+          throw new BadRequestException(
+            "Primary-only orders cannot match resale listings",
+          );
+        }
+        if (buyOrder.status !== "OPEN" || sellOrder.status !== "OPEN") {
+          return null;
+        }
+        if (
+          this.requiresPaymentAuthorization() &&
+          !(await this.hasAuthorizedPaymentForOrder(tx, buyOrder.id))
+        ) {
+          return null;
+        }
 
-      const ticket = await tx.ticket.findUniqueOrThrow({
-        where: { id: sellOrder.ticketId },
-        include: {
-          owner: true,
-        },
-      });
-      const buyer = await tx.user.findUniqueOrThrow({
-        where: { id: buyOrder.userId },
-      });
-
-      const [buyClaim, sellClaim, ticketClaim] = await Promise.all([
-        tx.order.updateMany({
-          where: {
-            id: buyOrderId,
-            status: "OPEN",
-            side: "BUY",
+        const ticket = await tx.ticket.findUniqueOrThrow({
+          where: { id: sellOrder.ticketId },
+          include: {
+            owner: true,
           },
-          data: { status: "MATCHED" },
-        }),
-        tx.order.updateMany({
-          where: {
-            id: sellOrderId,
-            status: "OPEN",
-            side: "SELL",
-            ticketId: ticket.id,
-          },
-          data: { status: "MATCHED" },
-        }),
-        tx.ticket.updateMany({
-          where: {
-            id: ticket.id,
-            ownerId: sellOrder.userId,
-            status: "LISTED_FOR_RESALE",
-          },
-          data: { status: "TRANSFER_PENDING" },
-        }),
-      ]);
-      if (
-        buyClaim.count !== 1 ||
-        sellClaim.count !== 1 ||
-        ticketClaim.count !== 1
-      ) {
-        return null;
-      }
-
-      await tx.auditLog.create({
-        data: {
-          actorId: buyOrder.userId,
-          action: "ORDER_MATCHED",
-          entityType: "order",
-          entityId: buyOrder.id,
-          metadataJson: {
-            sellOrderId,
-            ticketId: ticket.id,
-            price,
-          },
-        },
-      });
-
-      const sideEffectKey =
-        await this.settlementSideEffects.enqueueOwnershipTransfer(tx, {
-          ticketId: ticket.id,
-          tokenId: ticket.tokenId,
-          fromOwnerId: ticket.ownerId,
-          fromWalletAddress: ticket.owner.walletAddress,
-          toOwnerId: buyOrder.userId,
-          toWalletAddress: buyer.walletAddress,
-          buyOrderId: buyOrder.id,
-          sellOrderId: sellOrder.id,
+        });
+        const buyer = await tx.user.findUniqueOrThrow({
+          where: { id: buyOrder.userId },
         });
 
-      return {
-        buyOrder,
-        sellOrder,
-        ticket,
-        buyer,
-        sideEffectKey,
-      };
-    });
+        const [buyClaim, sellClaim, ticketClaim] = await Promise.all([
+          tx.order.updateMany({
+            where: {
+              id: buyOrderId,
+              status: "OPEN",
+              side: "BUY",
+            },
+            data: { status: "MATCHED" },
+          }),
+          tx.order.updateMany({
+            where: {
+              id: sellOrderId,
+              status: "OPEN",
+              side: "SELL",
+              ticketId: ticket.id,
+            },
+            data: { status: "MATCHED" },
+          }),
+          tx.ticket.updateMany({
+            where: {
+              id: ticket.id,
+              ownerId: sellOrder.userId,
+              status: "LISTED_FOR_RESALE",
+            },
+            data: { status: "TRANSFER_PENDING" },
+          }),
+        ]);
+        if (
+          buyClaim.count !== 1 ||
+          sellClaim.count !== 1 ||
+          ticketClaim.count !== 1
+        ) {
+          throw new OrderClaimConflictError();
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actorId: buyOrder.userId,
+            action: "ORDER_MATCHED",
+            entityType: "order",
+            entityId: buyOrder.id,
+            metadataJson: {
+              sellOrderId,
+              ticketId: ticket.id,
+              price,
+            },
+          },
+        });
+
+        const sideEffectKey =
+          await this.settlementSideEffects.enqueueOwnershipTransfer(tx, {
+            ticketId: ticket.id,
+            tokenId: ticket.tokenId,
+            fromOwnerId: ticket.ownerId,
+            fromWalletAddress: ticket.owner.walletAddress,
+            toOwnerId: buyOrder.userId,
+            toWalletAddress: buyer.walletAddress,
+            buyOrderId: buyOrder.id,
+            sellOrderId: sellOrder.id,
+          });
+
+        return {
+          buyOrder,
+          sellOrder,
+          ticket,
+          buyer,
+          sideEffectKey,
+        };
+      });
+    } catch (error) {
+      if (error instanceof OrderClaimConflictError) {
+        return null;
+      }
+      throw error;
+    }
 
     if (!claimed) {
-      const trade = await prisma.trade.findFirst({
-        where: {
-          OR: [{ buyOrderId }, { sellOrderId }],
-        },
+      const trade = await prisma.trade.findUnique({
+        where: { buyOrderId },
       });
       return trade ? this.mapPrismaTrade(trade) : null;
     }
@@ -1346,6 +1420,62 @@ export class OrderbookService {
     });
   }
 
+  private async rejectUnavailableResaleOrder(
+    prisma: PrismaService,
+    order: {
+      id: string;
+      userId: string;
+      eventId: string;
+      ticketTypeId: string;
+      price: number;
+    },
+  ) {
+    const rejected = await prisma.$transaction(async (tx) => {
+      const claim = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          status: "OPEN",
+          side: "BUY",
+          fulfillmentMode: "RESALE_ONLY",
+        },
+        data: {
+          status: "REJECTED",
+          remainingQuantity: 0,
+        },
+      });
+      if (claim.count !== 1) {
+        return false;
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId: order.userId,
+          action: "RESALE_ORDER_UNAVAILABLE",
+          entityType: "order",
+          entityId: order.id,
+          metadataJson: {
+            eventId: order.eventId,
+            ticketTypeId: order.ticketTypeId,
+            price: order.price,
+          },
+        },
+      });
+      await this.enqueuePaymentCompensationForFailedSettlement(
+        tx,
+        order.id,
+        "resale_listing_unavailable",
+      );
+      return true;
+    });
+    if (rejected) {
+      await this.publishOrderbookUpdate({
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        reason: "order_rejected",
+        orderId: order.id,
+      });
+    }
+  }
+
   private async enqueuePaymentCompensationForFailedSettlement(
     prisma: Prisma.TransactionClient,
     buyOrderId: string,
@@ -1380,6 +1510,7 @@ export class OrderbookService {
     ticketTypeId: string;
     ticketId: string | null;
     side: "BUY" | "SELL";
+    fulfillmentMode: string;
     price: number;
     quantity: number;
     remainingQuantity: number;
@@ -1389,6 +1520,7 @@ export class OrderbookService {
   }): OrderRecord {
     return {
       ...order,
+      fulfillmentMode: order.fulfillmentMode as OrderFulfillmentMode,
       createdAt: order.createdAt.toISOString(),
     };
   }
@@ -1411,9 +1543,10 @@ export class OrderbookService {
   }
 
   private prismaClient() {
-    return process.env.FANPASS_DATA_SOURCE === "prisma"
-      ? this.prisma
-      : undefined;
+    const dataSource =
+      this.config?.get<string>("FANPASS_DATA_SOURCE") ??
+      process.env.FANPASS_DATA_SOURCE;
+    return dataSource === "prisma" ? this.prisma : undefined;
   }
 
   private requiresPaymentAuthorization() {
@@ -1458,6 +1591,23 @@ export class OrderbookService {
     return normalized ? normalized.slice(0, 128) : null;
   }
 
+  private fulfillmentModeFor(
+    input: Pick<CreateOrderInput, "side" | "fulfillmentMode">,
+  ): OrderFulfillmentMode {
+    if (input.side === "SELL") {
+      return "RESALE_ONLY";
+    }
+    return input.fulfillmentMode ?? "ANY";
+  }
+
+  private allowsPrimaryFulfillment(fulfillmentMode: string | null | undefined) {
+    return fulfillmentMode !== "RESALE_ONLY";
+  }
+
+  private allowsResaleFulfillment(fulfillmentMode: string | null | undefined) {
+    return fulfillmentMode !== "PRIMARY_ONLY";
+  }
+
   private findIdempotentMemoryOrder(input: CreateOrderInput) {
     const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
     if (!idempotencyKey) {
@@ -1497,6 +1647,7 @@ export class OrderbookService {
       order.eventId !== input.eventId ||
       order.ticketTypeId !== input.ticketTypeId ||
       order.side !== input.side ||
+      (order.fulfillmentMode ?? "ANY") !== this.fulfillmentModeFor(input) ||
       order.price !== input.price ||
       order.ticketId !== expectedTicketId
     ) {
@@ -1533,6 +1684,7 @@ export class OrderbookService {
     reason:
       | "order_created"
       | "order_cancelled"
+      | "order_rejected"
       | "trade_settled"
       | "primary_ticket_issued";
     orderId?: string;
