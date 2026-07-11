@@ -173,3 +173,21 @@ Actions:
 - Webhook reconciliation before transfer completion.
 - Immutable proof history for listing/trade lifecycle.
 - Redacted public market data.
+
+## Implemented Fulfillment And Race Rules - 2026-07-12
+
+`Order.fulfillmentMode` makes buyer intent explicit:
+
+| Mode | Allowed fulfillment |
+| --- | --- |
+| `ANY` | Backward-compatible primary or resale behavior. |
+| `PRIMARY_ONLY` | Organizer inventory only; excluded from resale depth and matching. |
+| `RESALE_ONLY` | Existing open SELL ask only; primary issuance is forbidden. |
+
+All SELL orders are normalized to `RESALE_ONLY`. The iOS event checkout sends `PRIMARY_ONLY`, while Market's `Buy lowest resale` sends `RESALE_ONLY` using the current backend best ask.
+
+For two buyers racing on one ticket, the database transaction conditionally claims three records: the buyer's open BUY order, the seller's open SELL order, and the seller-owned `LISTED_FOR_RESALE` ticket. If any update count is not exactly one, the transaction throws a claim-conflict error so PostgreSQL rolls back every partial update. The losing buyer remains unclaimed, is then rejected as unavailable, and gets an idempotent payment cancellation/refund compensation job.
+
+Trade idempotency is keyed by the unique `buyOrderId`. Settlement never looks up a trade with `buyOrderId OR sellOrderId`, because that could return the winning buyer's trade to a different buyer during a race. Ownership finalization also checks that an existing trade has the exact expected buy order, sell order, and ticket.
+
+Realtime update reasons now include `order_rejected`; clients refresh the same event/ticket-type snapshot after listing, cancellation, rejection, trade settlement, or primary issuance.

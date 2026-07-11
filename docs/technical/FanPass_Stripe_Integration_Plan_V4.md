@@ -318,3 +318,28 @@ Remaining evidence:
 - Perform a real Stripe test checkout through webhook authorization.
 - Confirm the worker creates a backend `Ticket`, the payment capture job completes, and the fan app wallet replaces any pending client ticket with the backend ticket.
 - Save redacted evidence before treating this as release-grade settlement proof.
+
+## 2026-07-12 Primary And Resale Checkout Separation
+
+Status: backend deployed; signed-in two-account card settlement still requires manual verification
+
+The earlier "try resale, then issue primary" behavior was unsafe for an explicit Market purchase. If the displayed resale ask disappeared while Stripe authorization was in progress, the buyer could receive newly issued primary inventory rather than the ticket they chose.
+
+The deployed order contract now includes `fulfillmentMode`:
+
+- Event checkout sends `PRIMARY_ONLY` and cannot consume a fan's resale listing.
+- Market lowest-ask checkout sends `RESALE_ONLY` and can never issue primary inventory.
+- Legacy callers may omit the field and retain `ANY` behavior during migration.
+
+After payment authorization, a resale-only order attempts one atomic match. If another buyer already won the SELL order or ticket claim, every partial claim rolls back, the losing order becomes `REJECTED`, and payment cancellation/refund compensation is queued with reason `resale_listing_unavailable`. The order cannot be reported as another buyer's trade.
+
+iOS displays the exact backend ask as both resale price and total. It no longer invents platform-fee or tax lines that are not part of the authorized PaymentIntent amount, and it no longer fabricates a ticket while webhook/worker settlement is still syncing.
+
+Deployment and smoke evidence:
+
+- Commit `667b567ec6a86ab0a90a5d9228c9a39bf8021f46`.
+- Render deploy `dep-d996v2mcjfls73fqlq5g`, status `live`.
+- `/health`, public catalog, public orderbook, and unauthenticated 401 order guard passed.
+- Simulator opened the live HK$1,235 VIP resale ask and reached card-capable Secure Resale Checkout at HK$1,235.
+
+Still required: sign in as a second fan, authorize a Stripe test card, observe webhook/worker settlement, confirm exactly one buyer receives the listed ticket, and confirm a simultaneous loser is cancelled/refunded without primary issuance.

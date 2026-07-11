@@ -1,5 +1,24 @@
 # Development Tasks
 
+## Main App Productization - 2026-07-11 Audit
+
+Source: `docs/review/FanPass_Main_App_Audit_2026-07-11.md`.
+
+- [x] Resolve the six high production dependency advisories, pass the fail-closed advisory gate, run backend regressions, and deploy the verified update to staging.
+- [ ] Add `FanPassTests` and critical auth/payment/ticket/resale/redemption lifecycle tests. Owner deferred this action on 2026-07-11 after completing the requested testing; no new target was added.
+- [x] Remove mock events, tickets, listings, orders, checkout tickets, proof history, and success-only local mutations from active Beta/Release paths. Preview fixtures remain isolated for design previews.
+- [x] Make Market Sell load the signed-in user's eligible backend tickets and let the seller choose the exact seat.
+- [x] Remove the fake limit-order/review confirmations and connect lowest-ask resale purchase to real backend order/payment state.
+- [x] Replace swallowed ticket/event/order errors with visible loading, empty, and failure states.
+- [ ] Add one centralized 401/session-refresh policy across API repositories.
+- [ ] Replace global five-second and ticket one-second polling with domain-scoped realtime or adaptive refresh.
+- [x] Connect V4 Market to the existing Socket.IO orderbook feed with 30-second HTTP fallback and make ticket-detail polling active-scene/adaptive. The shared 15-second refresh revision still needs domain separation.
+- [x] Cache QR bitmaps by credential and isolate countdown state from bitmap generation.
+- [x] Exclude the unused legacy iOS shell/features from the main target while keeping shared payment, Privy, and realtime services.
+- [x] Make a friend's remote SELL ask directly purchasable, restore cross-device listing price/order details, and protect simultaneous buyers with atomic rollback plus payment compensation.
+- [ ] Split Market, Profile, Tickets, and shared components into focused feature modules.
+- [ ] Run the physical-device release regression matrix after the above changes.
+
 ## Technical Prototype
 
 - [x] Create monorepo structure.
@@ -115,7 +134,7 @@
 
 Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup work only and is tracked separately in `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`. It must not include Web NFC, must not replace native iOS/FanPass Ops/Console product boundaries, and must not close signed iOS/TestFlight, signed Apple Wallet `.pkpass`, physical QR/NFC, or release-grade chain custody evidence. The first landing page should be long-scroll but low-density: `less is more` means one strong idea per viewport, not a short page. Lead with trustworthy tickets, controlled resale, and transparent prices, not QR/scanner mechanics or web/iOS sync.
 
-Hardware bench note on 2026-06-15: a local Arduino UNO R4 WiFi + EP8280 mock turnstile prototype now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. It is local learning/prototype work only and does not close any native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, backend-authority, or chain-custody release blocker.
+Archive note on 2026-07-11: the completed Arduino UNO R4 WiFi + EP8280 school turnstile was moved to `archive/school-project/hardware/fanpass_turnstile/`. It is no longer an active engineering task or release dependency and does not close native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, or chain-custody release blockers.
 
 TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR-first. App Store Connect rejected the `FanPassOps` release archive when it carried the Core NFC NDEF entitlement, so native NFC is DEBUG-only until a supported entitlement/profile path is reintroduced. Later upload failures were fixed by adding all four required `UISupportedInterfaceOrientations` values, adding `CFBundleIconName: AppIcon`, and adding a shared asset-catalog `AppIcon` to both iOS app targets. The Ops build then appeared in TestFlight with `Missing Export Compliance`; for the current app behavior, answer `None of the above` in App Store Connect, and fresh archives now carry `ITSAppUsesNonExemptEncryption: false` for both iOS targets. The first main `FanPass` upload was rejected by email with `ITMS-90683` because `FanPass.app` lacked `NSCameraUsageDescription`; the main app now declares a camera purpose string and should be re-uploaded as version `1.0` build `2`. Old archives still need to be discarded and recreated for plist/asset fixes.
 
@@ -126,7 +145,7 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
   - [x] Configure LCD states for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data.
   - [x] Require real QR content containing `FANPASS` before opening the servo gate in the bench sketch.
   - [x] Draft the 3D-print enclosure dimension/cutout baseline in `docs/hardware/FanPass_Turnstile_Enclosure_Spec.md`.
-  - [x] Generate CAD/STL V1 for the shell, rear lid, and front-panel fit-check under `hardware/fanpass_turnstile/enclosure/outputs/`.
+  - [x] Generate CAD/STL V1 for the shell, rear lid, and front-panel fit-check under `archive/school-project/hardware/fanpass_turnstile/enclosure/outputs/`.
   - [x] Generate CLI V2 and computer-use/Blender-native V2 enclosure variants after owner feedback: one enlarged rectangular ultrasonic slot, larger front cutouts, EP8280 screw centers tied to the vendor 58 mm x 44 mm drawing, and a visible right-side SG90-class servo bracket.
   - [ ] Measure the actual LCD, HC-SR04 board, servo geometry, EP8280 cable bend, Arduino orientation, and 5V regulator before final CAD lock.
   - [ ] Print and test `fanpass_turnstile_front_panel_fitcheck_computeruse_v2.stl` before printing the full enclosure.

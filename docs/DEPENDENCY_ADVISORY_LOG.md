@@ -192,14 +192,35 @@ Update after closed-beta dependency risk acceptance on 2026-06-04:
 - The acceptance does not permit public launch, real-user open Beta, live-money launch, or weakening Console auth/CSP/style-input mitigations.
 - Public or real-user Beta still requires a clean production audit, a safe patched Next/PostCSS upgrade path, or a Console migration off Next's production runtime path according to `docs/CONSOLE_NEXT_EXIT_PLAN.md`.
 
-## Open Advisories
+## Current Status
+
+### 2026-07-11 Production Audit Drift - Closed 2026-07-12
+
+The previous Next/PostCSS-only policy stopped matching the live npm audit state. A Node 22 production audit on 2026-07-11 reported six high-severity findings and no critical findings:
+
+- `@nestjs/platform-express` through `multer <2.2.0`: deeply nested field-name and aborted-upload cleanup denial-of-service advisories.
+- `engine.io`, `engine.io-client`, and `socket.io-adapter` through `ws <8.21.0`: memory-exhaustion denial of service from tiny WebSocket fragments/data chunks.
+
+This drift was fixed without expanding the allowlist. The API now uses Nest `11.1.28`, Multer `2.2.0`, Engine.IO `6.6.9`, Engine.IO client `6.6.6`, Socket.IO adapter `2.5.8`, and `ws` `8.21.0`.
+
+Verification on 2026-07-12:
+
+- `npm audit --omit=dev --audit-level=low` reports zero production vulnerabilities.
+- `npm run security:dependency-advisories:self-test` passes.
+- `npm run security:dependency-advisories` reports `releaseBlocker: null` and zero findings at every severity.
+- API typecheck/build and all 19 API suites with 115 tests pass.
+- Render deploy `dep-d996v2mcjfls73fqlq5g` for commit `667b567ec6a86ab0a90a5d9228c9a39bf8021f46` is live; `/health`, events, and public orderbook smoke checks pass.
+
+There are currently no production dependency advisories in the npm audit. The table below is historical and must not be treated as the current production result.
+
+## Historical Advisories
 
 | Package           | Severity | Path                        | Advisory                                                                                                 | Current safe action                                                                                               |
 | ----------------- | -------- | --------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `postcss <8.5.10` | Moderate | pulled through `next`       | `GHSA-qx2v-qp2m-jg93`, XSS via unescaped `</style>` in CSS stringify output                              | Do not use user-controlled CSS generation in FanPass Console; re-check when Next ships a patched dependency path. |
 | `next`            | Moderate | direct dashboard dependency | npm maps the fix to `next@9.3.3`, which is a breaking downgrade from the current App Router architecture | Do not run `npm audit fix --force`; it would downgrade Next and likely break FanPass Console.                     |
 
-## Decision
+## Historical Decision
 
 Do not force-fix the current advisories. The suggested remediation is a destructive Next downgrade, not a safe patch. The current containment decision is:
 
@@ -221,4 +242,4 @@ Before closed external Beta, one of these must be true:
 
 Before public or real-user Beta, risk acceptance is not enough: FanPass must either have a clean production audit, upgrade to a safe patched Next/PostCSS path, or remove Next from the Console production runtime path according to `docs/CONSOLE_NEXT_EXIT_PLAN.md`.
 
-As of this log, the advisories are documented but not risk-accepted for public or real-user testing.
+The historical risk acceptance does not override the current clean-audit requirement. Re-run the production audit and fail-closed advisory gate before every external tester build.
