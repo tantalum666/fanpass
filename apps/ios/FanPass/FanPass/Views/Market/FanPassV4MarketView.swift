@@ -4,16 +4,39 @@ struct FanPassV4MarketView: View {
     @Environment(FanPassRootViewModel.self) private var appViewModel
     @Environment(FanPassBackendContext.self) private var backend
     @State private var viewModel = MarketViewModel()
-    @State private var selectedMode: MarketMode = .overview
-    @State private var selectedListing: FanPassV4.ResaleListing?
     @State private var selectedTicketTypeID: String?
     @State private var showBuyFlow = false
-    @State private var showSellFlow = false
+    @State private var selectedSellTicket: FanPassV4.Ticket?
+    @State private var showSellTicketPicker = false
+    @State private var ownedTickets: [FanPassV4.Ticket] = []
+    @State private var ownedTicketsError: String?
+    @State private var remoteOrderbook: OrderbookSnapshot?
+    @State private var orderbookError: String?
+    @State private var realtimeStatus: FanPassOrderbookRealtimeStatus = .idle
+    @State private var realtimeClient = FanPassOrderbookRealtimeClient()
+    @State private var marketActionMessage: String?
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: FPSpacing.xl) {
-                tradingPanel
+            Group {
+                if viewModel.isLoading && viewModel.availableEvents.isEmpty {
+                    ProgressView("Loading market")
+                        .tint(FPColors.pulseCyan)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.availableEvents.isEmpty {
+                    FPEmptyStateView(
+                        title: "Market unavailable",
+                        message: viewModel.errorMessage ?? "No published events are available right now.",
+                        systemImage: FPIcons.market
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(FPSpacing.lg)
+                } else {
+                    VStack(alignment: .leading, spacing: FPSpacing.xl) {
+                        tradingPanel
+                    }
+                }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .padding(.horizontal, 0)
@@ -23,20 +46,16 @@ struct FanPassV4MarketView: View {
         .background(FPColors.surfaceCard.ignoresSafeArea(edges: .top))
         .ignoresSafeArea(edges: .top)
         .safeAreaInset(edge: .bottom) {
-            marketActionBar
-        }
-        .sheet(item: $selectedListing) { listing in
-            NavigationStack {
-                FanPassV4ResaleReviewView(listing: listing)
+            if !viewModel.availableEvents.isEmpty {
+                marketActionBar
             }
-            .presentationDetents([.large])
         }
         .sheet(isPresented: $showBuyFlow) {
             NavigationStack {
                 FanPassV4BuyOrderSheet(
                     event: viewModel.selectedEvent,
                     ticketType: selectedMarketTicketType,
-                    listings: viewModel.listings,
+                    bestAskPrice: remoteOrderbook?.asks.first?.price,
                     bestAsk: selectedMarketContext.bestAskLabel,
                     onAuthRequired: openSignInFromMarketSheet
                 )
@@ -52,17 +71,17 @@ struct FanPassV4MarketView: View {
             }
             .presentationDetents([.large])
         }
-        .sheet(isPresented: $showSellFlow) {
+        .sheet(item: $selectedSellTicket) { ticket in
             NavigationStack {
                 FanPassV4ListTicketView(
-                    ticket: selectedEventTicket,
+                    ticket: ticket,
                     isAuthenticated: backend.isAuthenticated,
                     onAuthRequired: openSignInFromSellSheet
                 )
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button {
-                                showSellFlow = false
+                                selectedSellTicket = nil
                             } label: {
                                 Label("Back", systemImage: "chevron.left")
                             }
@@ -81,8 +100,31 @@ struct FanPassV4MarketView: View {
                 selectedTicketTypeID = viewModel.selectedEvent.safePrimaryTicketType.id
             }
         }
+        .task(id: "\(viewModel.selectedEvent.id)-\(selectedMarketTicketType.id)") {
+            await runOrderbookFeed()
+        }
+        .task(id: "owned-\(backend.ticketRefreshKey)") {
+            await refreshOwnedTickets()
+        }
         .onChange(of: appViewModel.focusedMarketEvent?.id) { _, _ in
             applyFocusedMarketEvent()
+        }
+        .confirmationDialog("Choose a ticket", isPresented: $showSellTicketPicker, titleVisibility: .visible) {
+            ForEach(eligibleOwnedTickets) { ticket in
+                Button(ticketSelectionLabel(ticket)) {
+                    selectedSellTicket = ticket
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Select the exact seat to list for resale.")
+        }
+        .alert("Market", isPresented: marketActionAlertBinding) {
+            Button("OK", role: .cancel) {
+                marketActionMessage = nil
+            }
+        } message: {
+            Text(marketActionMessage ?? "The market action could not continue.")
         }
     }
 
@@ -90,7 +132,10 @@ struct FanPassV4MarketView: View {
         MarketTradingPanel(
             event: viewModel.selectedEvent,
             events: viewModel.availableEvents,
-            selectedTicketTypeID: selectedTicketTypeID
+            selectedTicketTypeID: selectedTicketTypeID,
+            orderbook: remoteOrderbook,
+            realtimeStatus: realtimeStatus,
+            orderbookError: orderbookError
         ) { event in
             viewModel.selectedEvent = event
             selectedTicketTypeID = event.safePrimaryTicketType.id
@@ -99,99 +144,10 @@ struct FanPassV4MarketView: View {
         }
     }
 
-    @ViewBuilder
-    private var supplementalContent: some View {
-        switch selectedMode {
-        case .listings:
-            listings
-        case .sell:
-            FanPassV4ListTicketView(ticket: FanPassMockData.tickets.first)
-        case .overview, .eventMarket, .states:
-            EmptyView()
-        }
-    }
-
-    private var eventMarket: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Ticket types", subtitle: "Face value, floor, cap, and availability")
-            ForEach(viewModel.selectedEvent.ticketTypes) { ticketType in
-                FPSurfaceCard(cornerRadius: FPRadius.md) {
-                    VStack(alignment: .leading, spacing: FPSpacing.md) {
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                                Text(ticketType.name)
-                                    .font(FPTypography.headline)
-                                    .foregroundStyle(FPColors.textPrimary)
-                                Text(ticketType.transferRule.summary)
-                                    .font(FPTypography.caption)
-                                    .foregroundStyle(FPColors.textSecondary)
-                            }
-                            Spacer()
-                            Text(ticketType.priceLabel)
-                                .font(FPTypography.title3)
-                                .foregroundStyle(FPColors.textPrimary)
-                                .monospacedDigit()
-                        }
-                        FPConceptProgressBar(
-                            title: "Availability",
-                            value: Double(ticketType.availableQuantity) / Double(max(ticketType.supply, 1)),
-                            caption: "\(ticketType.availableQuantity) of \(ticketType.supply) remaining",
-                            accent: FPColors.verifiedGreen
-                        )
-                    }
-                }
-            }
-
-            NavigationLink {
-                FanPassV4OrderbookDetailView(viewModel: viewModel)
-            } label: {
-                FPConceptRowView(row: .init(id: "orderbook", icon: FPIcons.market, title: "View plain-language orderbook", subtitle: "Fan bids, resale asks, last sale, and cap context.", value: "Open", kind: .info))
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var listings: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Available resale tickets", subtitle: "Seller identity remains safe and generalized")
-            if viewModel.listings.isEmpty {
-                FPEmptyStateView(title: "No listings available", message: "This event has no open resale tickets under organizer rules.", systemImage: FPIcons.market)
-                    .frame(maxWidth: .infinity)
-                    .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
-            } else {
-                ForEach(viewModel.listings) { listing in
-                    Button {
-                        selectedListing = listing
-                    } label: {
-                        FPEditorialEventRow(
-                            event: listing.ticket.event,
-                            trailingValue: listing.priceLabel,
-                            subtitle: "Section \(listing.ticket.section), Row \(listing.ticket.row), Seat \(listing.ticket.seat)"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private var marketStates: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Market windows and guardrails")
-            FPConceptRowList(rows: [
-                .init(id: "reserved", icon: "timer", title: "Reserved listing", subtitle: "A buyer temporarily reserves one resale ticket.", value: "05:00", kind: .warning),
-                .init(id: "unavailable", icon: FPIcons.error, title: "Listing unavailable", subtitle: "Another buyer matched it or seller cancelled.", value: "Closed", kind: .danger),
-                .init(id: "cap", icon: "lock.shield.fill", title: "Cap validation", subtitle: "Seller cannot submit a price above organizer rules.", value: "Enforced", kind: .success),
-                .init(id: "proof", icon: FPIcons.verified, title: "Ticket checks", subtitle: "Seller and ticket status are checked before purchase.", value: "Checked", kind: .neutral)
-            ])
-        }
-    }
-
     private var marketActionBar: some View {
         HStack(spacing: FPSpacing.md) {
             Button {
                 withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
-                    selectedMode = .listings
                     showBuyFlow = true
                 }
             } label: {
@@ -209,8 +165,7 @@ struct FanPassV4MarketView: View {
                     return
                 }
                 withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
-                    selectedMode = .sell
-                    showSellFlow = true
+                    openSellFlow()
                 }
             } label: {
                 Label("Sell", systemImage: "arrow.up.circle.fill")
@@ -232,8 +187,12 @@ struct FanPassV4MarketView: View {
         }
     }
 
-    private var selectedEventTicket: FanPassV4.Ticket? {
-        FanPassMockData.tickets.first { $0.event.id == viewModel.selectedEvent.id } ?? FanPassMockData.tickets.first
+    private var eligibleOwnedTickets: [FanPassV4.Ticket] {
+        ownedTickets.filter { ticket in
+            ticket.event.id == viewModel.selectedEvent.id &&
+                ticket.ticketType.id == selectedMarketTicketType.id &&
+                (ticket.status.allowsResale || ticket.status == .listed)
+        }
     }
 
     private var selectedMarketTicketType: FanPassV4.TicketType {
@@ -241,7 +200,14 @@ struct FanPassV4MarketView: View {
     }
 
     private var selectedMarketContext: MarketPricingSnapshot {
-        MarketPricingSnapshot(event: viewModel.selectedEvent, ticketType: selectedMarketTicketType)
+        MarketPricingSnapshot(
+            event: viewModel.selectedEvent,
+            ticketType: selectedMarketTicketType,
+            remoteFloorPrice: remoteOrderbook?.floorPrice,
+            remoteBestBid: remoteOrderbook?.bids.first?.price,
+            remoteBestAsk: remoteOrderbook?.asks.first?.price,
+            remoteLastSale: remoteOrderbook?.lastTradePrice
+        )
     }
 
     private func applyFocusedMarketEvent() {
@@ -266,7 +232,7 @@ struct FanPassV4MarketView: View {
     }
 
     private func openSignInFromSellSheet() {
-        showSellFlow = false
+        selectedSellTicket = nil
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(180))
             appViewModel.openPrivySignIn()
@@ -277,15 +243,108 @@ struct FanPassV4MarketView: View {
         appViewModel.openPrivySignIn()
     }
 
+    private func refreshRemoteOrderbook() async {
+        do {
+            remoteOrderbook = try await backend.apiClient.orderbook(
+                eventId: viewModel.selectedEvent.id,
+                ticketTypeId: selectedMarketTicketType.id
+            )
+            orderbookError = nil
+        } catch {
+            if remoteOrderbook == nil {
+                orderbookError = "Live resale prices could not load."
+            }
+        }
+    }
+
+    private func runOrderbookFeed() async {
+        await refreshRemoteOrderbook()
+        realtimeClient.onStatusChange = { status in
+            realtimeStatus = status
+        }
+        realtimeClient.onUpdate = { update in
+            remoteOrderbook = update.snapshot
+            orderbookError = nil
+        }
+        realtimeClient.connect(
+            apiBaseURL: backend.apiClient.baseURL,
+            eventId: viewModel.selectedEvent.id,
+            ticketTypeId: selectedMarketTicketType.id
+        )
+
+        do {
+            while !Task.isCancelled {
+                try await Task.sleep(for: .seconds(30))
+                if realtimeStatus != .live {
+                    await refreshRemoteOrderbook()
+                }
+            }
+        } catch {
+            // View-driven cancellation ends this subscription.
+        }
+        realtimeClient.disconnect()
+    }
+
+    private func refreshOwnedTickets() async {
+        guard backend.isAuthenticated else {
+            ownedTickets = []
+            ownedTicketsError = nil
+            return
+        }
+        do {
+            ownedTickets = try await backend.ticketService().walletTickets(
+                for: backend.user,
+                statusOverride: nil
+            )
+            ownedTicketsError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            ownedTicketsError = "Your tickets could not refresh."
+        }
+    }
+
+    private func openSellFlow() {
+        if let ownedTicketsError {
+            marketActionMessage = ownedTicketsError
+            return
+        }
+        switch eligibleOwnedTickets.count {
+        case 0:
+            marketActionMessage = "You do not own an eligible \(selectedMarketTicketType.name) ticket for this event."
+        case 1:
+            selectedSellTicket = eligibleOwnedTickets[0]
+        default:
+            showSellTicketPicker = true
+        }
+    }
+
+    private func ticketSelectionLabel(_ ticket: FanPassV4.Ticket) -> String {
+        "Section \(ticket.section) • Row \(ticket.row) • Seat \(ticket.seat)"
+    }
+
+    private var marketActionAlertBinding: Binding<Bool> {
+        Binding(
+            get: { marketActionMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    marketActionMessage = nil
+                }
+            }
+        )
+    }
+
 }
 
 private struct MarketTradingPanel: View {
     let event: FanPassV4.Event
     let events: [FanPassV4.Event]
     let selectedTicketTypeID: String?
+    let orderbook: OrderbookSnapshot?
+    let realtimeStatus: FanPassOrderbookRealtimeStatus
+    let orderbookError: String?
     let onSelectEvent: (FanPassV4.Event) -> Void
     let onSelectTicketType: (FanPassV4.TicketType) -> Void
-    @State private var selectedRange: MarketTimeRange = .oneDay
     @State private var eventSearchQuery = ""
 
     private var selectedTicketType: FanPassV4.TicketType {
@@ -293,11 +352,14 @@ private struct MarketTradingPanel: View {
     }
 
     private var marketContext: MarketPricingSnapshot {
-        MarketPricingSnapshot(event: event, ticketType: selectedTicketType)
-    }
-
-    private var candles: [MarketCandle] {
-        marketContext.candles(for: selectedRange)
+        MarketPricingSnapshot(
+            event: event,
+            ticketType: selectedTicketType,
+            remoteFloorPrice: orderbook?.floorPrice,
+            remoteBestBid: orderbook?.bids.first?.price,
+            remoteBestAsk: orderbook?.asks.first?.price,
+            remoteLastSale: orderbook?.lastTradePrice
+        )
     }
 
     private var filteredEvents: [FanPassV4.Event] {
@@ -327,7 +389,7 @@ private struct MarketTradingPanel: View {
                     }
                     Spacer(minLength: FPSpacing.sm)
                     VStack(alignment: .trailing, spacing: FPSpacing.xs) {
-                        Text("Cap 110%")
+                        Text(capLabel)
                             .font(FPTypography.caption.weight(.bold))
                             .foregroundStyle(FPColors.verifiedGreen)
                             .padding(.horizontal, FPSpacing.sm)
@@ -347,7 +409,7 @@ private struct MarketTradingPanel: View {
                     VStack(alignment: .leading, spacing: FPSpacing.xs) {
                         Text(marketContext.floorLabel)
                             .font(.system(size: 36, weight: .black, design: .rounded))
-                            .foregroundStyle(marketContext.trend.color)
+                            .foregroundStyle(orderbook?.floorPrice == nil ? FPColors.textSecondary : FPColors.verifiedGreen)
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
@@ -367,28 +429,7 @@ private struct MarketTradingPanel: View {
                 FPDivider()
                     .padding(.vertical, FPSpacing.xs)
 
-                HStack(spacing: FPSpacing.sm) {
-                    ForEach(MarketTimeRange.allCases) { range in
-                        Button {
-                            selectedRange = range
-                        } label: {
-                            Text(range.title)
-                                .font(FPTypography.caption.weight(range == selectedRange ? .bold : .medium))
-                                .foregroundStyle(range == selectedRange ? FPColors.backgroundNight : FPColors.textSecondary)
-                                .padding(.horizontal, FPSpacing.sm)
-                                .padding(.vertical, 6)
-                                .background(range == selectedRange ? FPColors.textPrimary : FPColors.surfaceGlass, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                    Image(systemName: "chart.xyaxis.line")
-                        .foregroundStyle(FPColors.pulseCyan)
-                }
-
-                MarketCandlestickCanvas(candles: candles, cap: marketContext.cap)
-                    .id("\(event.id)-\(selectedTicketType.id)-\(selectedRange.id)")
-                    .frame(maxHeight: .infinity)
+                marketDepth
             }
         }
         .padding(FPSpacing.md)
@@ -478,7 +519,6 @@ private struct MarketTradingPanel: View {
     }
 
     private func ticketTypeChip(_ ticketType: FanPassV4.TicketType) -> some View {
-        let context = MarketPricingSnapshot(event: event, ticketType: ticketType)
         let isSelected = ticketType.id == selectedTicketType.id
         return Button {
             onSelectTicketType(ticketType)
@@ -488,11 +528,8 @@ private struct MarketTradingPanel: View {
                     Text(ticketType.name)
                         .font(FPTypography.caption.weight(.bold))
                         .lineLimit(1)
-                    Text(context.trend.title)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isSelected ? FPColors.backgroundNight.opacity(0.82) : context.trend.color)
                 }
-                Text("\(context.floorLabel) • \(context.premiumLabel)")
+                Text(isSelected ? marketContext.bestAskLabel : "Face \(ticketType.priceLabel)")
                     .font(.system(size: 10, weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -500,13 +537,83 @@ private struct MarketTradingPanel: View {
             .foregroundStyle(isSelected ? FPColors.backgroundNight : FPColors.textSecondary)
             .frame(width: 122, height: 48, alignment: .leading)
             .padding(.horizontal, FPSpacing.sm)
-            .background(isSelected ? context.trend.color : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            .background(isSelected ? FPColors.pulseCyan : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                    .stroke(isSelected ? context.trend.color.opacity(0.9) : FPColors.borderDivider, lineWidth: 1)
+                    .stroke(isSelected ? FPColors.pulseCyan.opacity(0.9) : FPColors.borderDivider, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private var capLabel: String {
+        let cap = marketContext.cap
+        guard selectedTicketType.faceValue > 0 else {
+            return "Cap"
+        }
+        let percent = Int((Double(cap) / Double(selectedTicketType.faceValue) * 100).rounded())
+        return "Cap \(percent)%"
+    }
+
+    @ViewBuilder
+    private var marketDepth: some View {
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            HStack {
+                Label(realtimeStatus.label, systemImage: realtimeStatus == .live ? "dot.radiowaves.left.and.right" : "wifi.exclamationmark")
+                    .font(FPTypography.caption.weight(.semibold))
+                    .foregroundStyle(realtimeStatus == .live ? FPColors.verifiedGreen : FPColors.textSecondary)
+                Spacer()
+                if let orderbook {
+                    Text("\(orderbook.volume) verified sales")
+                        .font(FPTypography.caption)
+                        .foregroundStyle(FPColors.textSecondary)
+                }
+            }
+
+            if let orderbookError, orderbook == nil {
+                FPStateBanner(title: "Price feed unavailable", message: orderbookError, kind: .warning)
+            } else if let orderbook {
+                HStack(alignment: .top, spacing: FPSpacing.md) {
+                    depthColumn(title: "Buy interest", levels: orderbook.bids, accent: FPColors.pulseCyan)
+                    depthColumn(title: "Available resale", levels: orderbook.asks, accent: FPColors.verifiedGreen)
+                }
+            } else {
+                ProgressView()
+                    .tint(FPColors.pulseCyan)
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+    }
+
+    private func depthColumn(title: String, levels: [OrderbookLevel], accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: FPSpacing.sm) {
+            Text(title)
+                .font(FPTypography.caption.weight(.bold))
+                .foregroundStyle(FPColors.textSecondary)
+            if levels.isEmpty {
+                Text("None")
+                    .font(FPTypography.callout)
+                    .foregroundStyle(FPColors.textSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+            } else {
+                ForEach(levels.prefix(5), id: \.price) { level in
+                    HStack {
+                        Text(MoneyFormatter.format(level.price, currency: selectedTicketType.currency))
+                            .font(FPTypography.caption.weight(.semibold))
+                            .foregroundStyle(accent)
+                            .monospacedDigit()
+                        Spacer(minLength: FPSpacing.xs)
+                        Text("×\(level.quantity)")
+                            .font(FPTypography.caption)
+                            .foregroundStyle(FPColors.textSecondary)
+                            .monospacedDigit()
+                    }
+                    .frame(minHeight: 28)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
 }
@@ -514,6 +621,10 @@ private struct MarketTradingPanel: View {
 private struct MarketPricingSnapshot {
     let event: FanPassV4.Event
     let ticketType: FanPassV4.TicketType
+    var remoteFloorPrice: Int?
+    var remoteBestBid: Int?
+    var remoteBestAsk: Int?
+    var remoteLastSale: Int?
 
     var cap: Int {
         ticketType.transferRule.resaleCap ?? event.marketSummary.organizerCap
@@ -523,87 +634,38 @@ private struct MarketPricingSnapshot {
         ticketType.currency
     }
 
-    var trend: MarketTrendDirection {
-        switch (eventIndex + ticketTypeIndex) % 3 {
-        case 0:
-            return .rising
-        case 1:
-            return .flat
-        default:
-            return .falling
-        }
-    }
-
-    var floorPrice: Int {
-        price(at: MarketTimeRange.oneDay.pointCount - 1, range: .oneDay)
-    }
-
     var floorLabel: String {
-        MoneyFormatter.format(floorPrice, currency: currency)
+        guard let remoteFloorPrice else {
+            return "No asks"
+        }
+        return MoneyFormatter.format(remoteFloorPrice, currency: currency)
     }
 
     var bestBidLabel: String {
-        MoneyFormatter.format(max(1, floorPrice - max(12, ticketType.faceValue / 34)), currency: currency)
+        if let remoteBestBid {
+            return MoneyFormatter.format(remoteBestBid, currency: currency)
+        }
+        return "—"
     }
 
     var bestAskLabel: String {
-        MoneyFormatter.format(min(cap, floorPrice + max(16, ticketType.faceValue / 28)), currency: currency)
+        if let remoteBestAsk {
+            return MoneyFormatter.format(remoteBestAsk, currency: currency)
+        }
+        return "—"
     }
 
     var lastSaleLabel: String {
-        MoneyFormatter.format(price(at: max(MarketTimeRange.oneDay.pointCount - 2, 0), range: .oneDay), currency: currency)
+        if let remoteLastSale {
+            return MoneyFormatter.format(remoteLastSale, currency: currency)
+        }
+        return "—"
     }
 
     var premiumLabel: String {
-        guard ticketType.faceValue > 0 else { return "0%" }
-        let premium = Double(floorPrice - ticketType.faceValue) / Double(ticketType.faceValue)
+        guard let remoteFloorPrice, ticketType.faceValue > 0 else { return "—" }
+        let premium = Double(remoteFloorPrice - ticketType.faceValue) / Double(ticketType.faceValue)
         return premium.formatted(.percent.precision(.fractionLength(0)))
-    }
-
-    func candles(for range: MarketTimeRange) -> [MarketCandle] {
-        let count = range.pointCount
-        var previous = price(at: 0, range: range)
-        return (0..<count).map { index in
-            let close = price(at: index, range: range)
-            let open = index == 0 ? max(1, close - trend.openBias(seed: seed)) : previous
-            let wickPad = range.wickBase + ((index + seed) % 4) * range.wickStep
-            let high = min(max(open, close) + wickPad, cap)
-            let low = max(min(open, close) - wickPad, max(1, Int(Double(ticketType.faceValue) * 0.72)))
-            previous = close
-            return MarketCandle(
-                id: "\(event.id)_\(ticketType.id)_\(range.rawValue)_\(index)",
-                label: range.label(for: index),
-                open: open,
-                close: close,
-                high: high,
-                low: low,
-                volume: range.volumeBase + (((index + seed) * range.volumeStep) % 28)
-            )
-        }
-    }
-
-    private func price(at index: Int, range: MarketTimeRange) -> Int {
-        let count = max(range.pointCount, 1)
-        let progress = Double(index) / Double(max(count - 1, 1))
-        let seededPhase = Double(seed % 9) * 0.31
-        let wave = sin((Double(index) * range.waveStep) + seededPhase) * range.waveAmplitude
-        let tierNudge = ticketTypeIndex == 0 ? 0.0 : Double(ticketTypeIndex) * 0.006
-        let multiplier = trend.multiplier(progress: progress, wave: wave, tierNudge: tierNudge)
-        return min(max(1, Int((Double(ticketType.faceValue) * multiplier).rounded())), cap)
-    }
-
-    private var eventIndex: Int {
-        FanPassMockData.events.firstIndex { $0.id == event.id } ?? 0
-    }
-
-    private var ticketTypeIndex: Int {
-        event.ticketTypes.firstIndex { $0.id == ticketType.id } ?? 0
-    }
-
-    private var seed: Int {
-        (event.id + ticketType.id).unicodeScalars.reduce(0) { partial, scalar in
-            ((partial * 31) + Int(scalar.value)) % 100_000
-        }
     }
 }
 
@@ -1121,101 +1183,50 @@ struct FanPassV4OrderbookDetailView: View {
     }
 }
 
-private enum FanPassV4BuyOrderMode: String, CaseIterable, Identifiable {
-    case market
-    case limit
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .market: "Market"
-        case .limit: "Limit"
-        }
-    }
-
-    var explanation: String {
-        switch self {
-        case .market:
-            "Market buys use the current lowest available resale price and are intended to complete immediately if inventory is still available."
-        case .limit:
-            "Limit orders only match when a seller lists at or below your price; otherwise the order waits in the market."
-        }
-    }
-}
-
 private struct FanPassV4BuyOrderSheet: View {
     let event: FanPassV4.Event
     let ticketType: FanPassV4.TicketType
-    let listings: [FanPassV4.ResaleListing]
+    let bestAskPrice: Int?
     let bestAsk: String
     let onAuthRequired: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var mode: FanPassV4BuyOrderMode = .market
-    @State private var limitPrice: String
-    @State private var submittedMessage: String?
     @State private var showCheckout = false
-
-    private var eventListings: [FanPassV4.ResaleListing] {
-        listings.filter { $0.ticket.event.id == event.id && $0.ticket.ticketType.id == ticketType.id }
-    }
-
-    private var lowestListing: FanPassV4.ResaleListing? {
-        eventListings.min { $0.price < $1.price }
-    }
 
     private var capLabel: String {
         MoneyFormatter.format(ticketType.transferRule.resaleCap ?? event.marketSummary.organizerCap, currency: ticketType.currency)
-    }
-
-    private var marketCheckoutPrice: Int {
-        lowestListing?.price ?? MarketPricingSnapshot(event: event, ticketType: ticketType).floorPrice
-    }
-
-    init(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, listings: [FanPassV4.ResaleListing], bestAsk: String, onAuthRequired: @escaping () -> Void) {
-        self.event = event
-        self.ticketType = ticketType
-        self.listings = listings
-        self.bestAsk = bestAsk
-        self.onAuthRequired = onAuthRequired
-        _limitPrice = State(initialValue: "\(MarketPricingSnapshot(event: event, ticketType: ticketType).floorPrice)")
     }
 
     var body: some View {
         FanPassV4Scaffold(title: "Buy", subtitle: "\(event.title) • \(ticketType.name)") {
             FPSurfaceCard {
                 VStack(alignment: .leading, spacing: FPSpacing.lg) {
-                    HStack(spacing: FPSpacing.sm) {
-                        ForEach(FanPassV4BuyOrderMode.allCases) { candidate in
-                            Button {
-                                mode = candidate
-                                submittedMessage = nil
-                                showCheckout = false
-                            } label: {
-                                Text(candidate.title)
-                                    .font(FPTypography.callout.weight(.bold))
-                                    .foregroundStyle(mode == candidate ? FPColors.backgroundNight : FPColors.textSecondary)
-                                    .frame(maxWidth: .infinity, minHeight: 42)
-                                    .background(mode == candidate ? FPColors.pulseCyan : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    FPConceptRowList(rows: [
+                        .init(id: "tier", icon: "rectangle.3.group.fill", title: "Seat tier", subtitle: "Selected resale category.", value: ticketType.name, kind: .info),
+                        .init(id: "bestAsk", icon: "arrow.down.circle.fill", title: "Current lowest resale", subtitle: "Verified open orderbook price.", value: bestAsk, kind: bestAskPrice == nil ? .warning : .success),
+                        .init(id: "cap", icon: "lock.shield.fill", title: "Organizer cap", subtitle: "The backend rejects prices above this limit.", value: capLabel, kind: .info)
+                    ])
+
+                    if bestAskPrice == nil {
+                        FPStateBanner(
+                            title: "No resale ticket available",
+                            message: "This category has no open resale ask right now.",
+                            kind: .warning
+                        )
                     }
 
-                    Text(mode.explanation)
-                        .font(FPTypography.callout)
-                        .foregroundStyle(FPColors.textSecondary)
-
-                    if mode == .market {
-                        marketOrderContent
-                    } else {
-                        limitOrderContent
+                    Button {
+                        showCheckout = true
+                    } label: {
+                        Label("Buy lowest resale", systemImage: "bolt.fill")
+                            .font(FPTypography.headline)
+                            .foregroundStyle(FPColors.backgroundNight)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(FPColors.verifiedGreen, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
                     }
-
-                    if let submittedMessage {
-                        FPConfirmationCard(title: "Limit order placed", message: submittedMessage)
-                    }
+                    .buttonStyle(.plain)
+                    .disabled(bestAskPrice == nil)
+                    .opacity(bestAskPrice == nil ? 0.55 : 1)
                 }
             }
 
@@ -1224,163 +1235,117 @@ private struct FanPassV4BuyOrderSheet: View {
             }
         }
         .navigationDestination(isPresented: $showCheckout) {
-            FanPassV4CheckoutView(
-                event: event,
-                ticketType: ticketType,
-                quotedPrice: marketCheckoutPrice,
-                priceLineTitle: "Market price",
-                onAuthRequired: onAuthRequired
-            )
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private var marketOrderContent: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPConceptRowList(rows: [
-                .init(id: "tier", icon: "rectangle.3.group.fill", title: "Seat tier", subtitle: "Selected market category.", value: ticketType.name, kind: .info),
-                .init(id: "bestAsk", icon: "arrow.down.circle.fill", title: "Estimated fill", subtitle: "Lowest available resale now.", value: lowestListing?.priceLabel ?? bestAsk, kind: .success),
-                .init(id: "cap", icon: "lock.shield.fill", title: "Cap guard", subtitle: "Organizer resale limit stays enforced.", value: capLabel, kind: .info)
-            ])
-
-            Button {
-                showCheckout = true
-            } label: {
-                Label("Buy at market", systemImage: "bolt.fill")
-                    .font(FPTypography.headline)
-                    .foregroundStyle(FPColors.backgroundNight)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(FPColors.verifiedGreen, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(lowestListing == nil)
-            .opacity(lowestListing == nil ? 0.55 : 1)
-        }
-    }
-
-    private var limitOrderContent: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            VStack(alignment: .leading, spacing: FPSpacing.sm) {
-                Text("Limit price")
-                    .font(FPTypography.caption.weight(.semibold))
-                    .foregroundStyle(FPColors.textSecondary)
-                HStack(spacing: FPSpacing.sm) {
-                    Text("HK$")
-                        .font(FPTypography.title3)
-                        .foregroundStyle(FPColors.textSecondary)
-                    TextField("Enter price", text: $limitPrice)
-                        .keyboardType(.numberPad)
-                        .font(.system(size: 28, weight: .black, design: .rounded))
-                        .foregroundStyle(FPColors.textPrimary)
-                        .monospacedDigit()
-                }
-                .padding(FPSpacing.md)
-                .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                        .stroke(FPColors.borderDivider, lineWidth: 1)
-                }
-            }
-
-            FPConceptRowList(rows: [
-                .init(id: "bestAsk", icon: "tag.fill", title: "Current lowest ask", subtitle: "Useful reference before placing a limit order.", value: lowestListing?.priceLabel ?? bestAsk, kind: .info),
-                .init(id: "cap", icon: "lock.shield.fill", title: "Maximum allowed", subtitle: "Limit orders above cap should be rejected.", value: capLabel, kind: .warning)
-            ])
-
-            Button {
-                submittedMessage = "Limit order placed at HK$\(limitPrice). It waits until a seller accepts this price or lower."
-            } label: {
-                Label("Place limit order", systemImage: "text.badge.plus")
-                    .font(FPTypography.headline)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(FPColors.neonMagenta.opacity(0.92), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(limitPrice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .opacity(limitPrice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
-        }
-    }
-}
-
-struct FanPassV4ResaleReviewView: View {
-    let listing: FanPassV4.ResaleListing
-    @Environment(\.dismiss) private var dismiss
-    @State private var reserved = true
-    @State private var confirmed = false
-
-    var body: some View {
-        FanPassV4Scaffold(title: "Confirm resale order", subtitle: listing.ticket.event.title) {
-            FPTicketCard(
-                eventTitle: listing.ticket.event.title,
-                metadata: "\(listing.ticket.event.dateLine) • \(listing.ticket.event.venue.name)",
-                section: listing.ticket.section,
-                row: listing.ticket.row,
-                seat: listing.ticket.seat,
-                ticketId: listing.ticket.shortId,
-                statusTitle: "Reserved",
-                nfcReady: false,
-                entryModeTitle: "QR after transfer"
-            )
-            FPConceptRowList(rows: [
-                .init(id: "price", icon: "tag.fill", title: "Resale price", subtitle: "Shown before secure checkout.", value: listing.priceLabel, kind: .info),
-                .init(id: "fee", icon: "creditcard.fill", title: "Estimated fee", subtitle: "Transparent before confirmation.", value: MoneyFormatter.format(listing.feeEstimate, currency: listing.currency)),
-                .init(id: "proof", icon: FPIcons.verified, title: "Ticket checks", subtitle: "Seller and ticket status are checked before purchase.", value: "Checked", kind: .success)
-            ])
-            if reserved {
-                FPStateBanner(title: "Listing reserved", message: "This resale ticket is held while you confirm the order.", kind: .warning)
-            }
-            if confirmed {
-                FPConfirmationCard(title: "Resale order confirmed", message: "The ticket transfer is reflected in Tickets after settlement.")
-            }
-            FPPrimaryButton(title: confirmed ? "Confirmed" : "Confirm resale order", systemImage: FPIcons.verified) {
-                confirmed = true
-                reserved = false
-            }
-            .disabled(confirmed)
-            FPSecondaryButton(title: "Close", systemImage: "xmark.circle.fill") {
-                dismiss()
+            if let bestAskPrice {
+                FanPassV4CheckoutView(
+                    event: event,
+                    ticketType: ticketType,
+                    quotedPrice: bestAskPrice,
+                    priceLineTitle: "Resale price",
+                    fulfillmentMode: .resaleOnly,
+                    onAuthRequired: onAuthRequired
+                )
+                .navigationBarTitleDisplayMode(.inline)
             }
         }
     }
 }
 
 struct FanPassV4ListTicketView: View {
-    let ticket: FanPassV4.Ticket?
+    @Environment(FanPassBackendContext.self) private var backend
+    let ticket: FanPassV4.Ticket
     let isAuthenticated: Bool
     let onAuthRequired: () -> Void
     @State private var listed = false
     @State private var cancelled = false
     @State private var selectedPrice: Double
-    @State private var autoRelist = false
-    @State private var smartPricing = true
+    @State private var priceText: String
+    @State private var listing: FanPassV4.ResaleListing?
+    @State private var listingError: String?
+    @State private var isSubmitting = false
+    @State private var isCancelling = false
+    @State private var remoteFloorPrice: Int?
 
     private var selectedTicket: FanPassV4.Ticket {
-        ticket ?? FanPassMockData.tickets.first!
+        backend.effectiveTicket(ticket)
     }
 
     init(
-        ticket: FanPassV4.Ticket?,
+        ticket: FanPassV4.Ticket,
         isAuthenticated: Bool = true,
         onAuthRequired: @escaping () -> Void = {}
     ) {
         self.ticket = ticket
         self.isAuthenticated = isAuthenticated
         self.onAuthRequired = onAuthRequired
-        let fallback = ticket ?? FanPassMockData.tickets.first!
-        _selectedPrice = State(initialValue: Double(min(fallback.event.marketSummary.floorPrice, fallback.ticketType.transferRule.resaleCap ?? fallback.event.marketSummary.floorPrice)))
+        let initialPrice = min(
+            ticket.ticketType.faceValue,
+            ticket.ticketType.transferRule.resaleCap ?? ticket.ticketType.faceValue
+        )
+        _selectedPrice = State(initialValue: Double(initialPrice))
+        _priceText = State(initialValue: "\(initialPrice)")
     }
 
     private var suggestedPrice: Int {
-        Int(selectedPrice)
+        parsedPrice ?? Int(selectedPrice)
     }
 
-    private var platformFee: Int { max(28, Int(Double(suggestedPrice) * 0.035)) }
+    private var platformFee: Int { Int((Double(suggestedPrice) * 0.03).rounded()) }
     private var resaleCap: Int { selectedTicket.ticketType.transferRule.resaleCap ?? suggestedPrice }
+    private var parsedPrice: Int? {
+        Int(priceText.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+    private var currentLowestPrice: Int? {
+        remoteFloorPrice ?? backend.openResaleListings(
+            for: selectedTicket.event.id,
+            ticketTypeId: selectedTicket.ticketType.id
+        )
+        .map(\.price)
+        .min()
+    }
+    private var currentLowestPriceLabel: String {
+        guard let currentLowestPrice else {
+            return "No open ask"
+        }
+        return MoneyFormatter.format(currentLowestPrice, currency: selectedTicket.ticketType.currency)
+    }
+    private var priceStepperBinding: Binding<Double> {
+        Binding {
+            Double(suggestedPrice)
+        } set: { newValue in
+            let normalized = max(0, Int(newValue))
+            selectedPrice = Double(normalized)
+            priceText = "\(normalized)"
+            listingError = nil
+        }
+    }
+    private var activeListing: FanPassV4.ResaleListing? {
+        listing ??
+            backend.openResaleListing(for: selectedTicket.id) ??
+            (selectedTicket.status == .listed ? placeholderListing : nil)
+    }
+    private var placeholderListing: FanPassV4.ResaleListing {
+        FanPassV4.ResaleListing(
+            id: "listing_\(selectedTicket.id)",
+            ticket: selectedTicket,
+            sellerDisplay: "Verified fan",
+            price: suggestedPrice,
+            currency: selectedTicket.ticketType.currency,
+            feeEstimate: platformFee,
+            status: .open,
+            createdAt: Date()
+        )
+    }
+    private var hasOpenListing: Bool {
+        activeListing?.status == .open
+    }
     private var canList: Bool {
         selectedTicket.status.allowsResale &&
             selectedTicket.ticketType.transferRule.transferable &&
-            suggestedPrice <= resaleCap
+            parsedPrice != nil &&
+            suggestedPrice > 0 &&
+            suggestedPrice <= resaleCap &&
+            !hasOpenListing &&
+            !isSubmitting
     }
 
     var body: some View {
@@ -1413,60 +1378,206 @@ struct FanPassV4ListTicketView: View {
                         FPConceptRowList(rows: [
                             .init(id: "face", icon: "tag", title: "Face value", subtitle: "Original organizer price.", value: selectedTicket.ticketType.priceLabel),
                             .init(id: "suggested", icon: "sparkles", title: "Suggested resale", subtitle: "Based on current market context.", value: selectedTicket.event.marketSummary.suggestedResalePriceLabel, kind: .info),
+                            .init(id: "lowest", icon: "arrow.down.circle.fill", title: "Current lowest resale", subtitle: "Updates after your listing opens.", value: currentLowestPriceLabel, kind: .success),
                             .init(id: "cap", icon: "lock.shield.fill", title: "Organizer cap", subtitle: selectedTicket.ticketType.transferRule.summary, value: MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency), kind: .warning)
                         ])
+                        HStack(spacing: FPSpacing.sm) {
+                            Text("HK$")
+                                .font(FPTypography.title3)
+                                .foregroundStyle(FPColors.textSecondary)
+                            TextField("Enter price", text: $priceText)
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .foregroundStyle(FPColors.textPrimary)
+                                .monospacedDigit()
+                                .disabled(hasOpenListing || isSubmitting)
+                        }
+                        .padding(FPSpacing.md)
+                        .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
+                                .stroke(FPColors.borderDivider, lineWidth: 1)
+                        }
                         Stepper(
                             "Listing price: \(MoneyFormatter.format(suggestedPrice, currency: selectedTicket.ticketType.currency))",
-                            value: $selectedPrice,
+                            value: priceStepperBinding,
                             in: 0...Double(resaleCap + 300),
                             step: 20
                         )
                         .font(FPTypography.callout)
                         .foregroundStyle(FPColors.textPrimary)
                         .tint(FPColors.pulseCyan)
+                        .disabled(hasOpenListing || isSubmitting)
                     }
                 }
 
                 FPConceptRowList(rows: [
                     .init(id: "fee", icon: "creditcard.fill", title: "Platform fee", subtitle: "Visible before submitting.", value: MoneyFormatter.format(platformFee, currency: selectedTicket.ticketType.currency)),
-                    .init(id: "payout", icon: "banknote.fill", title: "Estimated payout", subtitle: "After fee and settlement.", value: MoneyFormatter.format(suggestedPrice - platformFee, currency: selectedTicket.ticketType.currency), kind: .success)
+                    .init(id: "payout", icon: "banknote.fill", title: "Estimated payout", subtitle: "After fee and settlement.", value: MoneyFormatter.format(max(0, suggestedPrice - platformFee), currency: selectedTicket.ticketType.currency), kind: .success)
                 ])
 
-                Toggle("Smart pricing guard", isOn: $smartPricing)
-                    .font(FPTypography.callout)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .tint(FPColors.pulseCyan)
-                Toggle("Auto relist if buyer times out", isOn: $autoRelist)
-                    .font(FPTypography.callout)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .tint(FPColors.pulseCyan)
+                if parsedPrice == nil {
+                    FPStateBanner(title: "Enter a price", message: "Type a whole-number resale price before submitting.", kind: .warning)
+                }
 
                 if suggestedPrice > resaleCap {
                     FPStateBanner(title: "Price above cap", message: "Lower the price before listing. Organizer cap is \(MoneyFormatter.format(resaleCap, currency: selectedTicket.ticketType.currency)).", kind: .danger)
                 }
 
-                if !selectedTicket.status.allowsResale {
+                if selectedTicket.status == .listed {
+                    FPStateBanner(title: "Entry QR paused", message: "Cancel this listing before using the ticket for entry.", kind: .warning)
+                } else if !selectedTicket.status.allowsResale {
                     FPStateBanner(title: "\(selectedTicket.status.title) ticket", message: "Only active tickets can be listed for resale.", kind: .warning)
                 }
 
-                if listed {
-                    FPConfirmationCard(title: "Listing created", message: "Entry code is unavailable while the listing is open.")
+                if hasOpenListing {
+                    FPConfirmationCard(title: "Listing open", message: "This ticket is now under Listed. Entry QR is unavailable until the listing is cancelled.")
                     FPSecondaryButton(title: "Cancel listing", systemImage: "xmark.circle.fill") {
-                        listed = false
-                        cancelled = true
+                        Task {
+                            await cancelOpenListing()
+                        }
                     }
+                    .disabled(isCancelling)
                 } else if cancelled {
                     FPStateBanner(title: "Listing cancelled", message: "The ticket returns to its wallet state.", kind: .success)
                 }
 
-                FPPrimaryButton(title: listed ? "Listing submitted" : "Submit listing", systemImage: listed ? FPIcons.verified : FPIcons.resale) {
-                    guard canList else { return }
-                    listed = true
-                    cancelled = false
+                if let listingError {
+                    FPStateBanner(title: "Listing action failed", message: listingError, kind: .danger)
                 }
-                .disabled(!canList || listed)
+
+                FPPrimaryButton(title: hasOpenListing ? "Listing submitted" : (isSubmitting ? "Submitting listing" : "Submit listing"), systemImage: hasOpenListing ? FPIcons.verified : FPIcons.resale) {
+                    guard canList else { return }
+                    Task {
+                        await submitListing()
+                    }
+                }
+                .disabled(!canList || hasOpenListing)
             }
         }
+        .task(id: "\(selectedTicket.id)-\(backend.ticketRefreshKey)") {
+            syncListingState()
+            await refreshOpenListingIfNeeded()
+            await refreshMarketFloor()
+        }
+        .onChange(of: priceText) { _, newValue in
+            normalizePriceText(newValue)
+        }
+    }
+
+    private func syncListingState() {
+        if let existingListing = backend.openResaleListing(for: selectedTicket.id) {
+            listing = existingListing
+            listed = true
+            cancelled = false
+            selectedPrice = Double(existingListing.price)
+            priceText = "\(existingListing.price)"
+            return
+        }
+        if selectedTicket.status != .listed {
+            listing = nil
+            listed = false
+        }
+    }
+
+    private func normalizePriceText(_ value: String) {
+        let digits = value.filter(\.isNumber)
+        if digits != value {
+            priceText = digits
+            return
+        }
+        if let parsed = Int(digits) {
+            selectedPrice = Double(parsed)
+        }
+        listingError = nil
+    }
+
+    private func refreshMarketFloor() async {
+        do {
+            let snapshot = try await backend.apiClient.orderbook(
+                eventId: selectedTicket.event.id,
+                ticketTypeId: selectedTicket.ticketType.id
+            )
+            remoteFloorPrice = snapshot.floorPrice
+        } catch {
+            // Listing submission remains available; the cap is still backend-enforced.
+        }
+    }
+
+    private func refreshOpenListingIfNeeded() async {
+        guard listing == nil,
+              selectedTicket.status == .listed,
+              backend.isAuthenticated
+        else {
+            return
+        }
+
+        do {
+            let orders = try await backend.apiClient.userOrders(userId: selectedTicket.ownerId)
+            guard let order = orders.first(where: { order in
+                order.ticketId == selectedTicket.id &&
+                    order.side.uppercased() == "SELL" &&
+                    order.status.uppercased() == "OPEN"
+            }) else {
+                listingError = "The open listing details could not be found. Refresh Tickets and try again."
+                return
+            }
+            let remoteListing = FanPassV4APIMapper.resaleListing(order: order, ticket: selectedTicket)
+            listing = remoteListing
+            listed = true
+            cancelled = false
+            selectedPrice = Double(remoteListing.price)
+            priceText = "\(remoteListing.price)"
+            listingError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            listingError = "The open listing details could not load. Check your connection and try again."
+        }
+    }
+
+    private func submitListing() async {
+        guard canList else { return }
+        isSubmitting = true
+        listingError = nil
+        defer { isSubmitting = false }
+
+        do {
+            let createdListing = try await backend.ticketService().listForResale(
+                ticket: selectedTicket,
+                price: suggestedPrice
+            )
+            backend.recordResaleListing(createdListing)
+            listing = createdListing
+            listed = true
+            cancelled = false
+        } catch {
+            listingError = listingErrorMessage(for: error)
+        }
+    }
+
+    private func cancelOpenListing() async {
+        guard let activeListing else { return }
+        isCancelling = true
+        listingError = nil
+        defer { isCancelling = false }
+
+        do {
+            let cancelledListing = try await backend.ticketService().cancelListing(activeListing)
+            backend.recordCancelledListing(cancelledListing)
+            listing = nil
+            listed = false
+            cancelled = true
+        } catch {
+            listingError = listingErrorMessage(for: error)
+        }
+    }
+
+    private func listingErrorMessage(for error: Error) -> String {
+        if let mockError = error as? FanPassV4MockError {
+            return mockError.title
+        }
+        return error.localizedDescription
     }
 }
 

@@ -65,6 +65,7 @@ protocol PrivyAuthProviding: AnyObject {
     func sendEmailCode(to email: String) async throws
     func loginWithEmailCode(_ code: String, sentTo email: String) async throws -> PrivyLoginResult
     func loginWithOAuth(_ provider: PrivyOAuthLoginProvider) async throws -> PrivyLoginResult
+    func currentLoginResult() async throws -> PrivyLoginResult?
     func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String
     func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization
     func signOut() async
@@ -136,6 +137,22 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
             with: provider.oauthProvider,
             appUrlScheme: FanPassEnvironment.privyOAuthURLScheme
         )
+        return try await loginResult(for: user, fallbackEmail: nil)
+        #else
+        throw PrivyAuthProviderError.sdkUnavailable
+        #endif
+    }
+
+    func currentLoginResult() async throws -> PrivyLoginResult? {
+        #if canImport(PrivySDK)
+        guard let privy else {
+            throw PrivyAuthProviderError.notConfigured
+        }
+
+        _ = await privy.getAuthState()
+        guard let user = await privy.getUser() else {
+            return nil
+        }
         return try await loginResult(for: user, fallbackEmail: nil)
         #else
         throw PrivyAuthProviderError.sdkUnavailable

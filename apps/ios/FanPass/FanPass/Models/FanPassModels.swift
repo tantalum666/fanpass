@@ -16,6 +16,14 @@ struct UserSession: Codable, Hashable {
     var isAdmin: Bool { role == "ADMIN" }
     var isOpsRole: Bool { isGateStaff || isAdmin }
 
+    static func parseExpiry(_ value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return fractionalFormatter.date(from: value) ?? formatter.date(from: value)
+    }
+
     func withAccessToken(_ token: String?) -> UserSession {
         UserSession(
             userId: userId,
@@ -223,6 +231,12 @@ struct OrderbookSnapshot: Codable, Hashable {
     let premiumPercent: Double?
 }
 
+enum FanPassOrderFulfillmentMode: String, Codable, Hashable {
+    case any = "ANY"
+    case primaryOnly = "PRIMARY_ONLY"
+    case resaleOnly = "RESALE_ONLY"
+}
+
 struct FanPassOrder: Codable, Identifiable, Hashable {
     let id: String
     let userId: String
@@ -230,6 +244,7 @@ struct FanPassOrder: Codable, Identifiable, Hashable {
     let ticketTypeId: String
     let ticketId: String?
     let side: String
+    let fulfillmentMode: String?
     let price: Int
     let quantity: Int
     let remainingQuantity: Int

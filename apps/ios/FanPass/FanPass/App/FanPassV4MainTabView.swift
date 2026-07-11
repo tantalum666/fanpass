@@ -39,11 +39,7 @@ struct FanPassV4MainTabView: View {
                 FanPassV4ProfileView(
                     user: backend.user,
                     selectedSection: $viewModel.accountSection,
-                    showStaffMode: backend.user.role == .gateStaff,
-                    onSignOut: signOut,
-                    onScenarioApplied: { scenario in
-                        viewModel.switchScenario(scenario)
-                    }
+                    onSignOut: signOut
                 )
                     .navigationBarTitleDisplayMode(.inline)
             }

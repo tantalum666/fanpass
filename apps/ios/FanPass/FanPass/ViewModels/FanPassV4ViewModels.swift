@@ -71,10 +71,6 @@ final class FanPassRootViewModel {
         }
     }
 
-    var user: FanPassV4.User = FanPassMockData.currentUser
-    var controls = FanPassV4.PrototypeControlState()
-    private let authService = MockAuthService()
-
     var tabItems: [FPTabItem] {
         FanPassV4Tab.allCases.map {
             FPTabItem(id: $0.id, title: $0.title, systemImage: $0.systemImage)
@@ -93,26 +89,6 @@ final class FanPassRootViewModel {
         stage = .main
         selectedTab = .home
         selectedTabID = FanPassV4Tab.home.id
-    }
-
-    func signInForDemo() {
-        user = FanPassMockData.user(for: controls.userScenario)
-        stage = .main
-    }
-
-    func continueAsDemoStaff() {
-        user = FanPassMockData.staffUser
-        controls.userScenario = .gateStaff
-        stage = .main
-        selectedTab = .profile
-        selectedTabID = FanPassV4Tab.profile.id
-    }
-
-    func switchScenario(_ scenario: FanPassV4.DemoUserScenario) {
-        controls.userScenario = scenario
-        user = FanPassMockData.user(for: scenario)
-        selectedTab = scenario == .gateStaff || scenario == .organizerLite ? .profile : selectedTab
-        selectedTabID = selectedTab.id
     }
 
     func openPrivySignIn() {
@@ -140,37 +116,50 @@ final class FanPassRootViewModel {
 @Observable
 final class HomeViewModel {
     var user: FanPassV4.User = FanPassMockData.currentUser
-    var featuredEvents: [FanPassV4.Event] = FanPassMockData.events
-    var nextTicket: FanPassV4.Ticket? = FanPassMockData.tickets.first
-    var accessBadge: FanPassV4.AccessBadge? = FanPassMockData.currentUser.accessBadges.first
+    var featuredEvents: [FanPassV4.Event] = []
+    var nextTicket: FanPassV4.Ticket?
+    var accessBadge: FanPassV4.AccessBadge?
+    var isLoading = false
     var sourceMessage: String?
 
     func load(
         user: FanPassV4.User = FanPassMockData.currentUser,
+        isAuthenticated: Bool = false,
         eventService: FanPassV4EventServicing = MockEventService(),
         ticketService: FanPassV4TicketServicing = MockTicketService()
     ) async {
+        isLoading = true
+        defer { isLoading = false }
         self.user = user
-        let loadedEvents: [FanPassV4.Event]
         do {
-            loadedEvents = try await eventService.featuredEvents(network: .online)
+            featuredEvents = try await eventService.featuredEvents(network: .online)
             sourceMessage = nil
         } catch {
-            loadedEvents = FanPassMockData.events
-            sourceMessage = "Some services are unavailable. Showing cached event data."
+            featuredEvents = []
+            sourceMessage = "Events could not load. Check your connection and try again."
         }
-        self.featuredEvents = loadedEvents.isEmpty ? FanPassMockData.events : loadedEvents
-        let walletTickets = await ticketService.walletTickets(for: user, statusOverride: nil)
-        self.nextTicket = walletTickets.first { $0.status == .active }
-        self.accessBadge = user.accessBadges.first
+        if isAuthenticated {
+            do {
+                let walletTickets = try await ticketService.walletTickets(for: user, statusOverride: nil)
+                nextTicket = walletTickets.first { $0.status == .active }
+            } catch {
+                nextTicket = nil
+                if sourceMessage == nil {
+                    sourceMessage = "Your tickets could not refresh. Try again shortly."
+                }
+            }
+        } else {
+            nextTicket = nil
+        }
+        accessBadge = isAuthenticated ? user.accessBadges.first : nil
     }
 }
 
 @MainActor
 @Observable
 final class ExploreViewModel {
-    var events: [FanPassV4.Event] = FanPassMockData.events
-    var selectedEvent: FanPassV4.Event? = FanPassMockData.events.first
+    var events: [FanPassV4.Event] = []
+    var selectedEvent: FanPassV4.Event?
     var isLoading = false
     var errorMessage: String?
     private let eventService: FanPassV4EventServicing
@@ -187,7 +176,7 @@ final class ExploreViewModel {
         defer { isLoading = false }
         do {
             events = try await (overrideService ?? eventService).featuredEvents(network: network)
-            selectedEvent = events.first ?? selectedEvent
+            selectedEvent = events.first
             errorMessage = nil
         } catch {
             errorMessage = "Connection unavailable. Events could not refresh."
@@ -218,40 +207,26 @@ final class CheckoutViewModel {
     var ticketType: FanPassV4.TicketType
     var quotedPrice: Int
     var priceLineTitle: String
+    let fulfillmentMode: FanPassOrderFulfillmentMode
     var paymentState: FanPassV4.PaymentState = .idle
-    var paymentResult: FanPassV4.DemoPaymentResult = .success
-    var purchasedTicket: FanPassV4.Ticket?
     var errorMessage: String?
-    private let paymentService = MockPaymentService()
-    private let ticketService: FanPassV4TicketServicing
 
     init(
         event: FanPassV4.Event = FanPassMockData.events[0],
         ticketType: FanPassV4.TicketType = FanPassMockData.events[0].safePrimaryTicketType,
         quotedPrice: Int? = nil,
         priceLineTitle: String = "Face value",
-        ticketService: FanPassV4TicketServicing = MockTicketService()
+        fulfillmentMode: FanPassOrderFulfillmentMode = .primaryOnly
     ) {
         self.event = event
         self.ticketType = ticketType
         self.quotedPrice = quotedPrice ?? ticketType.faceValue
         self.priceLineTitle = priceLineTitle
-        self.ticketService = ticketService
+        self.fulfillmentMode = fulfillmentMode
     }
 
     var ticketPriceLabel: String {
         MoneyFormatter.format(quotedPrice, currency: ticketType.currency)
-    }
-
-    var platformFee: Int { max(28, Int(Double(quotedPrice) * 0.035)) }
-    var tax: Int { Int(Double(quotedPrice) * 0.02) }
-
-    var platformFeeLabel: String {
-        MoneyFormatter.format(platformFee, currency: ticketType.currency)
-    }
-
-    var taxLabel: String {
-        MoneyFormatter.format(tax, currency: ticketType.currency)
     }
 
     var totalLabel: String {
@@ -259,28 +234,12 @@ final class CheckoutViewModel {
     }
 
     var totalAmount: Int {
-        quotedPrice + platformFee + tax
-    }
-
-    func simulatePaymentSuccess() {
-        paymentResult = .success
-        Task { await completePayment(owner: FanPassMockData.currentUser) }
-    }
-
-    func simulatePaymentFailure() {
-        paymentResult = .failure
-        Task { await completePayment() }
-    }
-
-    func simulateCheckoutExpired() {
-        paymentResult = .expired
-        Task { await completePayment() }
+        quotedPrice
     }
 
     func resetPayment() {
         paymentState = .idle
         errorMessage = nil
-        purchasedTicket = nil
     }
 
     func prepareBackendPayment(
@@ -296,7 +255,8 @@ final class CheckoutViewModel {
                 eventId: event.id,
                 ticketTypeId: ticketType.id,
                 side: "BUY",
-                price: totalAmount,
+                fulfillmentMode: fulfillmentMode,
+                price: quotedPrice,
                 idempotencyKey: "ios-v4-order-\(checkoutAttemptId)"
             )
             let payment = try await apiClient.createPaymentIntent(
@@ -337,7 +297,8 @@ final class CheckoutViewModel {
             eventId: event.id,
             ticketTypeId: ticketType.id,
             side: "BUY",
-            price: totalAmount,
+            fulfillmentMode: fulfillmentMode,
+            price: quotedPrice,
             idempotencyKey: "ios-v4-crypto-order-\(checkoutAttemptId)"
         )
         return try await apiClient.createCryptoQuote(
@@ -370,73 +331,6 @@ final class CheckoutViewModel {
         }
     }
 
-    func completeStripeCheckout(owner: FanPassV4.User) -> FanPassV4.Ticket {
-        let ticket = checkoutTicket(
-            owner: owner,
-            status: .transferPending,
-            entryMode: .unavailable,
-            source: "stripe"
-        )
-        purchasedTicket = ticket
-        paymentState = .captured
-        errorMessage = nil
-        return ticket
-    }
-
-    func completePayment(owner: FanPassV4.User = FanPassMockData.currentUser) async {
-        paymentState = .authorizing
-        do {
-            _ = try await paymentService.authorizeDemoPayment(result: paymentResult)
-            paymentState = try await paymentService.captureDemoPayment(result: paymentResult)
-            purchasedTicket = await ticketService.purchaseTicket(event: event, ticketType: ticketType, owner: owner)
-            errorMessage = nil
-        } catch FanPassV4MockError.paymentFailed {
-            paymentState = .failed
-            errorMessage = "Payment failed. No ticket was assigned."
-        } catch FanPassV4MockError.checkoutExpired {
-            paymentState = .cancelled
-            errorMessage = "The ticket reservation timed out."
-        } catch {
-            paymentState = .failed
-            errorMessage = "Payment could not complete."
-        }
-    }
-
-    private func checkoutTicket(
-        owner: FanPassV4.User,
-        status: FanPassV4.TicketStatus,
-        entryMode: FanPassV4.TicketEntryMode,
-        source: String
-    ) -> FanPassV4.Ticket {
-        let compactEvent = event.id
-            .replacingOccurrences(of: "evt_", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .uppercased()
-            .prefix(8)
-        let compactType = ticketType.id
-            .replacingOccurrences(of: "tt_", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .uppercased()
-            .prefix(6)
-        let unique = UUID().uuidString
-            .replacingOccurrences(of: "-", with: "")
-            .uppercased()
-            .prefix(6)
-        let ticketId = "FP-\(source.uppercased())-\(compactEvent)-\(compactType)-\(unique)"
-        return FanPassV4.Ticket(
-            id: ticketId,
-            event: event,
-            ticketType: ticketType,
-            ownerId: owner.id,
-            status: status,
-            section: "Digital",
-            row: "Issue",
-            seat: "Pending",
-            entryMode: entryMode,
-            transferCount: 0,
-            proofHistory: FanPassMockData.proofHistory(ticketId: ticketId)
-        )
-    }
 }
 
 @MainActor
@@ -483,8 +377,10 @@ final class FanAccessViewModel {
 @MainActor
 @Observable
 final class TicketsViewModel {
-    var tickets: [FanPassV4.Ticket] = FanPassMockData.tickets
-    var selectedTicket: FanPassV4.Ticket? = FanPassMockData.tickets.first
+    var tickets: [FanPassV4.Ticket] = []
+    var selectedTicket: FanPassV4.Ticket?
+    var isLoading = false
+    var errorMessage: String?
     private let ticketService: FanPassV4TicketServicing
 
     init(ticketService: FanPassV4TicketServicing = MockTicketService()) {
@@ -496,8 +392,17 @@ final class TicketsViewModel {
         statusOverride: FanPassV4.TicketStatus? = nil,
         ticketService overrideService: FanPassV4TicketServicing? = nil
     ) async {
-        tickets = await (overrideService ?? ticketService).walletTickets(for: user, statusOverride: statusOverride)
-        selectedTicket = tickets.first
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            tickets = try await (overrideService ?? ticketService).walletTickets(for: user, statusOverride: statusOverride)
+            selectedTicket = tickets.first
+            errorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = "Tickets could not refresh. Check your connection and try again."
+        }
     }
 
     var upcoming: [FanPassV4.Ticket] {
@@ -516,32 +421,37 @@ final class TicketsViewModel {
 @MainActor
 @Observable
 final class MarketViewModel {
-    var availableEvents: [FanPassV4.Event] = FanPassMockData.events
-    var listings: [FanPassV4.ResaleListing] = FanPassMockData.listings
-    var trades: [FanPassV4.Trade] = FanPassMockData.trades
+    var availableEvents: [FanPassV4.Event] = []
+    var listings: [FanPassV4.ResaleListing] = []
+    var trades: [FanPassV4.Trade] = []
     var selectedEvent: FanPassV4.Event = FanPassMockData.events[0] {
         didSet {
             loadSelectedEventData()
         }
     }
-    private let marketService = MockMarketService()
+    var isLoading = false
+    var errorMessage: String?
 
     var orderbook: [FanPassV4.OrderbookOrder] {
         FanPassMockData.orderbook(for: selectedEvent)
     }
 
     func load(eventService: FanPassV4EventServicing = MockEventService()) async {
+        isLoading = true
+        defer { isLoading = false }
         do {
             let events = try await eventService.featuredEvents(network: .online)
-            guard !events.isEmpty else { return }
             availableEvents = events
+            errorMessage = nil
+            guard !events.isEmpty else { return }
             if let matchingEvent = events.first(where: { $0.id == selectedEvent.id }) {
                 selectedEvent = matchingEvent
             } else if let firstEvent = events.first {
                 selectedEvent = firstEvent
             }
         } catch {
-            availableEvents = FanPassMockData.events
+            availableEvents = []
+            errorMessage = "Market events could not load. Check your connection and try again."
         }
     }
 
@@ -573,12 +483,8 @@ final class MarketViewModel {
     }
 
     func loadSelectedEventData() {
-        listings = FanPassMockData.listings.filter { $0.ticket.event.id == selectedEvent.id }
-        trades = FanPassMockData.trades(for: selectedEvent)
-    }
-
-    func completeResalePurchase(for listing: FanPassV4.ResaleListing, buyer: FanPassV4.User = FanPassMockData.currentUser) async -> FanPassV4.Ticket {
-        await marketService.buyResaleTicket(listing: listing, buyer: buyer)
+        listings = []
+        trades = []
     }
 }
 

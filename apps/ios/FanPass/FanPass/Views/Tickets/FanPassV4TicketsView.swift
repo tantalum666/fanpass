@@ -72,7 +72,22 @@ struct FanPassV4TicketsView: View {
     private var ticketList: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "\(selectedFilter.title) · \(filteredTickets.count)")
-            if filteredTickets.isEmpty {
+            if let errorMessage = viewModel.errorMessage {
+                FPStateBanner(
+                    title: "Tickets unavailable",
+                    message: errorMessage,
+                    kind: .warning,
+                    actionTitle: "Retry"
+                ) {
+                    Task {
+                        await viewModel.load(user: backend.user, ticketService: backend.ticketService())
+                    }
+                }
+            } else if viewModel.isLoading && viewModel.tickets.isEmpty {
+                ProgressView("Loading tickets")
+                    .tint(FPColors.pulseCyan)
+                    .frame(maxWidth: .infinity, minHeight: 160)
+            } else if filteredTickets.isEmpty {
                 FPEmptyStateView(title: "No tickets here", message: selectedFilter.emptyMessage, systemImage: FPIcons.tickets)
                     .frame(maxWidth: .infinity)
                     .background(FPColors.surfaceCard, in: RoundedRectangle(cornerRadius: FPRadius.lg, style: .continuous))
@@ -135,6 +150,7 @@ private enum ChainProofLoadState {
 struct FanPassV4TicketDetailView: View {
     @Environment(FanPassBackendContext.self) private var backend
     @Environment(FanPassRootViewModel.self) private var appViewModel
+    @Environment(\.scenePhase) private var scenePhase
     let ticket: FanPassV4.Ticket
     @State private var chainProofResponse: FanPassChainProofResponse?
     @State private var chainProofLoadState: ChainProofLoadState = .idle
@@ -145,6 +161,7 @@ struct FanPassV4TicketDetailView: View {
     @State private var isRefreshingCredential = false
     @State private var credentialRefreshRemainingSeconds = 30
     @State private var liveTicket: FanPassV4.Ticket?
+    @State private var ticketStatusError: String?
 
     private var currentTicket: FanPassV4.Ticket {
         liveTicket ?? ticket
@@ -173,10 +190,12 @@ struct FanPassV4TicketDetailView: View {
         .task(id: ticket.id) {
             await refreshChainProof()
         }
-        .task(id: "\(ticket.id)-status-refresh") {
+        .task(id: "\(ticket.id)-status-refresh-\(scenePhase)") {
+            guard scenePhase == .active else { return }
             await runTicketStatusRefreshLoop()
         }
-        .task(id: "\(ticket.id)-entry-credential") {
+        .task(id: "\(ticket.id)-entry-credential-\(scenePhase)") {
+            guard scenePhase == .active else { return }
             await runEntryCredentialLoop()
         }
         .sheet(item: $sheet) { sheet in
@@ -188,7 +207,17 @@ struct FanPassV4TicketDetailView: View {
     private var entryReadinessCard: some View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.lg) {
-                FPSectionHeader(title: "Entry QR", subtitle: "Refreshes every 30s")
+                FPSectionHeader(
+                    title: "Entry QR",
+                    subtitle: currentTicket.status.allowsEntryCode ? "Refreshes every 30s" : "Paused while unavailable"
+                )
+                if let ticketStatusError {
+                    FPStateBanner(
+                        title: "Ticket status could not refresh",
+                        message: ticketStatusError,
+                        kind: .warning
+                    )
+                }
                 if currentTicket.status.allowsEntryCode {
                     entryQRCodePanel
                     FPSecondaryButton(
@@ -634,8 +663,12 @@ struct FanPassV4TicketDetailView: View {
     private func runTicketStatusRefreshLoop() async {
         while !Task.isCancelled {
             await refreshTicketStatus()
+            if [.redeemed, .cancelled, .refunded, .expired].contains(currentTicket.status) {
+                return
+            }
             do {
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+                let delay: Duration = currentTicket.status.allowsEntryCode ? .seconds(2) : .seconds(5)
+                try await Task.sleep(for: delay)
             } catch {
                 return
             }
@@ -647,17 +680,25 @@ struct FanPassV4TicketDetailView: View {
             return
         }
 
-        if let updatedTicket = await backend.ticketService().ticket(id: ticket.id) {
+        do {
+            if let updatedTicket = try await backend.ticketService().ticket(id: ticket.id) {
+                applyTicketStatusRefresh(updatedTicket)
+                ticketStatusError = nil
+                return
+            }
+
+            let walletTickets = try await backend.ticketService().walletTickets(for: backend.user, statusOverride: nil)
+            guard let updatedTicket = walletTickets.first(where: { $0.id == ticket.id }) else {
+                ticketStatusError = "This ticket is not currently available in your account."
+                return
+            }
             applyTicketStatusRefresh(updatedTicket)
+            ticketStatusError = nil
+        } catch is CancellationError {
             return
+        } catch {
+            ticketStatusError = "Showing the last known status. Check your connection and try again."
         }
-
-        let walletTickets = await backend.ticketService().walletTickets(for: backend.user, statusOverride: nil)
-        guard let updatedTicket = walletTickets.first(where: { $0.id == ticket.id }) else {
-            return
-        }
-
-        applyTicketStatusRefresh(updatedTicket)
     }
 
     private func applyTicketStatusRefresh(_ updatedTicket: FanPassV4.Ticket) {
@@ -679,6 +720,7 @@ struct FanPassV4TicketDetailView: View {
 
         while !Task.isCancelled {
             if !currentTicket.status.allowsEntryCode {
+                qrCredential = nil
                 credentialError = nil
                 return
             }
@@ -698,6 +740,7 @@ struct FanPassV4TicketDetailView: View {
         await refreshTicketStatus()
         let ticketForCredential = currentTicket
         guard ticketForCredential.status.allowsEntryCode else {
+            qrCredential = nil
             credentialError = nil
             return
         }
@@ -719,9 +762,38 @@ struct FanPassV4TicketDetailView: View {
         FPSurfaceCard {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
                 FPSectionHeader(title: "Ticket actions")
-                if currentTicket.status.allowsResale {
+                if currentTicket.status == .listed {
+                    FPStateBanner(
+                        title: "Listed for resale",
+                        message: "Cancel this listing before using the ticket for entry.",
+                        kind: .warning
+                    )
                     NavigationLink {
-                        FanPassV4ListTicketView(ticket: currentTicket)
+                        FanPassV4ListTicketView(
+                            ticket: currentTicket,
+                            isAuthenticated: backend.isAuthenticated
+                        ) {
+                            appViewModel.openPrivySignIn()
+                        }
+                    } label: {
+                        HStack(spacing: FPSpacing.sm) {
+                            Image(systemName: "slider.horizontal.3")
+                            Text("Manage listing")
+                        }
+                        .font(FPTypography.headline)
+                        .foregroundStyle(FPColors.backgroundNight)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(FPColors.warningAmber, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                } else if currentTicket.status.allowsResale {
+                    NavigationLink {
+                        FanPassV4ListTicketView(
+                            ticket: currentTicket,
+                            isAuthenticated: backend.isAuthenticated
+                        ) {
+                            appViewModel.openPrivySignIn()
+                        }
                     } label: {
                         HStack(spacing: FPSpacing.sm) {
                             Image(systemName: FPIcons.resale)
@@ -777,7 +849,7 @@ struct FanPassV4TicketDetailView: View {
 
     private var inactiveStateMessage: String {
         switch currentTicket.status {
-        case .listed: "Listed tickets cannot be used for entry while resale is open."
+        case .listed: "Cancel this listing to move the ticket back to Upcoming and restore the entry QR."
         case .redeemed: "This ticket has already been accepted at entry and cannot be reused."
         case .cancelled: "Organizer policy cancelled this ticket. Entry and resale are disabled."
         case .refunded: "This ticket was refunded. Entry, resale, and transfer are disabled."
@@ -842,23 +914,29 @@ private struct TicketSheetView: View {
 
 private struct FanPassEntryQRCodeImage: View {
     let value: String
-    private let context = CIContext()
-    private let filter = CIFilter.qrCodeGenerator()
+    @State private var renderedImage: UIImage?
+    private static let context = CIContext()
 
     var body: some View {
-        if let image = makeImage() {
-            Image(uiImage: image)
-                .interpolation(.none)
-                .resizable()
-                .scaledToFit()
-        } else {
-            Image(systemName: FPIcons.qr)
-                .font(.system(size: 120, weight: .semibold))
-                .foregroundStyle(FPColors.textSecondary)
+        Group {
+            if let renderedImage {
+                Image(uiImage: renderedImage)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: FPIcons.qr)
+                    .font(.system(size: 120, weight: .semibold))
+                    .foregroundStyle(FPColors.textSecondary)
+            }
+        }
+        .task(id: value) {
+            renderedImage = Self.makeImage(value: value)
         }
     }
 
-    private func makeImage() -> UIImage? {
+    private static func makeImage(value: String) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
         let data = Data(value.utf8)
         filter.setValue(data, forKey: "inputMessage")
         filter.setValue("M", forKey: "inputCorrectionLevel")

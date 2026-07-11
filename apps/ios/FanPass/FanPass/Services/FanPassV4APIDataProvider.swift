@@ -36,14 +36,7 @@ struct FanPassV4APIEventService: FanPassV4EventServicing {
             .map(FanPassV4APIMapper.event)
             .filter(Self.isPublicDisplayEvent)
             .sorted(by: Self.preferPurchasableStagingEvents)
-        let apiEventsById = Dictionary(uniqueKeysWithValues: apiEvents.map { ($0.id, $0) })
-        let designedAPIEvents = FanPassMockData.events.compactMap { apiEventsById[$0.id] }
-        let designedEventIds = Set(designedAPIEvents.map(\.id))
-        let remainingAPIEvents = apiEvents.filter { !designedEventIds.contains($0.id) }
-        let primaryAPIEvents = Array((designedAPIEvents + remainingAPIEvents).prefix(10))
-        let apiEventIds = Set(primaryAPIEvents.map(\.id))
-        let reviewEvents = FanPassMockData.events.filter { !apiEventIds.contains($0.id) }
-        return Array((primaryAPIEvents + reviewEvents).prefix(10))
+        return Array(apiEvents.prefix(10))
     }
 
     func event(id: String) async -> FanPassV4.Event? {
@@ -106,39 +99,31 @@ struct FanPassV4APIEventService: FanPassV4EventServicing {
 struct FanPassV4APITicketService: FanPassV4TicketServicing {
     let apiClient: FanPassAPIClient
 
-    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus? = nil) async -> [FanPassV4.Ticket] {
-        do {
-            async let apiEvents = apiClient.events()
-            async let apiTickets = apiClient.tickets(ownerId: user.id)
+    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus? = nil) async throws -> [FanPassV4.Ticket] {
+        async let apiEvents = apiClient.events()
+        async let apiTickets = apiClient.tickets(ownerId: user.id)
 
-            let eventRecords = try await apiEvents
-            let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
-            let ticketRecords = try await apiTickets
-            var tickets = ticketRecords.map {
-                FanPassV4APIMapper.ticket($0, context: context)
-            }
-            if let statusOverride, !tickets.isEmpty {
-                tickets[0].status = statusOverride
-                tickets[0].entryMode = statusOverride == .active ? tickets[0].entryMode : .unavailable
-            }
-            return tickets
-        } catch {
-            return []
+        let eventRecords = try await apiEvents
+        let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
+        let ticketRecords = try await apiTickets
+        var tickets = try ticketRecords.map {
+            try FanPassV4APIMapper.ticket($0, context: context)
         }
+        if let statusOverride, !tickets.isEmpty {
+            tickets[0].status = statusOverride
+            tickets[0].entryMode = statusOverride == .active ? tickets[0].entryMode : .unavailable
+        }
+        return tickets
     }
 
-    func ticket(id: String) async -> FanPassV4.Ticket? {
-        do {
-            async let apiEvents = apiClient.events()
-            async let apiTicket = apiClient.ticket(ticketId: id)
+    func ticket(id: String) async throws -> FanPassV4.Ticket? {
+        async let apiEvents = apiClient.events()
+        async let apiTicket = apiClient.ticket(ticketId: id)
 
-            let eventRecords = try await apiEvents
-            let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
-            let ticketRecord = try await apiTicket
-            return FanPassV4APIMapper.ticket(ticketRecord, context: context)
-        } catch {
-            return nil
-        }
+        let eventRecords = try await apiEvents
+        let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
+        let ticketRecord = try await apiTicket
+        return try FanPassV4APIMapper.ticket(ticketRecord, context: context)
     }
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {
@@ -150,24 +135,68 @@ struct FanPassV4APITicketService: FanPassV4TicketServicing {
         try await apiClient.chainProof(ticketId: ticket.id)
     }
 
-    func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
-        await MockTicketService().purchaseTicket(event: event, ticketType: ticketType, owner: owner)
-    }
-
-    func addToWallet(ticket: FanPassV4.Ticket) async -> FanPassV4.Ticket {
-        ticket
-    }
-
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing {
-        try await MockTicketService().listForResale(ticket: ticket, price: price)
+        guard ticket.ticketType.transferRule.transferable, ticket.status.allowsResale else {
+            throw FanPassV4MockError.ticketNotTransferable
+        }
+        if let cap = ticket.ticketType.transferRule.resaleCap, price > cap {
+            throw FanPassV4MockError.resaleCapExceeded
+        }
+
+        let response = try await apiClient.createOrder(
+            userId: ticket.ownerId,
+            eventId: ticket.event.id,
+            ticketTypeId: ticket.ticketType.id,
+            side: "SELL",
+            price: price,
+            ticketId: ticket.id,
+            idempotencyKey: "ios-v4-resale-\(ticket.id)-\(UUID().uuidString)"
+        )
+
+        var listedTicket = ticket
+        listedTicket.status = .listed
+        listedTicket.entryMode = .unavailable
+        return FanPassV4APIMapper.resaleListing(order: response.order, ticket: listedTicket)
     }
 
-    func cancelListing(_ listing: FanPassV4.ResaleListing) async -> FanPassV4.ResaleListing {
-        await MockTicketService().cancelListing(listing)
+    func cancelListing(_ listing: FanPassV4.ResaleListing) async throws -> FanPassV4.ResaleListing {
+        let orderId = try await openSellOrderId(for: listing)
+        let cancelledOrder = try await apiClient.cancelOrder(orderId: orderId, userId: listing.ticket.ownerId)
+        var restoredTicket = listing.ticket
+        restoredTicket.status = restoredTicket.transferCount > 0 ? .transferred : .active
+        restoredTicket.entryMode = restoredTicket.status.allowsEntryCode ? .nfcReady : .unavailable
+        return FanPassV4APIMapper.resaleListing(
+            order: cancelledOrder,
+            ticket: restoredTicket,
+            statusOverride: .cancelled
+        )
     }
 
-    func transfer(ticket: FanPassV4.Ticket) async throws -> FanPassV4.Ticket {
-        try await MockTicketService().transfer(ticket: ticket)
+    private func openSellOrderId(for listing: FanPassV4.ResaleListing) async throws -> String {
+        if listing.id.hasPrefix("ord_") {
+            return listing.id
+        }
+
+        let orders = try await apiClient.userOrders(userId: listing.ticket.ownerId)
+        guard let order = orders.first(where: { order in
+            order.ticketId == listing.ticket.id &&
+                order.side.uppercased() == "SELL" &&
+                order.status.uppercased() == "OPEN"
+        }) else {
+            throw FanPassV4APIListingError.openSellOrderNotFound
+        }
+        return order.id
+    }
+}
+
+enum FanPassV4APIListingError: LocalizedError {
+    case openSellOrderNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .openSellOrderNotFound:
+            "Open resale order was not found for this ticket."
+        }
     }
 }
 
@@ -176,7 +205,7 @@ struct FanPassV4APIScannerService: FanPassV4ScannerServicing {
     private let encoder = JSONEncoder()
 
     func scan(result: FanPassV4.ScanResult, event: FanPassV4.Event, gate: String) async -> FanPassV4.CheckInResult {
-        await MockScannerService().scan(result: result, event: event, gate: gate)
+        unavailableCheckIn(event: event, gate: gate)
     }
 
     func refreshQRCredential(ticket: FanPassV4.Ticket) async throws -> String {
@@ -189,7 +218,33 @@ struct FanPassV4APIScannerService: FanPassV4ScannerServicing {
     }
 
     func nfcResult(state: FanPassV4.NFCScanState, event: FanPassV4.Event, gate: String) async -> FanPassV4.CheckInResult {
-        await MockScannerService().nfcResult(state: state, event: event, gate: gate)
+        unavailableCheckIn(event: event, gate: gate)
+    }
+
+    private func unavailableCheckIn(event: FanPassV4.Event, gate: String) -> FanPassV4.CheckInResult {
+        FanPassV4.CheckInResult(
+            id: "unavailable-\(UUID().uuidString)",
+            ticketFragment: "Unavailable",
+            eventTitle: event.title,
+            gate: gate,
+            result: .error,
+            checkedAt: Date(),
+            reason: "Live entry verification is available in FanPass Ops."
+        )
+    }
+}
+
+enum FanPassV4APIDataError: LocalizedError {
+    case missingEvent(String)
+    case missingTicketType(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .missingEvent(eventId):
+            "Ticket event \(eventId) is missing from the live catalog."
+        case let .missingTicketType(ticketTypeId):
+            "Ticket category \(ticketTypeId) is missing from the live catalog."
+        }
     }
 }
 
@@ -214,35 +269,42 @@ enum FanPassV4APIMapper {
     }
 
     static func event(_ event: FanPassEvent) -> FanPassV4.Event {
-        let fallback = FanPassMockData.events.first { $0.id == event.id }
         let apiTicketTypes = event.ticketTypes.map(ticketType)
-        let ticketTypes = apiTicketTypes.isEmpty ? fallback?.ticketTypes ?? [] : apiTicketTypes
+        let mappedVenue = venue(event.venue)
         return FanPassV4.Event(
             id: event.id,
             title: event.title,
-            subtitle: fallback?.subtitle ?? "Verified live event",
-            category: fallback?.category ?? .concerts,
-            heroGradient: fallback?.heroGradient ?? FanPassV4.HeroGradient(
+            subtitle: [mappedVenue.name, mappedVenue.city]
+                .filter { !$0.isEmpty }
+                .joined(separator: " · "),
+            category: .concerts,
+            heroGradient: FanPassV4.HeroGradient(
                 startHex: 0x15162E,
                 endHex: 0x5728E5,
                 accentHex: 0x27E4FF,
                 label: "Verified event"
             ),
-            coverAssetName: fallback?.coverAssetName ?? FanPassMockData.events.first?.coverAssetName,
-            fanAccessAvailable: fallback?.fanAccessAvailable ?? false,
-            startTime: isoDate(event.startTime) ?? fallback?.startTime ?? Date(),
-            status: fallback?.status ?? eventStatus(event.status),
-            venue: venue(event.venue, fallback: fallback?.venue),
-            ticketTypes: ticketTypes,
-            fanTasks: fallback?.fanTasks ?? [],
-            marketSummary: fallback?.marketSummary ?? defaultMarketSummary(ticketTypes: ticketTypes),
+            coverAssetName: nil,
+            fanAccessAvailable: false,
+            startTime: isoDate(event.startTime) ?? Date(),
+            status: eventStatus(event.status),
+            venue: mappedVenue,
+            ticketTypes: apiTicketTypes,
+            fanTasks: [],
+            marketSummary: defaultMarketSummary(ticketTypes: apiTicketTypes),
             isBackendBacked: true
         )
     }
 
-    static func ticket(_ ticket: FanPassTicket, context: Context) -> FanPassV4.Ticket {
-        let event = context.events.first { $0.id == ticket.eventId } ?? FanPassMockData.events[0]
-        let ticketType = context.ticketTypesById[ticket.ticketTypeId] ?? event.safePrimaryTicketType
+    static func ticket(_ ticket: FanPassTicket, context: Context) throws -> FanPassV4.Ticket {
+        guard let event = context.events.first(where: { $0.id == ticket.eventId }) else {
+            throw FanPassV4APIDataError.missingEvent(ticket.eventId)
+        }
+        guard let ticketType = context.ticketTypesById[ticket.ticketTypeId],
+              ticketType.eventId == event.id
+        else {
+            throw FanPassV4APIDataError.missingTicketType(ticket.ticketTypeId)
+        }
         let seat = seatAssignment(for: ticket, ticketType: ticketType)
         return FanPassV4.Ticket(
             id: ticket.id,
@@ -255,7 +317,7 @@ enum FanPassV4APIMapper {
             seat: seat.seat,
             entryMode: ticketStatus(ticket.status).allowsEntryCode ? .nfcReady : .unavailable,
             transferCount: ticket.transferCount,
-            proofHistory: FanPassMockData.proofHistory(ticketId: ticket.id)
+            proofHistory: []
         )
     }
 
@@ -329,6 +391,23 @@ enum FanPassV4APIMapper {
         )
     }
 
+    static func resaleListing(
+        order: FanPassOrder,
+        ticket: FanPassV4.Ticket,
+        statusOverride: FanPassV4.ListingStatus? = nil
+    ) -> FanPassV4.ResaleListing {
+        FanPassV4.ResaleListing(
+            id: order.id,
+            ticket: ticket,
+            sellerDisplay: "Verified fan",
+            price: order.price,
+            currency: ticket.ticketType.currency,
+            feeEstimate: Int((Double(order.price) * 0.03).rounded()),
+            status: statusOverride ?? listingStatus(order.status),
+            createdAt: isoDate(order.createdAt) ?? Date()
+        )
+    }
+
     private static func ticketType(_ ticketType: TicketType) -> FanPassV4.TicketType {
         FanPassV4.TicketType(
             id: ticketType.id,
@@ -348,14 +427,14 @@ enum FanPassV4APIMapper {
         )
     }
 
-    private static func venue(_ venue: FanPassEvent.Venue?, fallback: FanPassV4.Venue?) -> FanPassV4.Venue {
+    private static func venue(_ venue: FanPassEvent.Venue?) -> FanPassV4.Venue {
         FanPassV4.Venue(
-            id: fallback?.id ?? "venue_api",
-            name: venue?.name ?? fallback?.name ?? "Verified venue",
-            city: venue?.city ?? fallback?.city ?? "Global",
-            country: fallback?.country ?? "",
-            timezone: fallback?.timezone ?? "UTC",
-            gates: fallback?.gates ?? ["A1"]
+            id: "venue_api",
+            name: venue?.name ?? "Venue to be announced",
+            city: venue?.city ?? "",
+            country: "",
+            timezone: "UTC",
+            gates: []
         )
     }
 
@@ -377,6 +456,15 @@ enum FanPassV4APIMapper {
         case "REFUNDED": .refunded
         case "EXPIRED": .expired
         default: .active
+        }
+    }
+
+    private static func listingStatus(_ value: String) -> FanPassV4.ListingStatus {
+        switch value.uppercased() {
+        case "OPEN": .open
+        case "CANCELLED": .cancelled
+        case "FILLED", "SETTLED": .settled
+        default: .matched
         }
     }
 

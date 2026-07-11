@@ -25,7 +25,16 @@ targets:
     sources:
       - path: FanPass
         excludes:
+          - App/AppShellView.swift
+          - App/AppState.swift
+          - Features/Auth
+          - Features/Events
+          - Features/FanAccess
+          - Features/Marketplace
+          - Features/Profile
           - Features/Scanner
+          - Features/Tickets
+          - Views/Scanner
           - "**/README.md"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: fun.fanpass.app

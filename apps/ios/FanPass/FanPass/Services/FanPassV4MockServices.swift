@@ -26,15 +26,12 @@ protocol FanPassV4EventServicing {
 }
 
 protocol FanPassV4TicketServicing {
-    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus?) async -> [FanPassV4.Ticket]
-    func ticket(id: String) async -> FanPassV4.Ticket?
+    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus?) async throws -> [FanPassV4.Ticket]
+    func ticket(id: String) async throws -> FanPassV4.Ticket?
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem]
     func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse
-    func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket
-    func addToWallet(ticket: FanPassV4.Ticket) async -> FanPassV4.Ticket
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing
-    func cancelListing(_ listing: FanPassV4.ResaleListing) async -> FanPassV4.ResaleListing
-    func transfer(ticket: FanPassV4.Ticket) async throws -> FanPassV4.Ticket
+    func cancelListing(_ listing: FanPassV4.ResaleListing) async throws -> FanPassV4.ResaleListing
 }
 
 protocol FanPassV4ScannerServicing {
@@ -99,26 +96,6 @@ struct MockTicketService: FanPassV4TicketServicing {
         throw FanPassV4MockError.networkUnavailable
     }
 
-    func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
-        FanPassV4.Ticket(
-            id: "FP-DEMO-\(event.id.uppercased())-\(ticketType.id.suffix(4))",
-            event: event,
-            ticketType: ticketType,
-            ownerId: owner.id,
-            status: .active,
-            section: "108",
-            row: "12",
-            seat: "15",
-            entryMode: .nfcReady,
-            transferCount: 0,
-            proofHistory: FanPassMockData.proofHistory(ticketId: "FP-DEMO-\(event.id)")
-        )
-    }
-
-    func addToWallet(ticket: FanPassV4.Ticket) async -> FanPassV4.Ticket {
-        ticket
-    }
-
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing {
         guard ticket.ticketType.transferRule.transferable, ticket.status.allowsResale else {
             throw FanPassV4MockError.ticketNotTransferable
@@ -134,45 +111,20 @@ struct MockTicketService: FanPassV4TicketServicing {
             sellerDisplay: "Verified fan",
             price: price,
             currency: ticket.ticketType.currency,
-            feeEstimate: max(28, Int(Double(price) * 0.035)),
+            feeEstimate: Int((Double(price) * 0.03).rounded()),
             status: .open,
             createdAt: Date()
         )
     }
 
-    func cancelListing(_ listing: FanPassV4.ResaleListing) async -> FanPassV4.ResaleListing {
+    func cancelListing(_ listing: FanPassV4.ResaleListing) async throws -> FanPassV4.ResaleListing {
         var cancelled = listing
         cancelled.status = .cancelled
+        cancelled.ticket.status = .active
+        cancelled.ticket.entryMode = .nfcReady
         return cancelled
     }
 
-    func transfer(ticket: FanPassV4.Ticket) async throws -> FanPassV4.Ticket {
-        guard ticket.ticketType.transferRule.transferable, ticket.status == .active else {
-            throw FanPassV4MockError.ticketNotTransferable
-        }
-        var pending = ticket
-        pending.status = .transferPending
-        pending.transferCount += 1
-        return pending
-    }
-}
-
-struct MockPaymentService {
-    func authorizeDemoPayment(result: FanPassV4.DemoPaymentResult) async throws -> FanPassV4.PaymentState {
-        switch result {
-        case .success: return .authorized
-        case .failure: throw FanPassV4MockError.paymentFailed
-        case .expired: throw FanPassV4MockError.checkoutExpired
-        }
-    }
-
-    func captureDemoPayment(result: FanPassV4.DemoPaymentResult) async throws -> FanPassV4.PaymentState {
-        switch result {
-        case .success: return .captured
-        case .failure: throw FanPassV4MockError.paymentFailed
-        case .expired: throw FanPassV4MockError.checkoutExpired
-        }
-    }
 }
 
 struct MockMarketService {

@@ -4,7 +4,6 @@ struct FanPassV4ExploreView: View {
     @Environment(FanPassBackendContext.self) private var backend
     @State private var viewModel = ExploreViewModel()
     @State private var query = ""
-    @State private var showingFilters = false
 
     private var filteredEvents: [FanPassV4.Event] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -23,13 +22,7 @@ struct FanPassV4ExploreView: View {
         FanPassV4Scaffold(title: "Explore", subtitle: nil) {
             searchField
             fanAccessSpotlight
-            trendBriefing
-            artistBriefing
             recommendedEvents
-        }
-        .sheet(isPresented: $showingFilters) {
-            ExploreFilterSheet()
-                .presentationDetents([.medium])
         }
         .task(id: backend.connectionState.rawValue) {
             await viewModel.load(eventService: backend.eventService())
@@ -48,13 +41,6 @@ struct FanPassV4ExploreView: View {
                 .font(FPTypography.body)
                 .foregroundStyle(FPColors.textPrimary)
                 .textInputAutocapitalization(.words)
-            Button {
-                showingFilters = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .foregroundStyle(FPColors.pulseCyan)
-            }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, FPSpacing.md)
         .padding(.vertical, FPSpacing.sm)
@@ -115,27 +101,25 @@ struct FanPassV4ExploreView: View {
         }
     }
 
-    private var trendBriefing: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Signals")
-            FPConceptRowList(rows: [
-                .init(id: "late-night", icon: "sparkles", title: "Late-night synth pop", subtitle: "More saves and under-cap interest.", value: "Rising", kind: .warning),
-                .init(id: "festival-groups", icon: "person.2.wave.2.fill", title: "Festival groups", subtitle: "Weekend passes are saved sooner.", value: "Watch", kind: .info)
-            ])
-        }
-    }
-
-    private var artistBriefing: some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: "Artists")
-            FPConceptRowList(rows: artistRows)
-        }
-    }
-
     private var recommendedEvents: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             FPSectionHeader(title: "Recommended")
-            if filteredEvents.isEmpty {
+            if let errorMessage = viewModel.errorMessage {
+                FPStateBanner(
+                    title: "Events unavailable",
+                    message: errorMessage,
+                    kind: .warning,
+                    actionTitle: "Retry"
+                ) {
+                    Task {
+                        await viewModel.load(eventService: backend.eventService())
+                    }
+                }
+            } else if viewModel.isLoading && viewModel.events.isEmpty {
+                ProgressView("Loading events")
+                    .tint(FPColors.pulseCyan)
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            } else if filteredEvents.isEmpty {
                 noResults
             } else {
                 eventCards(filteredEvents)
@@ -160,43 +144,13 @@ struct FanPassV4ExploreView: View {
                 NavigationLink {
                     FanPassV4EventDetailView(event: event)
                 } label: {
-                    FPEditorialEventRow(event: event, trailingValue: event.marketSummary.floorPriceLabel)
+                    FPEditorialEventRow(event: event, trailingValue: event.safePrimaryTicketType.priceLabel)
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
-    private var artistRows: [FPConceptRow] {
-        [
-            .init(id: "aurora", icon: "music.mic.circle.fill", title: "Aurora Nights", subtitle: "Saved demand is high.", value: "Hot", kind: .warning),
-            .init(id: "neon", icon: "music.note.list", title: "Neon Harbor", subtitle: "Festival route.", value: "+18%", kind: .success),
-            .init(id: "future", icon: "sparkles", title: "Future Beats", subtitle: "Fan Access tasks open.", value: "New", kind: .info)
-        ]
-    }
-}
-
-private struct ExploreFilterSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            FanPassV4Scaffold(title: "Filters", subtitle: nil) {
-                FPConceptRowList(rows: [
-                    .init(id: "city", icon: "location.fill", title: "City", subtitle: "City-level only.", value: "HK", kind: .info),
-                    .init(id: "date", icon: "calendar", title: "Date", subtitle: "Month, weekend, or custom.", value: "This year"),
-                    .init(id: "price", icon: "tag.fill", title: "Budget", subtitle: "Face, floor, or cap.", value: "Cap"),
-                    .init(id: "rules", icon: "lock.shield.fill", title: "Rules", subtitle: "Transferable and verified.", value: "Safe", kind: .success)
-                ])
-                FPPrimaryButton(title: "Apply filters", systemImage: "checkmark.circle.fill") { dismiss() }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-    }
 }
 
 #Preview {

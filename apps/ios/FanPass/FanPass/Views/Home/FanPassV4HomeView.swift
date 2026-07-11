@@ -27,9 +27,10 @@ struct FanPassV4HomeView: View {
             HomeWindowSheet(window: window)
                 .presentationDetents([.medium, .large])
         }
-        .task(id: backend.user.id) {
+        .task(id: "\(backend.user.id)-\(backend.isAuthenticated)-\(backend.connectionState.rawValue)") {
             await viewModel.load(
                 user: backend.user,
+                isAuthenticated: backend.isAuthenticated,
                 eventService: backend.eventService(),
                 ticketService: backend.ticketService()
             )
@@ -108,7 +109,21 @@ struct FanPassV4HomeView: View {
     @ViewBuilder
     private var sourceBanner: some View {
         if let sourceMessage = viewModel.sourceMessage {
-            FPStateBanner(title: "Cached events", message: sourceMessage, kind: .warning)
+            FPStateBanner(
+                title: "Could not refresh",
+                message: sourceMessage,
+                kind: .warning,
+                actionTitle: "Retry"
+            ) {
+                Task {
+                    await viewModel.load(
+                        user: backend.user,
+                        isAuthenticated: backend.isAuthenticated,
+                        eventService: backend.eventService(),
+                        ticketService: backend.ticketService()
+                    )
+                }
+            }
         }
     }
 
@@ -148,6 +163,17 @@ struct FanPassV4HomeView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+        } else if viewModel.isLoading {
+            ProgressView("Loading events")
+                .tint(FPColors.pulseCyan)
+                .frame(maxWidth: .infinity, minHeight: 240)
+        } else {
+            FPEmptyStateView(
+                title: "No events available",
+                message: "Published events will appear here when they are available.",
+                systemImage: FPIcons.home
+            )
+            .frame(maxWidth: .infinity, minHeight: 220)
         }
     }
 

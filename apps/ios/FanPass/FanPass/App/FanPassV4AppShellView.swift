@@ -39,6 +39,9 @@ struct FanPassV4AppShellView: View {
         .environment(viewModel)
         .background(FPColors.backgroundNight)
         .preferredColorScheme(.dark)
+        .task {
+            await backend.runRealtimeSyncLoop()
+        }
     }
 }
 

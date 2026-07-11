@@ -744,7 +744,7 @@ function validateXcodeGenProject() {
   const fanPassBlock = targetBlock(project, "FanPass", "FanPassOps");
   const fanPassOpsBlock = targetBlock(project, "FanPassOps", null);
 
-  if (!/excludes:\s*\n\s*-\s*Features\/Scanner/.test(fanPassBlock)) {
+  if (!/excludes:[\s\S]*?-\s*Features\/Scanner(?:\s|$)/.test(fanPassBlock)) {
     errors.push("FanPass target must exclude Features/Scanner in project.yml");
   }
   if (
@@ -776,7 +776,7 @@ function validateXcodeGenProject() {
     }
   }
   if (
-    !/excludes:\s*\n\s*-\s*FanPassOrderbookRealtimeClient\.swift/.test(
+    !/excludes:[\s\S]*?-\s*FanPassOrderbookRealtimeClient\.swift(?:\s|$)/.test(
       fanPassOpsBlock,
     )
   ) {

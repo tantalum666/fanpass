@@ -15,6 +15,9 @@ struct FanPassV4ProfileView: View {
     @State private var walletBalances: FanPassWalletBalancesResponse?
     @State private var walletBalanceError: String?
     @State private var isLoadingWalletBalances = false
+    @State private var userOrders: [FanPassOrder] = []
+    @State private var ordersError: String?
+    @State private var isLoadingOrders = false
     @State private var copiedWalletAddress = false
     @State private var displayNameDraft = ""
     @State private var profileSaved = false
@@ -33,20 +36,14 @@ struct FanPassV4ProfileView: View {
     @State private var selectedSupportTopic = "Order"
     @State private var supportDraft = ""
     @State private var supportSubmitted = false
-    let showStaffMode: Bool
     let onSignOut: () -> Void
-    let onScenarioApplied: (FanPassV4.DemoUserScenario) -> Void
 
     init(
         user: FanPassV4.User = FanPassMockData.currentUser,
         selectedSection: Binding<FanPassAccountSection> = .constant(.overview),
-        showStaffMode: Bool = false,
-        onSignOut: @escaping () -> Void = {},
-        onScenarioApplied: @escaping (FanPassV4.DemoUserScenario) -> Void = { _ in }
+        onSignOut: @escaping () -> Void = {}
     ) {
-        self.showStaffMode = showStaffMode
         self.onSignOut = onSignOut
-        self.onScenarioApplied = onScenarioApplied
         _selectedSection = selectedSection
         _viewModel = State(initialValue: ProfileViewModel(user: user))
         _displayNameDraft = State(initialValue: user.displayName)
@@ -107,6 +104,11 @@ struct FanPassV4ProfileView: View {
                 walletBalances = nil
                 walletBalanceError = nil
                 isLoadingWalletBalances = false
+                userOrders = []
+                ordersError = nil
+                isLoadingOrders = false
+            } else {
+                await refreshOrders()
             }
         }
         .onChange(of: selectedSection) { _, newSection in
@@ -190,7 +192,7 @@ struct FanPassV4ProfileView: View {
 
     private var accountMenu: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
-            ForEach(AccountMenuSection.allCases) { section in
+            ForEach(AccountMenuSection.allCases.filter { !$0.items.isEmpty }) { section in
                 VStack(alignment: .leading, spacing: FPSpacing.xs) {
                     Text(section.title.uppercased())
                         .font(.system(size: 11, weight: .semibold))
@@ -215,40 +217,46 @@ struct FanPassV4ProfileView: View {
     private var profileDetails: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Details") {
-                AccountEditableNameRow(
-                    title: "Display name",
-                    text: $displayNameDraft,
-                    isSaved: profileSaved,
-                    action: saveProfileDraft
-                )
+                AccountListRow(systemImage: FPIcons.profile, title: "Display name", value: viewModel.user.displayName)
                 AccountListRow(systemImage: "envelope.fill", title: "Email", subtitle: viewModel.user.maskedEmail, value: "Verified", kind: .success)
-                AccountListRow(systemImage: "phone.fill", title: "Phone", value: "Not set", kind: .warning)
             }
-            AccountListSection(title: "Account data") {
-                AccountListRow(systemImage: "person.2.fill", title: "Connected sign-in", value: "Ready", kind: .success)
-                AccountListRow(
-                    systemImage: "tray.and.arrow.down.fill",
-                    title: "Data export",
-                    value: dataExportRequested ? "Requested" : "Request",
-                    kind: dataExportRequested ? .success : .info,
-                    action: { dataExportRequested = true }
-                )
+            AccountListSection(title: "Identity") {
+                AccountListRow(systemImage: "person.badge.key.fill", title: "Sign-in provider", value: backend.session?.authProvider?.capitalized ?? "Unavailable", kind: .info)
+                AccountListRow(systemImage: "person.2.fill", title: "Account role", value: viewModel.user.role.title)
             }
+            AccountFooterNote("Profile identity is managed by the connected sign-in provider.")
         }
     }
 
     private var orders: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
-            AccountListSection(title: "Preferences") {
-                AccountSwitchListRow(title: "Email receipts", subtitle: viewModel.user.maskedEmail, systemImage: "envelope.fill", isOn: $emailReceiptsEnabled)
-                AccountListRow(systemImage: "list.bullet.rectangle.fill", title: "Fee breakdown", value: "On", kind: .success)
-                AccountListRow(systemImage: "number.circle.fill", title: "Support references", value: "Masked", kind: .success)
+            if let ordersError {
+                FPStateBanner(title: "Orders unavailable", message: ordersError, kind: .warning, actionTitle: "Retry") {
+                    Task { await refreshOrders(force: true) }
+                }
+            } else if isLoadingOrders && userOrders.isEmpty {
+                ProgressView("Loading orders")
+                    .tint(FPColors.pulseCyan)
+                    .frame(maxWidth: .infinity, minHeight: 160)
+            } else if userOrders.isEmpty {
+                FPEmptyStateView(title: "No orders", message: "Purchases and resale orders will appear here.", systemImage: "receipt.fill")
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            } else {
+                AccountListSection(title: "Recent") {
+                    ForEach(userOrders) { order in
+                        AccountListRow(
+                            systemImage: order.side.uppercased() == "SELL" ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
+                            title: shortOrderReference(order.id),
+                            subtitle: "\(order.side.capitalized) • \(shortOrderReference(order.eventId))",
+                            value: MoneyFormatter.format(order.price, currency: "HKD"),
+                            kind: orderStateKind(order.status)
+                        )
+                    }
+                }
             }
-            AccountListSection(title: "Recent") {
-                AccountListRow(systemImage: "receipt.fill", title: "ORD-AUR-1024", subtitle: "Aurora Nights", value: "HK$1,348", kind: .success)
-                AccountListRow(systemImage: "arrow.uturn.backward.circle.fill", title: "ORD-FIN-0441", subtitle: "City Finals", value: "Refunded")
-                AccountListRow(systemImage: FPIcons.error, title: "ORD-LAB-0990", subtitle: "Reservation expired", value: "Expired", kind: .warning)
-            }
+        }
+        .task {
+            await refreshOrders()
         }
     }
 
@@ -274,15 +282,23 @@ struct FanPassV4ProfileView: View {
     private var securityPrivacy: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Sign-in") {
-                AccountListRow(systemImage: "lock.shield.fill", title: "Protection", value: "Enabled", kind: .success)
-                AccountSwitchListRow(title: "Trusted device", subtitle: "Keep this phone signed in", systemImage: "iphone.gen3", isOn: $trustedDeviceEnabled)
-                AccountListRow(systemImage: "iphone.gen3", title: "Sessions", value: backend.session == nil ? "0" : "1")
+                AccountListRow(systemImage: "lock.shield.fill", title: "Session storage", subtitle: "Stored in the device Keychain", value: "Protected", kind: .success)
+                AccountListRow(
+                    systemImage: "iphone.gen3",
+                    title: "Multi-device sessions",
+                    subtitle: "Phone and simulator can stay signed in together.",
+                    value: backend.session == nil ? "Signed out" : "Allowed",
+                    kind: backend.session == nil ? .warning : .success
+                )
+                AccountListRow(
+                    systemImage: "arrow.triangle.2.circlepath",
+                    title: "Live sync",
+                    subtitle: "Tickets and market data refresh automatically.",
+                    value: backend.isAuthenticated ? "On" : "Off",
+                    kind: backend.isAuthenticated ? .success : .warning
+                )
             }
-            AccountListSection(title: "Privacy") {
-                AccountSwitchListRow(title: "Friend discovery", subtitle: "Let contacts find you", systemImage: "person.2.fill", isOn: $friendDiscoveryEnabled)
-                AccountSwitchListRow(title: "Usage analytics", subtitle: "Diagnostics only", systemImage: "waveform.path.ecg", isOn: $usageAnalyticsEnabled)
-                AccountListRow(systemImage: "trash.fill", title: "Delete account", value: "Locked", kind: .danger)
-            }
+            AccountFooterNote("Signing in on another device does not invalidate this device. Ticket and order state remain server-owned.")
         }
     }
 
@@ -349,9 +365,14 @@ struct FanPassV4ProfileView: View {
     private var paymentMethods: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Checkout") {
-                AccountListRow(systemImage: "creditcard.fill", title: "Card", subtitle: "Secure checkout", value: "Ready", kind: .success)
-                AccountListRow(systemImage: "apple.logo", title: "Apple Pay", value: "Checkout", kind: .info)
-                AccountSwitchListRow(title: "Email receipts", subtitle: viewModel.user.maskedEmail, systemImage: "receipt.fill", isOn: $emailReceiptsEnabled)
+                AccountListRow(
+                    systemImage: "creditcard.fill",
+                    title: "Card",
+                    subtitle: "Stripe PaymentSheet at checkout",
+                    value: FanPassEnvironment.stripePublishableKey == nil ? "Unavailable" : "Available",
+                    kind: FanPassEnvironment.stripePublishableKey == nil ? .warning : .success
+                )
+                AccountListRow(systemImage: "rectangle.stack.badge.plus", title: "Saved cards", subtitle: "FanPass does not store card details", value: "Not enabled")
             }
             AccountListSection(title: "Wallet") {
                 AccountListRow(systemImage: FPIcons.wallet, title: "USDC wallet", subtitle: walletAddressLabel, value: walletStatusValue, kind: walletKind)
@@ -366,6 +387,36 @@ struct FanPassV4ProfileView: View {
         }
         .task {
             await refreshWalletBalances()
+        }
+    }
+
+    private func refreshOrders(force: Bool = false) async {
+        guard backend.isAuthenticated, !isLoadingOrders else { return }
+        if !force, !userOrders.isEmpty { return }
+        isLoadingOrders = true
+        defer { isLoadingOrders = false }
+        do {
+            userOrders = try await backend.apiClient.userOrders(userId: backend.user.id)
+            ordersError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            ordersError = "Your order history could not refresh."
+        }
+    }
+
+    private func shortOrderReference(_ value: String) -> String {
+        guard value.count > 14 else { return value }
+        return "\(value.prefix(7))…\(value.suffix(5))"
+    }
+
+    private func orderStateKind(_ status: String) -> FPStateKind {
+        switch status.uppercased() {
+        case "SETTLED": .success
+        case "OPEN", "MATCHED": .info
+        case "CANCELLED": .neutral
+        case "REJECTED": .danger
+        default: .warning
         }
     }
 
@@ -891,11 +942,11 @@ private enum AccountMenuSection: String, CaseIterable, Identifiable {
         case .identity:
             return [.profile, .security]
         case .activity:
-            return [.orders, .alerts, .credits]
+            return [.orders]
         case .money:
-            return [.paymentMethods, .wallet, .sellerPayouts]
+            return [.paymentMethods, .wallet]
         case .preferences:
-            return [.settings, .support]
+            return []
         }
     }
 }
@@ -1347,6 +1398,6 @@ private extension FanPassV4ProfileView {
 
 #Preview {
     NavigationStack {
-        FanPassV4ProfileView(showStaffMode: true)
+        FanPassV4ProfileView()
     }
 }

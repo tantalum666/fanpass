@@ -9,12 +9,16 @@ final class FanPassBackendContext {
     var user: FanPassV4.User
     var connectionState: BackendConnectionState = .offline
     var authMessage: String?
-    var pendingCheckoutTickets: [FanPassV4.Ticket] = []
+    private(set) var remoteRefreshRevision = 0
+    private(set) var listingStatusOverrides: [String: FanPassV4.TicketStatus] = [:]
+    private(set) var activeResaleListingsByTicketId: [String: FanPassV4.ResaleListing] = [:]
 
     @ObservationIgnored
     private let privyAuthProvider: PrivyAuthProviding
     @ObservationIgnored
     private let sessionStore: FanPassSessionStoring
+    @ObservationIgnored
+    private var lastPrivySessionRefreshAt: Date?
 
     init(
         apiClient: FanPassAPIClient = FanPassAPIClient(baseURL: FanPassEnvironment.apiBaseURL),
@@ -51,7 +55,8 @@ final class FanPassBackendContext {
     func ticketService() -> FanPassV4TicketServicing {
         FanPassV4SessionTicketService(
             base: apiProvider.ticketService(),
-            pendingTickets: pendingCheckoutTickets
+            listingStatusOverrides: listingStatusOverrides,
+            activeResaleListingsByTicketId: activeResaleListingsByTicketId
         )
     }
 
@@ -70,19 +75,34 @@ final class FanPassBackendContext {
         )
     }
 
-    func bootstrapDemoSessionIfAvailable() async {
-        #if DEBUG
-        guard session == nil else { return }
+    func runRealtimeSyncLoop() async {
+        await restorePrivySessionIfAvailable()
+        while !Task.isCancelled {
+            if session == nil {
+                await restorePrivySessionIfAvailable()
+            } else {
+                await refreshPrivySessionIfNeeded()
+                markRemoteDataRefreshNeeded()
+            }
+
+            do {
+                try await Task.sleep(nanoseconds: 15_000_000_000)
+            } catch {
+                return
+            }
+        }
+    }
+
+    func restorePrivySessionIfAvailable() async {
+        guard session == nil, privyAuthProvider.isAvailable else { return }
         do {
-            let demoSession = try await apiClient.demoSession(userId: UserSession.demoFan.userId)
-            apply(session: demoSession)
-            connectionState = .online
-            authMessage = "Connected to FanPass."
+            guard let privySession = try await privyAuthProvider.currentLoginResult() else {
+                return
+            }
+            try await syncPrivySession(privySession, message: "Signed in.")
         } catch {
             connectionState = .degraded
-            authMessage = "Some account services are unavailable. Showing cached event data."
         }
-        #endif
     }
 
     func sendPrivyEmailCode(to email: String) async {
@@ -120,41 +140,86 @@ final class FanPassBackendContext {
         }
     }
 
-    func signInForLocalReview(as scenario: FanPassV4.DemoUserScenario = .purchasedTicketFan) {
-        let reviewUser = FanPassMockData.user(for: scenario)
-        let reviewSession = UserSession(
-            userId: reviewUser.id,
-            displayName: reviewUser.displayName,
-            email: reviewUser.email,
-            role: reviewUser.role.apiRole,
-            walletAddress: reviewUser.walletReference?.addressFragment,
-            privyWalletId: nil,
-            accessToken: "local-review-token",
-            authProvider: "local",
-            expiresAt: nil
-        )
-        apply(session: reviewSession, persist: false)
-        user = reviewUser
-        connectionState = .degraded
-        authMessage = "Signed in."
-    }
-
     var ticketRefreshKey: String {
-        let pendingKey = pendingCheckoutTickets
-            .map { "\($0.id):\($0.status.rawValue)" }
+        let listingKey = activeResaleListingsByTicketId
+            .values
+            .sorted { $0.ticket.id < $1.ticket.id }
+            .map { "\($0.ticket.id):\($0.id):\($0.status.rawValue):\($0.price)" }
             .joined(separator: "|")
-        return "\(user.id):\(pendingKey)"
+        let overrideKey = listingStatusOverrides
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key):\($0.value.rawValue)" }
+            .joined(separator: "|")
+        return "\(user.id):\(remoteRefreshRevision):\(listingKey):\(overrideKey)"
     }
 
-    func recordCheckoutTicket(_ ticket: FanPassV4.Ticket) {
-        pendingCheckoutTickets.removeAll {
-            $0.id == ticket.id ||
-                ($0.ownerId == ticket.ownerId &&
-                 $0.event.id == ticket.event.id &&
-                 $0.ticketType.id == ticket.ticketType.id)
+    var openResaleListings: [FanPassV4.ResaleListing] {
+        activeResaleListingsByTicketId
+            .values
+            .filter { $0.status == .open }
+            .sorted {
+                if $0.price != $1.price {
+                    return $0.price < $1.price
+                }
+                return $0.createdAt < $1.createdAt
+            }
+    }
+
+    func openResaleListing(for ticketId: String) -> FanPassV4.ResaleListing? {
+        guard let listing = activeResaleListingsByTicketId[ticketId],
+              listing.status == .open
+        else {
+            return nil
         }
-        pendingCheckoutTickets.insert(ticket, at: 0)
-        authMessage = "Ticket added to Tickets."
+        return listing
+    }
+
+    func openResaleListings(
+        for eventId: String,
+        ticketTypeId: String? = nil
+    ) -> [FanPassV4.ResaleListing] {
+        openResaleListings.filter { listing in
+            listing.ticket.event.id == eventId &&
+                (ticketTypeId == nil || listing.ticket.ticketType.id == ticketTypeId)
+        }
+    }
+
+    func effectiveTicket(_ ticket: FanPassV4.Ticket) -> FanPassV4.Ticket {
+        guard !ticket.status.isTerminalForLocalOverride else {
+            return ticket
+        }
+        if let listing = openResaleListing(for: ticket.id) {
+            var listedTicket = ticket
+            listedTicket.status = .listed
+            listedTicket.entryMode = .unavailable
+            listedTicket.transferCount = listing.ticket.transferCount
+            return listedTicket
+        }
+        guard let override = listingStatusOverrides[ticket.id] else {
+            return ticket
+        }
+        var overriddenTicket = ticket
+        overriddenTicket.status = override
+        overriddenTicket.entryMode = override.allowsEntryCode ? .nfcReady : .unavailable
+        return overriddenTicket
+    }
+
+    func recordResaleListing(_ listing: FanPassV4.ResaleListing) {
+        var normalizedListing = listing
+        normalizedListing.status = .open
+        normalizedListing.ticket.status = .listed
+        normalizedListing.ticket.entryMode = .unavailable
+        activeResaleListingsByTicketId[normalizedListing.ticket.id] = normalizedListing
+        listingStatusOverrides[normalizedListing.ticket.id] = .listed
+        markRemoteDataRefreshNeeded()
+        authMessage = "Listing created. Entry QR is paused."
+    }
+
+    func recordCancelledListing(_ listing: FanPassV4.ResaleListing) {
+        activeResaleListingsByTicketId.removeValue(forKey: listing.ticket.id)
+        listingStatusOverrides[listing.ticket.id] = listing.ticket.status
+        markRemoteDataRefreshNeeded()
+        authMessage = "Listing cancelled. Entry QR is available again."
     }
 
     func signOut() async {
@@ -163,8 +228,14 @@ final class FanPassBackendContext {
         session = nil
         apiClient = apiClient.withAccessToken(nil)
         user = FanPassMockData.guestFan
-        pendingCheckoutTickets = []
+        listingStatusOverrides = [:]
+        activeResaleListingsByTicketId = [:]
+        markRemoteDataRefreshNeeded()
         authMessage = "Signed out."
+    }
+
+    func markRemoteDataRefreshNeeded() {
+        remoteRefreshRevision += 1
     }
 
     private func apply(session: UserSession, persist: Bool = true) {
@@ -174,6 +245,7 @@ final class FanPassBackendContext {
         if persist {
             sessionStore.save(session)
         }
+        markRemoteDataRefreshNeeded()
     }
 
     private func syncPrivySession(_ privySession: PrivyLoginResult, message: String) async throws {
@@ -191,76 +263,107 @@ final class FanPassBackendContext {
         connectionState = .online
         authMessage = message
     }
+
+    private func refreshPrivySessionIfNeeded(force: Bool = false) async {
+        guard session?.authProvider == "privy",
+              privyAuthProvider.isAvailable
+        else {
+            return
+        }
+
+        let now = Date()
+        if !force,
+           let lastPrivySessionRefreshAt,
+           now.timeIntervalSince(lastPrivySessionRefreshAt) < 60,
+           !sessionExpiresSoon(now: now)
+        {
+            return
+        }
+
+        do {
+            guard let privySession = try await privyAuthProvider.currentLoginResult() else {
+                connectionState = .degraded
+                authMessage = "Session refresh needed. Sign in again on this device if data stops updating."
+                return
+            }
+            try await syncPrivySession(privySession, message: "Signed in.")
+            lastPrivySessionRefreshAt = now
+        } catch {
+            connectionState = .degraded
+        }
+    }
+
+    private func sessionExpiresSoon(now: Date) -> Bool {
+        guard let expiresAt = session?.expiresAt,
+              let expiry = UserSession.parseExpiry(expiresAt)
+        else {
+            return false
+        }
+        return expiry.timeIntervalSince(now) < 120
+    }
 }
 
 private struct FanPassV4SessionTicketService: FanPassV4TicketServicing {
     let base: FanPassV4TicketServicing
-    let pendingTickets: [FanPassV4.Ticket]
+    let listingStatusOverrides: [String: FanPassV4.TicketStatus]
+    let activeResaleListingsByTicketId: [String: FanPassV4.ResaleListing]
 
-    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus?) async -> [FanPassV4.Ticket] {
-        let remoteTickets = await base.walletTickets(for: user, statusOverride: statusOverride)
-        let visiblePending = pendingTickets.filter { pending in
-            pending.ownerId == user.id &&
-                !remoteTickets.contains { remote in
-                    remote.id == pending.id ||
-                        (remote.event.id == pending.event.id &&
-                         remote.ticketType.id == pending.ticketType.id &&
-                         remote.ownerId == pending.ownerId)
-                }
-        }
-        return visiblePending + remoteTickets
+    func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus?) async throws -> [FanPassV4.Ticket] {
+        let remoteTickets = try await base.walletTickets(for: user, statusOverride: statusOverride)
+        return remoteTickets.map(applyingLocalListingState)
     }
 
-    func ticket(id: String) async -> FanPassV4.Ticket? {
-        if let remote = await base.ticket(id: id) {
-            return remote
+    func ticket(id: String) async throws -> FanPassV4.Ticket? {
+        if let remote = try await base.ticket(id: id) {
+            return applyingLocalListingState(remote)
         }
-        return pendingTickets.first(where: { $0.id == id })
+        return activeResaleListingsByTicketId[id]?.ticket
     }
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {
-        if pendingTickets.contains(where: { $0.id == ticket.id }) {
-            return ticket.proofHistory
-        }
         return try await base.proofHistory(for: ticket)
     }
 
     func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
-        if pendingTickets.contains(where: { $0.id == ticket.id }) {
-            throw FanPassV4MockError.networkUnavailable
-        }
         return try await base.chainProof(for: ticket)
-    }
-
-    func purchaseTicket(event: FanPassV4.Event, ticketType: FanPassV4.TicketType, owner: FanPassV4.User) async -> FanPassV4.Ticket {
-        await base.purchaseTicket(event: event, ticketType: ticketType, owner: owner)
-    }
-
-    func addToWallet(ticket: FanPassV4.Ticket) async -> FanPassV4.Ticket {
-        await base.addToWallet(ticket: ticket)
     }
 
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing {
         try await base.listForResale(ticket: ticket, price: price)
     }
 
-    func cancelListing(_ listing: FanPassV4.ResaleListing) async -> FanPassV4.ResaleListing {
-        await base.cancelListing(listing)
+    func cancelListing(_ listing: FanPassV4.ResaleListing) async throws -> FanPassV4.ResaleListing {
+        try await base.cancelListing(listing)
     }
 
-    func transfer(ticket: FanPassV4.Ticket) async throws -> FanPassV4.Ticket {
-        try await base.transfer(ticket: ticket)
+    private func applyingLocalListingState(_ ticket: FanPassV4.Ticket) -> FanPassV4.Ticket {
+        guard !ticket.status.isTerminalForLocalOverride else {
+            return ticket
+        }
+        if let listing = activeResaleListingsByTicketId[ticket.id], listing.status == .open {
+            var listedTicket = ticket
+            listedTicket.status = .listed
+            listedTicket.entryMode = .unavailable
+            listedTicket.transferCount = listing.ticket.transferCount
+            return listedTicket
+        }
+        guard let override = listingStatusOverrides[ticket.id] else {
+            return ticket
+        }
+        var overriddenTicket = ticket
+        overriddenTicket.status = override
+        overriddenTicket.entryMode = override.allowsEntryCode ? .nfcReady : .unavailable
+        return overriddenTicket
     }
 }
 
-private extension FanPassV4.UserRole {
-    var apiRole: String {
+private extension FanPassV4.TicketStatus {
+    var isTerminalForLocalOverride: Bool {
         switch self {
-        case .guest: "GUEST"
-        case .fan: "FAN"
-        case .gateStaff: "GATE_STAFF"
-        case .organizer: "ORGANIZER"
-        case .admin: "ADMIN"
+        case .redeemed, .cancelled, .refunded, .expired:
+            true
+        case .active, .listed, .transferPending, .transferred:
+            false
         }
     }
 }
@@ -295,7 +398,7 @@ private extension UserSession {
                     lastSyncedAt: Date()
                 )
             },
-            accessBadges: FanPassMockData.currentUser.accessBadges
+            accessBadges: []
         )
     }
 

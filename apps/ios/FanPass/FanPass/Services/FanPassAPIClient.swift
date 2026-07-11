@@ -133,6 +133,7 @@ struct FanPassAPIClient {
         eventId: String,
         ticketTypeId: String,
         side: String,
+        fulfillmentMode: FanPassOrderFulfillmentMode = .any,
         price: Int,
         ticketId: String? = nil,
         idempotencyKey: String? = nil
@@ -142,6 +143,7 @@ struct FanPassAPIClient {
             let eventId: String
             let ticketTypeId: String
             let side: String
+            let fulfillmentMode: String
             let price: Int
             let ticketId: String?
         }
@@ -153,6 +155,7 @@ struct FanPassAPIClient {
                 eventId: eventId,
                 ticketTypeId: ticketTypeId,
                 side: side,
+                fulfillmentMode: fulfillmentMode.rawValue,
                 price: price,
                 ticketId: ticketId
             ),
@@ -382,7 +385,13 @@ struct FanPassAPIClient {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw decodeAPIError(data)
         }
-        return data.isEmpty ? EmptyResponse() as! T : try decoder.decode(T.self, from: data)
+        if data.isEmpty {
+            guard let emptyResponse = EmptyResponse() as? T else {
+                throw APIClientError.invalidResponse
+            }
+            return emptyResponse
+        }
+        return try decoder.decode(T.self, from: data)
     }
 
     private func isTransientNetworkFailure(_ error: Error) -> Bool {

@@ -18,6 +18,7 @@ struct FanPassV4CheckoutView: View {
         ticketType: FanPassV4.TicketType = FanPassMockData.events[0].safePrimaryTicketType,
         quotedPrice: Int? = nil,
         priceLineTitle: String = "Face value",
+        fulfillmentMode: FanPassOrderFulfillmentMode = .primaryOnly,
         onAuthRequired: (() -> Void)? = nil
     ) {
         self.onAuthRequired = onAuthRequired
@@ -26,7 +27,8 @@ struct FanPassV4CheckoutView: View {
                 event: event,
                 ticketType: ticketType,
                 quotedPrice: quotedPrice,
-                priceLineTitle: priceLineTitle
+                priceLineTitle: priceLineTitle,
+                fulfillmentMode: fulfillmentMode
             )
         )
     }
@@ -51,10 +53,8 @@ struct FanPassV4CheckoutView: View {
 
             FPSurfaceCard {
                 VStack(alignment: .leading, spacing: FPSpacing.md) {
-                    FPSectionHeader(title: "Price breakdown", subtitle: "Estimated order total")
+                    FPSectionHeader(title: "Order total", subtitle: "Amount authorized by FanPass")
                     checkoutRow(viewModel.priceLineTitle, viewModel.ticketPriceLabel)
-                    checkoutRow("Platform fee", viewModel.platformFeeLabel)
-                    checkoutRow("Estimated tax", viewModel.taxLabel)
                     FPDivider()
                     HStack {
                         Text("Total")
@@ -113,23 +113,9 @@ struct FanPassV4CheckoutView: View {
             }
 
             if viewModel.paymentState == .captured {
-                NavigationLink {
-                    FanPassV4PurchaseSuccessView(event: viewModel.event, ticketType: viewModel.ticketType, ticket: viewModel.purchasedTicket)
-                } label: {
-                    HStack {
-                        Image(systemName: FPIcons.verified)
-                        Text("Continue to ticket")
-                    }
-                    .font(FPTypography.headline)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(FPColors.verifiedGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                            .stroke(FPColors.verifiedGreen.opacity(0.7), lineWidth: 1)
-                    }
+                FPPrimaryButton(title: "View in Tickets", systemImage: FPIcons.tickets) {
+                    appViewModel.openTickets()
                 }
-                .buttonStyle(.plain)
             }
         }
         .background(paymentSheetPresenter)
@@ -238,7 +224,7 @@ struct FanPassV4CheckoutView: View {
         if !hasBackendCheckoutCatalogItem {
             return "Card checkout is not available for this ticket yet."
         }
-        if viewModel.ticketType.supply == 0 {
+        if !hasAvailableInventory {
             return "Online checkout for this ticket category is unavailable."
         }
         return "Card checkout opens secure payment authorization. Your ticket is assigned after payment settles."
@@ -251,7 +237,7 @@ struct FanPassV4CheckoutView: View {
             hasAPIBearerSession &&
             hasLiveAPISessionForStripe &&
             hasBackendCheckoutCatalogItem &&
-            viewModel.ticketType.supply > 0
+            hasAvailableInventory
     }
 
     private func prepareCryptoCheckout() {
@@ -279,7 +265,7 @@ struct FanPassV4CheckoutView: View {
             viewModel.errorMessage = "Crypto checkout is not available for this event yet."
             return
         }
-        guard viewModel.ticketType.supply > 0 else {
+        guard hasAvailableInventory else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "Online checkout for this ticket category is unavailable."
             return
@@ -330,7 +316,7 @@ struct FanPassV4CheckoutView: View {
             viewModel.errorMessage = "Card checkout is not available for this event yet."
             return
         }
-        guard viewModel.ticketType.supply > 0 else {
+        guard hasAvailableInventory else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "Online checkout for this ticket category is unavailable."
             return
@@ -381,6 +367,10 @@ struct FanPassV4CheckoutView: View {
         backend.user.role == .fan || backend.user.role == .admin
     }
 
+    private var hasAvailableInventory: Bool {
+        viewModel.fulfillmentMode == .resaleOnly || viewModel.ticketType.supply > 0
+    }
+
     private func requestSignIn() {
         if let onAuthRequired {
             onAuthRequired()
@@ -397,7 +387,9 @@ struct FanPassV4CheckoutView: View {
         case .completed:
             checkoutOutcome = .success(
                 title: "Payment authorized",
-                message: "Ticket assignment is syncing with FanPass. Open Tickets again in a few seconds to load the server-issued ticket and its proof status."
+                message: viewModel.fulfillmentMode == .resaleOnly
+                    ? "FanPass is completing the verified resale transfer. The ticket will appear after settlement."
+                    : "Ticket assignment is syncing with FanPass. Open Tickets again in a few seconds to load the server-issued ticket and its proof status."
             )
         case .canceled:
             checkoutOutcome = .cancelled(
@@ -731,55 +723,6 @@ private enum CryptoPaymentState: Equatable {
     case confirming(String)
     case confirmed(String)
     case failed(String)
-}
-
-struct FanPassV4PurchaseSuccessView: View {
-    let event: FanPassV4.Event
-    let ticketType: FanPassV4.TicketType
-    var ticket: FanPassV4.Ticket?
-
-    private var fallbackTicket: FanPassV4.Ticket {
-        ticket ?? FanPassMockData.tickets.first ?? FanPassV4.Ticket(
-            id: "FP-PENDING-SUCCESS",
-            event: event,
-            ticketType: ticketType,
-            ownerId: FanPassMockData.currentUser.id,
-            status: .active,
-            section: "108",
-            row: "12",
-            seat: "15",
-            entryMode: .nfcReady,
-            transferCount: 0,
-            proofHistory: FanPassMockData.proofHistory(ticketId: "FP-PENDING-SUCCESS")
-        )
-    }
-
-    var body: some View {
-        FanPassV4Scaffold(title: "Purchase complete", subtitle: "Your verified ticket has been assigned.") {
-            FPConfirmationCard(
-                title: "Verified ticket ready",
-                message: "\(event.title) • \(ticketType.name)\nYour ticket is ready in your account."
-            )
-
-            NavigationLink {
-                FanPassV4TicketDetailView(ticket: fallbackTicket)
-            } label: {
-                HStack {
-                    Image(systemName: FPIcons.tickets)
-                    Text("View Ticket")
-                }
-                .font(FPTypography.headline)
-                .foregroundStyle(FPColors.textPrimary)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(FPGradients.passAurora, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            FPSecondaryButton(title: "Add to Wallet", systemImage: FPIcons.wallet) {
-                // Mock Apple Wallet handoff. Real Wallet pass signing is intentionally not connected here.
-            }
-        }
-    }
 }
 
 #Preview {
