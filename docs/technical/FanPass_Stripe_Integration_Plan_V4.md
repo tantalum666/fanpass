@@ -343,3 +343,17 @@ Deployment and smoke evidence:
 - Simulator opened the live HK$1,235 VIP resale ask and reached card-capable Secure Resale Checkout at HK$1,235.
 
 Still required: sign in as a second fan, authorize a Stripe test card, observe webhook/worker settlement, confirm exactly one buyer receives the listed ticket, and confirm a simultaneous loser is cancelled/refunded without primary issuance.
+
+## 2026-07-12 Queue-Managed Card Authorization
+
+High-demand primary sales now bind Stripe authorization to an atomic inventory hold:
+
+- queued PaymentIntents are restricted to `card` and use `capture_method=manual`;
+- the signed Stripe webhook retrieves the card fingerprint and stores only an HMAC;
+- an event-scoped advisory lock serializes simultaneous accounts using the same fingerprint;
+- a missing fingerprint signal rolls the webhook transaction back so Stripe can retry;
+- identity-limit or unavailable-inventory decisions do not enqueue order settlement;
+- rejected authorizations enqueue deterministic `PAYMENT_CANCEL_AUTHORIZATION` work;
+- ticket issuance converts the authorized hold before payment capture is queued.
+
+This is an anti-abuse layer, not complete proof of one person. Household exceptions, App Attest, verified phone identity, broader risk signals, and support review remain required before a major public sale.

@@ -84,6 +84,8 @@ services:
         generateValue: true
       - key: SESSION_SIGNING_SECRET
         generateValue: true
+      - key: FANPASS_ONSALE_QUEUE_SECRET
+        generateValue: true
       - key: PRIVY_APP_ID
         sync: false
       - key: PRIVY_VERIFICATION_KEY

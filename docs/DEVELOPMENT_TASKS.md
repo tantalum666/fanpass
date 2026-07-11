@@ -499,3 +499,19 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
 - [x] Keep API response privacy classifications documented and regression-checked before treating routes as Beta foundation.
 - [x] Keep Console one-time secret route responses behind a redacting adapter before treating staff invite flows as Beta foundation.
 - [x] Document any prototype shortcut with risk, owner, and replacement path before treating it as Beta foundation.
+
+## Transparent High-Demand On-Sale - 2026-07-12
+
+- [x] Add `onsales`, `queue_entries`, and `inventory_holds` to Prisma.
+- [x] Publish aggregate capacity, allocation categories, sold/held/available counts, queue flow, admitted range, and fairness commitment.
+- [x] Keep exact queue number, users ahead, and checkout lease private to the signed-in account.
+- [x] Serialize final-ticket and per-account-limit decisions with PostgreSQL ticket-type row locks.
+- [x] Bind primary checkout to an inventory hold and Stripe manual authorization.
+- [x] Hash and serialize same-card cross-account linkage; fail closed when the queued card identity signal is missing.
+- [x] Prevent late webhooks from reviving expired queue inventory.
+- [x] Add real PostgreSQL concurrency tests to CI.
+- [x] Add the iOS on-sale transparency dashboard and gate checkout until admission.
+- [ ] Put a managed edge waiting room in front of Render before a major public launch.
+- [ ] Add App Attest/DeviceCheck, verified phone recovery, risk review, and household exception policy.
+- [ ] Replace origin polling with cached SSE/WebSocket fan-out and run peak-load/failover tests.
+- [ ] Publish signed allocation/fairness commitments to append-only storage before opening.

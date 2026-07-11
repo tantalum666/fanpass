@@ -137,3 +137,13 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 - Render one-off jobs cannot currently be used as the free-plan outbox-health fallback; the Render API rejected a one-off `side-effects:health` job on 2026-06-03 because free-tier plans are not supported for jobs.
 - Privy product login works in simulator paths used for evidence collection; FanPass Console React SDK login is not integrated.
 - TestFlight/App Store distribution is not planned yet.
+
+## High-Demand On-Sale Runtime - 2026-07-12
+
+- Render must define a production-grade `FANPASS_ONSALE_QUEUE_SECRET`; production-like validation fails when it is absent or weak.
+- Render startup applies the Prisma schema and upserts the Aurora on-sale policy/allocation ledger.
+- Neon remains the final inventory authority; no edge/cache counter may sell a ticket.
+- Current Render/Neon staging is for functional and moderate concurrency testing. Do not expose it directly to concert-scale polling.
+- Before a major sale, place a managed edge waiting room in front of the API and admit bounded cohorts with short-lived signed tokens.
+- Cache public aggregate snapshots and fan them out; exact private queue status must remain authenticated.
+- Queue/card/install linkage secrets and hashes must never appear in deployment evidence or logs.

@@ -15,6 +15,7 @@ import { AuthController } from "../src/modules/auth/auth.controller";
 import { EventsController } from "../src/modules/events/events.controller";
 import { FanAccessController } from "../src/modules/fan-access/fan-access.controller";
 import { OrdersController } from "../src/modules/orders/orders.controller";
+import { OnsalesController } from "../src/modules/onsales/onsales.controller";
 import { PaymentsController } from "../src/modules/payments/payments.controller";
 import { TicketsController } from "../src/modules/tickets/tickets.controller";
 import { VerificationController } from "../src/modules/verification/verification.controller";
@@ -27,6 +28,7 @@ const controllers = [
   EventsController,
   FanAccessController,
   OrdersController,
+  OnsalesController,
   PaymentsController,
   TicketsController,
   VerificationController,
@@ -61,6 +63,9 @@ const expectedAccessByHandler = new Map<string, "PUBLIC" | string[]>([
   ["OrdersController.createOrder", ["FAN", "ADMIN"]],
   ["OrdersController.matchOrder", ["ADMIN"]],
   ["OrdersController.cancelOrder", ["FAN", "ADMIN"]],
+  ["OnsalesController.snapshot", "PUBLIC"],
+  ["OnsalesController.queueStatus", ["FAN", "ADMIN"]],
+  ["OnsalesController.joinQueue", ["FAN", "ADMIN"]],
   ["PaymentsController.createPaymentIntent", ["FAN", "ADMIN"]],
   ["PaymentsController.createCryptoQuote", ["FAN", "ADMIN"]],
   ["PaymentsController.confirmCryptoPayment", ["FAN", "ADMIN"]],

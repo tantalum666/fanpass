@@ -45,5 +45,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Apply Prisma schema
+        run: npm run prisma:push -w apps/api
+
+      - name: Verify on-sale concurrency invariants
+        env:
+          FANPASS_RUN_DATABASE_TESTS: "true"
+        run: npm run test -w apps/api -- --runTestsByPath test/onsales-prisma-concurrency.spec.ts
+
       - name: Verify Beta foundation
         run: npm run beta:foundation:verify

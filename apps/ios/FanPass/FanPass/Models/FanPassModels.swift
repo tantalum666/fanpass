@@ -89,6 +89,121 @@ struct TicketType: Codable, Identifiable, Hashable {
     let maxTransferCount: Int?
 }
 
+struct FanPassOnsaleSnapshot: Codable, Hashable {
+    let eventId: String
+    let eventTitle: String
+    let venueName: String
+    let phase: String
+    let allocation: Allocation
+    let inventory: Inventory
+    let queue: Queue
+    let fairness: Fairness?
+    let definitions: Definitions
+    let updatedAt: String
+
+    struct Allocation: Codable, Hashable {
+        let venueCapacity: Int
+        let publicSaleAllocation: Int
+        let notInPublicSale: Int
+        let categories: [Category]
+        let fullyDisclosed: Bool
+        let policyVersion: String
+        let publishedAt: String?
+
+        struct Category: Codable, Hashable, Identifiable {
+            let key: String
+            let label: String
+            let quantity: Int
+            let publicSale: Bool
+
+            var id: String { key }
+        }
+    }
+
+    struct Inventory: Codable, Hashable {
+        let venueCapacity: Int
+        let publicSaleAllocation: Int
+        let sold: Int
+        let held: Int
+        let available: Int
+        let returned: Int
+        let releasedHolds: Int
+        let ticketTypes: [TicketTypeInventory]
+
+        struct TicketTypeInventory: Codable, Hashable, Identifiable {
+            let ticketTypeId: String
+            let name: String
+            let allocation: Int
+            let sold: Int
+            let held: Int
+            let available: Int
+            let returned: Int
+            let releasedHolds: Int
+
+            var id: String { ticketTypeId }
+        }
+    }
+
+    struct Queue: Codable, Hashable {
+        let enabled: Bool
+        let joined: Int
+        let waiting: Int
+        let inCheckout: Int
+        let completed: Int
+        let expired: Int
+        let blocked: Int
+        let currentBatch: Batch?
+        let admittedThrough: Int
+        let lastAssignedPosition: Int
+        let checkoutWindowSeconds: Int?
+        let purchaseLimitPerAccount: Int?
+        let waitingRoomOpensAt: String?
+        let opensAt: String?
+        let closesAt: String?
+        let positionFinalized: Bool?
+
+        struct Batch: Codable, Hashable {
+            let from: Int
+            let to: Int
+        }
+    }
+
+    struct Fairness: Codable, Hashable {
+        let method: String
+        let version: String
+        let commitment: String
+        let reveal: String?
+        let explanation: String
+    }
+
+    struct Definitions: Codable, Hashable {
+        let sold: String
+        let held: String
+        let available: String
+        let queuePosition: String
+    }
+}
+
+struct FanPassOnsaleQueueResponse: Codable, Hashable {
+    let snapshot: FanPassOnsaleSnapshot
+    let queueEntry: QueueEntry?
+
+    struct QueueEntry: Codable, Hashable {
+        let reference: String
+        let status: String
+        let phase: String
+        let position: Int?
+        let positionFinalized: Bool
+        let usersAhead: Int?
+        let canCheckout: Bool
+        let joinedAt: String
+        let admittedAt: String?
+        let checkoutExpiresAt: String?
+        let attempt: Int
+        let message: String
+    }
+}
+
 struct FanPassTicket: Codable, Identifiable, Hashable {
     let id: String
     let tokenId: String?

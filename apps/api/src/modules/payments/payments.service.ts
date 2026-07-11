@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   Optional,
@@ -7,12 +8,13 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma, Payment } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID } from "crypto";
 import Stripe = require("stripe");
 import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
 import { isProductionLikeEnvironment } from "../../config/security-config";
 import { AuditService } from "../audit/audit.service";
+import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
 import { PrivyWalletService } from "../privy/privy-wallet.service";
 import { SideEffectOutboxService } from "../side-effects/side-effect-outbox.service";
 
@@ -59,10 +61,19 @@ interface PaymentIntentResult {
   captureStatus: string;
 }
 
+interface StripeChargeLike {
+  deleted?: boolean;
+  payment_method_details?: {
+    card?: { fingerprint?: string | null };
+    card_present?: { fingerprint?: string | null };
+  } | null;
+}
+
 interface StripePaymentIntentLike {
   id: string;
   status: string;
   client_secret?: string | null;
+  latest_charge?: string | StripeChargeLike | null;
 }
 
 interface StripeEventLike {
@@ -106,6 +117,7 @@ interface RpcReceipt {
 type CryptoPaymentWithOrder = Payment & {
   order: {
     id: string;
+    fulfillmentMode: string;
     user: {
       walletAddress: string | null;
       privyWalletId: string | null;
@@ -147,6 +159,7 @@ export class PaymentsService {
     private readonly outbox: SideEffectOutboxService,
     private readonly audit: AuditService,
     @Optional() private readonly privyWallets?: PrivyWalletService,
+    @Optional() private readonly onsaleInventory?: OnsaleInventoryService,
   ) {}
 
   async createPaymentIntent(
@@ -183,6 +196,12 @@ export class PaymentsService {
     if (order.status === "CANCELLED" || order.status === "REJECTED") {
       throw new BadRequestException(
         `Order status ${order.status} cannot be paid`,
+      );
+    }
+    if (order.fulfillmentMode === "PRIMARY_ONLY") {
+      await this.requireOnsaleInventory().assertOrderPayable(
+        this.prisma,
+        order,
       );
     }
 
@@ -291,6 +310,15 @@ export class PaymentsService {
       throw new BadRequestException(
         `Order status ${order.status} cannot be paid`,
       );
+    }
+    if (order.fulfillmentMode === "PRIMARY_ONLY") {
+      const inventory = this.requireOnsaleInventory();
+      await inventory.assertOrderPayable(this.prisma, order);
+      if (await inventory.isQueueManagedOrder(this.prisma, order.id)) {
+        throw new BadRequestException(
+          "Queued on-sales currently require card authorization so failed inventory claims can be released safely",
+        );
+      }
     }
 
     const amountMinor = this.amountMinor(order.price);
@@ -443,7 +471,9 @@ export class PaymentsService {
 
     let transactionHash = sponsored.hash?.toLowerCase() ?? null;
     if (!transactionHash && sponsored.providerId) {
-      let status: Awaited<ReturnType<PrivyWalletService["waitForTransactionHash"]>>;
+      let status: Awaited<
+        ReturnType<PrivyWalletService["waitForTransactionHash"]>
+      >;
       try {
         status = await sponsor.waitForTransactionHash({
           transactionId: sponsored.providerId,
@@ -518,8 +548,7 @@ export class PaymentsService {
         rawStatus: context.rawStatus ?? null,
         userOperationHash: this.shortHash(context.userOperationHash),
         hasPrivyAccessToken: context.hasPrivyAccessToken,
-        hasPrivyAuthorizationSignature:
-          context.hasPrivyAuthorizationSignature,
+        hasPrivyAuthorizationSignature: context.hasPrivyAuthorizationSignature,
       }),
     );
     return new ServiceUnavailableException(
@@ -822,6 +851,8 @@ export class PaymentsService {
 
     const stripeEventId = this.requiredWebhookEventId(event);
     const intent = event.data.object;
+    const paymentMethodFingerprintHash =
+      await this.paymentMethodFingerprintHashForIntent(intent);
     const result = await this.prisma.$transaction(async (tx) => {
       const webhookEvent = await this.claimWebhookEvent(tx, {
         stripeEventId,
@@ -870,24 +901,67 @@ export class PaymentsService {
         data: {
           status: intent.status,
           captureStatus,
+          ...(paymentMethodFingerprintHash
+            ? { paymentMethodFingerprintHash }
+            : {}),
         },
       });
+      let authorizationRejectionReason: string | null = null;
       if (captureStatus === "AUTHORIZED" && nextPayment.orderId) {
-        await this.outbox.enqueue(tx, {
-          type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
-          idempotencyKey: this.orderMatchAfterPaymentAuthSideEffectKey(
-            nextPayment.orderId,
-            nextPayment.id,
-          ),
-          aggregateType: "order",
-          aggregateId: nextPayment.orderId,
-          payload: {
+        let inventoryAuthorized = true;
+        if (this.onsaleInventory) {
+          const authorization = await this.onsaleInventory.authorizeOrderHold(
+            tx,
+            {
+              orderId: nextPayment.orderId,
+              paymentMethodFingerprintHash,
+            },
+          );
+          inventoryAuthorized = authorization.authorized;
+          authorizationRejectionReason = authorization.authorized
+            ? null
+            : authorization.reason;
+          if (authorization.reason === "identity_signal_unavailable") {
+            throw new ServiceUnavailableException(
+              "Stripe card identity verification is temporarily unavailable",
+            );
+          }
+        }
+        if (inventoryAuthorized) {
+          await this.outbox.enqueue(tx, {
+            type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+            idempotencyKey: this.orderMatchAfterPaymentAuthSideEffectKey(
+              nextPayment.orderId,
+              nextPayment.id,
+            ),
+            aggregateType: "order",
+            aggregateId: nextPayment.orderId,
+            payload: {
+              paymentId: nextPayment.id,
+              orderId: nextPayment.orderId,
+              stripePaymentIntentId: intent.id,
+              captureStatus,
+            },
+          });
+        } else {
+          await this.rejectOnsalePaymentAuthorization(tx, {
             paymentId: nextPayment.id,
             orderId: nextPayment.orderId,
-            stripePaymentIntentId: intent.id,
-            captureStatus,
-          },
-        });
+            userId: nextPayment.userId,
+            reason: authorizationRejectionReason ?? "inventory_unavailable",
+          });
+        }
+      }
+      if (
+        event.type === "payment_intent.canceled" &&
+        nextPayment.orderId &&
+        this.onsaleInventory
+      ) {
+        await this.onsaleInventory.releaseOrderHold(
+          tx,
+          nextPayment.orderId,
+          "payment_authorization_cancelled",
+        );
       }
       await tx.paymentWebhookEvent.update({
         where: {
@@ -896,6 +970,7 @@ export class PaymentsService {
         data: {
           paymentId: nextPayment.id,
           status: "PROCESSED",
+          reason: authorizationRejectionReason,
           processedAt: new Date(),
         },
       });
@@ -941,6 +1016,42 @@ export class PaymentsService {
     };
   }
 
+  private async paymentMethodFingerprintHashForIntent(
+    intent: StripePaymentIntentLike,
+  ) {
+    if (!["requires_capture", "succeeded"].includes(intent.status)) {
+      return null;
+    }
+    const stripe = this.stripeClient();
+    if (!stripe || !intent.latest_charge) {
+      return null;
+    }
+    try {
+      const charge =
+        typeof intent.latest_charge === "string"
+          ? await stripe.charges.retrieve(intent.latest_charge)
+          : intent.latest_charge;
+      if ("deleted" in charge && charge.deleted) {
+        return null;
+      }
+      const fingerprint =
+        charge.payment_method_details?.card?.fingerprint ??
+        charge.payment_method_details?.card_present?.fingerprint ??
+        null;
+      if (!fingerprint) {
+        return null;
+      }
+      return createHmac("sha256", this.onsaleQueueSecret())
+        .update(`stripe-payment-identity:${fingerprint}`)
+        .digest("hex");
+    } catch {
+      this.logger.warn(
+        "Stripe payment identity lookup failed; queued settlement will retry instead of bypassing the card-link gate",
+      );
+      return null;
+    }
+  }
+
   private async createProviderPaymentIntent(
     payment: Payment,
   ): Promise<PaymentIntentResult> {
@@ -957,14 +1068,27 @@ export class PaymentsService {
       };
     }
 
+    const queueManaged =
+      Boolean(payment.orderId) &&
+      Boolean(
+        this.onsaleInventory &&
+        (await this.onsaleInventory.isQueueManagedOrder(
+          this.prisma,
+          payment.orderId!,
+        )),
+      );
     const intent = await stripe.paymentIntents.create(
       {
         amount: payment.amount,
         currency: payment.currency,
         capture_method: "manual",
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        ...(queueManaged
+          ? { payment_method_types: ["card"] }
+          : {
+              automatic_payment_methods: {
+                enabled: true,
+              },
+            }),
         metadata: {
           fanpassPaymentId: payment.id,
           orderId: payment.orderId ?? "",
@@ -993,10 +1117,7 @@ export class PaymentsService {
     },
     auditAction: "PAYMENT_INTENT_CREATED" | "PAYMENT_INTENT_REPAIRED",
   ) {
-    if (
-      payment.stripePaymentIntentId &&
-      payment.clientSecret?.trim()
-    ) {
+    if (payment.stripePaymentIntentId && payment.clientSecret?.trim()) {
       return payment;
     }
 
@@ -1316,9 +1437,7 @@ export class PaymentsService {
     verb: "confirm" | "pay",
   ) {
     if (session.role === "FAN" && payment.userId !== session.userId) {
-      throw new BadRequestException(
-        `Fans can only ${verb} their own payments`,
-      );
+      throw new BadRequestException(`Fans can only ${verb} their own payments`);
     }
   }
 
@@ -1341,6 +1460,17 @@ export class PaymentsService {
 
     const orderId = payment.orderId ?? payment.order.id;
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (payment.order.fulfillmentMode === "PRIMARY_ONLY") {
+        const holdAuthorization =
+          await this.requireOnsaleInventory().authorizeOrderHold(tx, {
+            orderId,
+          });
+        if (!holdAuthorization.authorized) {
+          throw new ConflictException(
+            "Primary inventory is no longer available for this payment",
+          );
+        }
+      }
       const nextPayment = await tx.payment.update({
         where: { id: payment.id },
         data: {
@@ -1406,7 +1536,9 @@ export class PaymentsService {
   }
 
   private requireCryptoPayerAddress(payment: CryptoPaymentWithOrder) {
-    const payerAddress = this.normalizeAddress(payment.order.user.walletAddress);
+    const payerAddress = this.normalizeAddress(
+      payment.order.user.walletAddress,
+    );
     if (!payerAddress) {
       throw new BadRequestException(
         "A verified wallet address is required before USDC payment",
@@ -1589,6 +1721,22 @@ export class PaymentsService {
     return process.env.FANPASS_DATA_SOURCE === "prisma";
   }
 
+  private requireOnsaleInventory() {
+    if (!this.onsaleInventory) {
+      throw new ServiceUnavailableException(
+        "Primary inventory service is unavailable",
+      );
+    }
+    return this.onsaleInventory;
+  }
+
+  private onsaleQueueSecret() {
+    return (
+      this.config.get<string>("FANPASS_ONSALE_QUEUE_SECRET") ??
+      "fanpass-local-onsale-queue-secret-only"
+    );
+  }
+
   private requiredWebhookEventId(event: StripeEventLike) {
     const id = event.id?.trim();
     if (!id) {
@@ -1645,13 +1793,13 @@ export class PaymentsService {
     decimals: number,
   ) {
     const multiplier = 10 ** decimals;
-    return BigInt(Math.ceil((hkdMinorAmount * multiplier) / (hkdPerUsdc * 100)));
+    return BigInt(
+      Math.ceil((hkdMinorAmount * multiplier) / (hkdPerUsdc * 100)),
+    );
   }
 
   private async usdcHkdRate(): Promise<UsdcHkdRate> {
-    const configured = this.configPositiveNumberOrNull(
-      "FANPASS_USDC_HKD_RATE",
-    );
+    const configured = this.configPositiveNumberOrNull("FANPASS_USDC_HKD_RATE");
     if (configured) {
       return {
         value: configured,
@@ -1767,8 +1915,7 @@ export class PaymentsService {
 
   private async fetchHkmaUsdHkdRate(): Promise<UsdcHkdRate> {
     const url =
-      this.nonEmptyConfig("FANPASS_USDC_HKD_RATE_URL") ??
-      HKMA_USD_HKD_RATE_URL;
+      this.nonEmptyConfig("FANPASS_USDC_HKD_RATE_URL") ?? HKMA_USD_HKD_RATE_URL;
     const timeoutMs = this.configInteger(
       "FANPASS_USDC_HKD_RATE_TIMEOUT_MS",
       4_000,
@@ -1801,8 +1948,7 @@ export class PaymentsService {
     return {
       value,
       source: "hkma:er-eeri-daily",
-      asOf:
-        typeof record?.end_of_day === "string" ? record.end_of_day : null,
+      asOf: typeof record?.end_of_day === "string" ? record.end_of_day : null,
       fetchedAt: new Date(),
       usdcUsdRate: null,
       pegStatus: "not_checked",
@@ -1880,7 +2026,10 @@ export class PaymentsService {
     if (message.includes("http 429") || message.includes("rate")) {
       return "privy_api_rate_limited";
     }
-    if (message.includes("rpc failed") || message.includes("transaction lookup")) {
+    if (
+      message.includes("rpc failed") ||
+      message.includes("transaction lookup")
+    ) {
       return "privy_rpc_failed";
     }
     return "privy_provider_failed";
@@ -1888,7 +2037,11 @@ export class PaymentsService {
 
   private safeProviderErrorMessage(error: unknown) {
     const raw =
-      error instanceof Error ? error.message : typeof error === "string" ? error : "";
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "";
     const message = raw || "Unknown sponsored USDC payment failure";
     return message
       .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
@@ -2054,6 +2207,51 @@ export class PaymentsService {
     paymentId: string,
   ) {
     return `order-match-after-payment-auth:${orderId}:${paymentId}`;
+  }
+
+  private async rejectOnsalePaymentAuthorization(
+    tx: Prisma.TransactionClient,
+    input: {
+      paymentId: string;
+      orderId: string;
+      userId: string;
+      reason: string;
+    },
+  ) {
+    await tx.order.updateMany({
+      where: {
+        id: input.orderId,
+        status: { in: ["OPEN", "MATCHED"] },
+        fulfillmentMode: "PRIMARY_ONLY",
+      },
+      data: {
+        status: "REJECTED",
+        remainingQuantity: 0,
+      },
+    });
+    await this.outbox.enqueue(tx, {
+      type: "PAYMENT_CANCEL_AUTHORIZATION",
+      idempotencyKey: `payment-cancel:${input.paymentId}:onsale-${input.reason}`,
+      aggregateType: "payment",
+      aggregateId: input.paymentId,
+      payload: {
+        paymentId: input.paymentId,
+        orderId: input.orderId,
+        reason: `onsale_${input.reason}`,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: input.userId,
+        action: "ONSALE_PAYMENT_AUTHORIZATION_REJECTED",
+        entityType: "payment",
+        entityId: input.paymentId,
+        metadataJson: {
+          orderId: input.orderId,
+          reason: input.reason,
+        },
+      },
+    });
   }
 
   private sideEffectTypeForOperation(operation: PaymentOperation) {

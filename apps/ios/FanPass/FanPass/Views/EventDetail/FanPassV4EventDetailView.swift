@@ -5,6 +5,8 @@ struct FanPassV4EventDetailView: View {
     @Environment(FanPassRootViewModel.self) private var appViewModel
     @State private var viewModel: EventDetailViewModel
     @State private var showingAuthGate = false
+    @State private var onsaleCheckoutGate: FanPassOnsaleCheckoutGate = .checking
+    @State private var availableByTicketType: [String: Int] = [:]
 
     init(event: FanPassV4.Event = FanPassMockData.events[0]) {
         _viewModel = State(initialValue: EventDetailViewModel(event: event))
@@ -26,6 +28,12 @@ struct FanPassV4EventDetailView: View {
                 FPMetricCard(title: "Cap", value: viewModel.event.marketSummary.capLabel, caption: "Organizer cap")
             }
 
+            FanPassV4OnsaleTransparencyView(
+                event: viewModel.event,
+                checkoutGate: $onsaleCheckoutGate,
+                availableByTicketType: $availableByTicketType
+            )
+
             FPSectionHeader(title: "Ticket categories", subtitle: "Face value, resale cap, and transfer rules")
             ForEach(viewModel.purchasableTicketTypes) { ticketType in
                 FPSurfaceCard {
@@ -46,7 +54,7 @@ struct FanPassV4EventDetailView: View {
                                     .font(FPTypography.title3)
                                     .foregroundStyle(FPColors.textPrimary)
                                     .monospacedDigit()
-                                Text("\(ticketType.availableQuantity) left")
+                                Text("\(availability(for: ticketType).formatted()) left")
                                     .font(FPTypography.caption)
                                     .foregroundStyle(FPColors.textSecondary)
                             }
@@ -69,6 +77,12 @@ struct FanPassV4EventDetailView: View {
                             FPStateBanner(
                                 title: "Online checkout unavailable",
                                 message: "This ticket category is not available for online checkout yet. You can still view prices and organizer rules.",
+                                kind: .warning
+                            )
+                        } else if availability(for: ticketType) == 0 {
+                            FPStateBanner(
+                                title: "Sold out",
+                                message: "No public-sale inventory is available in this category right now.",
                                 kind: .warning
                             )
                         }
@@ -118,21 +132,40 @@ struct FanPassV4EventDetailView: View {
 
     @ViewBuilder
     private func buyButton(for ticketType: FanPassV4.TicketType) -> some View {
-        if backend.isAuthenticated && canBuyTickets {
+        let hasInventory = availability(for: ticketType) > 0
+        if backend.isAuthenticated && canBuyTickets && saleAllowsCheckout && hasInventory {
             NavigationLink {
                 FanPassV4CheckoutView(event: viewModel.event, ticketType: ticketType)
             } label: {
-                buyButtonLabel
+                buyButtonLabel(title: "Buy Ticket", enabled: true)
             }
             .buttonStyle(.plain)
         } else {
             Button {
-                showingAuthGate = true
+                if !backend.isAuthenticated || !canBuyTickets {
+                    showingAuthGate = true
+                }
             } label: {
-                buyButtonLabel
+                buyButtonLabel(
+                    title: hasInventory
+                        ? backend.isAuthenticated
+                            ? onsaleCheckoutGate.buttonTitle
+                            : "Sign in to buy"
+                        : "Sold out",
+                    enabled: !backend.isAuthenticated || !canBuyTickets
+                )
             }
             .buttonStyle(.plain)
+            .disabled(backend.isAuthenticated && canBuyTickets)
         }
+    }
+
+    private var saleAllowsCheckout: Bool {
+        !viewModel.event.isBackendBacked || onsaleCheckoutGate.allowsCheckout
+    }
+
+    private func availability(for ticketType: FanPassV4.TicketType) -> Int {
+        availableByTicketType[ticketType.id] ?? ticketType.availableQuantity
     }
 
     private var canBuyTickets: Bool {
@@ -150,12 +183,15 @@ struct FanPassV4EventDetailView: View {
         return "Browse is open. Checkout, ticket ownership, and entry access require a signed-in fan account."
     }
 
-    private var buyButtonLabel: some View {
-        Text("Buy Ticket")
+    private func buyButtonLabel(title: String, enabled: Bool) -> some View {
+        Text(title)
             .font(FPTypography.headline)
-            .foregroundStyle(FPColors.textPrimary)
+            .foregroundStyle(enabled ? FPColors.textPrimary : FPColors.textSecondary)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(FPGradients.passAurora, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            .background(
+                enabled ? AnyShapeStyle(FPGradients.passAurora) : AnyShapeStyle(FPColors.surfaceGlass),
+                in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
+            )
     }
 
     private var marketChartJumpCard: some View {

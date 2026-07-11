@@ -15,6 +15,7 @@
 		0BA238BEA0CB129D911290A6 /* FPColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 466CDBBDA22A363300286D44 /* FPColors.swift */; };
 		0C86299A1FB6E202E17C2D15 /* FanPassV4MockServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8306F2142A0C3AD32998DEF4 /* FanPassV4MockServices.swift */; };
 		0CBE46ECDE9AA1CD31DDEED3 /* Privy in Frameworks */ = {isa = PBXBuildFile; productRef = 6BAF87DAA0066DF92DCF58F6 /* Privy */; };
+		0DA20DA588B0DB0717F17F30 /* FanPassClientInstanceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B61C15B5F19BEE79777164 /* FanPassClientInstanceStore.swift */; };
 		0DD07F435A3A6A7F548F503A /* event-cover-aurora.png in Resources */ = {isa = PBXBuildFile; fileRef = 770FC22A37D92BA4A4017006 /* event-cover-aurora.png */; };
 		16D28A686319FE9332D83054 /* FPComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A826851EF726D84FC7B6861B /* FPComponents.swift */; };
 		1964ED8B1D1775F93F200CD6 /* FanPassMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5C91E54D2A16699A77F9FD /* FanPassMockData.swift */; };
@@ -23,6 +24,7 @@
 		2526673E9FD6DAEC9E4EECFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 473E7165A26D223815FDE2B8 /* Assets.xcassets */; };
 		25E6A12B7EB542968FBBCBF5 /* FanPassPaymentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDAA48CC71B2D52D069CBF7 /* FanPassPaymentCoordinator.swift */; };
 		2C75E513CF25191AB52CBE8C /* FanPassV4APIDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7369C3315C5A2175F622B71 /* FanPassV4APIDataProvider.swift */; };
+		3387272F3BA94462CC09BF8F /* FanPassClientInstanceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B61C15B5F19BEE79777164 /* FanPassClientInstanceStore.swift */; };
 		36CC2FF4976FDD89D7AC77E3 /* event-cover-midnight.png in Resources */ = {isa = PBXBuildFile; fileRef = EA59478F5D29634F2FF71FC8 /* event-cover-midnight.png */; };
 		38F1BB23D054D2E88A0F521B /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 54B68793CCFC1C3CEFEF8795 /* SocketIO */; };
 		3B08B941F64FC5E1E6F01F48 /* FanPassOpsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE1B1902A90E955DB3E0A7A /* FanPassOpsApp.swift */; };
@@ -58,6 +60,7 @@
 		7D286E36C5A4E43D3697550E /* FPComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A826851EF726D84FC7B6861B /* FPComponents.swift */; };
 		7F6642D7C8D2DF957B97BDD6 /* FanPassV4PreviewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB560F40DCCF06D0C5829A74 /* FanPassV4PreviewContent.swift */; };
 		847A85C2970FD31D20E4BDF1 /* FanPassSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */; };
+		88B0F6D1EE291F6FBDB981A6 /* FanPassV4OnsaleTransparencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13CD6DEAACD13BCDB879F062 /* FanPassV4OnsaleTransparencyView.swift */; };
 		9074D1BC32869372EFDE9FB9 /* FanPassV4APIDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7369C3315C5A2175F622B71 /* FanPassV4APIDataProvider.swift */; };
 		9136AF410B71C3979395D74F /* FanPassV4TicketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDFC6E2547F8FEDA377F8294 /* FanPassV4TicketsView.swift */; };
 		918240ECB0A0090AD7A1CD2B /* auth-x-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = D61895A750E4EDF69B399EA2 /* auth-x-logo.png */; };
@@ -111,6 +114,7 @@
 		12675C174CA8D9271E9AE133 /* event-cover-lab.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "event-cover-lab.png"; sourceTree = "<group>"; };
 		12F9B5287845DDE1188961F3 /* event-cover-neon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "event-cover-neon.png"; sourceTree = "<group>"; };
 		1316A59F2869C4B507FE5D72 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
+		13CD6DEAACD13BCDB879F062 /* FanPassV4OnsaleTransparencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4OnsaleTransparencyView.swift; sourceTree = "<group>"; };
 		14A65D944315683EE482BD88 /* FanPassV4OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4OnboardingView.swift; sourceTree = "<group>"; };
 		14F362E1E7296EFE1C041750 /* ScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerView.swift; sourceTree = "<group>"; };
 		159045E5FB505823B92FBF01 /* FanPassOps.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FanPassOps.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -132,6 +136,7 @@
 		47C1C8DF80310AB09917884E /* FPTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPTypography.swift; sourceTree = "<group>"; };
 		516CD6E90C1CC30E57B240DA /* fanpass-brand-sheet-v4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "fanpass-brand-sheet-v4.png"; sourceTree = "<group>"; };
 		539C03177CDD4FF9E415A6E6 /* FanPass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FanPass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		53B61C15B5F19BEE79777164 /* FanPassClientInstanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassClientInstanceStore.swift; sourceTree = "<group>"; };
 		5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassBackendContext.swift; sourceTree = "<group>"; };
 		5C429C1122714C1E2ED59818 /* FanPassV4CheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4CheckoutView.swift; sourceTree = "<group>"; };
 		63C816149998EF60BC83394F /* QRCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScannerView.swift; sourceTree = "<group>"; };
@@ -367,6 +372,7 @@
 			isa = PBXGroup;
 			children = (
 				5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */,
+				53B61C15B5F19BEE79777164 /* FanPassClientInstanceStore.swift */,
 				45620A0EFAEC979F779C19FE /* FanPassEnvironment.swift */,
 				B92DC884F33AEF8E98A4D3A2 /* FanPassSessionStore.swift */,
 				E6F9712D20B2AEDCA6153960 /* FanPassUI.swift */,
@@ -422,6 +428,7 @@
 			isa = PBXGroup;
 			children = (
 				9B75B5F34F52B616DA725D3F /* FanPassV4EventDetailView.swift */,
+				13CD6DEAACD13BCDB879F062 /* FanPassV4OnsaleTransparencyView.swift */,
 			);
 			path = EventDetail;
 			sourceTree = "<group>";
@@ -663,6 +670,7 @@
 				9FA7AC46D37968161A61AA6B /* FPTypography.swift in Sources */,
 				C28F19DA69439C2F07450A5C /* FanPassAPIClient.swift in Sources */,
 				73E05CCD4242F9A52FDAA0B9 /* FanPassBackendContext.swift in Sources */,
+				3387272F3BA94462CC09BF8F /* FanPassClientInstanceStore.swift in Sources */,
 				02BBAA3CB7E0971E714835E8 /* FanPassEnvironment.swift in Sources */,
 				1964ED8B1D1775F93F200CD6 /* FanPassMockData.swift in Sources */,
 				4847300CA98AA06856BF674C /* FanPassModels.swift in Sources */,
@@ -697,6 +705,7 @@
 				9748D1B273D22AE7B78024FE /* FanPassAPIClient.swift in Sources */,
 				550DB067F0DF066E7F2FA7F7 /* FanPassApp.swift in Sources */,
 				B6B51F4B1BDA88426B9FF9BF /* FanPassBackendContext.swift in Sources */,
+				0DA20DA588B0DB0717F17F30 /* FanPassClientInstanceStore.swift in Sources */,
 				6012A5A83F0702593A1BEA57 /* FanPassEnvironment.swift in Sources */,
 				CC1E7587AF5871464790CD6F /* FanPassMockData.swift in Sources */,
 				5B7D01AE542F5148C8A37757 /* FanPassModels.swift in Sources */,
@@ -717,6 +726,7 @@
 				9DE1F2099AF64DE205058D28 /* FanPassV4MockServices.swift in Sources */,
 				791118E645E4148A4865702C /* FanPassV4Models.swift in Sources */,
 				95AD31CC035F6F68CC2D0C75 /* FanPassV4OnboardingView.swift in Sources */,
+				88B0F6D1EE291F6FBDB981A6 /* FanPassV4OnsaleTransparencyView.swift in Sources */,
 				7F6642D7C8D2DF957B97BDD6 /* FanPassV4PreviewContent.swift in Sources */,
 				72CB44F7DF9BFCC150A7E60D /* FanPassV4ProfileView.swift in Sources */,
 				A8A294BDF37793849D778B87 /* FanPassV4Scaffold.swift in Sources */,

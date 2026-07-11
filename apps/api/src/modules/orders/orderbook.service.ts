@@ -6,6 +6,7 @@ import { DemoStore } from "../../common/demo-store";
 import { OrderFulfillmentMode, OrderRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
 import { SettlementSideEffectsService } from "../side-effects/settlement-side-effects.service";
 import { TicketsService } from "../tickets/tickets.service";
 import {
@@ -60,6 +61,7 @@ export class OrderbookService {
     @Optional() private readonly prisma?: PrismaService,
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly realtime?: OrderbookRealtimeService,
+    @Optional() private readonly onsaleInventory?: OnsaleInventoryService,
   ) {}
 
   getOrderbook(eventId: string, ticketTypeId: string) {
@@ -132,6 +134,16 @@ export class OrderbookService {
 
     if (input.price > (ticketType.resaleCap ?? Number.MAX_SAFE_INTEGER)) {
       throw new BadRequestException("Order price exceeds organizer resale cap");
+    }
+    const fulfillmentMode = this.fulfillmentModeFor(input);
+    if (
+      input.side === "BUY" &&
+      fulfillmentMode === "PRIMARY_ONLY" &&
+      input.price !== ticketType.faceValue
+    ) {
+      throw new BadRequestException(
+        "Primary checkout price must match the published face value",
+      );
     }
 
     if (input.side === "SELL") {
@@ -736,6 +748,16 @@ export class OrderbookService {
     if (input.price > (ticketType.resaleCap ?? Number.MAX_SAFE_INTEGER)) {
       throw new BadRequestException("Order price exceeds organizer resale cap");
     }
+    const fulfillmentMode = this.fulfillmentModeFor(input);
+    if (
+      input.side === "BUY" &&
+      fulfillmentMode === "PRIMARY_ONLY" &&
+      input.price !== ticketType.faceValue
+    ) {
+      throw new BadRequestException(
+        "Primary checkout price must match the published face value",
+      );
+    }
 
     if (input.side === "SELL") {
       if (!input.ticketId) {
@@ -778,26 +800,91 @@ export class OrderbookService {
       );
     }
 
-    const order = await prisma.order.create({
-      data: {
-        id: `ord_${randomUUID()}`,
-        userId: input.userId,
-        eventId: input.eventId,
-        ticketTypeId: input.ticketTypeId,
-        ticketId: input.ticketId ?? null,
-        side: input.side,
-        fulfillmentMode: this.fulfillmentModeFor(input),
-        price: input.price,
-        quantity: 1,
-        remainingQuantity: 1,
-        status: "OPEN",
-        idempotencyKey: this.normalizeIdempotencyKey(input.idempotencyKey),
-      },
-    });
-    await this.audit.record(input.userId, "ORDER_CREATED", "order", order.id, {
+    const orderId = `ord_${randomUUID()}`;
+    const orderData = {
+      id: orderId,
+      userId: input.userId,
+      eventId: input.eventId,
+      ticketTypeId: input.ticketTypeId,
+      ticketId: input.ticketId ?? null,
       side: input.side,
+      fulfillmentMode,
       price: input.price,
-    });
+      quantity: 1,
+      remainingQuantity: 1,
+      status: "OPEN" as const,
+      idempotencyKey: this.normalizeIdempotencyKey(input.idempotencyKey),
+    };
+    let order;
+    try {
+      order =
+        input.side === "BUY" && fulfillmentMode === "PRIMARY_ONLY"
+          ? await prisma.$transaction(async (tx) => {
+              await this.requireOnsaleInventory().lockPrimaryOrderCreation(
+                tx,
+                input.ticketTypeId,
+              );
+              const created = await tx.order.create({ data: orderData });
+              await this.requireOnsaleInventory().reservePrimaryInventory(tx, {
+                orderId: created.id,
+                eventId: created.eventId,
+                ticketTypeId: created.ticketTypeId,
+                userId: created.userId,
+                quantity: created.quantity,
+              });
+              await tx.auditLog.create({
+                data: {
+                  actorId: input.userId,
+                  action: "ORDER_CREATED",
+                  entityType: "order",
+                  entityId: created.id,
+                  metadataJson: {
+                    side: input.side,
+                    price: input.price,
+                    fulfillmentMode,
+                  },
+                },
+              });
+              return created;
+            })
+          : await prisma.order.create({ data: orderData });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        this.normalizeIdempotencyKey(input.idempotencyKey)
+      ) {
+        const concurrentOrder = await this.findIdempotentPrismaOrder(
+          prisma,
+          input,
+        );
+        if (concurrentOrder) {
+          const mappedOrder = this.mapPrismaOrder(concurrentOrder);
+          this.assertIdempotentOrderMatches(mappedOrder, input);
+          return {
+            order: mappedOrder,
+            trade: await this.findPrismaTradeForOrder(
+              prisma,
+              concurrentOrder.id,
+            ),
+          };
+        }
+      }
+      throw error;
+    }
+    if (!(input.side === "BUY" && fulfillmentMode === "PRIMARY_ONLY")) {
+      await this.audit.record(
+        input.userId,
+        "ORDER_CREATED",
+        "order",
+        order.id,
+        {
+          side: input.side,
+          price: input.price,
+          fulfillmentMode,
+        },
+      );
+    }
 
     const trade = await this.tryPrismaMatch(prisma, order.id);
     if (!trade) {
@@ -842,6 +929,19 @@ export class OrderbookService {
           remainingQuantity: 0,
         },
       });
+
+      if (order.side === "BUY" && order.fulfillmentMode === "PRIMARY_ONLY") {
+        await this.requireOnsaleInventory().releaseOrderHold(
+          tx,
+          order.id,
+          "order_cancelled",
+        );
+        await this.enqueuePaymentCompensationForFailedSettlement(
+          tx,
+          order.id,
+          "order_cancelled",
+        );
+      }
 
       if (order.side === "SELL" && order.ticketId) {
         const ticket = await tx.ticket.findUniqueOrThrow({
@@ -1016,11 +1116,17 @@ export class OrderbookService {
 
     let ticket;
     try {
+      const inventoryHold =
+        await this.requireOnsaleInventory().orderHoldForIssuance(
+          prisma,
+          order.id,
+        );
       ticket = await this.tickets.issueTicket({
         eventId: order.eventId,
         ticketTypeId: order.ticketTypeId,
         ownerId: order.userId,
         seatHash: `primary-order:${order.id}`,
+        inventoryHoldId: inventoryHold.id,
       });
     } catch (error) {
       await this.rejectPrimarySettlementAfterFailure(
@@ -1397,6 +1503,12 @@ export class OrderbookService {
           },
         });
       }
+      await this.requireOnsaleInventory().releaseOrderHold(
+        tx,
+        buyOrderId,
+        "primary_ticket_issue_failed",
+        Boolean(issuedTicketId),
+      );
       await tx.auditLog.create({
         data: {
           actorId,
@@ -1540,6 +1652,13 @@ export class OrderbookService {
       settlementStatus: trade.settlementStatus as "SETTLED" | "FAILED",
       createdAt: trade.createdAt.toISOString(),
     };
+  }
+
+  private requireOnsaleInventory() {
+    if (!this.onsaleInventory) {
+      throw new BadRequestException("Primary inventory service is unavailable");
+    }
+    return this.onsaleInventory;
   }
 
   private prismaClient() {

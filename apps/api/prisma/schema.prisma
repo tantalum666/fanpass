@@ -51,6 +51,36 @@ enum SubmissionStatus {
   REJECTED
 }
 
+enum OnsaleStatus {
+  SCHEDULED
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum QueueEntryStatus {
+  WAITING
+  ADMITTED
+  CHECKOUT
+  COMPLETED
+  EXPIRED
+  BLOCKED
+}
+
+enum InventoryHoldStatus {
+  ACTIVE
+  AUTHORIZED
+  CONVERTED
+  RELEASED
+  EXPIRED
+  BLOCKED
+}
+
+enum InventoryHoldSource {
+  PRIMARY_ORDER
+  ADMIN_ISSUE
+}
+
 model User {
   id              String           @id @default(cuid())
   name            String
@@ -68,6 +98,8 @@ model User {
   payments        Payment[]
   checkins        Checkin[]        @relation("ScannerCheckins")
   gateAssignments GateAssignment[] @relation("GateStaffAssignments")
+  queueEntries    QueueEntry[]
+  inventoryHolds  InventoryHold[]
 
   @@map("users")
 }
@@ -113,6 +145,8 @@ model Event {
   fanTasks        FanTask[]
   orders          Order[]
   gateAssignments GateAssignment[]
+  onsale          Onsale?
+  inventoryHolds  InventoryHold[]
 
   @@map("events")
 }
@@ -152,18 +186,19 @@ model StaffInvite {
 }
 
 model TicketType {
-  id               String   @id @default(cuid())
-  eventId          String   @map("event_id")
+  id               String          @id @default(cuid())
+  eventId          String          @map("event_id")
   name             String
-  faceValue        Int      @map("face_value")
+  faceValue        Int             @map("face_value")
   currency         String
   supply           Int
-  transferable     Boolean  @default(true)
-  resaleCap        Int?     @map("resale_cap")
-  maxTransferCount Int      @default(1) @map("max_transfer_count")
-  event            Event    @relation(fields: [eventId], references: [id])
+  transferable     Boolean         @default(true)
+  resaleCap        Int?            @map("resale_cap")
+  maxTransferCount Int             @default(1) @map("max_transfer_count")
+  event            Event           @relation(fields: [eventId], references: [id])
   tickets          Ticket[]
   orders           Order[]
+  inventoryHolds   InventoryHold[]
 
   @@map("ticket_types")
 }
@@ -185,34 +220,125 @@ model Ticket {
   checkins         Checkin[]
   orders           Order[]
   entryCredentials EntryCredential[]
+  inventoryHold    InventoryHold?
 
   @@map("tickets")
 }
 
 model Order {
-  id                String      @id @default(cuid())
-  userId            String      @map("user_id")
-  eventId           String      @map("event_id")
-  ticketTypeId      String      @map("ticket_type_id")
-  ticketId          String?     @map("ticket_id")
+  id                String         @id @default(cuid())
+  userId            String         @map("user_id")
+  eventId           String         @map("event_id")
+  ticketTypeId      String         @map("ticket_type_id")
+  ticketId          String?        @map("ticket_id")
   side              OrderSide
-  fulfillmentMode   String      @default("ANY") @map("fulfillment_mode")
+  fulfillmentMode   String         @default("ANY") @map("fulfillment_mode")
   price             Int
-  quantity          Int         @default(1)
-  remainingQuantity Int         @default(1) @map("remaining_quantity")
-  status            OrderStatus @default(OPEN)
-  idempotencyKey    String?     @map("idempotency_key")
-  createdAt         DateTime    @default(now()) @map("created_at")
-  user              User        @relation(fields: [userId], references: [id])
-  event             Event       @relation(fields: [eventId], references: [id])
-  ticketType        TicketType  @relation(fields: [ticketTypeId], references: [id])
-  ticket            Ticket?     @relation(fields: [ticketId], references: [id])
-  buyTrade          Trade?      @relation("BuyOrder")
-  sellTrade         Trade?      @relation("SellOrder")
+  quantity          Int            @default(1)
+  remainingQuantity Int            @default(1) @map("remaining_quantity")
+  status            OrderStatus    @default(OPEN)
+  idempotencyKey    String?        @map("idempotency_key")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  user              User           @relation(fields: [userId], references: [id])
+  event             Event          @relation(fields: [eventId], references: [id])
+  ticketType        TicketType     @relation(fields: [ticketTypeId], references: [id])
+  ticket            Ticket?        @relation(fields: [ticketId], references: [id])
+  buyTrade          Trade?         @relation("BuyOrder")
+  sellTrade         Trade?         @relation("SellOrder")
   payments          Payment[]
+  inventoryHold     InventoryHold?
 
   @@unique([userId, idempotencyKey])
   @@map("orders")
+}
+
+model Onsale {
+  id                          String          @id
+  eventId                     String          @unique @map("event_id")
+  status                      OnsaleStatus    @default(SCHEDULED)
+  queueEnabled                Boolean         @default(false) @map("queue_enabled")
+  waitingRoomOpensAt          DateTime        @map("waiting_room_opens_at")
+  opensAt                     DateTime        @map("opens_at")
+  closesAt                    DateTime        @map("closes_at")
+  checkoutWindowSeconds       Int             @default(600) @map("checkout_window_seconds")
+  maxActiveCheckouts          Int             @default(100) @map("max_active_checkouts")
+  admissionBatchSize          Int             @default(25) @map("admission_batch_size")
+  purchaseLimitPerUser        Int             @default(4) @map("purchase_limit_per_user")
+  maxAccountsPerPaymentMethod Int             @default(1) @map("max_accounts_per_payment_method")
+  lastQueuePosition           Int             @default(0) @map("last_queue_position")
+  admittedThrough             Int             @default(0) @map("admitted_through")
+  queueFinalizedAt            DateTime?       @map("queue_finalized_at")
+  fairnessVersion             String          @default("hmac-sha256-v1") @map("fairness_version")
+  allocationPolicyVersion     String          @map("allocation_policy_version")
+  allocationPublishedAt       DateTime        @map("allocation_published_at")
+  allocationBreakdown         Json            @map("allocation_breakdown")
+  createdAt                   DateTime        @default(now()) @map("created_at")
+  updatedAt                   DateTime        @updatedAt @map("updated_at")
+  event                       Event           @relation(fields: [eventId], references: [id])
+  queueEntries                QueueEntry[]
+  inventoryHolds              InventoryHold[]
+
+  @@map("onsales")
+}
+
+model QueueEntry {
+  id                 String           @id
+  onsaleId           String           @map("onsale_id")
+  userId             String           @map("user_id")
+  phase              String
+  position           Int?
+  fairnessKey        String           @map("fairness_key")
+  clientInstanceHash String?          @map("client_instance_hash")
+  status             QueueEntryStatus @default(WAITING)
+  riskDecision       String           @default("ALLOW") @map("risk_decision")
+  attempt            Int              @default(1)
+  joinedAt           DateTime         @default(now()) @map("joined_at")
+  admittedAt         DateTime?        @map("admitted_at")
+  accessExpiresAt    DateTime?        @map("access_expires_at")
+  completedAt        DateTime?        @map("completed_at")
+  lastSeenAt         DateTime         @default(now()) @map("last_seen_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  onsale             Onsale           @relation(fields: [onsaleId], references: [id])
+  user               User             @relation(fields: [userId], references: [id])
+  inventoryHolds     InventoryHold[]
+
+  @@unique([onsaleId, userId])
+  @@unique([onsaleId, clientInstanceHash])
+  @@index([onsaleId, status, position])
+  @@map("queue_entries")
+}
+
+model InventoryHold {
+  id            String              @id
+  onsaleId      String?             @map("onsale_id")
+  eventId       String              @map("event_id")
+  ticketTypeId  String              @map("ticket_type_id")
+  userId        String              @map("user_id")
+  queueEntryId  String?             @map("queue_entry_id")
+  orderId       String?             @unique @map("order_id")
+  ticketId      String?             @unique @map("ticket_id")
+  source        InventoryHoldSource
+  status        InventoryHoldStatus @default(ACTIVE)
+  quantity      Int                 @default(1)
+  expiresAt     DateTime            @map("expires_at")
+  authorizedAt  DateTime?           @map("authorized_at")
+  convertedAt   DateTime?           @map("converted_at")
+  releasedAt    DateTime?           @map("released_at")
+  releaseReason String?             @map("release_reason")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  onsale        Onsale?             @relation(fields: [onsaleId], references: [id])
+  event         Event               @relation(fields: [eventId], references: [id])
+  ticketType    TicketType          @relation(fields: [ticketTypeId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
+  queueEntry    QueueEntry?         @relation(fields: [queueEntryId], references: [id])
+  order         Order?              @relation(fields: [orderId], references: [id])
+  ticket        Ticket?             @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketTypeId, status, expiresAt])
+  @@index([eventId, userId, status])
+  @@index([onsaleId, status])
+  @@map("inventory_holds")
 }
 
 model Trade {
@@ -272,20 +398,21 @@ model FanScore {
 }
 
 model Payment {
-  id                    String   @id @default(cuid())
-  userId                String   @map("user_id")
-  orderId               String?  @map("order_id")
-  stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id")
-  clientSecret          String?  @map("client_secret")
-  amount                Int
-  currency              String
-  status                String
-  captureStatus         String   @map("capture_status")
-  idempotencyKey        String?  @map("idempotency_key")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  user                  User     @relation(fields: [userId], references: [id])
-  order                 Order?   @relation(fields: [orderId], references: [id])
+  id                           String   @id @default(cuid())
+  userId                       String   @map("user_id")
+  orderId                      String?  @map("order_id")
+  stripePaymentIntentId        String?  @unique @map("stripe_payment_intent_id")
+  clientSecret                 String?  @map("client_secret")
+  amount                       Int
+  currency                     String
+  status                       String
+  captureStatus                String   @map("capture_status")
+  paymentMethodFingerprintHash String?  @map("payment_method_fingerprint_hash")
+  idempotencyKey               String?  @map("idempotency_key")
+  createdAt                    DateTime @default(now()) @map("created_at")
+  updatedAt                    DateTime @updatedAt @map("updated_at")
+  user                         User     @relation(fields: [userId], references: [id])
+  order                        Order?   @relation(fields: [orderId], references: [id])
 
   @@unique([userId, idempotencyKey])
   @@map("payments")

@@ -191,3 +191,11 @@ For two buyers racing on one ticket, the database transaction conditionally clai
 Trade idempotency is keyed by the unique `buyOrderId`. Settlement never looks up a trade with `buyOrderId OR sellOrderId`, because that could return the winning buyer's trade to a different buyer during a race. Ownership finalization also checks that an existing trade has the exact expected buy order, sell order, and ticket.
 
 Realtime update reasons now include `order_rejected`; clients refresh the same event/ticket-type snapshot after listing, cancellation, rejection, trade settlement, or primary issuance.
+
+## Atomic Primary Inventory And Queue Holds - 2026-07-12
+
+Primary inventory no longer relies on the catalog's displayed quantity. `PRIMARY_ONLY` order creation acquires the ticket-type row lock before inserting the order, checks the account's active/authorized/converted quantity, and creates an `inventory_holds` row in the same transaction. This lock order avoids the foreign-key deadlock created by inserting competing orders before locking their shared ticket type.
+
+The hold owns inventory during checkout; the queue place alone does not. Ticket issuance converts the hold in the same database transaction as ticket creation. A delayed authorization cannot revive an expired queue hold. Payment rejection or failed settlement releases the hold and uses the existing idempotent payment compensation outbox.
+
+Real PostgreSQL tests cover final-ticket contention, simultaneous account-limit requests, simultaneous same-card accounts, late authorization, and missing Stripe identity signals.

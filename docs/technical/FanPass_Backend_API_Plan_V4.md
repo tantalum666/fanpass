@@ -67,3 +67,15 @@ Date: 2026-06-05
 - Check-in must be idempotent by credential nonce and ticket/event pair.
 - Resale listing creation must reserve ticket entry eligibility according to organizer policy.
 - Blockchain sync endpoints should be admin/service-only until public proof views are hardened.
+
+## Implemented High-Demand On-Sale API - 2026-07-12
+
+The current staging API adds three routes without a `/v1` prefix:
+
+| Method | Path | Auth | Response boundary |
+| --- | --- | --- | --- |
+| `GET` | `/onsales/events/:eventId/snapshot` | Public | Aggregate allocation, inventory, queue flow, and fairness commitment only. |
+| `GET` | `/onsales/events/:eventId/queue/me` | Fan/Admin | Public snapshot plus only the signed-in account's queue number, users ahead, status, and checkout lease. |
+| `POST` | `/onsales/events/:eventId/queue/join` | Fan/Admin | Account/app-installation-bound queue join or safe idempotent return of the existing place. |
+
+Primary `POST /orders` now creates the order and atomic inventory hold in one PostgreSQL transaction. Queue-managed primary payment uses Stripe manual card authorization; a verified webhook must authorize the hold before the outbox can issue a ticket. See `docs/technical/FanPass_High_Demand_Onsale_Design_V4.md`.

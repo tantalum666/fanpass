@@ -111,7 +111,7 @@ function validateXcodeTargets() {
   const fanPassBlock = targetBlock(project, "FanPass", "FanPassOps");
   const opsBlock = targetBlock(project, "FanPassOps", null);
 
-  if (!/excludes:\s*\n\s*-\s*Features\/Scanner/.test(fanPassBlock)) {
+  if (!/^\s*-\s*Features\/Scanner\s*$/m.test(fanPassBlock)) {
     errors.push("FanPass target must exclude Features/Scanner");
   }
   if (

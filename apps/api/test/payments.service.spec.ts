@@ -121,9 +121,7 @@ describe("PaymentsService", () => {
     );
 
     expect(payment.clientSecret).toBe("pi_demo_secret_test");
-    expect(createProviderPaymentIntent).toHaveBeenCalledWith(
-      incompletePayment,
-    );
+    expect(createProviderPaymentIntent).toHaveBeenCalledWith(incompletePayment);
     expect(prisma.payment.update).toHaveBeenCalledWith({
       where: {
         id: "pay_demo",
@@ -180,6 +178,98 @@ describe("PaymentsService", () => {
     expect(prisma.payment.update).not.toHaveBeenCalled();
     expect(outbox.markCompleted).not.toHaveBeenCalled();
     expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it("cancels a card authorization instead of issuing when the on-sale hold is rejected", async () => {
+    const authorizedPayment = {
+      ...incompletePayment,
+      stripePaymentIntentId: "pi_onsale_rejected",
+      status: "requires_capture",
+      captureStatus: "AUTHORIZED",
+      paymentMethodFingerprintHash: "hashed_card_identity",
+    };
+    const tx = {
+      paymentWebhookEvent: {
+        create: jest.fn(async () => ({ id: "pwe_onsale_rejected" })),
+        update: jest.fn(),
+      },
+      payment: {
+        findFirst: jest.fn(async () => incompletePayment),
+        update: jest.fn(async () => authorizedPayment),
+      },
+      order: {
+        updateMany: jest.fn(async () => ({ count: 1 })),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    const outbox = {
+      enqueue: jest.fn(),
+      markCompleted: jest.fn(),
+    };
+    const audit = {
+      record: jest.fn(),
+    };
+    const onsaleInventory = {
+      authorizeOrderHold: jest.fn(async () => ({
+        hasPrimaryHold: true,
+        authorized: false,
+        reason: "identity_limit",
+      })),
+    };
+    const service = new PaymentsService(
+      new ConfigService(),
+      prisma as never,
+      outbox as never,
+      audit as never,
+      undefined,
+      onsaleInventory as never,
+    );
+    jest
+      .spyOn(service as any, "paymentMethodFingerprintHashForIntent")
+      .mockResolvedValue("hashed_card_identity");
+    jest.spyOn(service as any, "constructWebhookEvent").mockReturnValue({
+      id: "evt_onsale_rejected",
+      type: "payment_intent.amount_capturable_updated",
+      data: {
+        object: {
+          id: "pi_onsale_rejected",
+          status: "requires_capture",
+          latest_charge: "ch_onsale_rejected",
+        },
+      },
+    });
+
+    await service.handleWebhook(Buffer.alloc(0), undefined);
+
+    expect(tx.order.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "REJECTED" }),
+      }),
+    );
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        type: "PAYMENT_CANCEL_AUTHORIZATION",
+        aggregateId: authorizedPayment.id,
+      }),
+    );
+    expect(outbox.enqueue).not.toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ type: "ORDER_MATCH_AFTER_PAYMENT_AUTH" }),
+    );
+    expect(tx.paymentWebhookEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ reason: "identity_limit" }),
+      }),
+    );
   });
 
   it("creates a USDC crypto quote with ERC-20 transfer calldata", async () => {
@@ -429,7 +519,7 @@ describe("PaymentsService", () => {
                   `0x${payer.slice(2).padStart(64, "0")}`,
                   `0x${receiver.slice(2).padStart(64, "0")}`,
                 ],
-                data: `0x${(999999999999n).toString(16).padStart(64, "0")}`,
+                data: `0x${999999999999n.toString(16).padStart(64, "0")}`,
               },
             ],
           },
@@ -554,7 +644,7 @@ describe("PaymentsService", () => {
         return {
           ok: true,
           json: async () => ({
-            result: `0x${(999999999999n).toString(16)}`,
+            result: `0x${999999999999n.toString(16)}`,
           }),
         } as Response;
       }
@@ -584,7 +674,7 @@ describe("PaymentsService", () => {
                   `0x${payer.slice(2).padStart(64, "0")}`,
                   `0x${receiver.slice(2).padStart(64, "0")}`,
                 ],
-                data: `0x${(999999999999n).toString(16).padStart(64, "0")}`,
+                data: `0x${999999999999n.toString(16).padStart(64, "0")}`,
               },
             ],
           },
@@ -721,11 +811,14 @@ describe("PaymentsService", () => {
     ).rejects.toMatchObject({
       response: {
         result: "INSUFFICIENT_USDC_BALANCE",
-        message: "Your FanPass wallet does not have enough USDC for this order.",
+        message:
+          "Your FanPass wallet does not have enough USDC for this order.",
       },
       status: 400,
     });
-    expect(privyWallets.sendSponsoredEthereumTransaction).not.toHaveBeenCalled();
+    expect(
+      privyWallets.sendSponsoredEthereumTransaction,
+    ).not.toHaveBeenCalled();
   });
 
   it("maps Privy sponsored wallet authorization failures to payment-unavailable copy", async () => {
@@ -772,7 +865,7 @@ describe("PaymentsService", () => {
       return {
         ok: true,
         json: async () => ({
-          result: `0x${(999999999999n).toString(16)}`,
+          result: `0x${999999999999n.toString(16)}`,
         }),
       } as Response;
     });

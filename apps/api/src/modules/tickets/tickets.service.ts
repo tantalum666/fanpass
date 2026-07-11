@@ -12,6 +12,7 @@ import { TicketRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
 import { AuditService } from "../audit/audit.service";
+import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
 import { TicketOwnershipSideEffectsService } from "../side-effects/ticket-ownership-side-effects.service";
 
 export interface IssueTicketInput {
@@ -19,6 +20,7 @@ export interface IssueTicketInput {
   ticketTypeId: string;
   ownerId: string;
   seatHash?: string;
+  inventoryHoldId?: string;
 }
 
 export interface TicketProofHistoryItem {
@@ -99,6 +101,7 @@ export class TicketsService {
     private readonly ticketOwnership: TicketOwnershipSideEffectsService,
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly onsaleInventory?: OnsaleInventoryService,
   ) {}
 
   listTickets(session?: FanPassSession) {
@@ -519,9 +522,9 @@ export class TicketsService {
   ): Promise<TicketChainProofResponse> {
     const checkedAt = new Date().toISOString();
     const latestOwnership = this.latestOwnershipProof(input.auditLogs);
-    const tokenId = input.tokenId ?? this.tokenIdFromOwnershipRef(
-      latestOwnership?.ownershipRef ?? null,
-    );
+    const tokenId =
+      input.tokenId ??
+      this.tokenIdFromOwnershipRef(latestOwnership?.ownershipRef ?? null);
     const contractAddress =
       this.contractFromOwnershipRef(latestOwnership?.ownershipRef ?? null) ??
       this.configAddress("FANPASS_TICKET_CONTRACT_ADDRESS");
@@ -564,7 +567,8 @@ export class TicketsService {
         return {
           ...base,
           status: "no_chain_record",
-          message: "The configured FanPass ticket contract has no bytecode on the selected chain.",
+          message:
+            "The configured FanPass ticket contract has no bytecode on the selected chain.",
         };
       }
       if (!tokenId || !/^\d+$/.test(tokenId)) {
@@ -583,11 +587,31 @@ export class TicketsService {
         transferCountResult,
         proofResult,
       ] = await Promise.all([
-        this.ethCall(rpcUrl, contractAddress, this.uint256Call("6352211e", tokenId)),
-        this.ethCall(rpcUrl, contractAddress, this.uint256Call("998f6ac0", tokenId)),
-        this.ethCall(rpcUrl, contractAddress, this.uint256Call("017a9105", tokenId)),
-        this.ethCall(rpcUrl, contractAddress, this.uint256Call("ed810d30", tokenId)),
-        this.ethCall(rpcUrl, contractAddress, this.uint256Call("9ddaf5aa", tokenId)),
+        this.ethCall(
+          rpcUrl,
+          contractAddress,
+          this.uint256Call("6352211e", tokenId),
+        ),
+        this.ethCall(
+          rpcUrl,
+          contractAddress,
+          this.uint256Call("998f6ac0", tokenId),
+        ),
+        this.ethCall(
+          rpcUrl,
+          contractAddress,
+          this.uint256Call("017a9105", tokenId),
+        ),
+        this.ethCall(
+          rpcUrl,
+          contractAddress,
+          this.uint256Call("ed810d30", tokenId),
+        ),
+        this.ethCall(
+          rpcUrl,
+          contractAddress,
+          this.uint256Call("9ddaf5aa", tokenId),
+        ),
       ]);
 
       const onChainOwnerAddress = this.decodeAddress(ownerResult);
@@ -619,7 +643,10 @@ export class TicketsService {
         metadataHashMatches: proofWords[3]
           ? proofWords[3].toLowerCase() === expectedProof.metadataHash
           : null,
-        state: stateValue === null ? null : this.ticketStateLabel(Number(stateValue)),
+        state:
+          stateValue === null
+            ? null
+            : this.ticketStateLabel(Number(stateValue)),
         transferCount: this.decodeUint(transferCountResult),
       };
       const transaction = await this.bestTransactionProof(
@@ -796,7 +823,10 @@ export class TicketsService {
         tokenId,
         transferCount,
       );
-      const transferTransaction = await this.transactionProof(rpcUrl, transferHash);
+      const transferTransaction = await this.transactionProof(
+        rpcUrl,
+        transferHash,
+      );
       if (transferTransaction?.status === "success") {
         return transferTransaction;
       }
@@ -832,21 +862,21 @@ export class TicketsService {
         ],
       },
     ]);
-    const matchingLogs = logs
-      .filter((log) => /^0x[a-fA-F0-9]{64}$/.test(log.transactionHash ?? ""));
+    const matchingLogs = logs.filter((log) =>
+      /^0x[a-fA-F0-9]{64}$/.test(log.transactionHash ?? ""),
+    );
     const candidates =
       transferCount === "0"
         ? matchingLogs.filter((log) => this.isMintTransferLog(log))
         : matchingLogs;
-    const latest = candidates
-      .sort((left, right) => {
-        const leftBlock = this.hexQuantity(left.blockNumber);
-        const rightBlock = this.hexQuantity(right.blockNumber);
-        if (leftBlock !== rightBlock) {
-          return rightBlock - leftBlock;
-        }
-        return this.hexQuantity(right.logIndex) - this.hexQuantity(left.logIndex);
-      })[0];
+    const latest = candidates.sort((left, right) => {
+      const leftBlock = this.hexQuantity(left.blockNumber);
+      const rightBlock = this.hexQuantity(right.blockNumber);
+      if (leftBlock !== rightBlock) {
+        return rightBlock - leftBlock;
+      }
+      return this.hexQuantity(right.logIndex) - this.hexQuantity(left.logIndex);
+    })[0];
     return latest?.transactionHash ?? null;
   }
 
@@ -1034,7 +1064,10 @@ export class TicketsService {
     for (const log of logs) {
       const metadata = this.recordMetadata(log.metadata);
       const adapter = this.optionalMetadataString(metadata, "ownershipAdapter");
-      const ownershipRef = this.optionalMetadataString(metadata, "ownershipRef");
+      const ownershipRef = this.optionalMetadataString(
+        metadata,
+        "ownershipRef",
+      );
       const transactionHash = this.optionalMetadataString(
         metadata,
         "transactionHash",
@@ -1114,9 +1147,7 @@ export class TicketsService {
   }
 
   private entryState(status: TicketRecord["status"]) {
-    return status === "ACTIVE" || status === "TRANSFERRED"
-      ? "Ready"
-      : "Paused";
+    return status === "ACTIVE" || status === "TRANSFERRED" ? "Ready" : "Paused";
   }
 
   private safeStatus(status: TicketRecord["status"]) {
@@ -1137,6 +1168,7 @@ export class TicketsService {
     input: IssueTicketInput,
     session?: FanPassSession,
   ) {
+    const onsaleInventory = this.requireOnsaleInventory();
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: input.eventId },
       include: {
@@ -1153,6 +1185,26 @@ export class TicketsService {
     const owner = await prisma.user.findUniqueOrThrow({
       where: { id: input.ownerId },
     });
+    const administrativeHold = !input.inventoryHoldId;
+    const inventoryHold = input.inventoryHoldId
+      ? await prisma.inventoryHold.findUnique({
+          where: { id: input.inventoryHoldId },
+        })
+      : await onsaleInventory.reserveAdministrativeInventory({
+          eventId: input.eventId,
+          ticketTypeId: input.ticketTypeId,
+          ownerId: input.ownerId,
+        });
+    if (
+      !inventoryHold ||
+      inventoryHold.eventId !== input.eventId ||
+      inventoryHold.ticketTypeId !== input.ticketTypeId ||
+      inventoryHold.userId !== input.ownerId
+    ) {
+      throw new BadRequestException(
+        "Inventory hold does not match this ticket issuance",
+      );
+    }
     const ticketId = `tkt_${randomUUID()}`;
     const tokenIdHint = String((await prisma.ticket.count()) + 1);
     const ownershipInput = {
@@ -1168,81 +1220,106 @@ export class TicketsService {
       metadataUri: null,
     };
 
-    if (this.ticketOwnership.usesOutboxProofSync()) {
-      const ticket = await prisma.$transaction(
-        async (tx: Prisma.TransactionClient) => {
-          const ownership = await this.ticketOwnership.issueTicket(
-            ownershipInput,
-            { writer: tx },
-          );
-          const issued = await tx.ticket.create({
-            data: {
-              id: ticketId,
-              tokenId: ownership.tokenId,
-              eventId: input.eventId,
-              ticketTypeId: input.ticketTypeId,
-              ownerId: input.ownerId,
-              seatHash: input.seatHash ?? null,
-              status: "ACTIVE",
-              transferCount: 0,
-              metadataUri: null,
-            },
-          });
-          await tx.auditLog.create({
-            data: {
-              actorId: input.ownerId,
-              action: "TICKET_ISSUED",
-              entityType: "ticket",
-              entityId: issued.id,
-              metadataJson: {
+    const usesOutboxProofSync = this.ticketOwnership.usesOutboxProofSync();
+    let providerOwnershipCreated = false;
+    try {
+      if (usesOutboxProofSync) {
+        const ticket = await prisma.$transaction(
+          async (tx: Prisma.TransactionClient) => {
+            const ownership = await this.ticketOwnership.issueTicket(
+              ownershipInput,
+              { writer: tx },
+            );
+            const issued = await tx.ticket.create({
+              data: {
+                id: ticketId,
+                tokenId: ownership.tokenId,
                 eventId: input.eventId,
                 ticketTypeId: input.ticketTypeId,
-                ownershipAdapter: ownership.adapter,
-                ownershipRef: ownership.ownershipRef,
-                transactionHash: ownership.transactionHash,
+                ownerId: input.ownerId,
+                seatHash: input.seatHash ?? null,
+                status: "ACTIVE",
+                transferCount: 0,
+                metadataUri: null,
               },
+            });
+            await onsaleInventory.consumeHold(tx, {
+              holdId: inventoryHold.id,
+              ticketId: issued.id,
+            });
+            await tx.auditLog.create({
+              data: {
+                actorId: input.ownerId,
+                action: "TICKET_ISSUED",
+                entityType: "ticket",
+                entityId: issued.id,
+                metadataJson: {
+                  eventId: input.eventId,
+                  ticketTypeId: input.ticketTypeId,
+                  ownershipAdapter: ownership.adapter,
+                  ownershipRef: ownership.ownershipRef,
+                  transactionHash: ownership.transactionHash,
+                },
+              },
+            });
+            return issued;
+          },
+        );
+        return this.mapPrismaTicket(ticket);
+      }
+
+      const ownership = await this.ticketOwnership.issueTicket({
+        ...ownershipInput,
+      });
+      providerOwnershipCreated = true;
+      const ticket = await prisma.$transaction(async (tx) => {
+        const issued = await tx.ticket.create({
+          data: {
+            id: ticketId,
+            tokenId: ownership.tokenId,
+            eventId: input.eventId,
+            ticketTypeId: input.ticketTypeId,
+            ownerId: input.ownerId,
+            seatHash: input.seatHash ?? null,
+            status: "ACTIVE",
+            transferCount: 0,
+            metadataUri: null,
+          },
+        });
+        await onsaleInventory.consumeHold(tx, {
+          holdId: inventoryHold.id,
+          ticketId: issued.id,
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: input.ownerId,
+            action: "TICKET_ISSUED",
+            entityType: "ticket",
+            entityId: issued.id,
+            metadataJson: {
+              eventId: input.eventId,
+              ticketTypeId: input.ticketTypeId,
+              ownershipAdapter: ownership.adapter,
+              ownershipRef: ownership.ownershipRef,
+              transactionHash: ownership.transactionHash,
             },
-          });
-          return issued;
-        },
-      );
-
+          },
+        });
+        return issued;
+      });
       return this.mapPrismaTicket(ticket);
+    } catch (error) {
+      if (
+        administrativeHold &&
+        (usesOutboxProofSync || !providerOwnershipCreated)
+      ) {
+        await onsaleInventory.releaseHoldById(
+          inventoryHold.id,
+          "ticket_issue_failed",
+        );
+      }
+      throw error;
     }
-
-    const ownership = await this.ticketOwnership.issueTicket({
-      ...ownershipInput,
-    });
-
-    const ticket = await prisma.ticket.create({
-      data: {
-        id: ticketId,
-        tokenId: ownership.tokenId,
-        eventId: input.eventId,
-        ticketTypeId: input.ticketTypeId,
-        ownerId: input.ownerId,
-        seatHash: input.seatHash ?? null,
-        status: "ACTIVE",
-        transferCount: 0,
-        metadataUri: null,
-      },
-    });
-
-    await this.audit.record(
-      input.ownerId,
-      "TICKET_ISSUED",
-      "ticket",
-      ticket.id,
-      {
-        eventId: input.eventId,
-        ticketTypeId: input.ticketTypeId,
-        ownershipAdapter: ownership.adapter,
-        ownershipRef: ownership.ownershipRef,
-        transactionHash: ownership.transactionHash,
-      },
-    );
-
-    return this.mapPrismaTicket(ticket);
   }
 
   private mapPrismaTicket(ticket: {
@@ -1287,6 +1364,13 @@ export class TicketsService {
       event: ticket.event,
       ticketType: ticket.ticketType,
     };
+  }
+
+  private requireOnsaleInventory() {
+    if (!this.onsaleInventory) {
+      throw new BadRequestException("Primary inventory service is unavailable");
+    }
+    return this.onsaleInventory;
   }
 
   private prismaClient() {

@@ -10,6 +10,7 @@ describe("security config validation", () => {
   const productionConfig = {
     NODE_ENV: "production",
     QR_SIGNING_SECRET: "qr-secret-with-at-least-thirty-two-chars",
+    FANPASS_ONSALE_QUEUE_SECRET: "onsale-secret-with-at-least-thirty-two-chars",
     PRIVY_APP_ID: "privy-app-demo",
     PRIVY_VERIFICATION_KEY: TEST_PRIVY_PUBLIC_KEY,
     FANPASS_CORS_ORIGINS: "https://console.fanpass.test",
@@ -129,6 +130,8 @@ describe("security config validation", () => {
         NODE_ENV: "production",
         FANPASS_ENV: "staging",
         QR_SIGNING_SECRET: "qr-secret-with-at-least-thirty-two-chars",
+        FANPASS_ONSALE_QUEUE_SECRET:
+          "onsale-secret-with-at-least-thirty-two-chars",
         PRIVY_APP_ID: "privy-app-demo",
         PRIVY_VERIFICATION_KEY: TEST_PRIVY_PUBLIC_KEY,
         FANPASS_CORS_ORIGINS: "https://console.fanpass.test",

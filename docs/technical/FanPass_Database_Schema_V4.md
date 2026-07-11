@@ -183,3 +183,25 @@ Columns: `id uuid primary key`, `actor_user_id uuid null`, `actor_role text`, `a
 Foreign keys: `actor_user_id -> users.id`.
 Indexes: `actor_user_id`, `(target_type, target_id)`, `action`, `created_at`.
 Privacy: immutable operational log; redact personal data.
+
+## Implemented On-Sale Tables - 2026-07-12
+
+The active Prisma schema now includes:
+
+### `onsales`
+
+One row per event with status, waiting-room/open/close times, queue limits, admission batch size, checkout window, account and payment-method limits, public allocation breakdown, fairness version, last assigned position, and admitted-through position.
+
+### `queue_entries`
+
+One row per `(onsale_id, user_id)` and one row per `(onsale_id, client_instance_hash)`. It stores a private position, prequeue/live phase, HMAC fairness key, attempt, status, admission/expiry/completion times, and a non-public risk decision. Index `(onsale_id, status, position)` supports admission scans.
+
+### `inventory_holds`
+
+One hold per primary order and, after issuance, one converted hold per ticket. It stores ticket type, account, optional queue entry, quantity, source, status, expiry, authorization/conversion/release times, and a safe release reason. Active and authorized holds count against supply.
+
+### `payments.payment_method_fingerprint_hash`
+
+Stores only an HMAC of the Stripe card fingerprint. The raw Stripe fingerprint is never persisted or returned. Event-scoped advisory locking prevents simultaneous transactions from bypassing the configured linked-account limit.
+
+Primary inventory must satisfy `sold + active holds + authorized holds <= supply`. Ticket-type row locking, not a cached available counter, decides the winner for the final ticket.

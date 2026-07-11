@@ -8,6 +8,7 @@ export interface PublicEventsUpsertResult {
   events: number;
   ticketTypes: number;
   fanTasks: number;
+  onsales: number;
 }
 
 export async function upsertPublicEvents(
@@ -96,6 +97,63 @@ export async function upsertPublicEvents(
     });
   }
 
+  const auroraAllocationBreakdown = [
+    {
+      key: "public_sale",
+      label: "Public sale",
+      quantity: 45_000,
+      publicSale: true,
+    },
+    {
+      key: "artist_presale",
+      label: "Artist presale",
+      quantity: 2_000,
+      publicSale: false,
+    },
+    {
+      key: "production_hold",
+      label: "Production hold",
+      quantity: 1_500,
+      publicSale: false,
+    },
+    {
+      key: "accessible_reserve",
+      label: "Accessible reserve",
+      quantity: 500,
+      publicSale: false,
+    },
+    {
+      key: "venue_partner",
+      label: "Venue and partner allocation",
+      quantity: 1_000,
+      publicSale: false,
+    },
+  ];
+  const auroraOnsalePolicy = {
+    status: "OPEN" as const,
+    queueEnabled: true,
+    waitingRoomOpensAt: new Date("2026-06-30T20:00:00+08:00"),
+    opensAt: new Date("2026-07-01T10:00:00+08:00"),
+    closesAt: new Date("2026-10-12T19:30:00+08:00"),
+    checkoutWindowSeconds: 600,
+    maxActiveCheckouts: 25,
+    admissionBatchSize: 10,
+    purchaseLimitPerUser: 2,
+    maxAccountsPerPaymentMethod: 1,
+    allocationPolicyVersion: "aurora-public-allocation-v1",
+    allocationPublishedAt: new Date("2026-06-25T12:00:00+08:00"),
+    allocationBreakdown: auroraAllocationBreakdown,
+  };
+  await prisma.onsale.upsert({
+    where: { eventId: "evt_aurora" },
+    create: {
+      id: "onsale_evt_aurora_2026_public",
+      eventId: "evt_aurora",
+      ...auroraOnsalePolicy,
+    },
+    update: auroraOnsalePolicy,
+  });
+
   for (const task of seed.fanTasks) {
     await prisma.fanTask.upsert({
       where: { id: task.id },
@@ -129,10 +187,11 @@ export async function upsertPublicEvents(
   await markLegacyDuplicateEvents(prisma);
 
   const publicEventIds = seed.events.map((event) => event.id);
-  const [events, ticketTypes, fanTasks] = await Promise.all([
+  const [events, ticketTypes, fanTasks, onsales] = await Promise.all([
     prisma.event.count({ where: { id: { in: publicEventIds } } }),
     prisma.ticketType.count({ where: { eventId: { in: publicEventIds } } }),
     prisma.fanTask.count({ where: { eventId: { in: publicEventIds } } }),
+    prisma.onsale.count({ where: { eventId: { in: publicEventIds } } }),
   ]);
 
   return {
@@ -141,6 +200,7 @@ export async function upsertPublicEvents(
     events,
     ticketTypes,
     fanTasks,
+    onsales,
   };
 }
 

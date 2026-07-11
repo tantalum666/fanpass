@@ -305,7 +305,7 @@ function createPublicCatalogSeed(): Pick<DemoSeedData, "venues" | "events" | "ti
   ];
 
   const eventSpecs = [
-    publicEvent("evt_aurora", "Aurora Nights World Tour", "venue_harbor", "2026-10-12T20:00:00+08:00", 1280, "concerts", true, true, 38, 8),
+    publicEvent("evt_aurora", "Aurora Nights World Tour", "venue_harbor", "2026-10-12T20:00:00+08:00", 1280, "concerts", true, true, 35_000, 8_000),
     publicEvent("evt_neon", "Neon Harbor Festival", "venue_riverside", "2026-11-15T18:00:00+08:00", 860, "festivals", true, true, 128, 36),
     publicEvent("evt_finals", "City Finals 2026", "venue_city", "2026-12-18T19:00:00+08:00", 720, "sports", false, true, 0, 0),
     publicEvent("evt_indie", "Indie Pulse Live", "venue_indie", "2026-12-22T21:00:00+08:00", 420, "concerts", true, false, 360, 92),

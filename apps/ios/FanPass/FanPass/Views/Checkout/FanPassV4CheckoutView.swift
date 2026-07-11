@@ -12,6 +12,8 @@ struct FanPassV4CheckoutView: View {
     @State private var showingAuthGate = false
     @State private var showingCryptoSheet = false
     @State private var checkoutOutcome: CheckoutOutcome?
+    @State private var onsaleCheckoutGate: FanPassOnsaleCheckoutGate
+    @State private var availableByTicketType: [String: Int] = [:]
 
     init(
         event: FanPassV4.Event = FanPassMockData.events[0],
@@ -22,6 +24,9 @@ struct FanPassV4CheckoutView: View {
         onAuthRequired: (() -> Void)? = nil
     ) {
         self.onAuthRequired = onAuthRequired
+        _onsaleCheckoutGate = State(
+            initialValue: fulfillmentMode == .primaryOnly ? .checking : .direct
+        )
         _viewModel = State(
             initialValue: CheckoutViewModel(
                 event: event,
@@ -67,6 +72,14 @@ struct FanPassV4CheckoutView: View {
                             .monospacedDigit()
                     }
                 }
+            }
+
+            if viewModel.fulfillmentMode == .primaryOnly {
+                FanPassV4OnsaleTransparencyView(
+                    event: viewModel.event,
+                    checkoutGate: $onsaleCheckoutGate,
+                    availableByTicketType: $availableByTicketType
+                )
             }
 
             paymentControls
@@ -154,15 +167,19 @@ struct FanPassV4CheckoutView: View {
 
     private var paymentControls: some View {
         VStack(spacing: FPSpacing.md) {
-            FPPrimaryButton(title: "Pay with USDC", systemImage: "bitcoinsign.circle.fill") {
+            FPPrimaryButton(
+                title: isQueueManagedSale ? "USDC unavailable for queued sale" : "Pay with USDC",
+                systemImage: "bitcoinsign.circle.fill"
+            ) {
                 prepareCryptoCheckout()
             }
+            .disabled(isQueueManagedSale || !saleAllowsCheckout)
             FPSecondaryButton(title: "Pay by card", systemImage: "creditcard.fill") {
                 Task {
                     await prepareAndPresentStripe()
                 }
             }
-            .disabled(isPreparingStripe || viewModel.paymentState == .authorizing)
+            .disabled(isPreparingStripe || viewModel.paymentState == .authorizing || !saleAllowsCheckout)
             Text(stripeReadinessMessage)
                 .font(FPTypography.caption)
                 .foregroundStyle(isStripeReady ? FPColors.textSecondary : FPColors.warningAmber)
@@ -224,6 +241,9 @@ struct FanPassV4CheckoutView: View {
         if !hasBackendCheckoutCatalogItem {
             return "Card checkout is not available for this ticket yet."
         }
+        if !saleAllowsCheckout {
+            return onsaleCheckoutGate.buttonTitle
+        }
         if !hasAvailableInventory {
             return "Online checkout for this ticket category is unavailable."
         }
@@ -237,6 +257,7 @@ struct FanPassV4CheckoutView: View {
             hasAPIBearerSession &&
             hasLiveAPISessionForStripe &&
             hasBackendCheckoutCatalogItem &&
+            saleAllowsCheckout &&
             hasAvailableInventory
     }
 
@@ -263,6 +284,16 @@ struct FanPassV4CheckoutView: View {
         guard hasBackendCheckoutCatalogItem else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "Crypto checkout is not available for this event yet."
+            return
+        }
+        guard saleAllowsCheckout else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Join the live sale queue and wait for a checkout window before paying."
+            return
+        }
+        guard !isQueueManagedSale else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Queued on-sales currently require card authorization so inventory can be released safely if settlement fails."
             return
         }
         guard hasAvailableInventory else {
@@ -314,6 +345,11 @@ struct FanPassV4CheckoutView: View {
         guard hasBackendCheckoutCatalogItem else {
             viewModel.paymentState = .failed
             viewModel.errorMessage = "Card checkout is not available for this event yet."
+            return
+        }
+        guard saleAllowsCheckout else {
+            viewModel.paymentState = .failed
+            viewModel.errorMessage = "Join the live sale queue and wait for a checkout window before paying."
             return
         }
         guard hasAvailableInventory else {
@@ -368,7 +404,23 @@ struct FanPassV4CheckoutView: View {
     }
 
     private var hasAvailableInventory: Bool {
-        viewModel.fulfillmentMode == .resaleOnly || viewModel.ticketType.supply > 0
+        if viewModel.fulfillmentMode == .resaleOnly {
+            return true
+        }
+        return (availableByTicketType[viewModel.ticketType.id] ?? viewModel.ticketType.availableQuantity) > 0
+    }
+
+    private var saleAllowsCheckout: Bool {
+        viewModel.fulfillmentMode == .resaleOnly ||
+            !viewModel.event.isBackendBacked ||
+            onsaleCheckoutGate.allowsCheckout
+    }
+
+    private var isQueueManagedSale: Bool {
+        viewModel.fulfillmentMode == .primaryOnly &&
+            viewModel.event.isBackendBacked &&
+            onsaleCheckoutGate != .direct &&
+            onsaleCheckoutGate != .checking
     }
 
     private func requestSignIn() {

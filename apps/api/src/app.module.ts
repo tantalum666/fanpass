@@ -34,6 +34,9 @@ import { VerificationService } from "./modules/verification/verification.service
 import { WalletController } from "./modules/wallet/wallet.controller";
 import { WalletService } from "./modules/wallet/wallet.service";
 import { PrivyWalletService } from "./modules/privy/privy-wallet.service";
+import { OnsalesController } from "./modules/onsales/onsales.controller";
+import { OnsaleInventoryService } from "./modules/onsales/onsale-inventory.service";
+import { OnsalesService } from "./modules/onsales/onsales.service";
 import { validateEnvironment } from "./config/security-config";
 
 @Module({
@@ -53,6 +56,7 @@ import { validateEnvironment } from "./config/security-config";
     VerificationController,
     PaymentsController,
     WalletController,
+    OnsalesController,
     AlphaController,
   ],
   providers: [
@@ -83,6 +87,8 @@ import { validateEnvironment } from "./config/security-config";
     VerificationService,
     WalletService,
     PrivyWalletService,
+    OnsaleInventoryService,
+    OnsalesService,
   ],
 })
 export class AppModule {}

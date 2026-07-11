@@ -39,6 +39,28 @@ struct FanPassAPIClient {
         try await get("/events")
     }
 
+    func onsaleSnapshot(eventId: String) async throws -> FanPassOnsaleSnapshot {
+        try await get("/onsales/events/\(eventId)/snapshot", retryOnTransientNetworkLoss: true)
+    }
+
+    func onsaleQueueStatus(eventId: String) async throws -> FanPassOnsaleQueueResponse {
+        try await get("/onsales/events/\(eventId)/queue/me", retryOnTransientNetworkLoss: true)
+    }
+
+    func joinOnsaleQueue(eventId: String) async throws -> FanPassOnsaleQueueResponse {
+        struct JoinOnsaleQueueRequest: Encodable {
+            let clientInstanceId: String
+        }
+
+        return try await post(
+            "/onsales/events/\(eventId)/queue/join",
+            body: JoinOnsaleQueueRequest(
+                clientInstanceId: FanPassClientInstanceStore.shared.identifier()
+            ),
+            retryOnTransientNetworkLoss: true
+        )
+    }
+
     func register(name: String, email: String) async throws -> UserSession {
         struct RegisterRequest: Encodable {
             let name: String

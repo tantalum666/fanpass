@@ -36,6 +36,7 @@ const publicResponseClasses = new Set([
   "PUBLIC_MARKET",
   "AUTH_SESSION",
   "PROVIDER_INGRESS",
+  "DEVICE_INGRESS",
 ]);
 const allowedClasses = new Set([
   ...publicResponseClasses,
@@ -231,6 +232,24 @@ function validateClassification(handler, discovered, classification) {
   ) {
     errors.push(
       `${handler} is classified as PROVIDER_INGRESS outside the payment webhook boundary.`,
+    );
+  }
+  if (
+    classification === "DEVICE_INGRESS" &&
+    handler !==
+      "apps/api/src/modules/verification/verification.controller.ts:redeemTurnstile"
+  ) {
+    errors.push(
+      `${handler} is classified as DEVICE_INGRESS outside the turnstile redemption boundary.`,
+    );
+  }
+  if (
+    handler ===
+      "apps/api/src/modules/verification/verification.controller.ts:redeemTurnstile" &&
+    classification !== "DEVICE_INGRESS"
+  ) {
+    errors.push(
+      "turnstile redemption must remain classified as DEVICE_INGRESS.",
     );
   }
   if (

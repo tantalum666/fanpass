@@ -115,6 +115,7 @@ export function validateEnvironment(config: EnvMap) {
 
   if (productionLike) {
     validateProductionSecret(config, "QR_SIGNING_SECRET", errors);
+    validateProductionSecret(config, "FANPASS_ONSALE_QUEUE_SECRET", errors);
     validatePrivyConfiguration(config, errors);
     validatePaymentConfiguration(config, errors);
     validateOwnershipConfiguration(config, errors);

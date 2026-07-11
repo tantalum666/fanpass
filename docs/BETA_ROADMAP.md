@@ -179,5 +179,5 @@ Exit criteria:
 - Real event inventory integrations.
 - Venue turnstile hardware integration.
 - Unrestricted iPhone NFC card emulation.
-- Large-sale queueing and anti-bot at concert scale.
+- Managed edge admission, App Attest, cached fan-out, and load evidence for concert-scale sales. The PostgreSQL queue/inventory correctness layer and iOS transparency dashboard are implemented in staging foundation as of 2026-07-12.
 - Legal approval for real secondary-market operation.

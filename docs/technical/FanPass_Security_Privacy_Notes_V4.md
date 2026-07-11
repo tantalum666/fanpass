@@ -138,3 +138,18 @@ Do not build automatic seller payouts until legal model, marketplace responsibil
 - Full wallet addresses in screenshots.
 - Raw QR/NFC credentials in logs or docs.
 - Reuse of old pasted tokens or exposed keys.
+
+## High-Demand Sale Security - 2026-07-12
+
+- Queue join requires a Privy-linked FanPass account.
+- Unique database constraints allow one queue place per account and app-installation hash.
+- Purchase limits are checked under the same ticket-type row lock used for inventory.
+- Queue-managed Stripe intents are card-only and use manual capture.
+- Stripe card fingerprints and iOS app-installation IDs are HMAC-hashed before storage.
+- Simultaneous use of one card across accounts is serialized with an event-scoped PostgreSQL advisory lock.
+- A missing card identity signal fails closed for queued settlement; the webhook transaction rolls back for retry instead of bypassing the link check.
+- A rejected identity decision blocks the hold, rejects the order, skips ticket issuance, and queues authorization cancellation.
+- Expired queue holds cannot be reclaimed by delayed webhooks.
+- Public responses contain aggregate blocked/expired counts only. Device/card hashes, identities, and risk decisions remain private.
+
+The Keychain app-installation ID is not proof of one human. Before a concert-scale launch, require managed edge admission, App Attest/DeviceCheck, verified phone recovery, velocity/identity graph checks, policy-versioned audit logs, and a review/appeal path. Exact risk weights must remain private. See `docs/technical/FanPass_High_Demand_Onsale_Design_V4.md`.
