@@ -124,10 +124,9 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 ## Current Open Items
 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
-- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com`; `/health` returned 200 on 2026-05-31 and again on 2026-06-03 after a free-plan cold start.
-- Render reported the live deploy as `07d4cb6dad9dfa4cf8f2a8ff254d20d6d72c818d` (`Use Word report for FanPass handoff`) on 2026-06-03. The worker scheduler code remains from the earlier deployed `75b4e68bc7835bc2d4532259a3cecac2ab8e99da` commit.
+- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com` from `main`. Deploy `dep-d99l7e647okc73e64efg` for commit `49be599f79adfb917da09f4534608e40014d369b` is live; `/health` and `/events` passed on 2026-07-12.
 - Historical Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`, but that evidence belongs to the old Next runtime.
-- Current Vite/Node Console service `fanpass-console-staging` is live at `https://fanpass-console-staging.onrender.com` on Render from branch `codex/beta-foundation-hosted-ci`.
+- Current Vite/Node Console service `fanpass-console-staging` is live at `https://fanpass-console-staging.onrender.com` from `main`. Deploy `dep-d99l8ics728c73ddl6c0` for the same commit is live and the root returned HTTP 200 on 2026-07-12.
 - Cookie-backed Console mutations in staging currently allow the Render Console origin `https://fanpass-console-staging.onrender.com` through `FANPASS_CONSOLE_ORIGINS`; the old dashboard origin itself should not be assumed to be an allowed mutation origin.
 - A 2026-06-07 deployed runtime check against the Render Console saved passing output at `outputs/staging-runtime/20260606T180256Z-render-console-vite-node-admin.json`. It proves deployed API/Console headers, disabled demo auth, unauthenticated Console API rejection, orderbook CORS for the new Console origin, and admin side-effect outbox health with a fresh staging admin bearer that was not stored in evidence.
 - Render `FANPASS_CORS_ORIGINS` is updated to include `https://fanpass-console-staging.onrender.com` for the current Vite/Node Console, and the API was redeployed after the change.

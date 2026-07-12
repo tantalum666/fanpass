@@ -29,10 +29,10 @@ At work end, update this file and any changed contract. Do not turn this file ba
 
 ## Git State
 
-- Canonical target branch: `main`.
-- The historical `codex/beta-foundation-hosted-ci` and `codex/fanpass-design-v5` branches are fully contained in the current line and should be removed after `main` is fast-forwarded and pushed.
+- `main` is the only local and remote branch and is the canonical source line.
+- The historical `codex/beta-foundation-hosted-ci` and `codex/fanpass-design-v5` branches were fully merged, removed locally, and deleted from GitHub.
 - There is one worktree: `/Users/tantalum/Documents/system and iot`.
-- The completed school project relocation and the V5 design exploration were previously uncommitted; this cleanup is formalizing them without discarding source.
+- The completed school project archive and unfinished V5 exploration are committed on `main`; neither is an active product implementation.
 
 ## Product State
 
@@ -62,14 +62,14 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 - Historical Web dashboard: `https://fanpass-dashboard.vercel.app`
 - Database: Neon `fanpass-staging` (connection details are secret).
 
-Latest backend deployment relevant to the current source line:
+Latest code-bearing deployments:
 
-- Code commit: `4e38d951cc59d3ba9db2191daa185f2a6132dba3`.
-- Render deploy: `dep-d999kjd7vvec73f9rnfg`, status `live`.
-- Includes transparent high-demand on-sale queue, holds, inventory locking, payment-identity linkage, and public/private snapshot APIs.
-- Live smoke passed `/health`, public Aurora on-sale snapshot, and auth rejection for private queue/order routes.
-
-The current cleanup and V4 UI restoration change only iOS/docs/archive paths. No backend deployment is required unless backend source changes later in the turn.
+- Code commit: `49be599f79adfb917da09f4534608e40014d369b`.
+- API deploy: `dep-d99l7e647okc73e64efg`, status `live`.
+- Console deploy: `dep-d99l8ics728c73ddl6c0`, status `live`.
+- Both Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
+- Live smoke passed API `/health`, API `/events`, and the Console root with HTTP 200.
+- This line includes transparent high-demand on-sale controls plus stricter payer-only payment response redaction.
 
 ## iOS Baseline
 
@@ -119,7 +119,13 @@ Current V4 repair in this worktree:
 - Use Node 22 LTS for dependency/security work and Hardhat contract tooling.
 - `.nvmrc`, `.node-version`, root engine range, and `.npmrc` `engine-strict` are intentional.
 - The CI Node 22 Beta foundation workflow is guarded by `security:ci-node22-workflow` and its self-test.
-- Current root production dependency audit is clean after the Nest/Multer/Engine.IO/Socket.IO updates.
+- Current root production dependency audit reports zero vulnerabilities.
+- The full dev/tooling audit reports 38 advisories, including 4 high findings and no critical findings. The high findings remain indirect `lodash`, `serialize-javascript`, `tmp`, and `undici` dependencies confined to Hardhat/contract tooling.
+- `form-data`, `viem`, `ethers`, and `ws` were updated within compatible ranges to close newly surfaced high findings; all 6 contract tests pass.
+- Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
+- Alpha reset deletes all current Prisma relations in one ordered transaction. Side-effect saga verification pins mock ownership so local testnet settings cannot leak into integration tests.
+- Jest loads a test-only provider boundary before imports; the full API run has 19 passing suites and 117 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
+- `npm run beta:foundation:verify` passed end to end on 2026-07-12, including real local PostgreSQL reset/saga verification, API and Console typechecks, privacy/security gates, and API tests.
 - Do not force dependency fixes. Re-run the production audit and fail-closed advisory gate after manifest/lock changes.
 - Neon/PostgreSQL is final inventory authority. Cache or edge counters must never sell tickets.
 - Redemption and high-demand purchase races must resolve in database transactions/locks, not client state.
@@ -127,7 +133,7 @@ Current V4 repair in this worktree:
 ## Documentation State
 
 - `docs/README.md` is the current index.
-- Documentation cleanup reduced non-ignored Markdown from 113 files to a focused set while preserving script-bound evidence contracts.
+- Documentation cleanup reduced non-ignored Markdown from 113 files to 58 files (11,653 lines) while preserving script-bound evidence contracts.
 - Historical V4 planning, UX, design QA, review, and append-only Handoff detail remains in Git history.
 - `docs/design.md` is V4 production guidance.
 - The unapproved V5 design draft is preserved at `FanPass_VI_Redesign_V5/docs/FanPass_V5_Design_Draft.md`.
