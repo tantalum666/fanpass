@@ -2390,7 +2390,7 @@ Follow-up after Console Next production-runtime exit on 2026-06-06:
 
 Follow-up after Render Vite/Node Console staging deployment on 2026-06-07:
 
-- Created Render web service `fanpass-console-staging` for the current Vite/Node Console at `https://fanpass-console-staging.onrender.com` from branch `codex/beta-foundation-hosted-ci`.
+- Created Render web service `fanpass-console-staging` for the Vite/Node Console at `https://fanpass-console-staging.onrender.com` from the then-current `codex/beta-foundation-hosted-ci` branch. On 2026-07-12 the service moved to `main`, and the historical branch was deleted after its commits were merged.
 - Updated Render API `FANPASS_CORS_ORIGINS` to include the new Console origin and redeployed `fanpass-api-staging` so the deployed `/orderbook` WebSocket accepts the current Console origin.
 - Updated `npm run security:runtime:staging` and its dry-run/self-test path so the Vite SPA Console evidence proves an unauthenticated app shell plus `GET /api/console/operations -> 401`, instead of relying on server-rendered locked-state text from the old Next runtime.
 - Local staging-like dry-run passed with `npm run security:runtime:staging:dry-run` and validation passed with `npm run security:runtime:staging:evidence -- --allow-dry-run /tmp/fanpass-staging-runtime-dry-run-current.txt`.

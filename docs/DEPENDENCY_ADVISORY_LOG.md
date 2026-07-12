@@ -208,7 +208,7 @@ Verification on 2026-07-12:
 - `npm audit --omit=dev --audit-level=low` reports zero production vulnerabilities.
 - `npm run security:dependency-advisories:self-test` passes.
 - `npm run security:dependency-advisories` reports `releaseBlocker: null` and zero findings at every severity.
-- API typecheck/build and all 19 API suites with 115 tests pass.
+- At remediation commit `667b567`, API typecheck/build and all 19 API suites with the then-current 115 tests passed.
 - Render deploy `dep-d996v2mcjfls73fqlq5g` for commit `667b567ec6a86ab0a90a5d9228c9a39bf8021f46` is live; `/health`, events, and public orderbook smoke checks pass.
 
 There are currently no production dependency advisories in the npm audit. The table below is historical and must not be treated as the current production result.
@@ -223,7 +223,7 @@ A fresh Node 22 full dev/tooling audit initially reported 42 advisories, includi
 
 After the lockfile refresh, the full dev/tooling audit currently reports 38 advisories, including 4 high findings and no critical findings. The remaining high packages are `lodash`, `serialize-javascript`, `tmp`, and `undici`. They remain indirect dependencies confined to the Hardhat/contract-toolchain graph and do not enter the deployable API or Console production path.
 
-The dependency tooling gate now compares the documented advisory counts with live audit metadata and rejects a stale summary. Its allowlist and boundary checks remain fail-closed. The production audit reports zero vulnerabilities, the tooling gate self-test passes, and all 6 contract tests pass. Resolve the remaining four findings through a dedicated migration with contract tests; do not force a Hardhat 3 migration into unrelated product work.
+The dependency tooling gate now compares the documented advisory counts with live audit metadata and rejects a stale summary. Its allowlist and boundary checks remain fail-closed. The production audit reports zero vulnerabilities, the tooling gate self-test passes, and all 6 contract tests pass. The final 2026-07-12 foundation run also passed 19 API suites with 117 tests. Resolve the remaining four findings through a dedicated migration with contract tests; do not force a Hardhat 3 migration into unrelated product work.
 
 ## Historical Advisories
 

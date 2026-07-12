@@ -2,8 +2,8 @@
 version: alpha
 name: FanPass V5 Backstage Pass
 description: Young live-culture ticketing with premium pass-level trust. V5 is a from-scratch brand and app redesign, not a V4 visual extension.
-status: active_v5_design_contract
-last_updated: 2026-06-29
+status: unfinished_exploration_not_approved
+last_updated: 2026-07-12
 scope:
   - FanPass brand identity
   - FanPass iOS
@@ -94,14 +94,13 @@ components:
     radius: "{rounded.md}"
   focus-ring:
     color: "{colors.cobalt}"
-branch: codex/fanpass-design-v5
 ---
 
 # FanPass DESIGN.md
 
-This is the active V5 design contract for FanPass. V5 starts from scratch: logo, app icon, color, typography, imagery, component rhythm, and app screens.
+This is an unfinished V5 exploration draft, not an active design contract. It records a possible from-scratch direction for logo, app icon, color, typography, imagery, component rhythm, and app screens. Nothing in this file may replace the production app without explicit owner approval.
 
-V4 is archived as rollback material only. Do not treat the V4 logo, app icon, cyan-violet-magenta gradient, dark neon surfaces, or crypto-adjacent atmosphere as V5 visual guidance.
+V4 remains the active production baseline. This draft may intentionally explore a different visual language, but it must not be used as implementation guidance until V5 is completed and approved.
 
 ## Overview
 

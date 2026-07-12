@@ -1,6 +1,6 @@
 # Staging Deployment Free Path
 
-Status: Neon staging database is provisioned, the Render API is live on the free HTTPS hostname, and the current Vite/Node Console is deployed as `fanpass-console-staging` on Render. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. Fresh deployed runtime evidence for the Render API plus Render Vite/Node Console passed on 2026-06-07, including the admin side-effect outbox health check with a fresh staging admin bearer that was not stored in the evidence.
+Status: Neon staging is provisioned, and the Render API plus Vite/Node Console are live from `main`. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. Runtime evidence passed on 2026-06-07, and public API/Console smoke passed again on 2026-07-12 after the branch consolidation and payment-response hardening deployment.
 
 ## Targets
 
@@ -16,7 +16,7 @@ Current service:
 https://fanpass-api-staging.onrender.com
 ```
 
-Health check verified on 2026-05-31:
+Health check verified again on 2026-07-12:
 
 ```text
 GET https://fanpass-api-staging.onrender.com/health -> 200
@@ -109,5 +109,7 @@ npm run security:runtime:staging:evidence -- outputs/staging-runtime/<saved-json
 ```
 
 The deployed staging gate was closed for the historical Render/Vercel free-path runtime checks after the 2026-05-31 run with a real Privy admin bearer copied from the FanPass Ops simulator. After the 2026-06-07 Render Console deployment, refreshed evidence passed at `outputs/staging-runtime/20260606T180256Z-render-console-vite-node-admin.json`, covering deployed API/Console headers, demo-auth rejection, unauthenticated Console API rejection, orderbook CORS probes, and admin side-effect outbox health for the new Render Console origin.
+
+Current public smoke on 2026-07-12 passed API `/health`, API `/events`, and the Render Console root. The code-bearing API and Console deploys for commit `49be599f79adfb917da09f4534608e40014d369b` are recorded in `docs/CODEX_HANDOFF.md` and `docs/DEPLOYMENT_ENVIRONMENTS.md`.
 
 Stripe-specific staging status on 2026-05-31: dashboard test-mode webhook setup and native iOS PaymentSheet authorization were exercised against this Render API. Before closing the Stripe release gate, save and validate full test-mode evidence for capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual side-effect outbox state.

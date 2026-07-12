@@ -71,6 +71,8 @@ Latest code-bearing deployments:
 - Live smoke passed API `/health`, API `/events`, and the Console root with HTTP 200.
 - This line includes transparent high-demand on-sale controls plus stricter payer-only payment response redaction.
 
+Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.
+
 ## iOS Baseline
 
 - Xcode project: `apps/ios/FanPass/FanPass.xcodeproj`.
@@ -133,8 +135,11 @@ Current V4 repair in this worktree:
 ## Documentation State
 
 - `docs/README.md` is the current index.
-- Documentation cleanup reduced non-ignored Markdown from 113 files to 58 files (11,653 lines) while preserving script-bound evidence contracts.
+- Documentation cleanup reduced non-ignored Markdown from 113 files to 58 files (11,659 lines) while preserving script-bound evidence contracts.
 - Historical V4 planning, UX, design QA, review, and append-only Handoff detail remains in Git history.
 - `docs/design.md` is V4 production guidance.
 - The unapproved V5 design draft is preserved at `FanPass_VI_Redesign_V5/docs/FanPass_V5_Design_Draft.md`.
 - School Web/hardware source is under `archive/school-project`; generated outputs and local data were removed.
+- A full workspace scan on 2026-07-12 read all 4,407 `.md` files outside `.git` (about 35.6 MB) with zero read errors. Of these, 4,349 are ignored dependency/build-cache Markdown and were audited without modification.
+- All 58 non-ignored project Markdown files were checked for current branch/deployment/V4-V5 wording and internal references. Broken Markdown links and missing referenced Markdown paths: zero.
+- Five UTF-8 replacement characters exist only in four third-party dependency README files under `node_modules` or isolated build dependencies; no project-authored Markdown contains them.
