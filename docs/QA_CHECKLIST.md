@@ -7,7 +7,7 @@ Use this checklist before calling a version or milestone complete.
 - Read `docs/CODEX_HANDOFF.md` first.
 - Enumerate and read every Markdown file in the workspace with `rg --files -g '*.md'` before changing code, evidence, or product docs.
 - Treat `docs/NEW_CHAT_PROMPT.md` as the generated resume prompt to update at the end of work, not as the first source to read at startup.
-- Read Clean V4 sources before changing UI, marketing copy, colors, typography, iconography, or layout: `FanPass_VI_Redesign_V4/`, `docs/brand/FanPass_VI_Clean_V4_Audit.md`, `docs/brand/FanPass_UI_Guardrails.md`, and `docs/brand/FanPass_Final_Design_Tokens_V4.md`.
+- Read active V4 sources before changing UI, marketing copy, colors, typography, iconography, or layout: `docs/design.md`, `FanPass_VI_Redesign_V4/`, and `docs/brand/FanPass_UI_Guardrails.md`.
 - Read `docs/BETA_ROADMAP.md`.
 - Read `docs/DEVELOPMENT_TASKS.md`.
 - Confirm whether the current change belongs to `FanPass`, `FanPass Ops`, `FanPass Console`, API, contracts, or shared packages.
@@ -35,7 +35,7 @@ Use this checklist before calling a version or milestone complete.
 
 ## Brand Checks
 
-- UI changes must use Clean V4 tokens from `docs/brand/FanPass_Final_Design_Tokens_V4.md` and `docs/brand/fanpass-brand-tokens.json`.
+- UI changes must use the V4 SwiftUI tokens under `apps/ios/FanPass/FanPass/DesignSystem/` and the constraints in `docs/design.md`.
 - Logo usage must use only Ink Pass, Signal Blue, Verify Mint, and White.
 - Semantic colors such as Amber Cap and Coral Risk must not be treated as brand/logo colors.
 - New consumer screens should feel fan-first and venue-grade, not crypto-first or exchange-first.

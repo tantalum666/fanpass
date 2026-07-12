@@ -16,7 +16,7 @@ This matches the operating model of serious ticketing platforms: fan flows, onsi
 
 Optional fallback:
 
-`FanPass Web Beta Fallback` may be implemented as a backup while Apple Developer/TestFlight/Apple Wallet access is blocked. This is not a replacement for the native product surfaces above. It must use QR-only entry fallback, must not implement Web NFC, must sync with iOS through shared API/backend state, and must keep separate docs/evidence naming so it cannot be mistaken for signed iOS, signed Wallet, physical QR/NFC, or release-grade chain custody readiness. Source of truth: `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`, `docs/product/FanPass_Web_Beta_Fallback_Workplan_V4.md`, and `docs/ux/FanPass_Web_Landing_Page_Plan_V4.md`.
+`apps/web` may be implemented as a backup while Apple Developer/TestFlight/Apple Wallet access is blocked. It is not a replacement for the native product surfaces above. It must use QR-only entry fallback, must not implement Web NFC, must sync through shared API state, and cannot be treated as signed iOS, signed Wallet, physical QR/NFC, or release-grade chain-custody evidence.
 
 The first web landing page should be a long-scroll, low-density premium site. It should not be QR/scanner-first or a dense product checklist. The homepage story is why a ticket is trustworthy, why resale stays controlled, and why prices are transparent; cross-client sync remains an implementation requirement, not primary marketing copy.
 

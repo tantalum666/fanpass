@@ -260,29 +260,29 @@ Remaining evidence:
 - Use a real backend ticket created from a real Stripe test checkout, not a client pending/local-review ticket.
 - Scan the fan device QR with FanPass Ops on physical devices and save accepted, duplicate/replay, expired, and backend-authority evidence before closing the QR/NFC blocker.
 
-## 2026-06-15 Arduino EP8280 Mock Turnstile Bench
+## Archived Arduino EP8280 Mock Turnstile Bench
 
-Status: local hardware bench QR path working; product QR evidence still open for current TestFlight, and NFC NDEF evidence remains a future release path.
+Status: completed school hardware bench archived on 2026-07-11; product QR evidence still remains separate from this archived prototype.
 
-A local Arduino mock turnstile was added at `hardware/fanpass_turnstile/fanpass_turnstile.ino` to support hardware learning before continuing Web work. It uses Arduino UNO R4 WiFi, EP8280 NFC/QR scan engine, I2C LCD, HC-SR04 ultrasonic sensor, and one micro servo.
+The completed Arduino mock turnstile is archived at `archive/school-project/hardware/fanpass_turnstile/fanpass_turnstile.ino`. It used Arduino UNO R4 WiFi, an EP8280 NFC/QR scan engine, I2C LCD, HC-SR04 ultrasonic sensor, and one micro servo for the school demonstration.
 
 Current verified bench behavior:
 
 - EP8280 is connected through the 8-pin interface in TTL mode.
 - QR scans can now produce real TTL bytes on Arduino `Serial1`; serial output includes `SCAN: <real QR text>`. Per-byte EP8280 diagnostics remain available behind a disabled debug flag, but are off by default so long signed QR payloads do not stall scanner reads.
-- `scripts/fanpass-turnstile-redemption-bridge.mjs` can be run through `npm run hardware:turnstile:bridge` to read those `SCAN: <real QR text>` serial lines from the USB-connected Arduino and submit signed FanPass QR JSON to `POST /verification/turnstile/redeem` with `FANPASS_TURNSTILE_REDEEM_KEY`, or to the existing staff route with `FANPASS_STAFF_ACCESS_TOKEN`. This is required for a scanned fan-phone QR to become `REDEEMED` in the backend and then display as used in the FanPass phone app.
-- EP8280 Pin7 decode-success output is still monitored for diagnostics, but the code now delays that fallback to let TTL payloads arrive first.
+- `archive/school-project/scripts/fanpass-turnstile-redemption-bridge.mjs` preserves the completed serial-to-backend integration. It is outside the active root scripts; run it explicitly only when reproducing the archived hardware demonstration.
+- EP8280 Pin7 decode-success output is still monitored for diagnostics, but decode-only fallback opening is disabled. Without a real TTL/Wiegand payload and accepted backend redemption, the gate must not open.
 - LCD status copy is configured for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data states.
-- The servo gate opens for signed FanPass QR JSON payloads. Arbitrary scanner noise is rejected instead of being treated as a valid pass.
-- The local duplicate guard keys dynamic QR scans by `credentialId` or `nonce`, not by `ticketId`, so a newly refreshed QR for the same ticket can still reach backend redemption.
+- The servo gate opens only after signed FanPass QR JSON receives an accepted backend redemption response from the bridge. Arbitrary scanner noise is rejected instead of being treated as a valid pass.
+- The local duplicate guard keys signed FanPass QR scans by `ticketId` as a secondary protection after backend success. Backend atomic redemption remains the source of truth for refreshed dynamic QR credentials and simultaneous Ops/physical scans.
 - The ultrasonic sensor detects pass-through and marks the local gate flow as passed.
-- Enclosure CAD/STL planning exists under `docs/hardware/FanPass_Turnstile_Enclosure_Spec.md` and `hardware/fanpass_turnstile/enclosure/`. The current preferred local print candidate is `fanpass_turnstile_front_panel_fitcheck_computeruse_v5.stl`, followed by `fanpass_turnstile_shell_computeruse_v5.stl` and `fanpass_turnstile_rear_lid_computeruse_v5.stl` only after fit-check. This is mechanical cleanup only, not product QR/NFC evidence.
+- Enclosure CAD/STL planning exists under `archive/school-project/docs/FanPass_Turnstile_Enclosure_Spec.md` and `archive/school-project/hardware/fanpass_turnstile/enclosure/`. The current preferred local print candidate is `fanpass_turnstile_front_panel_fitcheck_computeruse_v5.stl`, followed by `fanpass_turnstile_shell_computeruse_v5.stl` and `fanpass_turnstile_rear_lid_computeruse_v5.stl` only after fit-check. This is mechanical cleanup only, not product QR/NFC evidence.
 
 Current bench limitations:
 
 - EP8280 NFC card/tag behavior is not working yet in this setup.
-- Pin7 decode-success alone does not provide QR text. It remains enabled only as temporary bench-open fallback behavior and is not FanPass ticket validation.
-- The bench prototype itself is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging unless the separate host bridge is running with a Render-configured turnstile key or staff/admin bearer token. The bridge defaults to Python `pyserial` mode for UNO R4 stability and expects `pyserial` to be installed in the active Python environment. Without that bridge, the Arduino can open the servo and reject a repeated local scan, but the phone will not show the ticket as used because no backend ticket state changed. The servo hold loop has a 10-second hard-close guard and the ready screen reinitializes the I2C LCD to recover from scanner/servo noise during long QR scans.
+- Pin7 decode-success alone does not provide QR text. It remains diagnostic only and is not FanPass ticket validation.
+- The bench prototype itself is not connected to FanPass API redemption, signed dynamic entry credentials, backend nonce checks, gate assignment, scanner identity, or HTTPS staging unless the separate host bridge is running with a Render-configured turnstile key or staff/admin bearer token. The bridge defaults to Python `pyserial` mode for UNO R4 stability and expects `pyserial` to be installed in the active Python environment. Without that bridge, signed FanPass QR scans intentionally time out with the gate locked, because no backend ticket state changed. The servo hold loop has a 10-second hard-close guard and the ready screen reinitializes the I2C LCD to recover from scanner/servo noise during long QR scans.
 - Arduino/breadboard rail power may be unstable under scanner/servo load until a separate regulated 5V supply is added.
 - No physical enclosure print or fit-test has been completed yet.
 

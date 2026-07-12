@@ -13,7 +13,7 @@ Primary source files:
 - `FanPass_VI_Redesign_V4/assets/fanpass-ticket-card-v4.png`
 - `FanPass_VI_Redesign_V4/docs/fanpass-brand-tokens-v4.json`
 - `docs/brand/FanPass_UI_Guardrails.md`
-- `docs/brand/FanPass_Final_Design_Tokens_V4.md`
+- `docs/design.md`
 
 ## Implementation Rules
 

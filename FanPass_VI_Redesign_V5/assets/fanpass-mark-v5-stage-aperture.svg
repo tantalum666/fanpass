@@ -1,0 +1,6 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FanPass stage aperture mark">
+  <path d="M64 55C64 50.6 67.6 47.2 71.9 47.7L111 52V198L64 220V55Z" fill="#121214"/>
+  <path d="M192 55C192 50.6 188.4 47.2 184.1 47.7L145 52V198L192 220V55Z" fill="#121214"/>
+  <path d="M103 78H153V184L128 198L103 184V78Z" stroke="#121214" stroke-width="15" stroke-linejoin="round"/>
+  <path d="M89 205H167L128 225L89 205Z" fill="#B8893A"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg width="760" height="180" viewBox="0 0 760 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FanPass Inter commercial font wordmark">
+  <defs>
+    <style>
+      @font-face {
+        font-family: "FanPassInter";
+        src: url("fonts/inter/Inter-700.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+      }
+      .wordmark {
+        font-family: "FanPassInter", Arial, sans-serif;
+        font-size: 112px;
+        font-weight: 700;
+        letter-spacing: -0.045em;
+      }
+    </style>
+  </defs>
+  <text x="32" y="124" class="wordmark" fill="#121214">FanPass</text>
+</svg>

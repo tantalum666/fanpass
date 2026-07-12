@@ -1,0 +1,7 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FanPass minimal pass notch mark">
+  <rect x="52" y="42" width="152" height="172" rx="28" fill="#121214"/>
+  <circle cx="52" cy="128" r="18" fill="#FFFDF8"/>
+  <circle cx="204" cy="128" r="18" fill="#FFFDF8"/>
+  <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#FFFDF8"/>
+  <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+</svg>

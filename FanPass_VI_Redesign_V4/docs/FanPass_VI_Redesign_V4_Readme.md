@@ -19,7 +19,7 @@ This version fixes the visual issues from V3:
 - `assets/fanpass-brand-sheet-v4.png`
 - `assets/fanpass-ticket-card-v4.png`
 - `docs/fanpass-brand-tokens-v4.json`
-- `docs/Codex_Replace_V3_With_V4_Prompt.md`
+- `../../docs/design.md` is the active implementation contract.
 
 ## Design Rule
 

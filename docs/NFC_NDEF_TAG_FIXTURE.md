@@ -39,13 +39,13 @@ Quick field check: use a known NFC writer app such as NFC Tools on an iPhone. If
 
 ## 2026-06-15 EP8280 Bench NFC Note
 
-An Arduino UNO R4 WiFi + EP8280 bench mock turnstile now exists under `hardware/fanpass_turnstile/fanpass_turnstile.ino`. It successfully reads QR text over the EP8280 TTL path, but NFC card/tag behavior has not been made to work in the bench setup.
+An Arduino UNO R4 WiFi + EP8280 bench mock turnstile now exists under `archive/school-project/hardware/fanpass_turnstile/fanpass_turnstile.ino`. It successfully reads QR text over the EP8280 TTL path, but NFC card/tag behavior has not been made to work in the bench setup.
 
 Do not treat a blank card, generic RFID tag, or EP8280 NFC no-response test as proof that the FanPass NDEF fixture is working. For the current FanPass Ops NFC evidence path, the test artifact still needs to be an NFC-compatible physical NDEF tag that can store the supported Text or URI payload and be read by the signed FanPass Ops iPhone build.
 
 The EP8280 bench may remain useful as a local QR/NFC hardware experiment, but it is separate from the iPhone Core NFC NDEF fixture contract and cannot close physical-device NFC evidence.
 
-The 2026-06-24 enclosure CAD/STL work under `hardware/fanpass_turnstile/enclosure/` is mechanical cleanup for this local bench only. It does not change the NFC fixture contract, does not prove EP8280 NDEF behavior, and does not close physical-device NFC evidence.
+The 2026-06-24 enclosure CAD/STL work under `archive/school-project/hardware/fanpass_turnstile/enclosure/` is mechanical cleanup for this local bench only. It does not change the NFC fixture contract, does not prove EP8280 NDEF behavior, and does not close physical-device NFC evidence.
 
 ## Supported NDEF Records
 

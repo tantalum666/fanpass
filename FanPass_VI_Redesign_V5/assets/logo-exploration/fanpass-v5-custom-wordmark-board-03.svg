@@ -1,0 +1,71 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FanPass V5 custom wordmark inspection board">
+  <defs>
+    <g id="fanpass-custom-wordmark">
+      <g fill="currentColor">
+        <path d="M34 35H122V55H58V78H110V98H58V138H34V35Z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M158 65C136 65 121 81 121 102C121 123 136 140 157 140C168 140 176 136 182 129V138H204V67H182V76C176 69 168 65 158 65ZM162 86C174 86 183 95 183 102C183 119 174 128 162 128C150 128 142 119 142 102C142 95 150 86 162 86ZM162 88C153 88 146 95 146 102C146 115 153 122 162 122C171 122 178 115 178 102C178 95 171 88 162 88Z"/>
+        <path d="M220 67H242V76C248 69 257 65 268 65C286 65 298 78 298 98V138H274V101C274 91 269 86 260 86C249 86 243 94 243 106V138H220V67Z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M324 35H374C401 35 418 51 418 76C418 101 401 117 374 117H349V138H324V35ZM349 56V96H370C385 96 393 88 393 76C393 64 385 56 370 56H349Z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M461 65C439 65 424 81 424 102C424 123 439 140 460 140C471 140 479 136 485 129V138H507V67H485V76C479 69 471 65 461 65ZM465 86C477 86 486 95 486 102C486 119 477 128 465 128C453 128 445 119 445 102C445 95 453 86 465 86ZM465 88C456 88 449 95 449 102C449 115 456 122 465 122C474 122 481 115 481 102C481 95 474 88 465 88Z"/>
+      </g>
+      <g stroke="currentColor" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M577 82C568 73 543 73 539 88C535 103 582 99 578 119C574 138 542 136 531 126"/>
+        <path d="M653 82C644 73 619 73 615 88C611 103 658 99 654 119C650 138 618 136 607 126"/>
+      </g>
+    </g>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#FFFDF8"/>
+  <text x="72" y="82" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="0.14em">FANPASS V5 CUSTOM WORDMARK 03</text>
+  <text x="72" y="124" fill="#6F737C" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="21" font-weight="500">Chosen path: custom-drawn Humanist Premium. No production logo font dependency.</text>
+  <line x1="72" y1="162" x2="1528" y2="162" stroke="#DDD6C8" stroke-width="2"/>
+
+  <g transform="translate(72 220)">
+    <text x="0" y="0" fill="#D64032" font-family="DIN Alternate, Arial Narrow, sans-serif" font-size="24" font-weight="700" letter-spacing="0.08em">01 / BLACK ON WHITE</text>
+    <g transform="translate(0 44) scale(1.08)" color="#121214">
+      <use href="#fanpass-custom-wordmark"/>
+    </g>
+    <line x1="0" y1="238" x2="880" y2="238" stroke="#DDD6C8" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(72 520)">
+    <rect x="0" y="0" width="880" height="210" rx="18" fill="#121214"/>
+    <text x="28" y="44" fill="#D64032" font-family="DIN Alternate, Arial Narrow, sans-serif" font-size="24" font-weight="700" letter-spacing="0.08em">02 / WHITE ON BLACK</text>
+    <g transform="translate(28 56) scale(0.9)" color="#FFFDF8">
+      <use href="#fanpass-custom-wordmark"/>
+    </g>
+  </g>
+
+  <g transform="translate(1040 220)">
+    <text x="0" y="0" fill="#D64032" font-family="DIN Alternate, Arial Narrow, sans-serif" font-size="24" font-weight="700" letter-spacing="0.08em">03 / HEADER</text>
+    <rect x="0" y="36" width="420" height="96" rx="18" fill="#F7F3EA" stroke="#DDD6C8" stroke-width="2"/>
+    <g transform="translate(26 47) scale(0.44)" color="#121214">
+      <use href="#fanpass-custom-wordmark"/>
+    </g>
+    <circle cx="360" cy="84" r="20" fill="#D64032"/>
+    <line x1="0" y1="190" x2="420" y2="190" stroke="#DDD6C8" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(1040 476)">
+    <text x="0" y="0" fill="#D64032" font-family="DIN Alternate, Arial Narrow, sans-serif" font-size="24" font-weight="700" letter-spacing="0.08em">04 / TICKET PASS</text>
+    <rect x="0" y="38" width="420" height="250" rx="24" fill="#F7F3EA" stroke="#DDD6C8" stroke-width="2"/>
+    <circle cx="0" cy="164" r="20" fill="#FFFDF8" stroke="#DDD6C8" stroke-width="2"/>
+    <circle cx="420" cy="164" r="20" fill="#FFFDF8" stroke="#DDD6C8" stroke-width="2"/>
+    <g transform="translate(28 64) scale(0.43)" color="#121214">
+      <use href="#fanpass-custom-wordmark"/>
+    </g>
+    <line x1="28" y1="170" x2="392" y2="170" stroke="#B8893A" stroke-width="3" stroke-dasharray="10 8"/>
+    <text x="28" y="214" fill="#6F737C" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="20" font-weight="600">ENTRY READY</text>
+    <text x="28" y="246" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="650">Friday / Door 3</text>
+  </g>
+
+  <g transform="translate(72 826)">
+    <rect x="0" y="0" width="1456" height="220" rx="18" fill="#F7F3EA" stroke="#DDD6C8" stroke-width="2"/>
+    <text x="28" y="48" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="700">Read</text>
+    <text x="118" y="48" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="500">Custom path chosen from option 3. This is a self-drawn vector candidate, not font text.</text>
+    <text x="28" y="92" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="700">Keep</text>
+    <text x="118" y="92" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="500">Humanist Premium warmth, compact ticketing authority, clean one-color behavior.</text>
+    <text x="28" y="136" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="700">Fix next</text>
+    <text x="152" y="136" fill="#121214" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="500">Optically improve the two s letters, soften the F, and test the wordmark at 24px.</text>
+  </g>
+</svg>

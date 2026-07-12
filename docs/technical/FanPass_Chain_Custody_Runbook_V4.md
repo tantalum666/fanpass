@@ -9,7 +9,7 @@ This runbook defines the operational controls required before FanPass can enable
 
 This document does not authorize production or real-user chain writes. PostgreSQL remains the source of truth, and chain writes must run asynchronously through the durable side-effect outbox.
 
-The selected setup is documented in `docs/technical/FanPass_Sepolia_Safe_Relayer_Setup_V4.md`: Sepolia, Safe multisig ownership, and OpenZeppelin Relayer with a Turnkey signer.
+The selected future setup is Sepolia, Safe multisig ownership, and OpenZeppelin Relayer with a Turnkey signer. This runbook is the current operational source; superseded setup notes remain in Git history.
 
 ## Required Architecture
 

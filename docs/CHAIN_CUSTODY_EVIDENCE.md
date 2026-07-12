@@ -2,9 +2,9 @@
 
 FanPass local Beta uses mock ownership by default and blocks production-like `OWNERSHIP_ADAPTER=testnet` until real chain custody is operationally safe. Do not close ASR-014 or pilot chain blockers with localhost mocks, raw operator keys, unreviewed hot-wallet ownership, or screenshots containing copyable transaction/private-key material.
 
-Selected future evidence path: Sepolia + Safe multisig owner + OpenZeppelin Relayer with Turnkey signer. The setup guide is `docs/technical/FanPass_Sepolia_Safe_Relayer_Setup_V4.md`.
+Selected future evidence path: Sepolia + Safe multisig owner + OpenZeppelin Relayer with Turnkey signer. The active operational source is `docs/technical/FanPass_Chain_Custody_Runbook_V4.md`.
 
-Temporary Sepolia development deployments are allowed only under `docs/technical/FanPass_Sepolia_Dev_Hotkey_Runbook_V4.md`. A dev-only hot key deployment must remain labeled `custodyEvidence: false` and cannot close this evidence gate.
+Temporary Sepolia development deployments must remain labeled `custodyEvidence: false` and cannot close this evidence gate. Historical dev-hotkey instructions remain in Git history and are not an active release runbook.
 
 Run future saved evidence through:
 

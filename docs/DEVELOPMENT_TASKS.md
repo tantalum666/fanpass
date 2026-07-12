@@ -2,7 +2,7 @@
 
 ## Main App Productization - 2026-07-11 Audit
 
-Source: `docs/review/FanPass_Main_App_Audit_2026-07-11.md`.
+Source: consolidated from the 2026-07-11 main-app audit; the full historical review remains in Git history.
 
 - [x] Resolve the six high production dependency advisories, pass the fail-closed advisory gate, run backend regressions, and deploy the verified update to staging.
 - [ ] Add `FanPassTests` and critical auth/payment/ticket/resale/redemption lifecycle tests. Owner deferred this action on 2026-07-11 after completing the requested testing; no new target was added.
@@ -132,7 +132,7 @@ Source: `docs/review/FanPass_Main_App_Audit_2026-07-11.md`.
 
 ## Beta
 
-Web fallback note on 2026-06-07: `FanPass Web Beta Fallback` is optional backup work only and is tracked separately in `docs/technical/FanPass_Web_Beta_Fallback_Plan_V4.md`. It must not include Web NFC, must not replace native iOS/FanPass Ops/Console product boundaries, and must not close signed iOS/TestFlight, signed Apple Wallet `.pkpass`, physical QR/NFC, or release-grade chain custody evidence. The first landing page should be long-scroll but low-density: `less is more` means one strong idea per viewport, not a short page. Lead with trustworthy tickets, controlled resale, and transparent prices, not QR/scanner mechanics or web/iOS sync.
+Web fallback note: `apps/web` is optional backup work only. It must not include Web NFC, replace native iOS/FanPass Ops/Console boundaries, or close signed iOS/TestFlight, signed Apple Wallet, physical QR/NFC, or release-grade chain custody evidence.
 
 Archive note on 2026-07-11: the completed Arduino UNO R4 WiFi + EP8280 school turnstile was moved to `archive/school-project/hardware/fanpass_turnstile/`. It is no longer an active engineering task or release dependency and does not close native FanPass Ops, physical QR/NFC, TestFlight, Apple Wallet, or chain-custody release blockers.
 
@@ -144,7 +144,7 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
   - [x] Wire EP8280 Pin7 decode-success output to Arduino `D2` as diagnostics/fallback and delay fallback so TTL QR text has priority.
   - [x] Configure LCD states for ready, verifying pass, valid pass, gate open, pass complete, timeout, invalid pass, and no-QR-data.
   - [x] Require real QR content containing `FANPASS` before opening the servo gate in the bench sketch.
-  - [x] Draft the 3D-print enclosure dimension/cutout baseline in `docs/hardware/FanPass_Turnstile_Enclosure_Spec.md`.
+  - [x] Draft the 3D-print enclosure dimension/cutout baseline, now archived at `archive/school-project/docs/FanPass_Turnstile_Enclosure_Spec.md`.
   - [x] Generate CAD/STL V1 for the shell, rear lid, and front-panel fit-check under `archive/school-project/hardware/fanpass_turnstile/enclosure/outputs/`.
   - [x] Generate CLI V2 and computer-use/Blender-native V2 enclosure variants after owner feedback: one enlarged rectangular ultrasonic slot, larger front cutouts, EP8280 screw centers tied to the vendor 58 mm x 44 mm drawing, and a visible right-side SG90-class servo bracket.
   - [ ] Measure the actual LCD, HC-SR04 board, servo geometry, EP8280 cable bend, Arduino orientation, and 5V regulator before final CAD lock.

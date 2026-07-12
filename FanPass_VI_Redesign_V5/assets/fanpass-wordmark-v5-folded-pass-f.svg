@@ -1,0 +1,5 @@
+<svg width="760" height="180" viewBox="0 0 760 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FanPass folded pass F wordmark">
+  <path d="M34 59L116 37C121 35.7 126 39.4 126 44.5V74.2C126 78.6 122.5 82.2 118.1 82.5L51.3 87.2C47.2 87.5 43.3 85.7 40.8 82.4L34 73.2V59Z" fill="#121214"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M32 88.6C32 83.4 37 79.7 42 81.1L110.9 99.6C116.4 101.1 120.2 106 120.2 111.7V126.4C108.2 126.4 98.5 136.1 98.5 148.1C98.5 160.1 108.2 169.8 120.2 169.8V170.5C120.2 176 115 180 109.7 178.5L41.6 159C36 157.4 32 152.2 32 146.3V88.6ZM120.2 126.4C132.2 126.4 141.9 136.1 141.9 148.1C141.9 160.1 132.2 169.8 120.2 169.8V126.4Z" fill="#121214" transform="translate(0 -16)"/>
+  <text x="168" y="120" fill="#121214" font-family="SF Pro Display, Inter, Helvetica, Arial, sans-serif" font-size="76" font-weight="650" letter-spacing="0">FanPass</text>
+</svg>

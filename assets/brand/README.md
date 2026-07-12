@@ -15,7 +15,7 @@ Use the V4 assets in `FanPass_VI_Redesign_V4/` for all future UI/UX implementati
 | Ticket card preview | `FanPass_VI_Redesign_V4/assets/fanpass-ticket-card-v4.png` | Visual reference for ticket card spacing, QR quiet zone, status pills, and Proof & History panel. |
 | Brand sheet preview | `FanPass_VI_Redesign_V4/assets/fanpass-brand-sheet-v4.png` | Visual reference for palette, tone, and product atmosphere. |
 | Token JSON | `FanPass_VI_Redesign_V4/docs/fanpass-brand-tokens-v4.json` | Machine-readable V4 color source. |
-| Replacement prompt | `FanPass_VI_Redesign_V4/docs/Codex_Replace_V3_With_V4_Prompt.md` | Implementation constraints when replacing older V3/V4 draft visuals. |
+| UI contract | `docs/design.md` | Active V4 implementation and visual constraints. |
 
 ## Usage Rules
 

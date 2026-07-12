@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FanPass V5 Inter Logo Board 05</title>
+  <style>
+    @font-face {
+      font-family: "FanPassInter";
+      src: url("../fonts/inter/Inter-700.ttf") format("truetype");
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    :root {
+      --ink: #121214;
+      --paper: #f7f3ea;
+      --warm: #fffdf8;
+      --red: #d64032;
+      --brass: #b8893a;
+      --line: #ddd6c8;
+      --slate: #6f737c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--warm);
+      color: var(--ink);
+      font-family: FanPassInter, Arial, sans-serif;
+    }
+
+    .board {
+      width: 1600px;
+      height: 1320px;
+      padding: 72px;
+      overflow: hidden;
+      background: var(--warm);
+    }
+
+    .title {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin-top: 16px;
+      color: var(--slate);
+      font-size: 21px;
+      font-weight: 700;
+    }
+
+    .rule {
+      height: 2px;
+      margin: 42px 0 50px;
+      background: var(--line);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 58px 76px;
+    }
+
+    .label {
+      display: flex;
+      align-items: baseline;
+      gap: 28px;
+      color: var(--red);
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .label span {
+      color: var(--ink);
+      letter-spacing: 0.1em;
+    }
+
+    .wordmark {
+      margin-top: 30px;
+      font-family: FanPassInter, Arial, sans-serif;
+      font-size: 112px;
+      font-weight: 700;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .note {
+      margin-top: 28px;
+      color: var(--slate);
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.28;
+    }
+
+    .divider {
+      height: 2px;
+      margin-top: 36px;
+      background: var(--line);
+    }
+
+    .lockup {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 34px;
+    }
+
+    .mark {
+      width: 96px;
+      height: 96px;
+      flex: 0 0 auto;
+    }
+
+    .app-grid {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+      margin-top: 34px;
+    }
+
+    .app-icon {
+      width: 172px;
+      height: 172px;
+      display: grid;
+      place-items: center;
+      border-radius: 42px;
+      background: var(--paper);
+      border: 2px solid var(--line);
+    }
+
+    .app-icon.dark {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .small-strip {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 34px;
+      padding: 24px 28px;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+    }
+
+    .small-strip .wordmark {
+      margin-top: 0;
+      font-size: 44px;
+    }
+
+    .ticket {
+      margin-top: 34px;
+      width: 560px;
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: 24px;
+      background: var(--paper);
+    }
+
+    .ticket::before,
+    .ticket::after {
+      content: "";
+      position: absolute;
+      top: 132px;
+      width: 42px;
+      height: 42px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: var(--warm);
+    }
+
+    .ticket::before {
+      left: -23px;
+    }
+
+    .ticket::after {
+      right: -23px;
+    }
+
+    .ticket .wordmark {
+      margin-top: 0;
+      font-size: 58px;
+    }
+
+    .dash {
+      margin: 34px 0 28px;
+      border-top: 3px dashed var(--brass);
+    }
+
+    .meta {
+      color: var(--slate);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .main {
+      margin-top: 8px;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    .recommend {
+      margin-top: 58px;
+      padding: 28px 34px;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.42;
+    }
+
+    .recommend strong {
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="board">
+    <div class="title">FanPass V5 Inter Logo Board 05</div>
+    <div class="subtitle">Owner selected option 3: Inter 700. This board adds a restrained pass-notch mark and real usage checks.</div>
+    <div class="rule"></div>
+
+    <div class="grid">
+      <div>
+        <div class="label">01 <span>Wordmark only</span></div>
+        <div class="wordmark">FanPass</div>
+        <div class="note">Cleanest version. Needs a small mark or app icon system to avoid feeling generic.</div>
+        <div class="divider"></div>
+      </div>
+
+      <div>
+        <div class="label">02 <span>Horizontal lockup</span></div>
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 256 256" aria-hidden="true">
+            <rect x="52" y="42" width="152" height="172" rx="28" fill="#121214"/>
+            <circle cx="52" cy="128" r="18" fill="#FFFDF8"/>
+            <circle cx="204" cy="128" r="18" fill="#FFFDF8"/>
+            <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#FFFDF8"/>
+            <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+          </svg>
+          <div class="wordmark">FanPass</div>
+        </div>
+        <div class="note">A compact pass icon makes Inter feel more ticketing-specific without becoming loud.</div>
+        <div class="divider"></div>
+      </div>
+
+      <div>
+        <div class="label">03 <span>App icon checks</span></div>
+        <div class="app-grid">
+          <div class="app-icon">
+            <svg width="112" height="112" viewBox="0 0 256 256" aria-hidden="true">
+              <rect x="52" y="42" width="152" height="172" rx="28" fill="#121214"/>
+              <circle cx="52" cy="128" r="18" fill="#F7F3EA"/>
+              <circle cx="204" cy="128" r="18" fill="#F7F3EA"/>
+              <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#F7F3EA"/>
+              <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+            </svg>
+          </div>
+          <div class="app-icon dark">
+            <svg width="112" height="112" viewBox="0 0 256 256" aria-hidden="true">
+              <rect x="52" y="42" width="152" height="172" rx="28" fill="#FFFDF8"/>
+              <circle cx="52" cy="128" r="18" fill="#121214"/>
+              <circle cx="204" cy="128" r="18" fill="#121214"/>
+              <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#121214"/>
+              <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+            </svg>
+          </div>
+        </div>
+        <div class="note">The mark should remain pass-like, not crypto-wallet-like. Keep it one-color plus red signal.</div>
+        <div class="divider"></div>
+      </div>
+
+      <div>
+        <div class="label">04 <span>Header scale</span></div>
+        <div class="small-strip">
+          <svg width="54" height="54" viewBox="0 0 256 256" aria-hidden="true">
+            <rect x="52" y="42" width="152" height="172" rx="28" fill="#121214"/>
+            <circle cx="52" cy="128" r="18" fill="#F7F3EA"/>
+            <circle cx="204" cy="128" r="18" fill="#F7F3EA"/>
+            <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#F7F3EA"/>
+            <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+          </svg>
+          <div class="wordmark">FanPass</div>
+        </div>
+        <div class="note">At nav scale, tracking must stay tight enough to feel brand-like.</div>
+        <div class="divider"></div>
+      </div>
+
+      <div>
+        <div class="label">05 <span>Ticket pass surface</span></div>
+        <div class="ticket">
+          <div class="wordmark">FanPass</div>
+          <div class="dash"></div>
+          <div class="meta">Entry ready</div>
+          <div class="main">Friday / Door 3</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="label">06 <span>24px intent</span></div>
+        <div class="small-strip">
+          <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true">
+            <rect x="52" y="42" width="152" height="172" rx="28" fill="#121214"/>
+            <circle cx="52" cy="128" r="18" fill="#F7F3EA"/>
+            <circle cx="204" cy="128" r="18" fill="#F7F3EA"/>
+            <path d="M96 82H164V104H121V124H158V146H121V184H96V82Z" fill="#F7F3EA"/>
+            <rect x="150" y="82" width="16" height="102" rx="8" fill="#D64032"/>
+          </svg>
+          <div style="font-size: 28px; letter-spacing: -0.045em;">FanPass</div>
+        </div>
+        <div class="note">Small-size mark may need a simplified no-letter icon for app/tab use.</div>
+      </div>
+    </div>
+
+    <div class="recommend">
+      <strong>Recommendation:</strong> keep Inter 700 as the selected wordmark, use the pass-notch icon only as a compact app mark, then test a simplified icon without the internal F before final approval.
+    </div>
+  </div>
+</body>
+</html>
