@@ -56,7 +56,7 @@ struct FanPassV4ProfileView: View {
             verticalSpacing: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
             topPadding: backend.isAuthenticated ? FPSpacing.xl : FPSpacing.md,
             bottomPadding: backend.isAuthenticated ? FPSpacing.sixXL + FPSpacing.twoXL : FPSpacing.sixXL + FPSpacing.sm,
-            scrollDisabled: !backend.isAuthenticated
+            scrollDisabled: false
         ) {
             accountHeader
             accountMenu
@@ -263,19 +263,15 @@ struct FanPassV4ProfileView: View {
     private var alerts: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Channels") {
-                AccountSwitchListRow(title: "Push", subtitle: "Gate, resale, and order state", systemImage: "bell.fill", isOn: $pushAlertsEnabled)
-                AccountSwitchListRow(title: "Email receipts", subtitle: "Orders and refunds", systemImage: "envelope.fill", isOn: $emailReceiptsEnabled)
+                AccountListRow(systemImage: "bell.fill", title: "Push notifications", subtitle: "Gate, resale, and order updates", value: "Not enabled", kind: .warning)
+                AccountListRow(systemImage: "envelope.fill", title: "Email receipts", subtitle: viewModel.user.maskedEmail, value: "Checkout only", kind: .info)
             }
             AccountListSection(title: "Ticket alerts") {
-                AccountSwitchListRow(title: "Price alerts", subtitle: "Saved resale targets", systemImage: FPIcons.market, isOn: $priceAlertsEnabled)
-                AccountSwitchListRow(title: "Entry reminders", subtitle: "Before gate opens", systemImage: FPIcons.qr, isOn: $entryRemindersEnabled)
-                AccountSwitchListRow(title: "Fan Access", subtitle: "Task and badge updates", systemImage: FPIcons.fanAccess, isOn: $marketingUpdatesEnabled)
+                AccountListRow(systemImage: FPIcons.market, title: "Price alerts", value: "Unavailable", kind: .warning)
+                AccountListRow(systemImage: FPIcons.qr, title: "Entry reminders", value: "Unavailable", kind: .warning)
+                AccountListRow(systemImage: FPIcons.fanAccess, title: "Fan Access updates", value: "Unavailable", kind: .warning)
             }
-            AccountListSection(title: "Saved rules") {
-                AccountListRow(systemImage: "bell.badge.fill", title: "Saved artists", value: pushAlertsEnabled ? "On" : "Off", kind: pushAlertsEnabled ? .success : .warning)
-                AccountListRow(systemImage: FPIcons.market, title: "Aurora Nights", subtitle: "Below target", value: priceAlertsEnabled ? "HK$1,400" : "Off", kind: priceAlertsEnabled ? .info : .warning)
-                AccountListRow(systemImage: FPIcons.qr, title: "Entry readiness", value: entryRemindersEnabled ? "2h" : "Off", kind: entryRemindersEnabled ? .warning : .neutral)
-            }
+            AccountFooterNote("Notification preferences will appear here when delivery is available for this account.")
         }
     }
 
@@ -461,30 +457,43 @@ struct FanPassV4ProfileView: View {
 
     private var sellerPayouts: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
-            let openListings = FanPassMockData.listings.filter { $0.ticket.ownerId == viewModel.user.id && $0.status == .open }
             AccountListSection(title: "Payouts") {
-                AccountListRow(systemImage: "banknote.fill", title: "Available", value: "HK$0")
-                AccountListRow(systemImage: "clock.badge.checkmark.fill", title: "Pending", value: "HK$0", kind: .info)
+                AccountListRow(systemImage: "banknote.fill", title: "Settled resale gross", value: settledResaleGross, kind: .info)
                 AccountListRow(systemImage: "building.columns.fill", title: "Payout method", value: "Not set", kind: .warning)
             }
             AccountListSection(title: "Selling") {
-                AccountListRow(systemImage: FPIcons.resale, title: "Open listings", value: "\(openListings.count)", kind: openListings.isEmpty ? .neutral : .warning)
+                AccountListRow(systemImage: FPIcons.resale, title: "Open listings", value: "\(openSellOrderCount)", kind: openSellOrderCount == 0 ? .neutral : .warning)
                 AccountListRow(systemImage: FPIcons.tickets, title: "Listing controls", value: "Tickets", kind: .info)
             }
+            AccountFooterNote("Payout setup is not available yet. Listing status comes from your live FanPass orders.")
         }
+        .task { await refreshOrders() }
     }
 
     private var creditsAndPromos: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Balance") {
-                AccountListRow(systemImage: "giftcard.fill", title: "FanPass credit", value: "HK$0")
-                AccountListRow(systemImage: "calendar.badge.clock", title: "Expiring soon", value: "0")
+                AccountListRow(systemImage: "giftcard.fill", title: "FanPass credit", value: "Unavailable", kind: .warning)
             }
             AccountListSection(title: "Rewards") {
                 AccountListRow(systemImage: FPIcons.fanAccess, title: "Fan Access badge", subtitle: firstAccessBadgeSubtitle, value: firstAccessBadgeValue, kind: firstAccessBadgeKind)
-                AccountListRow(systemImage: "tag.fill", title: "Promo codes", value: "None", kind: .info)
+                AccountListRow(systemImage: "tag.fill", title: "Promo codes", value: "Unavailable", kind: .warning)
             }
+            AccountFooterNote("Credits and promo redemption are not available for this account yet.")
         }
+    }
+
+    private var openSellOrderCount: Int {
+        userOrders.filter { order in
+            order.side.uppercased() == "SELL" && ["OPEN", "MATCHED"].contains(order.status.uppercased())
+        }.count
+    }
+
+    private var settledResaleGross: String {
+        let gross = userOrders
+            .filter { $0.side.uppercased() == "SELL" && $0.status.uppercased() == "SETTLED" }
+            .reduce(0) { $0 + ($1.price * $1.quantity) }
+        return MoneyFormatter.format(gross, currency: "HKD")
     }
 
     private var firstAccessBadgeSubtitle: String {
@@ -677,39 +686,22 @@ struct FanPassV4ProfileView: View {
     private var settings: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
             AccountListSection(title: "Preferences") {
-                AccountPickerRow(title: "Currency", systemImage: "dollarsign.circle.fill", options: ["HKD", "USD"], selection: $selectedCurrency)
-                AccountPickerRow(title: "Region", systemImage: "globe.asia.australia.fill", options: ["Hong Kong", "Singapore"], selection: $selectedRegion)
-                AccountPickerRow(title: "Appearance", systemImage: "paintpalette.fill", options: ["System", "Dark"], selection: $selectedAppearance)
+                AccountListRow(systemImage: "dollarsign.circle.fill", title: "Currency", value: "HKD")
+                AccountListRow(systemImage: "globe.asia.australia.fill", title: "Region", value: "Hong Kong")
+                AccountListRow(systemImage: "paintpalette.fill", title: "Appearance", value: "System", kind: .info)
             }
-            AccountListSection(title: "Summary") {
-                AccountListRow(systemImage: "bell.fill", title: "Notifications", value: pushAlertsEnabled ? "On" : "Off", kind: pushAlertsEnabled ? .success : .warning)
-                AccountListRow(systemImage: "globe.asia.australia.fill", title: "Region", subtitle: selectedRegion, value: selectedCurrency)
-                AccountListRow(systemImage: "paintpalette.fill", title: "Appearance", value: selectedAppearance, kind: .info)
-            }
+            AccountFooterNote("Account-synced preference changes are not available yet.")
         }
     }
 
     private var support: some View {
         VStack(alignment: .leading, spacing: FPSpacing.lg) {
-            AccountListSection(title: "Request") {
-                AccountPickerRow(title: "Topic", systemImage: "questionmark.circle.fill", options: ["Order", "Ticket", "Entry"], selection: $selectedSupportTopic)
-                AccountTextArea(text: $supportDraft)
-                AccountListRow(
-                    systemImage: supportSubmitted ? "checkmark" : "paperplane.fill",
-                    title: supportSubmitted ? "Request sent" : "Send request",
-                    value: supportDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Required" : nil,
-                    kind: supportSubmitted ? .success : .info,
-                    action: {
-                        guard !supportDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                        supportSubmitted = true
-                    }
-                )
+            AccountListSection(title: "Help") {
+                AccountListRow(systemImage: "receipt.fill", title: "Order help", value: "Unavailable", kind: .warning)
+                AccountListRow(systemImage: FPIcons.tickets, title: "Ticket help", value: "Unavailable", kind: .warning)
+                AccountListRow(systemImage: "message.fill", title: "Contact support", value: "Unavailable", kind: .warning)
             }
-            AccountListSection(title: "Shortcuts") {
-                AccountListRow(systemImage: "receipt.fill", title: "Order help", value: "Open", kind: .info)
-                AccountListRow(systemImage: FPIcons.tickets, title: "Ticket help", value: "Guide")
-                AccountListRow(systemImage: "message.fill", title: "Contact support", value: supportSubmitted ? "Sent" : "Start", kind: supportSubmitted ? .success : .info)
-            }
+            AccountFooterNote("In-app support is not available yet. Keep your order reference for future support requests.")
         }
     }
 
@@ -942,11 +934,11 @@ private enum AccountMenuSection: String, CaseIterable, Identifiable {
         case .identity:
             return [.profile, .security]
         case .activity:
-            return [.orders]
+            return [.orders, .alerts, .credits]
         case .money:
-            return [.paymentMethods, .wallet]
+            return [.paymentMethods, .wallet, .sellerPayouts]
         case .preferences:
-            return []
+            return [.settings, .support]
         }
     }
 }

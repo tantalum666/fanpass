@@ -249,6 +249,19 @@ enum FanPassV4APIDataError: LocalizedError {
 }
 
 enum FanPassV4APIMapper {
+    private static let bundledCoverAssetByEventId: [String: String] = [
+        "evt_aurora": "event-cover-aurora",
+        "evt_neon": "event-cover-neon",
+        "evt_finals": "event-cover-finals",
+        "evt_indie": "event-cover-indie",
+        "evt_lab": "event-cover-lab",
+        "evt_midnight": "event-cover-midnight",
+        "evt_future": "event-cover-future",
+        "evt_jazz": "event-cover-jazz",
+        "evt_family": "event-cover-family",
+        "evt_comedy": "event-cover-comedy"
+    ]
+
     struct Context {
         let events: [FanPassV4.Event]
         let ticketTypesById: [String: FanPassV4.TicketType]
@@ -284,7 +297,7 @@ enum FanPassV4APIMapper {
                 accentHex: 0x27E4FF,
                 label: "Verified event"
             ),
-            coverAssetName: nil,
+            coverAssetName: bundledCoverAssetByEventId[event.id],
             fanAccessAvailable: false,
             startTime: isoDate(event.startTime) ?? Date(),
             status: eventStatus(event.status),
