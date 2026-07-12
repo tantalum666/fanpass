@@ -13,6 +13,7 @@ run_case() {
   local output
   local status
   local worker_runs
+  local mock_worker_runs
 
   tmp_dir="$(mktemp -d)"
   mkdir -p "$tmp_dir/bin"
@@ -37,7 +38,8 @@ run_case() {
     passed=1
   fi
   worker_runs="$(grep -c "side-effects:work-once" "$tmp_dir/npm.log" || true)"
-  if [[ "$worker_runs" -ne 2 ]]; then
+  mock_worker_runs="$(grep -c "OWNERSHIP_ADAPTER=mock .*side-effects:work-once" "$tmp_dir/npm.log" || true)"
+  if [[ "$worker_runs" -ne 2 || "$mock_worker_runs" -ne 2 ]]; then
     passed=0
     status=1
   fi
@@ -82,7 +84,10 @@ mutate_script() {
       perl -0pi -e 's/sfx_worker_stale_recovery/sfx_worker_stale_missing/g' "$script_path"
       ;;
     missing-second-worker-run)
-      perl -0pi -e 's/FANPASS_DATA_SOURCE=prisma DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api\nFANPASS_DATA_SOURCE=prisma DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api/FANPASS_DATA_SOURCE=prisma DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api/' "$script_path"
+      perl -0pi -e 's/FANPASS_DATA_SOURCE=prisma OWNERSHIP_ADAPTER=mock DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api\nFANPASS_DATA_SOURCE=prisma OWNERSHIP_ADAPTER=mock DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api/FANPASS_DATA_SOURCE=prisma OWNERSHIP_ADAPTER=mock DATABASE_URL="\$DATABASE_URL" npm run side-effects:work-once -w \@fanpass\/api/' "$script_path"
+      ;;
+    missing-mock-ownership-isolation)
+      perl -0pi -e 's/OWNERSHIP_ADAPTER=mock //g' "$script_path"
       ;;
     missing-finalization-check)
       perl -0pi -e 's/ownership-finalize:/ownership-finalize-missing:/g' "$script_path"
@@ -103,7 +108,7 @@ write_fake_tools() {
   cat >"$bin_dir/npm" <<'FAKE_NPM'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >>"${TMPDIR}/npm.log"
+printf 'OWNERSHIP_ADAPTER=%s %s\n' "${OWNERSHIP_ADAPTER:-}" "$*" >>"${TMPDIR}/npm.log"
 exit 0
 FAKE_NPM
 
@@ -177,6 +182,7 @@ add_case() {
 add_case "accepts side-effect worker verifier semantics" "default" "pass"
 add_case "rejects missing stale processing recovery fixture" "missing-stale-recovery" "fail"
 add_case "rejects missing second worker pass" "missing-second-worker-run" "fail"
+add_case "rejects worker runs without mock ownership isolation" "missing-mock-ownership-isolation" "fail"
 add_case "rejects missing ownership finalization check" "missing-finalization-check" "fail"
 add_case "rejects missing ticket/order settlement checks" "missing-ticket-order-settlement-check" "fail"
 

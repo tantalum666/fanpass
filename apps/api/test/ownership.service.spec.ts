@@ -33,6 +33,11 @@ jest.mock("ethers", () => ({
 }));
 
 describe("OwnershipService", () => {
+  it("pins unit tests to the mock ownership adapter", () => {
+    expect(process.env.OWNERSHIP_ADAPTER).toBe("mock");
+    expect(process.env.FANPASS_ENABLE_PAYMENTS).toBe("false");
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockContract.interface.parseLog.mockReturnValue({

@@ -119,8 +119,8 @@ await prisma.sideEffectOutbox.create({
 await prisma.$disconnect();
 NODE
 
-FANPASS_DATA_SOURCE=prisma DATABASE_URL="$DATABASE_URL" npm run side-effects:work-once -w @fanpass/api
-FANPASS_DATA_SOURCE=prisma DATABASE_URL="$DATABASE_URL" npm run side-effects:work-once -w @fanpass/api
+FANPASS_DATA_SOURCE=prisma OWNERSHIP_ADAPTER=mock DATABASE_URL="$DATABASE_URL" npm run side-effects:work-once -w @fanpass/api
+FANPASS_DATA_SOURCE=prisma OWNERSHIP_ADAPTER=mock DATABASE_URL="$DATABASE_URL" npm run side-effects:work-once -w @fanpass/api
 
 node <<'NODE'
 const { PrismaClient } = await import("@prisma/client");

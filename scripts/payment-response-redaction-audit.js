@@ -67,9 +67,9 @@ function validatePaymentsServiceRedaction() {
       `PaymentsService must keep this.mapPayment(...) limited to createPaymentIntent idempotent and fresh checkout responses; found ${mapPaymentCalls} calls.`,
     );
   }
-  if (!paymentsService.includes("return this.mapPayment(existing);")) {
+  if (!paymentsService.includes("return this.mapPayment(repaired);")) {
     errors.push(
-      "createPaymentIntent idempotent retry must keep returning the payer-only payment mapper.",
+      "createPaymentIntent repaired idempotent retry must keep returning the payer-only payment mapper.",
     );
   }
   if (!paymentsService.includes("return this.mapPayment(updated);")) {

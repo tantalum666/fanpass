@@ -354,7 +354,7 @@ export class PaymentsService {
 
     const quote = this.cryptoQuoteForPayment(payment, config);
     return {
-      payment: this.mapPayment(payment),
+      payment: this.mapRedactedPayment(payment),
       quote,
     };
   }
@@ -378,7 +378,7 @@ export class PaymentsService {
     if (payment.captureStatus === "CAPTURED") {
       return {
         ok: true,
-        payment: this.mapPayment(payment),
+        payment: this.mapRedactedPayment(payment),
         alreadyConfirmed: true,
       };
     }
@@ -412,7 +412,7 @@ export class PaymentsService {
     if (payment.captureStatus === "CAPTURED") {
       return {
         ok: true,
-        payment: this.mapPayment(payment),
+        payment: this.mapRedactedPayment(payment),
         alreadyConfirmed: true,
       };
     }
@@ -1530,7 +1530,7 @@ export class PaymentsService {
 
     return {
       ok: true,
-      payment: this.mapPayment(updated),
+      payment: this.mapRedactedPayment(updated),
       transactionHash,
     };
   }

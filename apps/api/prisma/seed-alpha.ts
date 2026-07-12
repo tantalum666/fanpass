@@ -4,24 +4,30 @@ import { createDemoSeed } from "../src/common/demo-seed";
 const prisma = new PrismaClient();
 
 async function reset() {
-  await prisma.sideEffectOutbox.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.paymentWebhookEvent.deleteMany();
-  await prisma.checkin.deleteMany();
-  await prisma.staffInvite.deleteMany();
-  await prisma.gateAssignment.deleteMany();
-  await prisma.fanScore.deleteMany();
-  await prisma.fanTaskSubmission.deleteMany();
-  await prisma.fanTask.deleteMany();
-  await prisma.trade.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.ticket.deleteMany();
-  await prisma.ticketType.deleteMany();
-  await prisma.event.deleteMany();
-  await prisma.venue.deleteMany();
-  await prisma.organizer.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.$transaction([
+    prisma.sideEffectOutbox.deleteMany(),
+    prisma.auditLog.deleteMany(),
+    prisma.paymentWebhookEvent.deleteMany(),
+    prisma.entryCredential.deleteMany(),
+    prisma.checkin.deleteMany(),
+    prisma.staffInvite.deleteMany(),
+    prisma.inventoryHold.deleteMany(),
+    prisma.trade.deleteMany(),
+    prisma.payment.deleteMany(),
+    prisma.order.deleteMany(),
+    prisma.queueEntry.deleteMany(),
+    prisma.fanScore.deleteMany(),
+    prisma.fanTaskSubmission.deleteMany(),
+    prisma.fanTask.deleteMany(),
+    prisma.gateAssignment.deleteMany(),
+    prisma.ticket.deleteMany(),
+    prisma.onsale.deleteMany(),
+    prisma.ticketType.deleteMany(),
+    prisma.event.deleteMany(),
+    prisma.venue.deleteMany(),
+    prisma.organizer.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
 }
 
 async function seed() {

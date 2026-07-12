@@ -7,6 +7,29 @@ const rootDir = process.env.FANPASS_EVIDENCE_REDACTION_ROOT
 const evidenceDir = process.env.FANPASS_EVIDENCE_REDACTION_DIR
   ? path.resolve(process.env.FANPASS_EVIDENCE_REDACTION_DIR)
   : path.join(rootDir, "outputs");
+const ignoredBuildRootNames = new Set([
+  "ios-archive-check",
+  "ios-device-build",
+  "ios-sim-build",
+]);
+const evidenceTextExtensions = new Set([
+  ".csv",
+  ".env",
+  ".htm",
+  ".html",
+  ".json",
+  ".jsonl",
+  ".log",
+  ".markdown",
+  ".md",
+  ".ndjson",
+  ".out",
+  ".tsv",
+  ".txt",
+  ".xml",
+  ".yaml",
+  ".yml",
+]);
 
 const forbiddenPatterns = [
   {
@@ -357,6 +380,8 @@ console.log(
       ok: true,
       evidenceDir: normalizePath(path.relative(rootDir, evidenceDir)),
       checkedFiles: files.length,
+      ignoredBuildRoots: [...ignoredBuildRootNames].sort(),
+      scannedExtensions: [...evidenceTextExtensions].sort(),
       forbiddenMarkers: forbiddenPatterns.map((rule) => rule.label),
     },
     null,
@@ -364,7 +389,7 @@ console.log(
   ),
 );
 
-function listFiles(dir) {
+function listFiles(dir, isEvidenceRoot = true) {
   if (!fs.existsSync(dir)) {
     return [];
   }
@@ -372,12 +397,17 @@ function listFiles(dir) {
   return entries.flatMap((entry) => {
     const absolutePath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      return listFiles(absolutePath);
+      if (isEvidenceRoot && ignoredBuildRootNames.has(entry.name)) {
+        return [];
+      }
+      return listFiles(absolutePath, false);
     }
     if (!entry.isFile()) {
       return [];
     }
-    return [absolutePath];
+    return evidenceTextExtensions.has(path.extname(entry.name).toLowerCase())
+      ? [absolutePath]
+      : [];
   });
 }
 

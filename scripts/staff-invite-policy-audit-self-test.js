@@ -101,6 +101,17 @@ const cases = [
       ),
   },
   {
+    label: "rejects Ops session activation without authenticated API client",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      replaceFixtureText(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+        "apiClient = apiClient.withAccessToken(session.accessToken ?? fallbackAccessToken)",
+        "apiClient = FanPassAPIClient(baseURL: apiClient.baseURL)",
+      ),
+  },
+  {
     label: "rejects missing composite verifier wiring",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -368,7 +379,10 @@ privyAuthProvider.loginWithEmailCode(
 privyAccessToken = result.accessToken
 apiClient.acceptStaffInvite(
 inviteToken.trimmingCharacters(in: .whitespacesAndNewlines)
-apiClient = apiClient.withAccessToken(token)
+await activateOpsSession(session, fallbackAccessToken: result.accessToken)
+func activateOpsSession(_ session: UserSession, fallbackAccessToken: String?) async {
+apiClient = apiClient.withAccessToken(session.accessToken ?? fallbackAccessToken)
+}
 privyAccessToken = ""
 inviteToken = ""
 `;

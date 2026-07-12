@@ -257,7 +257,8 @@ function validateOpsClientBoundary() {
     "privyAccessToken = result.accessToken",
     "apiClient.acceptStaffInvite(",
     "inviteToken.trimmingCharacters",
-    "apiClient = apiClient.withAccessToken(token)",
+    "await activateOpsSession(session, fallbackAccessToken: result.accessToken)",
+    "apiClient = apiClient.withAccessToken(session.accessToken ?? fallbackAccessToken)",
     'privyAccessToken = ""',
     'inviteToken = ""',
   ]) {

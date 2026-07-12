@@ -171,6 +171,18 @@ const cases = [
     },
   },
   {
+    label: "ignores Xcode build packs outside the text evidence boundary",
+    expected: "pass",
+    files: {
+      "outputs/ios-sim-build/FanPass/SourcePackages/dependency.pack":
+        "sk_test_fixture_should_not_be_scanned",
+      "outputs/ios/evidence.json": JSON.stringify({
+        providerSecretAvailable: false,
+        redacted: true,
+      }),
+    },
+  },
+  {
     label: "rejects Stripe secret key",
     expected: "fail",
     files: {

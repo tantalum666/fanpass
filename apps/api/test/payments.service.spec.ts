@@ -315,6 +315,10 @@ describe("PaymentsService", () => {
       } as never,
     );
 
+    expect(quote.payment).not.toHaveProperty("clientSecret");
+    expect(quote.payment).not.toHaveProperty("stripePaymentIntentId");
+    expect(quote.payment).not.toHaveProperty("idempotencyKey");
+
     expect(quote.payment.currency).toBe("usdc");
     expect(quote.quote.asset).toBe("USDC");
     expect(quote.quote.chainId).toBe("11155111");
@@ -551,6 +555,9 @@ describe("PaymentsService", () => {
     );
 
     expect(result.ok).toBe(true);
+    expect(result.payment).not.toHaveProperty("clientSecret");
+    expect(result.payment).not.toHaveProperty("stripePaymentIntentId");
+    expect(result.payment).not.toHaveProperty("idempotencyKey");
     expect(tx.payment.update).toHaveBeenCalledWith({
       where: { id: cryptoPayment.id },
       data: {

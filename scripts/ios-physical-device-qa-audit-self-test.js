@@ -53,7 +53,7 @@ const cases = [
           .replace("## FanPass Ops Checks", "## Ops")
           .replace("verified auth", "local demo session")
           .replace(
-            "NFC reads a supported physical NDEF tag into the same backend redemption path as QR",
+            "When NFC is explicitly re-enabled later, it must read a supported physical NDEF tag into the same backend redemption path as QR",
             "NFC reads anything",
           ),
       ),
@@ -257,7 +257,7 @@ Do not use real personal data, production credentials, Apple signing material, d
 - Gate staff can sign in with verified auth.
 - Staff only sees assigned event/gate access.
 - QR camera scanning accepts the first valid staging payload and rejects duplicate replay.
-- NFC reads a supported physical NDEF tag into the same backend redemption path as QR.
+- When NFC is explicitly re-enabled later, it must read a supported physical NDEF tag into the same backend redemption path as QR.
 - Scanner identity comes from the verified auth session.
 - Debug paste fallback and payload copy helpers are unavailable.
 - FanPass Ops does not expose consumer wallet, marketplace, checkout, PaymentSheet, or organizer inventory flows.

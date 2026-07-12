@@ -32,7 +32,7 @@ const auditReport = process.env.FANPASS_DEPENDENCY_TOOLING_AUDIT_JSON
     );
 
 validateScriptWiring();
-validateDocs();
+validateDocs(auditReport);
 validateFullAudit(auditReport);
 
 if (errors.length > 0) {
@@ -78,17 +78,26 @@ function validateScriptWiring() {
   ]);
 }
 
-function validateDocs() {
+function validateDocs(report) {
+  const metadata = report.metadata?.vulnerabilities ?? {};
   for (const marker of [
     "full dev/tooling audit",
     "Hardhat/contract-toolchain",
-    "40 advisories",
-    "4 high",
+    `${Number(metadata.total ?? 0)} advisories`,
+    `${Number(metadata.high ?? 0)} high`,
     "dedicated migration with contract tests",
   ]) {
     if (!advisoryLog.includes(marker)) {
       errors.push(
         `docs/DEPENDENCY_ADVISORY_LOG.md must keep full tooling audit marker: ${marker}`,
+      );
+    }
+  }
+
+  for (const packageName of allowedHighToolingPackages) {
+    if (!advisoryLog.includes(`\`${packageName}\``)) {
+      errors.push(
+        `docs/DEPENDENCY_ADVISORY_LOG.md must name contained high tooling package: ${packageName}`,
       );
     }
   }

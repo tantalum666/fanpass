@@ -213,6 +213,18 @@ Verification on 2026-07-12:
 
 There are currently no production dependency advisories in the npm audit. The table below is historical and must not be treated as the current production result.
 
+### 2026-07-12 Contract Tooling Advisory Refresh
+
+A fresh Node 22 full dev/tooling audit initially reported 42 advisories, including 7 high findings and no critical findings. Three newly reported high packages were confined to the Hardhat/contract-toolchain graph and had compatible fixes inside the versions already allowed by the workspace:
+
+- `form-data` moved from `4.0.5` to `4.0.6` through `hardhat-gas-reporter` and Axios.
+- `viem` moved from `2.50.4` to `2.55.1` through `hardhat-gas-reporter`.
+- `ethers` moved from `6.16.0` to `6.17.0`; both `ethers` and `viem` now resolve `ws` `8.21.0`.
+
+After the lockfile refresh, the full dev/tooling audit currently reports 38 advisories, including 4 high findings and no critical findings. The remaining high packages are `lodash`, `serialize-javascript`, `tmp`, and `undici`. They remain indirect dependencies confined to the Hardhat/contract-toolchain graph and do not enter the deployable API or Console production path.
+
+The dependency tooling gate now compares the documented advisory counts with live audit metadata and rejects a stale summary. Its allowlist and boundary checks remain fail-closed. The production audit reports zero vulnerabilities, the tooling gate self-test passes, and all 6 contract tests pass. Resolve the remaining four findings through a dedicated migration with contract tests; do not force a Hardhat 3 migration into unrelated product work.
+
 ## Historical Advisories
 
 | Package           | Severity | Path                        | Advisory                                                                                                 | Current safe action                                                                                               |

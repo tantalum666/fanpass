@@ -96,6 +96,15 @@ const cases = [
         "# FanPass Dependency Advisory Log\n",
       ),
   },
+  {
+    label: "rejects stale advisory summary metadata",
+    expected: "fail",
+    mutate: (fixtureRoot) => {
+      const audit = knownFullAudit();
+      audit.metadata.vulnerabilities.total = 41;
+      writeJsonFixture(fixtureRoot, "audit.json", audit);
+    },
+  },
 ];
 
 const results = cases.map((testCase) => {
@@ -195,6 +204,7 @@ function writePassingFixture(fixtureRoot) {
       "# FanPass Dependency Advisory Log",
       "",
       "The full dev/tooling audit currently reports 40 advisories, including 4 high findings.",
+      "The contained high packages are `lodash`, `serialize-javascript`, `tmp`, and `undici`.",
       "Those high findings are confined to the Hardhat/contract-toolchain transitive dependency graph.",
       "Resolve them through a dedicated migration with contract tests.",
       "",

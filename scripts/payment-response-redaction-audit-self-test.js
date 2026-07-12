@@ -204,7 +204,8 @@ export class PaymentsService {
   async createPaymentIntent() {
     const existing = {};
     if (existing) {
-      return this.mapPayment(existing);
+      const repaired = existing;
+      return this.mapPayment(repaired);
     }
     const updated = {};
     return this.mapPayment(updated);
