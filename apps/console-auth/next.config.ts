@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: appDirectory,
   poweredByHeader: false,
   webpack(config) {
+    // Console authentication is deliberately email-only. Keep optional wallet,
+    // fiat-onramp, and mini-app SDKs out of this isolated runtime bundle.
     config.resolve.alias["@farcaster/mini-app-solana"] = false;
+    config.resolve.alias["@stripe/crypto"] = false;
     return config;
   },
   async headers() {

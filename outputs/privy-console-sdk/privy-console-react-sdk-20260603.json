@@ -2,7 +2,7 @@
   "ok": true,
   "draft": false,
   "draftStatus": "completed-console-sdk-dependency-isolation-review",
-  "checkedAt": "2026-06-03T08:41:42.845Z",
+  "checkedAt": "2026-07-14T12:12:55.608Z",
   "provider": "privy-console-react-sdk-isolation",
   "evidenceSource": "node22-dependency-isolation-review",
   "realUserDataUsed": false,
@@ -17,57 +17,57 @@
       },
       {
         "file": "apps/console-auth/app/privy-console-login.tsx",
-        "sha256": "82826a2263d1af07b9bc5c43b407d64f20ceaff8a97ea3a1f2c8d62dda80467f"
+        "sha256": "62fa7cd261a6a872dcf56cb99206043b53ed4f30702a3dcd67bf71e744028f5e"
       },
       {
         "file": "apps/console-auth/next.config.ts",
-        "sha256": "1f9680ed09e0cc33d104508b173eab493beed601b720928d4a7db24b9911de52"
+        "sha256": "ee8ad563c58d25528492b7e92917983f0343129cc4977e478635448b4805da2d"
       },
       {
         "file": "apps/console-auth/package.json",
-        "sha256": "2b08e6d203ad4598f5b592baf423452db3053d0ac22265c2c304ee68ae49cf84"
+        "sha256": "58ec8e26fbfa4bc0ea5babcbc46ab0ab9164201a6f32fd23e63a96904ae320b9"
       },
       {
         "file": "apps/console-auth/package-lock.json",
-        "sha256": "dbd4cdc9ecf855bc4457b0ebd41112ebdfbc443f494cfdb21f5d8ecad6e3343b"
+        "sha256": "7fb6b6d95ad94e53eea645f09348f282f28fd634e6372090ee94c20b47c4e826"
       },
       {
-        "file": "apps/dashboard/app/api/console/privy-session/route.ts",
-        "sha256": "1230a367db62f0c3fda3fd2ae9df62dc8617216c627f805acbb0a3c8f8d7eec3"
+        "file": "apps/dashboard/server/console-bff.ts",
+        "sha256": "783c0407ed1753d88717c93d66d94043f43e2e63b40e114a40290a20fcf7d389"
       },
       {
-        "file": "apps/dashboard/app/console-login-form.tsx",
-        "sha256": "46017c52c6b4d9885ee2a3724cabc0f5dde493312f156f09e96af8dc9462ed47"
+        "file": "apps/dashboard/src/ConsoleApp.tsx",
+        "sha256": "750e5d372252a4e26da24a13c81263d39f1ee72c1ce3574d1fa7cd826f7609da"
       },
       {
-        "file": "apps/dashboard/lib/api.ts",
-        "sha256": "9dd9a157b1718bf3185c1978f6a990acf324865f0c00f190ceaa18acc93ad7e7"
+        "file": "apps/dashboard/lib/console-auth.ts",
+        "sha256": "463860a71357f2e0eb4c4587d687951c84bc91115a60c4fdbd88ea6a67f8d6d2"
       },
       {
         "file": "apps/dashboard/package.json",
-        "sha256": "826f22ecb4b340c2f6f83109528e1721ac17c399e945eadde279581735863985"
+        "sha256": "e1ce4693308f44e78f5774a889dfccd77ce38123de401d62ee23e282d29e2247"
       },
       {
         "file": "package.json",
-        "sha256": "066eb36909d1cbf692a98571fa321a751e53f08dadecb5e2475834b18548c66c"
+        "sha256": "30a6f71969b6c62d93eb221859c422f9b76ff5468aa3efb51735d190b45de2e5"
       },
       {
         "file": "package-lock.json",
-        "sha256": "11162ede648d0e117bb20e1172797e972f84cb6646e629d447b5711a428f8fc7"
+        "sha256": "c05d6835d60e334fa6453ce1987789482b9e3ee14ce524107fbd203a91e3a649"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "2015cc0c88199170bf360e8074256867f34551e3e3b894b802987c6149355579"
+        "sha256": "49b9be450cd8d3720eff33d14f1837e6feb489a7bb235fe86e1228da2cf6c8fa"
       },
       {
         "file": "scripts/provider-boundary-audit.js",
-        "sha256": "e7acf7c94fdc1a352c23725f2d7133de0f05d335532f593745935ab6fcc04ad1"
+        "sha256": "acd66eac0cdf3d0833842708af54502f2395e9c3ca8a49d8e695e24bc123810c"
       }
     ]
   },
   "sdk": {
     "package": "@privy-io/react-auth",
-    "version": "3.28.0",
+    "version": "3.35.0",
     "metadataCommand": "npm view @privy-io/react-auth@latest version dependencies peerDependencies --json"
   },
   "integration": {
@@ -93,15 +93,15 @@
       "npm run security:dependency-advisories"
     ],
     "productionAuditBefore": {
-      "total": 2,
-      "moderate": 2,
+      "total": 0,
+      "moderate": 0,
       "high": 0,
       "critical": 0,
       "knownNextPostcssOnly": true
     },
     "productionAuditAfter": {
-      "total": 2,
-      "moderate": 2,
+      "total": 0,
+      "moderate": 0,
       "high": 0,
       "critical": 0,
       "knownNextPostcssOnly": true,
@@ -111,8 +111,8 @@
       "command": "npm audit --omit=dev --audit-level=low",
       "workspacePath": "apps/console-auth",
       "defaultFanPassProductionAuditPath": false,
-      "total": 25,
-      "moderate": 25,
+      "total": 12,
+      "moderate": 12,
       "high": 0,
       "critical": 0
     }

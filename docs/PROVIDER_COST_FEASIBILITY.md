@@ -98,7 +98,7 @@ Current Privy React SDK dependency status:
 - `@privy-io/react-auth@3.27.2` was tested on 2026-05-28 and pulled in WalletConnect/MetaMask/Reown dependencies that raised production `npm audit --omit=dev` from 2 moderate advisories to 25 moderate advisories.
 - Downgrading to `@privy-io/react-auth@3.6.1` reduced but did not remove the issue; production audit still reported 18 moderate advisories.
 - Running non-forced `npm audit fix` made the overall workspace worse by introducing high-severity dev/contract-tooling advisories.
-- Decision: keep the Privy React SDK out of root workspaces and FanPass Console production dependencies. `apps/console-auth` has its own package-lock and runtime boundary; its audit still reports 25 moderate advisories from Next/PostCSS plus wallet/provider transitive packages, so it must remain isolated until upstream dependency risk is resolved or explicitly accepted.
+- Decision: keep the Privy React SDK out of root workspaces and FanPass Console production dependencies. The 2026-07-14 repair upgraded the isolated runtime to `@privy-io/react-auth@3.35.0`, restricted Console login to email, and overrode vulnerable transitive `ws` copies with `8.21.0`. Its isolated production audit now reports 12 moderate and zero high/critical advisories; Next/PostCSS and unused wallet/provider transitive risk still require this runtime to remain isolated until upstream dependency risk is resolved or explicitly accepted.
 
 Resolved Privy checks for the current Beta foundation scope:
 

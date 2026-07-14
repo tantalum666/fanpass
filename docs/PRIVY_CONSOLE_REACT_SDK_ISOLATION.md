@@ -101,7 +101,7 @@ Evidence must not include:
   },
   "sdk": {
     "package": "@privy-io/react-auth",
-    "version": "3.28.0",
+    "version": "3.35.0",
     "metadataCommand": "npm view @privy-io/react-auth@latest version dependencies peerDependencies --json"
   },
   "integration": {
@@ -166,4 +166,4 @@ Evidence must not include:
 
 ## Release Rule
 
-`Integrate Privy React SDK into FanPass Console` is complete for the current isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. Regenerate evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, or boundary-audit policy change.
+`Integrate Privy React SDK into FanPass Console` is complete for the current isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. The 2026-07-14 staging-login repair upgraded the isolated runtime to `@privy-io/react-auth@3.35.0`, restricted Console login to email, and pinned the patched `ws@8.21.0` transitively; the isolated production audit reports 12 moderate and zero high/critical advisories. Regenerate saved release evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, or boundary-audit policy change.

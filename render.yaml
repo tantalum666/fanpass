@@ -127,7 +127,7 @@ services:
     plan: free
     region: oregon
     rootDir: apps/console-auth
-    buildCommand: npm ci && npm run build
+    buildCommand: npm_config_include=dev npm ci && npm run build
     startCommand: npm run start
     healthCheckPath: /
     envVars:

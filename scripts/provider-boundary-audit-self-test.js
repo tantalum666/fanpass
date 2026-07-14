@@ -74,7 +74,7 @@ const cases = [
           {
             name: "@fanpass/dashboard",
             dependencies: {
-              "@privy-io/react-auth": "3.28.0",
+              "@privy-io/react-auth": "3.35.0",
             },
           },
           null,
@@ -297,7 +297,7 @@ function writePassingFixture(fixtureRoot) {
         name: "@fanpass/console-auth",
         private: true,
         dependencies: {
-          "@privy-io/react-auth": "3.28.0",
+          "@privy-io/react-auth": "3.35.0",
           next: "15.5.18",
           react: "19.1.0",
           "react-dom": "19.1.0",
@@ -320,14 +320,14 @@ function writePassingFixture(fixtureRoot) {
             name: "@fanpass/console-auth",
             version: "0.1.0",
             dependencies: {
-              "@privy-io/react-auth": "3.28.0",
+              "@privy-io/react-auth": "3.35.0",
               next: "15.5.18",
               react: "19.1.0",
               "react-dom": "19.1.0",
             },
           },
           "node_modules/@privy-io/react-auth": {
-            version: "3.28.0",
+            version: "3.35.0",
           },
         },
       },

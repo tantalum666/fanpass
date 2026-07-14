@@ -371,9 +371,9 @@ function validatePrivyReactSdkIsolationWorkspace() {
   const isolatedManifest =
     readJsonIfExists("apps/console-auth/package.json") ?? {};
   const isolatedDependencies = isolatedManifest.dependencies ?? {};
-  if (isolatedDependencies["@privy-io/react-auth"] !== "3.28.0") {
+  if (isolatedDependencies["@privy-io/react-auth"] !== "3.35.0") {
     errors.push(
-      "apps/console-auth/package.json must pin @privy-io/react-auth to the reviewed 3.28.0 SDK version",
+      "apps/console-auth/package.json must pin @privy-io/react-auth to the reviewed 3.35.0 SDK version",
     );
   }
 

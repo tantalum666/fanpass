@@ -272,7 +272,7 @@ function createEvidence(overrides = {}) {
       implementationSnapshot: createImplementationSnapshot(),
       sdk: {
         package: "@privy-io/react-auth",
-        version: "3.28.0",
+        version: "3.35.0",
         metadataCommand:
           "npm view @privy-io/react-auth@latest version dependencies peerDependencies --json",
       },
