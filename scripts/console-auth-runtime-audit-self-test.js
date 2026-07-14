@@ -47,6 +47,30 @@ const cases = [
     marker: "must not include localStorage",
   },
   {
+    label: "rejects a missing first-party Console session form handoff",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/src/PrivyConsoleLogin.tsx",
+        "form.requestSubmit()",
+        "return",
+      ),
+    pass: false,
+    marker: "must include form.requestSubmit()",
+  },
+  {
+    label: "rejects a CSP that cannot submit to the exact Console origin",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/server/security.ts",
+        "`form-action 'self'${consoleFormAction}`",
+        '"form-action \'self\'"',
+      ),
+    pass: false,
+    marker: "must include `form-action 'self'${consoleFormAction}`",
+  },
+  {
     label: "rejects a missing strict session URL boundary",
     mutate: (fixtureRoot) =>
       replace(

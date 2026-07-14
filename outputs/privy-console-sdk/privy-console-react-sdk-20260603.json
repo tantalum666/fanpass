@@ -2,7 +2,7 @@
   "ok": true,
   "draft": false,
   "draftStatus": "completed-console-sdk-dependency-isolation-review",
-  "checkedAt": "2026-07-14T15:35:05.000Z",
+  "checkedAt": "2026-07-14T18:46:29.000Z",
   "provider": "privy-console-react-sdk-isolation",
   "evidenceSource": "node22-dependency-isolation-review",
   "realUserDataUsed": false,
@@ -18,7 +18,7 @@
       },
       {
         "file": "apps/console-auth/src/PrivyConsoleLogin.tsx",
-        "sha256": "7d2266b8c20c508347fb49c8424fc3839a6ea92086e5ed413d1034ab9dd2029c"
+        "sha256": "d36762cd07f726df8a02bc1a698010d3b6ece7a95984cee5ffdcbf6cd3a44cb2"
       },
       {
         "file": "apps/console-auth/src/runtime-config.ts",
@@ -34,7 +34,7 @@
       },
       {
         "file": "apps/console-auth/server/security.ts",
-        "sha256": "39f28739fed3a34067f92ee29dd0975ec7026e4220b3a4c5148599c590323d5d"
+        "sha256": "634108e23490bea181203b9bc246663361efc8b924f34af50ed72be7c692ff0e"
       },
       {
         "file": "apps/console-auth/server/static-files.ts",
@@ -54,7 +54,7 @@
       },
       {
         "file": "apps/dashboard/server/console-bff.ts",
-        "sha256": "8f882ef9f6880973f5ec9ea3c163a446a22a02207db9b124904cd7be0ad5582e"
+        "sha256": "b0a9fc42a6ff0184175e70feb2e0804c29c292e9dca72bef6974f4f0ea74c140"
       },
       {
         "file": "apps/dashboard/src/ConsoleApp.tsx",
@@ -82,11 +82,11 @@
       },
       {
         "file": "scripts/console-auth-runtime-audit.js",
-        "sha256": "475b3c8abdf6d31d21ea9320ab4cc5908899d09ab8089d169c8b8b177caf0f56"
+        "sha256": "04e2d1be5e959ef00bec8af33e3e63d43563f051b2470ef7a41319d87f9fcf01"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "a8315934a2433e920db25fab0be3d96c4c9ac41eda68316c3d9bfed9f9a24b03"
+        "sha256": "dffed70debff48bc758a42840125dbcf5cf1cdced24f9c489a8d7a27b1b4a4a8"
       },
       {
         "file": "scripts/provider-boundary-audit.js",

@@ -24,7 +24,9 @@ export function applySecurityHeaders(
 }
 
 export function contentSecurityPolicy(config: ConsoleAuthRuntimeConfig | null) {
-  const consoleOrigin = config?.consoleUrl ?? "'self'";
+  const consoleOrigin = config?.consoleUrl ?? null;
+  const consoleConnectionSource = consoleOrigin ? ` ${consoleOrigin}` : "";
+  const consoleFormAction = consoleOrigin ? ` ${consoleOrigin}` : "";
   return [
     "default-src 'self'",
     "script-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://*.hcaptcha.com",
@@ -33,12 +35,12 @@ export function contentSecurityPolicy(config: ConsoleAuthRuntimeConfig | null) {
     "font-src 'self' data:",
     "child-src https://auth.privy.io",
     "frame-src https://auth.privy.io https://challenges.cloudflare.com https://hcaptcha.com https://*.hcaptcha.com",
-    `connect-src 'self' ${consoleOrigin} https://auth.privy.io https://*.rpc.privy.systems https://challenges.cloudflare.com https://hcaptcha.com https://*.hcaptcha.com`,
+    `connect-src 'self'${consoleConnectionSource} https://auth.privy.io https://*.rpc.privy.systems https://challenges.cloudflare.com https://hcaptcha.com https://*.hcaptcha.com`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self'${consoleFormAction}`,
     "object-src 'none'",
   ].join("; ");
 }

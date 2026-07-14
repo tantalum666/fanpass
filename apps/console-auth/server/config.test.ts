@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadRuntimeConfig, RuntimeConfigError } from "./config.js";
+import { contentSecurityPolicy } from "./security.js";
 
 const appId = "fanpass_test_app_12345";
 const consoleUrl = "https://console.example.com";
@@ -19,6 +20,29 @@ test("accepts an HTTPS production-like runtime configuration", () => {
   assert.equal(config.sessionBridgeUrl, bridgeUrl);
   assert.deepEqual(config.legacyEnvironmentNames, []);
   assert.equal(config.privySessionMode, "browser-sdk");
+});
+
+test("allows the exact configured Console origin for session form handoff", () => {
+  const config = loadRuntimeConfig({
+    FANPASS_ENV: "staging",
+    FANPASS_PRIVY_APP_ID: appId,
+    FANPASS_CONSOLE_URL: consoleUrl,
+    FANPASS_CONSOLE_SESSION_BRIDGE_URL: bridgeUrl,
+  });
+
+  const policy = contentSecurityPolicy(config);
+  assert.match(
+    policy,
+    new RegExp(`form-action 'self' ${escapeRegExp(consoleUrl)}(?:;|$)`),
+  );
+  assert.doesNotMatch(policy, /form-action[^;]*\*/);
+});
+
+test("keeps form submission same-origin when runtime config is invalid", () => {
+  const policy = contentSecurityPolicy(null);
+
+  assert.match(policy, /form-action 'self'(?:;|$)/);
+  assert.doesNotMatch(policy, /form-action[^;]*https?:/);
 });
 
 test("accepts legacy public names only as a migration fallback", () => {
@@ -147,4 +171,8 @@ for (const [label, env, message] of [
         error instanceof RuntimeConfigError && error.message.includes(message),
     );
   });
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

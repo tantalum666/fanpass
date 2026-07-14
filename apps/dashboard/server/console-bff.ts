@@ -35,6 +35,23 @@ interface PrivySessionResponse {
   expiresAt: string | null;
 }
 
+interface PrivySessionRequestBody {
+  accessToken?: unknown;
+  handoff?: unknown;
+}
+
+class RequestBodyError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "RequestBodyError";
+  }
+}
+
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+
 createServer(async (request, response) => {
   try {
     applySecurityHeaders(response);
@@ -375,9 +392,21 @@ async function handlePrivySessionPost(
     throw error;
   }
 
-  const body = (await readJsonBody(request)) as {
-    accessToken?: unknown;
-  } | null;
+  let body: PrivySessionRequestBody | null;
+  try {
+    body = await readPrivySessionBody(request);
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return sendJson(response, error.status, {
+        ok: false,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+  const topLevelHandoff =
+    requestContentType(request) === "application/x-www-form-urlencoded" &&
+    body?.handoff === "top-level";
   const bodyAccessToken =
     typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
   const accessToken =
@@ -424,6 +453,9 @@ async function handlePrivySessionPost(
     "Set-Cookie",
     consoleSessionCookie(accessToken, session.expiresAt),
   );
+  if (topLevelHandoff) {
+    return sendRedirect(response, 303, "/");
+  }
   return sendJson(response, 200, {
     ok: true,
     userId: session.userId,
@@ -546,14 +578,63 @@ function cookieSource(request: IncomingMessage) {
 }
 
 async function readJsonBody(request: IncomingMessage) {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  if (chunks.length === 0) {
+  const rawBody = await readRequestBody(request);
+  if (!rawBody) {
     return null;
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    throw new RequestBodyError("Request body must be valid JSON", 400);
+  }
+}
+
+async function readPrivySessionBody(request: IncomingMessage) {
+  const rawBody = await readRequestBody(request);
+  if (!rawBody) {
+    return null;
+  }
+
+  const contentType = requestContentType(request);
+  if (contentType === "application/json") {
+    try {
+      return JSON.parse(rawBody) as PrivySessionRequestBody;
+    } catch {
+      throw new RequestBodyError("Request body must be valid JSON", 400);
+    }
+  }
+  if (contentType === "application/x-www-form-urlencoded") {
+    const fields = new URLSearchParams(rawBody);
+    return {
+      accessToken: fields.get("accessToken"),
+      handoff: fields.get("handoff"),
+    } satisfies PrivySessionRequestBody;
+  }
+  throw new RequestBodyError("Unsupported request content type", 415);
+}
+
+function requestContentType(request: IncomingMessage) {
+  return String(request.headers["content-type"] ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+}
+
+async function readRequestBody(request: IncomingMessage) {
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+      throw new RequestBodyError("Request body is too large", 413);
+    }
+    chunks.push(buffer);
+  }
+  if (chunks.length === 0) {
+    return "";
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 async function serveStatic(pathname: string, response: ServerResponse) {
@@ -585,6 +666,17 @@ function sendJson(response: ServerResponse, status: number, payload: unknown) {
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(JSON.stringify(payload));
+}
+
+function sendRedirect(
+  response: ServerResponse,
+  status: 303,
+  location: string,
+) {
+  response.statusCode = status;
+  response.setHeader("Cache-Control", "no-store");
+  response.setHeader("Location", location);
+  response.end();
 }
 
 function setHeaders(response: ServerResponse, headers: Record<string, string>) {

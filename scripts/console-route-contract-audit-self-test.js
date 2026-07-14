@@ -99,6 +99,29 @@ const cases = [
       ),
   },
   {
+    label: "rejects session bridge without first-party form handoff parsing",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
+          "readPrivySessionBody(request)",
+          "readJsonBody(request)",
+        ),
+      ),
+  },
+  {
+    label: "rejects session bridge without a post-cookie 303 redirect",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace('sendRedirect(response, 303, "/")', "undefined"),
+      ),
+  },
+  {
     label: "rejects gate assignment proxy without Console access token",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -392,6 +415,10 @@ async function handlePrivySessionPost(request, response) {
   const originRequest = requestToFetchRequest(request);
   const corsHeaders = consoleMutationCorsHeaders(originRequest);
   assertConsoleMutationOrigin(originRequest);
+  const body = await readPrivySessionBody(request);
+  const topLevelHandoff =
+    requestContentType(request) === "application/x-www-form-urlencoded" &&
+    body?.handoff === "top-level";
   const accessToken = privyCookieAccessToken(request.headers.cookie) ?? "fixture-access-token";
   const upstream = await fetch(\`\${API_BASE_URL}/auth/privy/sync\`, { cache: "no-store" });
   const session = await upstream.json();
@@ -399,6 +426,7 @@ async function handlePrivySessionPost(request, response) {
     return sendJson(response, 403, { ok: false });
   }
   response.setHeader("Set-Cookie", consoleSessionCookie(accessToken, session.expiresAt));
+  if (topLevelHandoff) return sendRedirect(response, 303, "/");
   return sendJson(response, 200, {
     ok: true,
     userId: session.userId,
@@ -407,6 +435,10 @@ async function handlePrivySessionPost(request, response) {
     expiresAt: session.expiresAt,
   });
 }
+
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+function readPrivySessionBody() { return { handoff: "top-level" }; }
+function requestContentType() { return "application/x-www-form-urlencoded"; }
 
 function handlePrivySessionDelete(request, response) {
   const originRequest = requestToFetchRequest(request);

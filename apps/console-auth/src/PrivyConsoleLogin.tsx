@@ -27,6 +27,8 @@ function PrivySessionBridge({
   const [state, setState] = useState<SessionState>("idle");
   const [message, setMessage] = useState("");
   const submittedSession = useRef(false);
+  const handoffForm = useRef<HTMLFormElement>(null);
+  const handoffTokenInput = useRef<HTMLInputElement>(null);
 
   const canLogin =
     ready && !authenticated && state !== "syncing" && state !== "ready";
@@ -47,19 +49,27 @@ function PrivySessionBridge({
     async function syncSession() {
       setState("syncing");
       setMessage("");
-      let body: Record<string, string> = {};
       if (privySessionMode === "browser-sdk") {
         const accessToken = await getAccessToken();
         if (!accessToken) {
           throw new Error("Privy did not return an access token.");
         }
-        body = { accessToken };
+
+        const form = handoffForm.current;
+        const tokenInput = handoffTokenInput.current;
+        if (!form || !tokenInput) {
+          throw new Error("Console session handoff is unavailable.");
+        }
+
+        tokenInput.value = accessToken;
+        form.requestSubmit();
+        return;
       }
 
       const response = await fetch(sessionBridgeUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({}),
         cache: "no-store",
         credentials: "include",
       });
@@ -111,6 +121,9 @@ function PrivySessionBridge({
   }
 
   async function resetSession() {
+    if (handoffTokenInput.current) {
+      handoffTokenInput.current.value = "";
+    }
     submittedSession.current = false;
     setState("idle");
     setMessage("");
@@ -137,6 +150,23 @@ function PrivySessionBridge({
           </button>
         ) : null}
       </div>
+      {privySessionMode === "browser-sdk" ? (
+        <form
+          ref={handoffForm}
+          action={sessionBridgeUrl}
+          method="post"
+          target="_self"
+          hidden
+        >
+          <input
+            ref={handoffTokenInput}
+            type="hidden"
+            name="accessToken"
+            autoComplete="off"
+          />
+          <input type="hidden" name="handoff" value="top-level" />
+        </form>
+      ) : null}
       {message ? (
         <p
           className="auth-message"
