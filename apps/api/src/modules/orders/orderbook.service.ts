@@ -93,11 +93,14 @@ export class OrderbookService {
         (candidate) => candidate.id === trade.ticketId,
       );
       return (
-        ticket?.eventId === eventId && ticket.ticketTypeId === ticketTypeId
+        trade.settlementStatus === "SETTLED" &&
+        ticket?.eventId === eventId &&
+        ticket.ticketTypeId === ticketTypeId
       );
     });
     const ticketType = this.store.getTicketType(ticketTypeId);
-    const lastTradePrice = trades[0]?.price ?? null;
+    const priceHistory = this.publicPriceHistory(trades);
+    const lastTradePrice = priceHistory.at(-1)?.price ?? null;
     const floorPrice = asks[0]?.price ?? null;
     return {
       eventId,
@@ -112,6 +115,7 @@ export class OrderbookService {
           ? null
           : ((lastTradePrice - ticketType.faceValue) / ticketType.faceValue) *
             100,
+      priceHistory,
     };
   }
 
@@ -652,6 +656,21 @@ export class OrderbookService {
       .slice(0, 10);
   }
 
+  private publicPriceHistory(
+    trades: { price: number; createdAt: string | Date }[],
+  ) {
+    return trades
+      .map((trade) => ({
+        price: trade.price,
+        tradedAt:
+          trade.createdAt instanceof Date
+            ? trade.createdAt.toISOString()
+            : new Date(trade.createdAt).toISOString(),
+      }))
+      .sort((left, right) => left.tradedAt.localeCompare(right.tradedAt))
+      .slice(-120);
+  }
+
   private async getPrismaOrderbook(
     prisma: PrismaService,
     eventId: string,
@@ -667,6 +686,7 @@ export class OrderbookService {
       }),
       prisma.trade.findMany({
         where: {
+          settlementStatus: "SETTLED",
           ticket: {
             eventId,
             ticketTypeId,
@@ -675,6 +695,7 @@ export class OrderbookService {
         orderBy: {
           createdAt: "desc",
         },
+        take: 120,
       }),
       prisma.ticketType.findUnique({
         where: {
@@ -699,7 +720,8 @@ export class OrderbookService {
       orders.filter((order) => order.side === "SELL"),
       "asc",
     );
-    const lastTradePrice = trades[0]?.price ?? null;
+    const priceHistory = this.publicPriceHistory(trades);
+    const lastTradePrice = priceHistory.at(-1)?.price ?? null;
     const floorPrice = asks[0]?.price ?? null;
     return {
       eventId,
@@ -714,6 +736,7 @@ export class OrderbookService {
           ? null
           : ((lastTradePrice - ticketType.faceValue) / ticketType.faceValue) *
             100,
+      priceHistory,
     };
   }
 

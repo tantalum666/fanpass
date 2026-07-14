@@ -128,14 +128,15 @@ Client should debounce updates and avoid flashing trading-board behavior.
 
 ## Market Chart Data
 
-Use aggregated snapshots:
+Use aggregated snapshots and redacted settled-sale history:
 
 - Floor price over time.
 - Recent verified sale median.
 - Volume count.
 - Organizer cap line.
+- Up to 120 chronological settled-sale points containing only price and trade time. Do not return trade, order, ticket, seat, buyer, seller, user, or payment identifiers.
 
-Avoid candlesticks, red/green speculation boards, and high-frequency tick charts.
+The consumer Market may bucket those verified points into restrained OHLC candles because the owner explicitly requested the K-line view on 2026-07-14. Never fabricate missing candles or present an empty market as active liquidity. Avoid speculative indicators, dense trading-terminal chrome, and high-frequency tick animation.
 
 ## Anti-Scalping Rules
 

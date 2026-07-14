@@ -15,6 +15,7 @@ struct FanPassV4MarketView: View {
     @State private var realtimeStatus: FanPassOrderbookRealtimeStatus = .idle
     @State private var realtimeClient = FanPassOrderbookRealtimeClient()
     @State private var marketActionMessage: String?
+    @State private var showMarketSelector = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -33,7 +34,7 @@ struct FanPassV4MarketView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(FPSpacing.lg)
                 } else {
-                    VStack(alignment: .leading, spacing: FPSpacing.xl) {
+                    ScrollView(.vertical, showsIndicators: false) {
                         tradingPanel
                     }
                 }
@@ -126,21 +127,30 @@ struct FanPassV4MarketView: View {
         } message: {
             Text(marketActionMessage ?? "The market action could not continue.")
         }
+        .fullScreenCover(isPresented: $showMarketSelector) {
+            NavigationStack {
+                FanPassV4MarketSelectionView(
+                    events: viewModel.availableEvents,
+                    selectedEventID: viewModel.selectedEvent.id,
+                    selectedTicketTypeID: selectedTicketTypeID
+                ) { event, ticketType in
+                    viewModel.selectedEvent = event
+                    selectedTicketTypeID = ticketType.id
+                }
+            }
+            .preferredColorScheme(.dark)
+        }
     }
 
     private var tradingPanel: some View {
         MarketTradingPanel(
             event: viewModel.selectedEvent,
-            events: viewModel.availableEvents,
             selectedTicketTypeID: selectedTicketTypeID,
             orderbook: remoteOrderbook,
             realtimeStatus: realtimeStatus,
             orderbookError: orderbookError
-        ) { event in
-            viewModel.selectedEvent = event
-            selectedTicketTypeID = event.safePrimaryTicketType.id
-        } onSelectTicketType: { ticketType in
-            selectedTicketTypeID = ticketType.id
+        ) {
+            showMarketSelector = true
         }
     }
 
@@ -338,14 +348,11 @@ struct FanPassV4MarketView: View {
 
 private struct MarketTradingPanel: View {
     let event: FanPassV4.Event
-    let events: [FanPassV4.Event]
     let selectedTicketTypeID: String?
     let orderbook: OrderbookSnapshot?
     let realtimeStatus: FanPassOrderbookRealtimeStatus
     let orderbookError: String?
-    let onSelectEvent: (FanPassV4.Event) -> Void
-    let onSelectTicketType: (FanPassV4.TicketType) -> Void
-    @State private var eventSearchQuery = ""
+    let onOpenMarketSelector: () -> Void
 
     private var selectedTicketType: FanPassV4.TicketType {
         event.ticketTypes.first { $0.id == selectedTicketTypeID } ?? event.safePrimaryTicketType
@@ -362,48 +369,23 @@ private struct MarketTradingPanel: View {
         )
     }
 
-    private var filteredEvents: [FanPassV4.Event] {
-        let query = eventSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return events }
-        return events.filter { candidate in
-            candidate.title.localizedCaseInsensitiveContains(query) ||
-                candidate.venue.name.localizedCaseInsensitiveContains(query) ||
-                candidate.venue.city.localizedCaseInsensitiveContains(query) ||
-                candidate.category.title.localizedCaseInsensitiveContains(query)
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: FPSpacing.md) {
             VStack(alignment: .leading, spacing: FPSpacing.md) {
-                HStack(alignment: .top, spacing: FPSpacing.md) {
-                    VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                        Text(event.title)
-                            .font(.system(size: 22, weight: .black, design: .rounded))
-                            .foregroundStyle(FPColors.textPrimary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.72)
-                        Text("\(event.venue.city) • \(event.category.title)")
-                            .font(FPTypography.caption)
-                            .foregroundStyle(FPColors.textSecondary)
-                    }
+                HStack(alignment: .center, spacing: FPSpacing.md) {
+                    Text("Resale market")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(FPColors.textPrimary)
                     Spacer(minLength: FPSpacing.sm)
-                    VStack(alignment: .trailing, spacing: FPSpacing.xs) {
-                        Text(capLabel)
-                            .font(FPTypography.caption.weight(.bold))
-                            .foregroundStyle(FPColors.verifiedGreen)
-                            .padding(.horizontal, FPSpacing.sm)
-                            .padding(.vertical, 5)
-                            .background(FPColors.verifiedGreen.opacity(0.14), in: Capsule())
-                        Text(event.category.title)
-                            .font(FPTypography.caption)
-                            .foregroundStyle(FPColors.textSecondary)
-                    }
+                    Text(capLabel)
+                        .font(FPTypography.caption.weight(.bold))
+                        .foregroundStyle(FPColors.verifiedGreen)
+                        .padding(.horizontal, FPSpacing.sm)
+                        .padding(.vertical, 5)
+                        .background(FPColors.verifiedGreen.opacity(0.14), in: Capsule())
                 }
 
-                eventSearchField
-                eventPickerRail
-                ticketTypePicker
+                marketSelector
 
                 HStack(alignment: .top, spacing: FPSpacing.lg) {
                     VStack(alignment: .leading, spacing: FPSpacing.xs) {
@@ -429,12 +411,22 @@ private struct MarketTradingPanel: View {
                 FPDivider()
                     .padding(.vertical, FPSpacing.xs)
 
+                MarketCandlestickPanel(
+                    event: event,
+                    ticketType: selectedTicketType,
+                    priceHistory: orderbook?.priceHistory ?? [],
+                    lastSalePrice: orderbook?.lastTradePrice
+                )
+
+                FPDivider()
+                    .padding(.vertical, FPSpacing.xs)
+
                 marketDepth
             }
         }
         .padding(FPSpacing.md)
         .padding(.top, 72)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(FPColors.surfaceCard)
         .overlay {
             RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
@@ -442,108 +434,43 @@ private struct MarketTradingPanel: View {
         }
     }
 
-    private var eventSearchField: some View {
-        HStack(spacing: FPSpacing.sm) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(FPColors.textSecondary)
-            TextField("Search events, venues, categories", text: $eventSearchQuery)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(FPTypography.caption)
-                .foregroundStyle(FPColors.textPrimary)
-        }
-        .padding(.horizontal, FPSpacing.sm)
-        .frame(height: 38)
-        .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                .stroke(FPColors.borderDivider, lineWidth: 1)
-        }
-    }
-
-    private var eventPickerRail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: FPSpacing.sm) {
-                if filteredEvents.isEmpty {
-                    Text("No matching events")
+    private var marketSelector: some View {
+        Button(action: onOpenMarketSelector) {
+            HStack(spacing: FPSpacing.md) {
+                VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                    Text("EVENT & SEATS")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(FPColors.pulseCyan)
+                        .tracking(0.9)
+                    Text(event.title)
+                        .font(FPTypography.headline)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .lineLimit(1)
+                    Text("\(selectedTicketType.name) • \(event.venue.city)")
                         .font(FPTypography.caption)
                         .foregroundStyle(FPColors.textSecondary)
-                        .padding(.vertical, 8)
-                } else {
-                    ForEach(filteredEvents) { candidate in
-                        eventChip(candidate)
-                    }
-                }
-            }
-            .padding(.vertical, 2)
-        }
-    }
-
-    private func eventChip(_ candidate: FanPassV4.Event) -> some View {
-        let isSelected = candidate.id == event.id
-        return Button {
-            onSelectEvent(candidate)
-            eventSearchQuery = ""
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(candidate.title)
-                    .font(FPTypography.caption.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                Text(candidate.venue.city)
-                    .font(.system(size: 10, weight: .medium))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(isSelected ? FPColors.backgroundNight : FPColors.textSecondary)
-            .frame(width: 116, height: 42, alignment: .leading)
-            .padding(.horizontal, FPSpacing.sm)
-            .background(isSelected ? FPColors.pulseCyan : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                    .stroke(isSelected ? FPColors.pulseCyan.opacity(0.8) : FPColors.borderDivider, lineWidth: 1)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var ticketTypePicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: FPSpacing.sm) {
-                ForEach(event.ticketTypes) { ticketType in
-                    ticketTypeChip(ticketType)
-                }
-            }
-            .padding(.vertical, 2)
-        }
-    }
-
-    private func ticketTypeChip(_ ticketType: FanPassV4.TicketType) -> some View {
-        let isSelected = ticketType.id == selectedTicketType.id
-        return Button {
-            onSelectTicketType(ticketType)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    Text(ticketType.name)
-                        .font(FPTypography.caption.weight(.bold))
                         .lineLimit(1)
                 }
-                Text(isSelected ? marketContext.bestAskLabel : "Face \(ticketType.priceLabel)")
-                    .font(.system(size: 10, weight: .semibold))
-                    .monospacedDigit()
-                    .lineLimit(1)
+
+                Spacer(minLength: FPSpacing.sm)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(FPColors.textSecondary)
             }
-            .foregroundStyle(isSelected ? FPColors.backgroundNight : FPColors.textSecondary)
-            .frame(width: 122, height: 48, alignment: .leading)
-            .padding(.horizontal, FPSpacing.sm)
-            .background(isSelected ? FPColors.pulseCyan : FPColors.surfaceGlass, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+            .padding(.horizontal, FPSpacing.md)
+            .padding(.vertical, FPSpacing.sm)
+            .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous)
-                    .stroke(isSelected ? FPColors.pulseCyan.opacity(0.9) : FPColors.borderDivider, lineWidth: 1)
+                    .stroke(FPColors.borderDivider, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("market-selector-button")
+        .accessibilityLabel("Choose event and seats. Current market is \(event.title), \(selectedTicketType.name)")
+        .accessibilityHint("Opens searchable event and seat category pages")
     }
 
     private var capLabel: String {
@@ -669,197 +596,37 @@ private struct MarketPricingSnapshot {
     }
 }
 
-private enum MarketTrendDirection {
-    case rising
-    case flat
-    case falling
-
-    var title: String {
-        switch self {
-        case .rising:
-            return "Up"
-        case .flat:
-            return "Flat"
-        case .falling:
-            return "Down"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .rising:
-            return FPColors.verifiedGreen
-        case .flat:
-            return FPColors.pulseCyan
-        case .falling:
-            return FPColors.neonMagenta
-        }
-    }
-
-    func multiplier(progress: Double, wave: Double, tierNudge: Double) -> Double {
-        switch self {
-        case .rising:
-            return 0.94 + (0.145 * progress) + wave + tierNudge
-        case .flat:
-            return 0.995 + (0.012 * progress) + wave + (tierNudge * 0.35)
-        case .falling:
-            return 1.065 - (0.145 * progress) + wave - (tierNudge * 0.2)
-        }
-    }
-
-    func openBias(seed: Int) -> Int {
-        switch self {
-        case .rising:
-            return 12 + (seed % 18)
-        case .flat:
-            return (seed % 11) - 5
-        case .falling:
-            return -12 - (seed % 18)
-        }
-    }
-}
-
-private enum MarketTimeRange: String, CaseIterable, Identifiable {
-    case fifteenMinutes
-    case oneHour
-    case fourHours
+private enum MarketHistoryRange: String, CaseIterable, Identifiable {
     case oneDay
     case sevenDays
+    case thirtyDays
+    case all
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .fifteenMinutes: "15m"
-        case .oneHour: "1h"
-        case .fourHours: "4h"
-        case .oneDay: "1D"
+        case .oneDay: "24H"
         case .sevenDays: "7D"
+        case .thirtyDays: "30D"
+        case .all: "ALL"
         }
     }
 
-    var pointCount: Int {
+    var duration: TimeInterval? {
         switch self {
-        case .fifteenMinutes:
-            return 32
-        case .oneHour:
-            return 40
-        case .fourHours:
-            return 48
-        case .oneDay:
-            return 36
-        case .sevenDays:
-            return 56
+        case .oneDay: 24 * 60 * 60
+        case .sevenDays: 7 * 24 * 60 * 60
+        case .thirtyDays: 30 * 24 * 60 * 60
+        case .all: nil
         }
     }
 
-    var waveAmplitude: Double {
+    var bucketDuration: TimeInterval {
         switch self {
-        case .fifteenMinutes:
-            return 0.012
-        case .oneHour:
-            return 0.016
-        case .fourHours:
-            return 0.02
-        case .oneDay:
-            return 0.018
-        case .sevenDays:
-            return 0.026
-        }
-    }
-
-    var waveStep: Double {
-        switch self {
-        case .fifteenMinutes:
-            return 0.72
-        case .oneHour:
-            return 0.58
-        case .fourHours:
-            return 0.46
-        case .oneDay:
-            return 0.52
-        case .sevenDays:
-            return 0.34
-        }
-    }
-
-    var offsets: [Int] {
-        switch self {
-        case .fifteenMinutes:
-            [-18, -8, 5, -2, 12, 22, 10, 30, 42, 34, 52, 48, 64, 58, 78, 72, 86, 82, 95, 88, 106, 98, 112, 104]
-        case .oneHour:
-            [-44, -32, -16, -28, -4, 18, 10, 34, 52, 44, 70, 62, 92, 76, 58, 82, 104, 96, 116, 108, 88, 98, 112, 122]
-        case .fourHours:
-            [-82, -70, -38, -52, -16, 8, 34, 24, 66, 92, 74, 116, 128, 102, 64, 48, 78, 108, 96, 124, 112, 86, 104, 118]
-        case .oneDay:
-            [-26, -12, 18, -8, 34, 62, 45, 78, 96, 74, 52, 88, 116, 104, 72, 58, 83, 94]
-        case .sevenDays:
-            [-92, -74, -110, -84, -42, -18, 24, 12, 56, 88, 124, 96, 138, 114, 74, 40, 68, 102, 132, 108, 84, 118, 126, 104, 136, 112, 96, 124]
-        }
-    }
-
-    var lowerBand: Int {
-        switch self {
-        case .fifteenMinutes: 70
-        case .oneHour: 95
-        case .fourHours: 130
-        case .oneDay: 120
-        case .sevenDays: 170
-        }
-    }
-
-    var wickBase: Int {
-        switch self {
-        case .fifteenMinutes: 8
-        case .oneHour: 12
-        case .fourHours: 16
-        case .oneDay: 18
-        case .sevenDays: 22
-        }
-    }
-
-    var wickStep: Int {
-        switch self {
-        case .fifteenMinutes: 4
-        case .oneHour: 5
-        case .fourHours: 6
-        case .oneDay: 7
-        case .sevenDays: 8
-        }
-    }
-
-    var volumeBase: Int {
-        switch self {
-        case .fifteenMinutes: 8
-        case .oneHour: 10
-        case .fourHours: 12
-        case .oneDay: 10
-        case .sevenDays: 14
-        }
-    }
-
-    var volumeStep: Int {
-        switch self {
-        case .fifteenMinutes: 5
-        case .oneHour: 6
-        case .fourHours: 7
-        case .oneDay: 7
-        case .sevenDays: 9
-        }
-    }
-
-    func label(for index: Int) -> String {
-        switch self {
-        case .fifteenMinutes:
-            index.isMultiple(of: 8) ? "-\(15 - min(index, 15))m" : ""
-        case .oneHour:
-            index.isMultiple(of: 8) ? "-\(60 - min(index * 3, 60))m" : ""
-        case .fourHours:
-            index.isMultiple(of: 8) ? "-\(4 - min(index / 6, 4))h" : ""
-        case .oneDay:
-            index.isMultiple(of: 6) ? "D-\(max(pointCount - index - 1, 0))" : ""
-        case .sevenDays:
-            index.isMultiple(of: 7) ? "D-\(7 - min(index / 4, 7))" : ""
+        case .oneDay: 15 * 60
+        case .sevenDays: 6 * 60 * 60
+        case .thirtyDays, .all: 24 * 60 * 60
         }
     }
 }
@@ -885,59 +652,146 @@ private struct MarketTickerMetric: View {
 
 private struct MarketCandlestickPanel: View {
     let event: FanPassV4.Event
+    let ticketType: FanPassV4.TicketType
+    let priceHistory: [OrderbookPricePoint]
+    let lastSalePrice: Int?
+
+    @State private var selectedRange: MarketHistoryRange = .all
+
+    private var cap: Int {
+        ticketType.transferRule.resaleCap ?? event.marketSummary.organizerCap
+    }
+
+    private var points: [MarketDatedPricePoint] {
+        let formatter = ISO8601DateFormatter()
+        return priceHistory
+            .compactMap { point in
+                guard let date = formatter.date(from: point.tradedAt) else { return nil }
+                return MarketDatedPricePoint(date: date, price: point.price)
+            }
+            .sorted { $0.date < $1.date }
+    }
 
     private var candles: [MarketCandle] {
-        var previous = event.safePrimaryTicketType.faceValue
-        return event.marketSummary.priceHistory.enumerated().map { index, point in
-            let open = previous
-            let close = point.price
-            let wickPad = 18 + (index % 4) * 7
-            let high = min(max(open, close) + wickPad, event.marketSummary.organizerCap)
-            let low = max(min(open, close) - wickPad, max(1, event.safePrimaryTicketType.faceValue - 120))
-            previous = close
-            return MarketCandle(id: point.id, label: point.label, open: open, close: close, high: high, low: low, volume: 10 + ((index * 7) % 22))
+        guard let latestDate = points.last?.date else { return [] }
+        let filteredPoints: [MarketDatedPricePoint]
+        if let duration = selectedRange.duration {
+            let cutoff = latestDate.addingTimeInterval(-duration)
+            filteredPoints = points.filter { $0.date >= cutoff }
+        } else {
+            filteredPoints = points
+        }
+
+        let bucketDuration = selectedRange.bucketDuration
+        let buckets = Dictionary(grouping: filteredPoints) { point in
+            Int(floor(point.date.timeIntervalSince1970 / bucketDuration))
+        }
+
+        return buckets.keys.sorted().compactMap { bucket in
+            guard let bucketPoints = buckets[bucket]?.sorted(by: { $0.date < $1.date }),
+                  let first = bucketPoints.first,
+                  let last = bucketPoints.last
+            else {
+                return nil
+            }
+            return MarketCandle(
+                id: "\(ticketType.id)-\(bucket)",
+                label: axisLabel(for: first.date),
+                open: first.price,
+                close: last.price,
+                high: bucketPoints.map(\.price).max() ?? last.price,
+                low: bucketPoints.map(\.price).min() ?? last.price,
+                volume: bucketPoints.count
+            )
         }
     }
 
+    private var lastSaleLabel: String {
+        guard let lastSalePrice else { return "No sales" }
+        return MoneyFormatter.format(lastSalePrice, currency: ticketType.currency)
+    }
+
     var body: some View {
-        FPSurfaceCard(cornerRadius: FPRadius.lg) {
-            VStack(alignment: .leading, spacing: FPSpacing.md) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                        Text("Price chart")
-                            .font(FPTypography.title3)
-                            .foregroundStyle(FPColors.textPrimary)
-                        Text("Fan resale activity, capped at 110% of face value.")
-                            .font(FPTypography.caption)
-                            .foregroundStyle(FPColors.textSecondary)
-                    }
-                    Spacer()
-                    Text(event.marketSummary.floorPriceLabel)
-                        .font(FPTypography.monoNumber)
-                        .foregroundStyle(FPColors.verifiedGreen)
+        VStack(alignment: .leading, spacing: FPSpacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                    Text("Verified resale chart")
+                        .font(FPTypography.title3)
+                        .foregroundStyle(FPColors.textPrimary)
+                    Text("Completed sales only • \(ticketType.name)")
+                        .font(FPTypography.caption)
+                        .foregroundStyle(FPColors.textSecondary)
                 }
-
-                HStack(spacing: FPSpacing.sm) {
-                    ForEach(["15m", "1h", "4h", "1D", "7D"], id: \.self) { range in
-                        Text(range)
-                            .font(FPTypography.caption.weight(range == "1D" ? .bold : .medium))
-                            .foregroundStyle(range == "1D" ? FPColors.backgroundNight : FPColors.textSecondary)
-                            .padding(.horizontal, FPSpacing.sm)
-                            .padding(.vertical, 6)
-                            .background(range == "1D" ? FPColors.textPrimary : FPColors.surfaceGlass, in: Capsule())
-                    }
-                    Spacer()
-                    Image(systemName: "chart.xyaxis.line")
-                        .foregroundStyle(FPColors.pulseCyan)
-                }
-
-                MarketCandlestickCanvas(candles: candles, cap: event.marketSummary.organizerCap)
-                    .frame(height: 226)
+                Spacer()
+                Text(lastSaleLabel)
+                    .font(FPTypography.monoNumber)
+                    .foregroundStyle(lastSalePrice == nil ? FPColors.textSecondary : FPColors.verifiedGreen)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
             }
+
+            HStack(spacing: FPSpacing.xs) {
+                ForEach(MarketHistoryRange.allCases) { range in
+                    Button {
+                        selectedRange = range
+                    } label: {
+                        Text(range.title)
+                            .font(FPTypography.caption.weight(range == selectedRange ? .bold : .medium))
+                            .foregroundStyle(range == selectedRange ? FPColors.backgroundNight : FPColors.textSecondary)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .background(range == selectedRange ? FPColors.textPrimary : Color.clear, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Show \(range.title) resale history")
+                    .accessibilityAddTraits(range == selectedRange ? .isSelected : [])
+                }
+                Spacer(minLength: FPSpacing.xs)
+                Image(systemName: "chart.bar.xaxis")
+                    .foregroundStyle(FPColors.pulseCyan)
+                    .accessibilityHidden(true)
+            }
+
+            if candles.isEmpty {
+                VStack(spacing: FPSpacing.sm) {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(FPColors.textTertiary)
+                    Text("No verified sales in this range")
+                        .font(FPTypography.callout)
+                        .foregroundStyle(FPColors.textSecondary)
+                    Text("The chart updates after a resale settles.")
+                        .font(FPTypography.caption)
+                        .foregroundStyle(FPColors.textTertiary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 176)
+                .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            } else {
+                MarketCandlestickCanvas(
+                    candles: candles,
+                    cap: cap,
+                    currency: ticketType.currency
+                )
+                    .frame(height: 226)
+                    .padding(.top, FPSpacing.xs)
+                    .background(FPColors.backgroundNight, in: RoundedRectangle(cornerRadius: FPRadius.md, style: .continuous))
+            }
+        }
+    }
+
+    private func axisLabel(for date: Date) -> String {
+        switch selectedRange {
+        case .oneDay:
+            return date.formatted(.dateTime.hour().minute())
+        case .sevenDays, .thirtyDays, .all:
+            return date.formatted(.dateTime.month(.abbreviated).day())
         }
     }
 }
 
+private struct MarketDatedPricePoint {
+    let date: Date
+    let price: Int
+}
 private struct MarketCandle: Identifiable {
     let id: String
     let label: String
@@ -951,6 +805,7 @@ private struct MarketCandle: Identifiable {
 private struct MarketCandlestickCanvas: View {
     let candles: [MarketCandle]
     let cap: Int
+    let currency: String
     @State private var zoom: CGFloat = 1
     @State private var startIndex: Int?
     @State private var dragStep: CGFloat = 18
@@ -964,19 +819,26 @@ private struct MarketCandlestickCanvas: View {
     var body: some View {
         GeometryReader { geometry in
             let chartHeight = geometry.size.height - 48
-            let plotWidth = geometry.size.width - 46
+            let priceAxisWidth: CGFloat = 64
+            let plotWidth = geometry.size.width - priceAxisWidth - 4
+            let plotInset: CGFloat = 8
+            let plotContentWidth = max(plotWidth - (plotInset * 2), 1)
             let visibleCount = min(candles.count, max(7, Int((CGFloat(max(candles.count, 1)) / effectiveZoom).rounded(.up))))
             let maxStartIndex = max(candles.count - visibleCount, 0)
             let baseStartIndex = min(startIndex ?? maxStartIndex, maxStartIndex)
-            let previewStep = plotWidth / CGFloat(max(visibleCount - 1, 1))
+            let previewStep = plotContentWidth / CGFloat(max(visibleCount - 1, 1))
             let dragShift = Int((-dragTranslation.width / max(previewStep, 1)).rounded())
             let currentStartIndex = min(max(baseStartIndex + dragShift, 0), maxStartIndex)
             let currentEndIndex = min(currentStartIndex + visibleCount, candles.count)
             let plottedCandles = currentStartIndex < currentEndIndex ? Array(candles[currentStartIndex..<currentEndIndex]) : []
-            let maxPrice = max(cap, plottedCandles.map(\.high).max() ?? cap)
-            let minPrice = plottedCandles.map(\.low).min() ?? 0
-            let step = plotWidth / CGFloat(max(plottedCandles.count - 1, 1))
+            let rawMaxPrice = max(cap, plottedCandles.map(\.high).max() ?? cap)
+            let rawMinPrice = plottedCandles.map(\.low).min() ?? 0
+            let pricePadding = max((rawMaxPrice - rawMinPrice) / 10, max(rawMaxPrice / 100, 1))
+            let maxPrice = rawMaxPrice + pricePadding
+            let minPrice = max(0, rawMinPrice - pricePadding)
+            let step = plotContentWidth / CGFloat(max(plottedCandles.count - 1, 1))
             let bodyWidth = max(5, min(12, step * 0.48))
+            let maxVolume = max(plottedCandles.map(\.volume).max() ?? 1, 1)
 
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -991,7 +853,9 @@ private struct MarketCandlestickCanvas: View {
                     .offset(x: 0, y: 0)
 
                 ForEach(Array(plottedCandles.enumerated()), id: \.element.id) { index, candle in
-                    let x = CGFloat(index) * step
+                    let x = plottedCandles.count == 1
+                        ? plotWidth / 2
+                        : plotInset + (CGFloat(index) * step)
                     let openY = y(candle.open, height: chartHeight, minPrice: minPrice, maxPrice: maxPrice)
                     let closeY = y(candle.close, height: chartHeight, minPrice: minPrice, maxPrice: maxPrice)
                     let highY = y(candle.high, height: chartHeight, minPrice: minPrice, maxPrice: maxPrice)
@@ -1012,8 +876,8 @@ private struct MarketCandlestickCanvas: View {
 
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                         .fill(candleColor.opacity(0.28))
-                        .frame(width: bodyWidth, height: CGFloat(candle.volume))
-                        .position(x: x, y: chartHeight + 30 - CGFloat(candle.volume) / 2)
+                        .frame(width: bodyWidth, height: 6 + (CGFloat(candle.volume) / CGFloat(maxVolume) * 18))
+                        .position(x: x, y: chartHeight + 27)
                 }
 
                 VStack(alignment: .leading) {
@@ -1025,15 +889,23 @@ private struct MarketCandlestickCanvas: View {
                 }
                 .font(FPTypography.caption)
                 .foregroundStyle(FPColors.textTertiary)
-                .frame(width: 44, height: chartHeight, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .frame(width: priceAxisWidth, height: chartHeight, alignment: .leading)
                 .offset(x: plotWidth + 4)
 
                 HStack {
-                    Text(plottedCandles.first?.label ?? "")
-                    Spacer()
-                    Text(plottedCandles.dropFirst(plottedCandles.count / 2).first?.label ?? "")
-                    Spacer()
-                    Text(plottedCandles.last?.label ?? "")
+                    if plottedCandles.count == 1 {
+                        Spacer()
+                        Text(plottedCandles[0].label)
+                        Spacer()
+                    } else {
+                        Text(plottedCandles.first?.label ?? "")
+                        Spacer()
+                        Text(plottedCandles.dropFirst(plottedCandles.count / 2).first?.label ?? "")
+                        Spacer()
+                        Text(plottedCandles.last?.label ?? "")
+                    }
                 }
                 .font(FPTypography.caption)
                 .foregroundStyle(FPColors.textTertiary)
@@ -1092,7 +964,7 @@ private struct MarketCandlestickCanvas: View {
     }
 
     private func axisLabel(_ value: Int) -> String {
-        NumberFormatter.localizedString(from: NSNumber(value: value), number: .decimal)
+        MoneyFormatter.format(value, currency: currency)
     }
 
     private func grid(width: CGFloat, height: CGFloat) -> some View {
@@ -1152,7 +1024,12 @@ struct FanPassV4OrderbookDetailView: View {
             ])
             orderSection("Fans willing to buy", orders: buyOrders, color: FPColors.pulseCyan)
             orderSection("Tickets listed for resale", orders: sellOrders, color: FPColors.neonMagenta)
-            MarketCandlestickPanel(event: viewModel.selectedEvent)
+            MarketCandlestickPanel(
+                event: viewModel.selectedEvent,
+                ticketType: viewModel.selectedEvent.safePrimaryTicketType,
+                priceHistory: [],
+                lastSalePrice: nil
+            )
             FPPolicyNotice(
                 title: "Plain-language market data",
                 message: "This screen explains price context before checkout. Matching, payment, and transfer remain server-owned.",

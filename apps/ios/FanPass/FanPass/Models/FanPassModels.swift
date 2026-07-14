@@ -335,6 +335,11 @@ struct OrderbookLevel: Codable, Hashable {
     let quantity: Int
 }
 
+struct OrderbookPricePoint: Codable, Hashable {
+    let price: Int
+    let tradedAt: String
+}
+
 struct OrderbookSnapshot: Codable, Hashable {
     let eventId: String
     let ticketTypeId: String
@@ -344,6 +349,7 @@ struct OrderbookSnapshot: Codable, Hashable {
     let floorPrice: Int?
     let volume: Int
     let premiumPercent: Double?
+    let priceHistory: [OrderbookPricePoint]?
 }
 
 enum FanPassOrderFulfillmentMode: String, Codable, Hashable {

@@ -101,7 +101,7 @@ Rules:
 - Use no more than three active chart colors in one small mobile chart.
 - Use magenta only for a meaningful highlight, not every line.
 - Use amber for organizer caps or warnings.
-- Avoid candlestick visuals unless a future organizer analytics view explicitly needs them.
+- A restrained candlestick view is allowed in consumer Market only for verified settled resale history after explicit owner approval. Never synthesize candles, imply continuous liquidity, or add speculative indicators/high-frequency animation.
 
 ## Buttons And Inputs
 

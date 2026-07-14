@@ -13,6 +13,7 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [ ] Add one centralized 401/session-refresh policy across API repositories.
 - [ ] Replace global five-second and ticket one-second polling with domain-scoped realtime or adaptive refresh.
 - [x] Connect V4 Market to the existing Socket.IO orderbook feed with 30-second HTTP fallback and make ticket-detail polling active-scene/adaptive. The shared 15-second refresh revision still needs domain separation.
+- [x] Restore the active V4 Market K-line from redacted settled resale history and replace horizontally scrolling event/seat chips with searchable full-page event and seat-category selection.
 - [x] Cache QR bitmaps by credential and isolate countdown state from bitmap generation.
 - [x] Exclude the unused legacy iOS shell/features from the main target while keeping shared payment, Privy, and realtime services.
 - [x] Make a friend's remote SELL ask directly purchasable, restore cross-device listing price/order details, and protect simultaneous buyers with atomic rollback plus payment compensation.

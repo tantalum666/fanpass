@@ -27,6 +27,33 @@ describe("OrderbookService", () => {
     );
   });
 
+  it("returns chronological public price history without trade identifiers", async () => {
+    store.trades.push({
+      id: "trd_public_history",
+      buyOrderId: "ord_public_history_buy",
+      sellOrderId: "ord_public_history_sell",
+      ticketId: "tkt_demo_001",
+      price: 1360,
+      fee: 48,
+      settlementStatus: "SETTLED",
+      createdAt: "2026-06-07T10:30:00.000Z",
+    });
+    const snapshot = await orderbook.getOrderbook(
+      "evt_weekend_demo",
+      "tt_cat2_demo",
+    );
+
+    expect(snapshot.priceHistory).toEqual([
+      {
+        price: 1360,
+        tradedAt: "2026-06-07T10:30:00.000Z",
+      },
+    ]);
+    expect(snapshot.priceHistory[0]).not.toHaveProperty("tradeId");
+    expect(snapshot.priceHistory[0]).not.toHaveProperty("ticketId");
+    expect(snapshot.priceHistory[0]).not.toHaveProperty("userId");
+  });
+
   it("settles a one-ticket buy against the lowest eligible ask", async () => {
     store.tickets.push({
       id: "tkt_demo_002",

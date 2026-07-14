@@ -71,6 +71,10 @@ export interface OrderbookSnapshot {
   floorPrice: number | null;
   volume: number;
   premiumPercent: number | null;
+  priceHistory: {
+    price: number;
+    tradedAt: string;
+  }[];
 }
 
 export interface VerificationPayload {

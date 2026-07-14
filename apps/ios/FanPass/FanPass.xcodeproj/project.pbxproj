@@ -55,6 +55,7 @@
 		72CB44F7DF9BFCC150A7E60D /* FanPassV4ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37378A0135B3275D7FCBA59 /* FanPassV4ProfileView.swift */; };
 		73E05CCD4242F9A52FDAA0B9 /* FanPassBackendContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */; };
 		764220A73556BC4AA137C201 /* OpsShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D29232676FE26E432EEB0B5 /* OpsShellView.swift */; };
+		76B541A5DF7E608C4A4D8DBD /* FanPassV4MarketSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FE3413CAE68ABB8A7CF8085 /* FanPassV4MarketSelectionView.swift */; };
 		791118E645E4148A4865702C /* FanPassV4Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CC0A4F93F6EAF0E697F67F /* FanPassV4Models.swift */; };
 		7BFD92F23491FC5FAEF07D6D /* FPRadius.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25EFA9A1526704A653359A78 /* FPRadius.swift */; };
 		7D286E36C5A4E43D3697550E /* FPComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A826851EF726D84FC7B6861B /* FPComponents.swift */; };
@@ -144,6 +145,7 @@
 		6E7B551145D9DBE770379CEB /* PrivyAuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivyAuthProvider.swift; sourceTree = "<group>"; };
 		71CC0A4F93F6EAF0E697F67F /* FanPassV4Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4Models.swift; sourceTree = "<group>"; };
 		770FC22A37D92BA4A4017006 /* event-cover-aurora.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "event-cover-aurora.png"; sourceTree = "<group>"; };
+		7FE3413CAE68ABB8A7CF8085 /* FanPassV4MarketSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4MarketSelectionView.swift; sourceTree = "<group>"; };
 		80A00D3E330A1D0467E084A1 /* event-cover-comedy.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "event-cover-comedy.png"; sourceTree = "<group>"; };
 		8306F2142A0C3AD32998DEF4 /* FanPassV4MockServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4MockServices.swift; sourceTree = "<group>"; };
 		83BD675D8CE7E2D506525E6B /* FanPassV4MarketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4MarketView.swift; sourceTree = "<group>"; };
@@ -402,6 +404,7 @@
 		6AF7D0AF26DD791999BBE0C4 /* Market */ = {
 			isa = PBXGroup;
 			children = (
+				7FE3413CAE68ABB8A7CF8085 /* FanPassV4MarketSelectionView.swift */,
 				83BD675D8CE7E2D506525E6B /* FanPassV4MarketView.swift */,
 			);
 			path = Market;
@@ -722,6 +725,7 @@
 				FFF912167C97578793287CDB /* FanPassV4HomeView.swift in Sources */,
 				E7EA4EFD8ED858B947AE6FE5 /* FanPassV4LoginView.swift in Sources */,
 				B6F551CDFE6E70F69026CE78 /* FanPassV4MainTabView.swift in Sources */,
+				76B541A5DF7E608C4A4D8DBD /* FanPassV4MarketSelectionView.swift in Sources */,
 				A7D81ADD9339ED9E93BDFB9F /* FanPassV4MarketView.swift in Sources */,
 				9DE1F2099AF64DE205058D28 /* FanPassV4MockServices.swift in Sources */,
 				791118E645E4148A4865702C /* FanPassV4Models.swift in Sources */,
