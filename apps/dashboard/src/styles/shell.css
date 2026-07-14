@@ -1,0 +1,244 @@
+.console-shell {
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--ink-950);
+  bottom: 0;
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 18px 14px;
+  position: fixed;
+  top: 0;
+  width: 248px;
+  z-index: 30;
+}
+
+.sidebar-brand,
+.standalone-brand {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.sidebar-brand {
+  padding: 0 6px 20px;
+}
+
+.brand-mark {
+  align-items: center;
+  background: var(--blue-600);
+  border-radius: 7px;
+  color: var(--white);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 850;
+  height: 30px;
+  justify-content: center;
+  letter-spacing: -0.04em;
+  width: 30px;
+}
+
+.sidebar-brand > div,
+.standalone-brand > div {
+  display: grid;
+  gap: 0;
+}
+
+.sidebar-brand strong,
+.standalone-brand strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.sidebar-brand span,
+.standalone-brand span {
+  font-size: 12px;
+}
+
+.sidebar-brand > div span {
+  color: #98a1ad;
+}
+
+.workspace-identity {
+  align-items: center;
+  background: #1c2026;
+  border: 1px solid #2c323a;
+  border-radius: 8px;
+  display: flex;
+  gap: 9px;
+  margin-bottom: 20px;
+  padding: 10px;
+}
+
+.workspace-avatar {
+  align-items: center;
+  background: #303741;
+  border-radius: 6px;
+  color: #dce3ec;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.workspace-identity > div {
+  display: grid;
+  min-width: 0;
+}
+
+.workspace-identity strong {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-identity span {
+  color: #9099a5;
+  font-size: 11px;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.sidebar-nav > p {
+  color: #78818d;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  margin: 0 8px 7px;
+  text-transform: uppercase;
+}
+
+.sidebar-link,
+button.sidebar-link {
+  align-items: center;
+  background: transparent;
+  border-color: transparent;
+  color: #abb3bd;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  justify-content: initial;
+  min-height: 48px;
+  padding: 7px 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar-link:hover,
+button.sidebar-link:hover {
+  background: #1b2026;
+  border-color: transparent;
+  color: var(--white);
+}
+
+.sidebar-link--active,
+button.sidebar-link--active,
+.sidebar-link--active:hover,
+button.sidebar-link--active:hover {
+  background: #252b33;
+  border-color: #343c46;
+  color: var(--white);
+}
+
+.sidebar-link > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sidebar-link strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sidebar-link small {
+  color: #78818d;
+  font-size: 10px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid #2a3038;
+  display: grid;
+  gap: 9px;
+  margin-top: auto;
+  padding: 16px 7px 2px;
+}
+
+.sidebar-footer > span {
+  color: #78818d;
+  font-size: 10px;
+}
+
+.console-main {
+  margin-left: 248px;
+  min-height: 100vh;
+}
+
+.context-bar {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--line-200);
+  display: flex;
+  height: 64px;
+  justify-content: space-between;
+  padding: 0 30px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.event-context {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.event-context label {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.event-context select {
+  border: 0;
+  font-size: 14px;
+  font-weight: 680;
+  min-height: 34px;
+  max-width: 320px;
+  padding-left: 4px;
+}
+
+.event-context select:focus-visible {
+  outline: 2px solid rgba(7, 94, 232, 0.22);
+}
+
+.context-date {
+  border-left: 1px solid var(--line-200);
+  color: var(--ink-500);
+  font-size: 12px;
+  margin-left: 5px;
+  padding-left: 15px;
+}
+
+.context-actions {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+
+.mobile-menu,
+.sidebar-close,
+.sidebar-backdrop {
+  display: none;
+}

@@ -1,0 +1,104 @@
+import type { AlphaOperations, GateAssignmentResponse } from "./types";
+
+export class ConsoleApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+export interface CreateEventInput {
+  title: string;
+  venueName: string;
+  city: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface CreateTicketTypeInput {
+  name: string;
+  faceValue: number;
+  supply: number;
+  resaleCap?: number;
+  maxTransferCount: number;
+  transferable: boolean;
+}
+
+export interface CreateGateAssignmentInput {
+  eventId: string;
+  gate: string;
+  staffName: string;
+  staffEmail: string;
+}
+
+export async function loadOperations() {
+  return request<AlphaOperations>("/api/console/operations");
+}
+
+export async function createEvent(input: CreateEventInput) {
+  return request<unknown>("/api/console/events", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createTicketType(
+  eventId: string,
+  input: CreateTicketTypeInput,
+) {
+  return request<unknown>(
+    `/api/console/events/${encodeURIComponent(eventId)}/ticket-types`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function createGateAssignment(input: CreateGateAssignmentInput) {
+  return request<{ ok: boolean; assignment: GateAssignmentResponse }>(
+    "/api/console/gate-assignments",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function rotateGateInvite(assignmentId: string) {
+  return request<{ ok: boolean; assignment: GateAssignmentResponse }>(
+    `/api/console/gate-assignments/${encodeURIComponent(assignmentId)}/invites`,
+    { method: "POST" },
+  );
+}
+
+export async function deactivateGateAssignment(assignmentId: string) {
+  return request<unknown>(
+    `/api/console/gate-assignments/${encodeURIComponent(assignmentId)}/deactivate`,
+    { method: "POST" },
+  );
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: init.body
+      ? { "Content-Type": "application/json", ...init.headers }
+      : init.headers,
+    cache: "no-store",
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | (T & { message?: string })
+    | null;
+
+  if (!response.ok) {
+    throw new ConsoleApiError(
+      payload?.message ?? "The Console request could not be completed.",
+      response.status,
+    );
+  }
+
+  return payload as T;
+}

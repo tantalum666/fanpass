@@ -1,0 +1,334 @@
+.event-workspace {
+  align-items: start;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 295px minmax(0, 1fr);
+}
+
+.event-directory,
+.event-detail {
+  min-width: 0;
+}
+
+.event-directory {
+  background: var(--white);
+  border: 1px solid var(--line-200);
+  border-radius: 8px;
+  overflow: hidden;
+  position: sticky;
+  top: 88px;
+}
+
+.directory-search {
+  align-items: center;
+  border-bottom: 1px solid var(--line-200);
+  color: var(--ink-500);
+  display: flex;
+  gap: 7px;
+  padding: 10px 12px;
+}
+
+.directory-search input {
+  border: 0;
+  min-height: 32px;
+  padding: 3px;
+}
+
+.directory-search input:focus-visible {
+  outline: 0;
+}
+
+.event-list {
+  display: grid;
+  max-height: calc(100vh - 185px);
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.event-list-item,
+button.event-list-item {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-800);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr) 15px;
+  justify-content: initial;
+  min-height: 58px;
+  padding: 8px;
+  text-align: left;
+}
+
+.event-list-item:hover,
+button.event-list-item:hover {
+  background: var(--cloud-100);
+  border-color: transparent;
+}
+
+.event-list-item--active,
+button.event-list-item--active,
+.event-list-item--active:hover,
+button.event-list-item--active:hover {
+  background: var(--blue-50);
+  border-color: #d8e5fb;
+}
+
+.event-list-item > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.event-list-item > span:nth-child(2) strong {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-list-item > span:nth-child(2) small {
+  color: var(--ink-500);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-date-tile {
+  align-items: center;
+  background: var(--cloud-100);
+  border: 1px solid var(--line-200);
+  border-radius: 6px;
+  display: grid;
+  height: 38px;
+  justify-items: center;
+  padding: 3px;
+}
+
+.event-date-tile strong {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.event-date-tile small {
+  color: var(--ink-500);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.event-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.event-facts > div {
+  border-right: 1px solid var(--line-200);
+  display: grid;
+  gap: 5px;
+  padding: 6px 18px;
+}
+
+.event-facts > div:first-child {
+  padding-left: 0;
+}
+.event-facts > div:last-child {
+  border-right: 0;
+}
+.event-facts dt {
+  color: var(--ink-500);
+  font-size: 10px;
+  font-weight: 700;
+}
+.event-facts dd {
+  font-size: 13px;
+  font-weight: 620;
+  margin: 0;
+}
+
+.inline-select {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+
+.inline-select > span {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.inline-select select {
+  min-width: 180px;
+}
+
+.segmented-control {
+  align-items: center;
+  background: var(--cloud-100);
+  border: 1px solid var(--line-200);
+  border-radius: 8px;
+  display: flex;
+  padding: 3px;
+}
+
+.segmented-control button {
+  background: transparent;
+  border: 0;
+  color: var(--ink-500);
+  min-height: 29px;
+  padding: 0 10px;
+}
+
+.segmented-control button:hover {
+  background: var(--cloud-150);
+}
+
+.segmented-control button.is-active {
+  background: var(--white);
+  box-shadow: 0 1px 2px rgba(18, 21, 26, 0.08);
+  color: var(--ink-950);
+}
+
+.live-status-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.live-status-row > span:last-child {
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.orderbook-topline {
+  border-bottom: 1px solid var(--line-200);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+}
+
+.orderbook-topline > div {
+  border-right: 1px solid var(--line-200);
+  display: grid;
+  gap: 3px;
+  padding: 0 13px;
+}
+
+.orderbook-topline > div:first-child {
+  padding-left: 0;
+}
+.orderbook-topline > div:last-child {
+  border-right: 0;
+}
+.orderbook-topline span {
+  color: var(--ink-500);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.orderbook-topline strong {
+  font-size: 14px;
+}
+
+.orderbook-columns {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.orderbook-side header,
+.orderbook-heading,
+.orderbook-level {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.orderbook-side header {
+  margin-bottom: 9px;
+}
+
+.orderbook-side header strong {
+  font-size: 11px;
+}
+.orderbook-side header span,
+.orderbook-heading {
+  color: var(--ink-500);
+  font-size: 9px;
+}
+.orderbook-heading {
+  border-bottom: 1px solid var(--line-200);
+  padding: 5px 0;
+  text-transform: uppercase;
+}
+.orderbook-level {
+  border-bottom: 1px solid var(--line-200);
+  font-size: 11px;
+  padding: 7px 0;
+}
+.orderbook-level strong {
+  font-size: 11px;
+}
+.orderbook-level--bids strong {
+  color: var(--green-700);
+}
+.orderbook-level--asks strong {
+  color: var(--red-700);
+}
+.orderbook-empty {
+  color: var(--ink-500);
+  font-size: 10px;
+  margin: 12px 0;
+}
+
+.price-chart {
+  min-height: 256px;
+  padding-left: 38px;
+  position: relative;
+}
+
+.price-chart svg {
+  display: block;
+  height: 210px;
+  overflow: visible;
+  width: 100%;
+}
+
+.chart-gridline {
+  stroke: var(--line-200);
+  stroke-width: 1;
+}
+.chart-line {
+  fill: none;
+  stroke: var(--blue-600);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+.chart-point {
+  fill: var(--white);
+  stroke: var(--blue-600);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.price-chart-axis {
+  bottom: 41px;
+  color: var(--ink-500);
+  display: flex;
+  flex-direction: column;
+  font-size: 9px;
+  justify-content: space-between;
+  left: 0;
+  position: absolute;
+  top: 10px;
+}
+
+.price-chart-footer {
+  color: var(--ink-500);
+  display: flex;
+  font-size: 9px;
+  justify-content: space-between;
+  padding: 5px 7px 0;
+}

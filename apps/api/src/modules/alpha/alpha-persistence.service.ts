@@ -152,6 +152,9 @@ export class AlphaPersistenceService {
         },
       });
       const eventIds = events.map((event) => event.id);
+      const eventTitles = new Map(
+        events.map((event) => [event.id, event.title]),
+      );
       const eventScopedWhere = { eventId: { in: eventIds } };
       const [
         tickets,
@@ -513,6 +516,9 @@ export class AlphaPersistenceService {
         ),
         checkins: checkins.map((checkin) => ({
           id: checkin.id,
+          eventId: checkin.ticket.eventId,
+          eventTitle:
+            eventTitles.get(checkin.ticket.eventId) ?? "Unknown event",
           ticketId: checkin.ticketId,
           scannerUserId: this.userReference(
             checkin.scannerUserId,
@@ -526,6 +532,9 @@ export class AlphaPersistenceService {
         })),
         fanTaskSubmissions: submissions.map((submission) => ({
           id: submission.id,
+          eventId: submission.task.eventId,
+          eventTitle:
+            eventTitles.get(submission.task.eventId) ?? "Unknown event",
           userId: this.userReference(submission.userId, privacy.piiVisible),
           taskId: submission.taskId,
           taskTitle: submission.task.title,

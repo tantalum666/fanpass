@@ -101,6 +101,11 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [x] Add fan task submission review screens.
 - [x] Add audit log view.
 - [x] Add role-aware Console navigation for organizer/admin workflows.
+- [x] Replace the single long-scroll Console with an event-first workspace and stable Overview, Events, Sales & market, Entry, Team, and Risk & audit pages.
+- [x] Add searchable event discovery, persistent URL event context, and per-ticket-type sales/market selection without horizontal chip rails.
+- [x] Split the Console into typed API/data helpers, shared shell/UI components, lazy-loaded feature modules, and layered styles; remove the unused charting dependency.
+- [x] Add event attribution to organizer-redacted check-in and Fan Access operation records so page-level event scoping is explicit.
+- [x] Update the local Console browser verifier to cover event search/selection, ticket-type market selection, one-time staff invite rotation/clearing, and browser-console errors.
 
 ### Alpha 2 - FanPass Consumer App
 

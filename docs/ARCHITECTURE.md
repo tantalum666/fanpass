@@ -70,6 +70,15 @@ FanPass Ops should be visually quieter and more operational than the consumer ap
 
 Console remains web-first because tables, configuration, reporting, and review workflows are better served by desktop-class layouts.
 
+The Console uses an event-first workspace model:
+
+- A persistent event context controls Overview, Sales & market, Entry, Team, and event-scoped review data.
+- Events & inventory provides searchable event discovery and ticket-type configuration without horizontal selection rails.
+- The stable workspace navigation is Overview, Events, Sales & market, Entry, Team, and Risk & audit.
+- The React client is split by feature under `apps/dashboard/src/features`; shared typed contracts, API calls, formatting, and event-derived views stay outside page components.
+- Heavy market and operational pages are loaded on demand. `socket.io-client` remains isolated to the live orderbook boundary.
+- Selection state may be represented in the URL, but tokens and sessions must remain in the server-managed HttpOnly Console session boundary.
+
 ## Early Implementation Strategy
 
 The backend is the source of operational truth during Technical Prototype and Alpha. Blockchain state is used for verifiable ticket ownership and redemption history, while personal data, payment records, risk signals, and seat details remain off-chain.

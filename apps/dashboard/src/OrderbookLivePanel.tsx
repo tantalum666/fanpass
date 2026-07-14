@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import type { AlphaOperations } from "./ConsoleApp";
-
-type MarketSnapshot = NonNullable<AlphaOperations["market"]>;
+import { io, type Socket } from "socket.io-client";
+import { formatMoney, titleCase } from "./console/format";
+import type { MarketLevel, MarketSnapshot } from "./console/types";
+import { Badge, EmptyState } from "./components/ConsoleUi";
 
 interface OrderbookSocketSnapshot {
   eventId: string;
   ticketTypeId: string;
-  bids: { price: number; quantity: number }[];
-  asks: { price: number; quantity: number }[];
+  bids: MarketLevel[];
+  asks: MarketLevel[];
   lastTradePrice: number | null;
   floorPrice: number | null;
   volume: number;
@@ -18,24 +18,35 @@ interface OrderbookSocketSnapshot {
 interface OrderbookUpdatePayload {
   eventId: string;
   ticketTypeId: string;
-  reason: "order_created" | "order_cancelled" | "trade_settled";
-  orderId?: string;
-  tradeId?: string;
+  reason:
+    | "order_created"
+    | "order_cancelled"
+    | "order_rejected"
+    | "trade_settled"
+    | "primary_ticket_issued";
   snapshot: OrderbookSocketSnapshot;
   emittedAt: string;
 }
 
 type ConnectionState = "idle" | "connecting" | "live" | "offline";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
-
-export function OrderbookLivePanel({ market }: { market: MarketSnapshot | null }) {
+export function OrderbookLivePanel({
+  market,
+}: {
+  market: MarketSnapshot | null;
+}) {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(market);
-  const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
-  const [lastUpdate, setLastUpdate] = useState<OrderbookUpdatePayload | null>(null);
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("idle");
+  const [lastUpdate, setLastUpdate] = useState<OrderbookUpdatePayload | null>(
+    null,
+  );
 
   useEffect(() => {
     setSnapshot(market);
+    setLastUpdate(null);
   }, [market]);
 
   useEffect(() => {
@@ -57,24 +68,29 @@ export function OrderbookLivePanel({ market }: { market: MarketSnapshot | null }
         ticketTypeId: market.ticketTypeId,
       });
     });
-
-    socket.on("orderbook.snapshot", (payload: { snapshot?: OrderbookSocketSnapshot }) => {
-      if (!payload.snapshot) {
-        return;
-      }
-      setSnapshot((current) => mergeSocketSnapshot(current ?? market, payload.snapshot!));
-      setConnectionState("live");
-    });
-
+    socket.on(
+      "orderbook.snapshot",
+      (payload: { snapshot?: OrderbookSocketSnapshot }) => {
+        if (payload.snapshot) {
+          setSnapshot((current) =>
+            mergeSocketSnapshot(current ?? market, payload.snapshot!),
+          );
+          setConnectionState("live");
+        }
+      },
+    );
     socket.on("orderbook.updated", (payload: OrderbookUpdatePayload) => {
-      if (payload.eventId !== market.eventId || payload.ticketTypeId !== market.ticketTypeId) {
-        return;
+      if (
+        payload.eventId === market.eventId &&
+        payload.ticketTypeId === market.ticketTypeId
+      ) {
+        setSnapshot((current) =>
+          mergeSocketSnapshot(current ?? market, payload.snapshot),
+        );
+        setLastUpdate(payload);
+        setConnectionState("live");
       }
-      setSnapshot((current) => mergeSocketSnapshot(current ?? market, payload.snapshot));
-      setLastUpdate(payload);
-      setConnectionState("live");
     });
-
     socket.on("disconnect", () => setConnectionState("offline"));
     socket.on("connect_error", () => setConnectionState("offline"));
 
@@ -87,43 +103,77 @@ export function OrderbookLivePanel({ market }: { market: MarketSnapshot | null }
     };
   }, [market]);
 
-  const statusLabel = useMemo(() => {
+  const status = useMemo(() => {
     switch (connectionState) {
       case "live":
-        return "Live";
+        return { label: "Live", tone: "success" as const };
       case "connecting":
-        return "Connecting";
+        return { label: "Connecting", tone: "info" as const };
       case "offline":
-        return "Offline";
+        return { label: "Offline", tone: "warning" as const };
       case "idle":
-        return "No feed";
+        return { label: "No feed", tone: "neutral" as const };
     }
   }, [connectionState]);
 
+  if (!snapshot) {
+    return (
+      <EmptyState
+        title="No orderbook"
+        description="This ticket type has no resale market."
+      />
+    );
+  }
+
   return (
-    <>
-      <div className="realtime-row">
-        <span
-          className={`badge ${
-            connectionState === "live"
-              ? "green"
-              : connectionState === "offline"
-                ? "orange"
-                : "blue"
-          }`}
-        >
-          {statusLabel}
-        </span>
-        <span className="muted">
+    <div className="orderbook-panel">
+      <div className="live-status-row">
+        <Badge tone={status.tone}>{status.label}</Badge>
+        <span>
           {lastUpdate
-            ? `${formatReason(lastUpdate.reason)} at ${new Date(lastUpdate.emittedAt).toLocaleTimeString("en-HK")}`
+            ? `${titleCase(lastUpdate.reason)} · ${new Date(lastUpdate.emittedAt).toLocaleTimeString("en-HK")}`
             : "Waiting for market updates"}
         </span>
       </div>
-      <MarketSummary market={snapshot} />
-      <OrderbookSide title="Asks" levels={snapshot?.asks ?? []} tone="orange" />
-      <OrderbookSide title="Bids" levels={snapshot?.bids ?? []} tone="blue" />
-    </>
+      <div className="orderbook-topline">
+        <div>
+          <span>Last trade</span>
+          <strong>
+            {snapshot.lastTradePrice === null
+              ? "—"
+              : formatMoney(snapshot.lastTradePrice, snapshot.currency)}
+          </strong>
+        </div>
+        <div>
+          <span>Spread</span>
+          <strong>
+            {snapshot.spread === null
+              ? "—"
+              : formatMoney(snapshot.spread, snapshot.currency)}
+          </strong>
+        </div>
+        <div>
+          <span>Premium</span>
+          <strong>
+            {snapshot.premiumPercent === null
+              ? "—"
+              : `${snapshot.premiumPercent.toFixed(1)}%`}
+          </strong>
+        </div>
+      </div>
+      <div className="orderbook-columns">
+        <OrderbookSide
+          currency={snapshot.currency}
+          levels={snapshot.bids}
+          side="Bids"
+        />
+        <OrderbookSide
+          currency={snapshot.currency}
+          levels={snapshot.asks}
+          side="Asks"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -140,84 +190,47 @@ function mergeSocketSnapshot(
     lastTradePrice: update.lastTradePrice,
     floorPrice,
     highestBid,
-    spread: floorPrice === null || highestBid === null ? null : floorPrice - highestBid,
+    spread:
+      floorPrice === null || highestBid === null
+        ? null
+        : floorPrice - highestBid,
     volume: update.volume,
     premiumPercent: update.premiumPercent,
   };
 }
 
-function MarketSummary({ market }: { market: MarketSnapshot | null }) {
-  if (!market) {
-    return <div className="empty-state">No Alpha market is available yet.</div>;
-  }
-
-  return (
-    <div className="market-summary">
-      <MiniMetric label="Last trade" value={market.lastTradePrice === null ? "No trade" : money(market.lastTradePrice)} />
-      <MiniMetric label="Face value" value={money(market.faceValue)} />
-      <MiniMetric label="Resale cap" value={market.resaleCap === null ? "None" : money(market.resaleCap)} />
-      <MiniMetric label="Premium" value={market.premiumPercent === null ? "n/a" : `${market.premiumPercent.toFixed(1)}%`} />
-      <MiniMetric label="Best bid" value={market.highestBid === null ? "No bid" : money(market.highestBid)} />
-      <MiniMetric label="Spread" value={market.spread === null ? "n/a" : money(market.spread)} />
-    </div>
-  );
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mini-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function OrderbookSide({
-  title,
+  side,
   levels,
-  tone,
+  currency,
 }: {
-  title: string;
-  levels: { price: number; quantity: number }[];
-  tone: "blue" | "orange";
+  side: "Bids" | "Asks";
+  levels: MarketLevel[];
+  currency: string;
 }) {
   return (
     <div className="orderbook-side">
-      <div className="section-title">
-        <h2>{title}</h2>
-        <span className={`badge ${tone}`}>{levels.length} levels</span>
+      <header>
+        <strong>{side}</strong>
+        <span>{levels.length} levels</span>
+      </header>
+      <div className="orderbook-heading">
+        <span>Price</span>
+        <span>Qty</span>
       </div>
-      <table className="table">
-        <tbody>
-          {levels.length === 0 ? (
-            <tr>
-              <td className="muted">No open orders</td>
-            </tr>
-          ) : (
-            levels.map((level) => (
-              <tr key={`${title}-${level.price}`}>
-                <td>{money(level.price)}</td>
-                <td>{level.quantity}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+      {levels.length === 0 ? (
+        <p className="orderbook-empty">No open {side.toLowerCase()}</p>
+      ) : (
+        levels.slice(0, 6).map((level) => (
+          <div
+            className={`orderbook-level orderbook-level--${side.toLowerCase()}`}
+            key={`${side}-${level.price}`}
+          >
+            <strong>{formatMoney(level.price, currency)}</strong>
+            <span>{level.quantity}</span>
+          </div>
+        ))
+      )}
     </div>
   );
-}
-
-function formatReason(reason: OrderbookUpdatePayload["reason"]) {
-  switch (reason) {
-    case "order_created":
-      return "Order created";
-    case "order_cancelled":
-      return "Order cancelled";
-    case "trade_settled":
-      return "Trade settled";
-  }
-}
-
-function money(value: number) {
-  return `HK$${value}`;
 }
