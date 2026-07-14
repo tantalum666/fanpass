@@ -65,13 +65,13 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 
 Latest code-bearing deployments:
 
-- Current live Console Auth code release: `6f129f9ad2fec04a88d8e4c8299de29822e2a699`; a later documentation-only `[skip render]` commit may be the `main` head.
-- The Console Auth `/health` response reports HTTP 200, `runtime: vite-node-static`, `environment: staging`, and that exact release SHA. Render's deploy API timed out during final verification, so the new deploy id was not guessed or recorded.
+- Current live Console and Console Auth code release: `0543a6cc902f009d017f58060a97649fba9ae37e`; a later documentation-only `[skip render]` commit may be the `main` head.
+- The Console Auth `/health` response reports HTTP 200, `runtime: vite-node-static`, `environment: staging`, and that exact release SHA. The Console's deployed bridge accepts the new form content type and returns the expected bounded missing-token response, proving its matching code path is live. Render's deploy API timed out during final verification, so deploy ids were not guessed or recorded.
 - Last API deploy id observed through Render: `dep-d9b2hjp9rddc738kngvg`, status `live`.
 - Last Console deploy id observed through Render: `dep-d9b2hjp9rddc738kngpg`, status `live`.
 - The superseded pre-migration Console Auth deploy was `dep-d9b2hjp9rddc738kngl0` for commit `b3d7d8177e7f2aebab05562267c04e97db15a742`.
 - All three Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
-- Live smoke on `6f129f9` passed API `/health`, API `/events`, the Console root, the isolated Console Auth root, and Auth runtime config with HTTP 200. The Console-to-Auth session-bridge preflight returned 204 with the exact Auth origin and credentials policy. Console/Auth CSP, HSTS, frame, content-type, and opener headers were present and neither response exposed `x-powered-by`.
+- Live smoke on `0543a6c` passed the Console/Auth roots and Auth health. Auth CSP now permits `form-action` only for self and the exact Console origin; HSTS, content-type, frame, and popup-compatible opener headers remain present. Public browser checks loaded the Console sign-in link and the deployed Auth UI. The automated Chrome extension blocked the sensitive top-level POST navigation client-side with `ERR_BLOCKED_BY_CLIENT`, so a real-browser owner login remains the final staging E2E rather than being overclaimed from automation.
 - The public orderbook now includes at most 120 chronological settled-sale points containing only `price` and `tradedAt`. Current staging data has no settled resale trades, so `priceHistory` is present and empty rather than simulated.
 
 Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.

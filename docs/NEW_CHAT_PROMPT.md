@@ -23,7 +23,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` is the only local and remote branch and the only active source line.
 - Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
-- Render API, Console, and isolated Console Auth all follow `main`; the latest code-bearing commit is `6f129f9`, and Console Auth `/health` proves that exact release is live as the Vite/Node staging runtime. A later `[skip render]` documentation follow-up may be the `main` head.
+- Render API, Console, and isolated Console Auth all follow `main`; the latest Console/Auth code-bearing commit is `0543a6c`. Auth `/health` proves that release is live, and the deployed Console bridge proves its matching form parser is live. A later `[skip render]` documentation follow-up may be the `main` head.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
 - Documentation was consolidated and fully audited on 2026-07-12; use `docs/README.md` instead of recreating deleted V4 planning logs.
 
@@ -43,4 +43,4 @@ The browser-SDK staging handoff uses a top-level POST to the exact Console sessi
 
 FanPass adds no browser token store. Render staging explicitly uses Privy's documented default browser SDK storage; real-user production must use a separate production Privy app on a stable DNS-verified owner domain with Privy HttpOnly cookie mode, exact allowed origins, administrator allowlist, MFA/passkey enforcement, residual-risk review, and live production E2E. The Console BFF cookie-mode bridge is implemented, but the saved evidence remains `staging-only` and intentionally fails `--require-production`.
 
-The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, API/Console/Console Auth typechecks, dependency audits, API privacy, provider, route, and evidence-redaction gates passed. After the Vite deployment exposed a missing Render environment migration as an honest 503, `6f129f9` added a narrowly tested Render staging/beta metadata fallback while keeping production fail-closed. The focused session-handoff repair passes all 16 current Auth tests, form/JSON/blocked-origin HTTP integration, route/runtime/header/provider/privacy gates, clean production audit, and refreshed isolation evidence.
+The full Node 22 Beta verifier passed on the session-handoff repair: 19 API suites / 118 tests, all 16 Auth tests, both builds/typechecks, form/JSON/blocked-origin HTTP integration, route/runtime/header/provider/privacy and evidence-redaction gates, clean root production audit, and refreshed isolation evidence. Live public pages and exact Auth CSP passed; the automated Chrome extension blocked the sensitive top-level POST client-side, so owner login is the remaining staging E2E.
