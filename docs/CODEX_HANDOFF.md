@@ -64,11 +64,11 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 
 Latest code-bearing deployments:
 
-- Code commit: `be6c548c633c0445089bb5d24e76525416567707`.
-- API deploy: `dep-d9auhi6q1p3s73cqmmug`, status `live`.
-- Console deploy: `dep-d9auhi6q1p3s73cqmnog`, status `live`.
+- Code commit: `592cbd8befcf695e5141cf397aa2c3e75df7b1d0`.
+- API deploy: `dep-d9av9drbc2fs73a2a25g`, status `live`.
+- Console deploy: `dep-d9av9drbc2fs73a2a1vg`, status `live`.
 - Both Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
-- Live smoke passed API `/health`, the public orderbook, and the Console root with HTTP 200. Post-deploy error-log queries returned no entries.
+- Live smoke passed API `/health`, the Neon VIP public orderbook, and the Console root with HTTP 200. Unauthenticated `/alpha/operations` returned 401. API and Console security headers were present, neither response exposed `x-powered-by`, and post-deploy error-log queries returned no entries.
 - The public orderbook now includes at most 120 chronological settled-sale points containing only `price` and `tradedAt`. Current staging data has no settled resale trades, so `priceHistory` is present and empty rather than simulated.
 
 Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.
@@ -96,6 +96,17 @@ Current V4 repair in this worktree:
 - Runtime automation covered event search, seat-category search, selection, and return to Market. Selecting Neon Harbor Festival / VIP updated the market without leaving a stale navigation page or switching tabs.
 - The final Debug source was rebuilt, installed, and launched through XcodeBuildMCP from DerivedData `outputs/ios-sim-build/FanPassMarketSelector` as process `75029` on the named simulator; the active Market selector and all four chart ranges were present in the runtime accessibility tree.
 
+## Console Baseline
+
+- Console is an event-first operational workspace rather than one long dashboard. A persistent rail exposes Overview, Events & inventory, Sales & market, Entry, Team, and Risk & audit.
+- Event context is selected from a searchable directory, remains visible in the header, and is encoded in the URL query so links are reproducible without browser token storage.
+- Sales uses a searchable ticket-type selector, public orderbook depth, settled resale history, and an isolated lazy-loaded Socket.IO connection. It never fabricates trades when staging history is empty.
+- Entry, staff assignments, invite rotation/revocation, Fan Access review visibility, and audit/risk evidence are scoped to the selected event and existing role boundaries. Invite tokens remain one-time values and the automated evidence clears them before screenshot capture.
+- The React source is split into typed API/format/operations modules, a reusable shell/UI layer, and page-level feature modules under `apps/dashboard/src/features`. `ConsoleApp.tsx` remains the auth/session/router orchestrator rather than a monolithic page.
+- Desktop and 390x844 mobile browser checks passed event search/selection, VIP market selection, staff assignment, invite rotation, token clearing, responsive navigation, and zero browser console errors. The visual regression script passed the same event-first path.
+- Console and API strict typechecks, the production build, production dependency audit, route/provider/privacy/evidence security gates, and `npm run beta:foundation:verify` all passed. The API run remains 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
+- Mutating refunds, transfers, report exports, and Fan Access decisions are intentionally not represented as working actions until their backend contracts, authorization, audit, and idempotency behavior exist.
+
 ## Implemented Core Flows
 
 - Privy-backed multi-device fan sessions with Keychain persistence and restoration.
@@ -119,6 +130,7 @@ Current V4 repair in this worktree:
 6. Run physical-device regression for Stripe settlement, resale list/cancel, simultaneous Ops redemption, and multi-device state.
 7. Add managed edge waiting room, attestation/risk, verified phone/recovery, cached fan-out, and load/failover tests before a concert-scale sale.
 8. Complete release chain custody, signed Apple Wallet evidence, TestFlight, legal/compliance, and venue integration.
+9. Add backend-owned Console workflows for refund/review decisions, transfers, and report exports before enabling those mutations in the UI.
 
 ## Security And Tooling
 
@@ -131,7 +143,7 @@ Current V4 repair in this worktree:
 - Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
 - Alpha reset deletes all current Prisma relations in one ordered transaction. Side-effect saga verification pins mock ownership so local testnet settings cannot leak into integration tests.
 - Jest loads a test-only provider boundary before imports; the full API run has 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
-- `npm run beta:foundation:verify` passed end to end on 2026-07-12, including real local PostgreSQL reset/saga verification, API and Console typechecks, privacy/security gates, and API tests.
+- `npm run beta:foundation:verify` passed end to end on 2026-07-14, including real local PostgreSQL reset/saga verification, API and Console typechecks, privacy/security gates, and API tests.
 - Do not force dependency fixes. Re-run the production audit and fail-closed advisory gate after manifest/lock changes.
 - Neon/PostgreSQL is final inventory authority. Cache or edge counters must never sell tickets.
 - Redemption and high-demand purchase races must resolve in database transactions/locks, not client state.
@@ -148,3 +160,4 @@ Current V4 repair in this worktree:
 - All 58 non-ignored project Markdown files were checked for current branch/deployment/V4-V5 wording and internal references. Broken Markdown links and missing referenced Markdown paths: zero.
 - Five UTF-8 replacement characters exist only in four third-party dependency README files under `node_modules` or isolated build dependencies; no project-authored Markdown contains them.
 - The 2026-07-14 Market pass again read every workspace Markdown file outside `.git`; after context compaction it re-read the Handoff and current non-ignored V4/Market contracts before resuming implementation.
+- The 2026-07-14 Console pass read all 4,446 workspace Markdown files outside `.git` with zero read errors (aggregate SHA-256 `1bb1c21ce72dba16f246c7f42c7010c73b16ea6b9b529daf58f655eaad9afb1c`). After context compaction it re-read this Handoff and the focused Console contracts before resuming deployment verification.

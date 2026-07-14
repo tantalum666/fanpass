@@ -23,7 +23,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` is the only local and remote branch and the only active source line.
 - Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
-- Render API and Console both follow `main`; the latest code-bearing commit is `be6c548`, and both services passed live smoke after deployment.
+- Render API and Console both follow `main`; the latest code-bearing commit is `592cbd8`, and both services passed live smoke after deployment.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
 - Documentation was consolidated and fully audited on 2026-07-12; use `docs/README.md` instead of recreating deleted V4 planning logs.
 
@@ -33,4 +33,8 @@ V4 event covers lost by API mapping and the five Account destinations removed by
 
 Market now uses a compact current-market entry, a searchable full-screen event selector, and a searchable seat-category child page instead of horizontal chip rails. The active V4 screen again mounts a restrained K-line built only from public settled-sale `price` / `tradedAt` history; current staging has no settled resale trades and therefore shows the honest empty state.
 
-A clean Debug build was installed on simulator `41D28602-FF01-4E4C-98AA-DA7F4FC93D27`. Runtime automation verified event search, seat search, selection, return-to-Market navigation, and the chart empty state. The full API run has 19 passing suites and 118 passing tests; API privacy, iOS role boundaries, API typecheck, and iOS build passed. Render deploys `dep-d9auhi6q1p3s73cqmmug` and `dep-d9auhi6q1p3s73cqmnog` are live with HTTP 200 smoke checks and no post-deploy error logs.
+A clean Debug build was installed on simulator `41D28602-FF01-4E4C-98AA-DA7F4FC93D27`. Runtime automation verified event search, seat search, selection, return-to-Market navigation, and the chart empty state.
+
+Console is now an event-first operational workspace with persistent navigation and focused Overview, Events & inventory, Sales & market, Entry, Team, and Risk & audit pages. Searchable event selection is URL-addressable; Sales has ticket-type selection, public depth/history, and isolated live updates. Feature modules, typed data utilities, the shell, and CSS layers are separated instead of living in a monolithic component. Desktop/mobile browser automation passed event selection, VIP market selection, staff assignment, invite rotation, token clearing, and zero console errors. Refund/review/transfer/report mutations remain disabled until backend-owned contracts exist.
+
+The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, Console/API typechecks, Console production build and audit, API privacy, provider, route, and evidence-redaction gates passed. Render API deploy `dep-d9av9drbc2fs73a2a25g` and Console deploy `dep-d9av9drbc2fs73a2a1vg` are live. API health, public orderbook, and Console returned HTTP 200; protected operations returned 401 without authentication; post-deploy error-log queries returned no entries.
