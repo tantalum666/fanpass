@@ -23,7 +23,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` is the only local and remote branch and the only active source line.
 - Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
-- Render API and Console both follow `main`; the latest code-bearing commit is `592cbd8`, and both services passed live smoke after deployment.
+- Render API, Console, and isolated Console Auth all follow `main`; the latest code-bearing commit is `b3d7d81`, and all three services passed live smoke after deployment.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
 - Documentation was consolidated and fully audited on 2026-07-12; use `docs/README.md` instead of recreating deleted V4 planning logs.
 
@@ -37,4 +37,6 @@ A clean Debug build was installed on simulator `41D28602-FF01-4E4C-98AA-DA7F4FC9
 
 Console is now an event-first operational workspace with persistent navigation and focused Overview, Events & inventory, Sales & market, Entry, Team, and Risk & audit pages. Searchable event selection is URL-addressable; Sales has ticket-type selection, public depth/history, and isolated live updates. Feature modules, typed data utilities, the shell, and CSS layers are separated instead of living in a monolithic component. Desktop/mobile browser automation passed event selection, VIP market selection, staff assignment, invite rotation, token clearing, and zero console errors. Refund/review/transfer/report mutations remain disabled until backend-owned contracts exist.
 
-The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, Console/API typechecks, Console production build and audit, API privacy, provider, route, and evidence-redaction gates passed. Render API deploy `dep-d9av9drbc2fs73a2a25g` and Console deploy `dep-d9av9drbc2fs73a2a1vg` are live. API health, public orderbook, and Console returned HTTP 200; protected operations returned 401 without authentication; post-deploy error-log queries returned no entries.
+Console staging sign-in now validates the Auth URL and links to the separate email-only Privy runtime instead of looping back to itself. Live browser verification followed the original Console CTA to Console Auth and opened the Privy email dialog. The session-bridge CORS preflight returned 204 for the exact Auth origin. The isolated runtime audit is 12 moderate and zero high/critical; root production remains zero vulnerabilities.
+
+The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, Console/API typechecks, Console production build and audit, API privacy, provider, route, and evidence-redaction gates passed. Render API deploy `dep-d9b2hjp9rddc738kngvg`, Console deploy `dep-d9b2hjp9rddc738kngpg`, and Console Auth deploy `dep-d9b2hjp9rddc738kngl0` are live on commit `b3d7d81`. API health, Console, and Console Auth returned HTTP 200; post-deploy error-log queries returned no entries for any service.

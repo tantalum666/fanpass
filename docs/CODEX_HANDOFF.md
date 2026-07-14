@@ -59,16 +59,18 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 
 - API: `https://fanpass-api-staging.onrender.com`
 - Console: `https://fanpass-console-staging.onrender.com`
+- Console Auth: `https://fanpass-console-auth-staging.onrender.com`
 - Historical Web dashboard: `https://fanpass-dashboard.vercel.app`
 - Database: Neon `fanpass-staging` (connection details are secret).
 
 Latest code-bearing deployments:
 
-- Code commit: `592cbd8befcf695e5141cf397aa2c3e75df7b1d0`.
-- API deploy: `dep-d9av9drbc2fs73a2a25g`, status `live`.
-- Console deploy: `dep-d9av9drbc2fs73a2a1vg`, status `live`.
-- Both Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
-- Live smoke passed API `/health`, the Neon VIP public orderbook, and the Console root with HTTP 200. Unauthenticated `/alpha/operations` returned 401. API and Console security headers were present, neither response exposed `x-powered-by`, and post-deploy error-log queries returned no entries.
+- Code commit: `b3d7d8177e7f2aebab05562267c04e97db15a742`.
+- API deploy: `dep-d9b2hjp9rddc738kngvg`, status `live`.
+- Console deploy: `dep-d9b2hjp9rddc738kngpg`, status `live`.
+- Console Auth deploy: `dep-d9b2hjp9rddc738kngl0`, status `live`.
+- All three Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
+- Live smoke passed API `/health`, the Console root, and the isolated Console Auth root with HTTP 200. The Console-to-Auth session-bridge preflight returned 204 with the exact Auth origin and credentials policy. Console/Auth security headers were present, neither response exposed `x-powered-by`, and post-deploy error-log queries returned no entries for any service.
 - The public orderbook now includes at most 120 chronological settled-sale points containing only `price` and `tradedAt`. Current staging data has no settled resale trades, so `priceHistory` is present and empty rather than simulated.
 
 Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.
@@ -104,6 +106,8 @@ Current V4 repair in this worktree:
 - Entry, staff assignments, invite rotation/revocation, Fan Access review visibility, and audit/risk evidence are scoped to the selected event and existing role boundaries. Invite tokens remain one-time values and the automated evidence clears them before screenshot capture.
 - The React source is split into typed API/format/operations modules, a reusable shell/UI layer, and page-level feature modules under `apps/dashboard/src/features`. `ConsoleApp.tsx` remains the auth/session/router orchestrator rather than a monolithic page.
 - Desktop and 390x844 mobile browser checks passed event search/selection, VIP market selection, staff assignment, invite rotation, token clearing, responsive navigation, and zero browser console errors. The visual regression script passed the same event-first path.
+- The staging sign-in CTA no longer accepts a blank, non-HTTP, or same-origin Auth URL. It links to the separately deployed Console Auth runtime, whose email-only Privy dialog was verified in the live browser; the original no-op was a Render environment value that pointed the CTA back to the Console itself.
+- The isolated Auth runtime uses a retry-safe login state, `same-origin-allow-popups`, an explicit Render port binding, and a build command that installs build-time dependencies even when `NODE_ENV=production`. Optional wallet, fiat-onramp, and mini-app modules are excluded from the email-only bundle.
 - Console and API strict typechecks, the production build, production dependency audit, route/provider/privacy/evidence security gates, and `npm run beta:foundation:verify` all passed. The API run remains 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
 - Mutating refunds, transfers, report exports, and Fan Access decisions are intentionally not represented as working actions until their backend contracts, authorization, audit, and idempotency behavior exist.
 
@@ -138,6 +142,7 @@ Current V4 repair in this worktree:
 - `.nvmrc`, `.node-version`, root engine range, and `.npmrc` `engine-strict` are intentional.
 - The CI Node 22 Beta foundation workflow is guarded by `security:ci-node22-workflow` and its self-test.
 - Current root production dependency audit reports zero vulnerabilities.
+- The isolated `apps/console-auth` audit reports 12 moderate and zero high/critical advisories after upgrading `@privy-io/react-auth` to `3.35.0` and pinning patched `ws@8.21.0`; its current 13-file boundary evidence passes and it remains outside the root production dependency path.
 - The full dev/tooling audit reports 38 advisories, including 4 high findings and no critical findings. The high findings remain indirect `lodash`, `serialize-javascript`, `tmp`, and `undici` dependencies confined to Hardhat/contract tooling.
 - `form-data`, `viem`, `ethers`, and `ws` were updated within compatible ranges to close newly surfaced high findings; all 6 contract tests pass.
 - Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
