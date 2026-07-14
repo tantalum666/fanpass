@@ -354,6 +354,7 @@ function ConsoleLoginForm({
   onSessionReady: () => Promise<void>;
 }) {
   const [accessToken, setAccessToken] = useState("");
+  const initialAuthFailure = consoleAuthFailureMessage();
   const [message, setMessage] = useState("");
   const [state, setState] = useState<
     "idle" | "submitting" | "ready" | "failed"
@@ -402,7 +403,7 @@ function ConsoleLoginForm({
         <a
           className="primary-link"
           data-testid="console-privy-login"
-          href={consoleAuthUrl}
+          href="/api/console/privy-handoff"
         >
           Continue with Privy
         </a>
@@ -412,6 +413,11 @@ function ConsoleLoginForm({
           contact an administrator.
         </p>
       )}
+      {initialAuthFailure ? (
+        <p className="form-message form-message--error" role="alert">
+          {initialAuthFailure}
+        </p>
+      ) : null}
       <details className="developer-access" open={!consoleAuthUrl}>
         <summary>
           {consoleAuthUrl ? "Developer access" : "Connect with an access token"}
@@ -441,6 +447,20 @@ function ConsoleLoginForm({
       </details>
     </div>
   );
+}
+
+function consoleAuthFailureMessage() {
+  const reason = new URLSearchParams(window.location.search).get("auth");
+  if (reason === "forbidden") {
+    return "This account does not have organizer or admin access.";
+  }
+  if (reason === "handoff") {
+    return "The secure sign-in request expired. Please try again.";
+  }
+  if (reason === "failed") {
+    return "Privy sign-in could not create a Console session. Please try again.";
+  }
+  return "";
 }
 
 function safeConsoleAuthUrl(configuredUrl: string | undefined) {

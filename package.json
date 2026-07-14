@@ -98,6 +98,7 @@
     "security:payment-response-redaction:self-test": "node scripts/payment-response-redaction-audit-self-test.js",
     "security:console-routes": "node scripts/console-route-contract-audit.js",
     "security:console-routes:self-test": "node scripts/console-route-contract-audit-self-test.js",
+    "security:console-session-handoff:integration": "node scripts/console-session-handoff-integration-test.js",
     "security:console-auth-runtime": "node scripts/console-auth-runtime-audit.js",
     "security:console-auth-runtime:self-test": "node scripts/console-auth-runtime-audit-self-test.js",
     "security:provider-boundaries": "node scripts/provider-boundary-audit.js",

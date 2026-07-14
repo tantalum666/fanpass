@@ -69,7 +69,20 @@ const cases = [
       writeFixtureFile(
         fixtureRoot,
         "apps/dashboard/lib/console-auth.ts",
-        consoleAuthHelper().replace('"HttpOnly",', '"CookieOnly",'),
+        consoleAuthHelper().replaceAll('"HttpOnly"', '"CookieOnly"'),
+      ),
+  },
+  {
+    label: "rejects handoff state comparison without timing-safe equality",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/lib/console-auth.ts",
+        consoleAuthHelper().replace(
+          "timingSafeEqual(leftBuffer, rightBuffer)",
+          "leftBuffer.equals(rightBuffer)",
+        ),
       ),
   },
   {
@@ -109,6 +122,26 @@ const cases = [
           "readPrivySessionBody(request)",
           "readJsonBody(request)",
         ),
+      ),
+  },
+  {
+    label: "rejects session bridge without one-time handoff state validation",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace("assertConsoleSessionHandoff(", "noop("),
+      ),
+  },
+  {
+    label: "rejects handoff start without a short-lived Console cookie",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace("consoleHandoffCookie(state)", '""'),
       ),
   },
   {
@@ -216,6 +249,19 @@ const cases = [
         consoleLoginComponent().replace(
           "authUrl.origin === window.location.origin",
           "false",
+        ),
+      ),
+  },
+  {
+    label: "rejects Console login bypassing the secure handoff start",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/src/ConsoleApp.tsx",
+        consoleLoginComponent().replace(
+          'href="/api/console/privy-handoff"',
+          "href={consoleAuthUrl}",
         ),
       ),
   },
@@ -366,8 +412,10 @@ export function ConsoleLoginForm({ onSessionReady }: { onSessionReady: () => Pro
     }
   }
 
-  return consoleAuthUrl ? <form onSubmit={submitSession} /> : <p>Privy sign-in is temporarily unavailable.</p>;
+  return consoleAuthUrl ? <><a href="/api/console/privy-handoff">Continue with Privy</a><form onSubmit={submitSession} /></> : <p>Privy sign-in is temporarily unavailable.</p>;
 }
+
+function consoleAuthFailureMessage() { return ""; }
 
 function safeConsoleAuthUrl(configuredUrl: string) {
   const authUrl = new URL(configuredUrl, window.location.origin);
@@ -383,11 +431,17 @@ import {
   API_BASE_URL,
   CONSOLE_ACCESS_TOKEN_COOKIE,
   ConsoleMutationOriginError,
+  ConsoleSessionHandoffError,
   assertConsoleMutationOrigin,
+  assertConsoleSessionHandoff,
+  clearConsoleHandoffCookie,
   clearConsoleSessionCookie,
   consoleAccessToken,
+  consoleAuthHandoffUrl,
+  consoleHandoffCookie,
   consoleMutationCorsHeaders,
   consoleSessionCookie,
+  createConsoleHandoffState,
   privyCookieAccessToken,
 } from "../lib/console-auth.js";
 import { redactConsoleGateAssignmentResponse } from "../lib/gate-assignment-response.js";
@@ -397,6 +451,9 @@ createServer(async (request, response) => {
 });
 
 async function routeRequest(request, response, pathname, method) {
+  if (pathname === "/api/console/privy-handoff" && method === "GET") {
+    return handlePrivyHandoffStart(response);
+  }
   if (pathname === "/api/console/privy-session") {
     if (method === "POST") return handlePrivySessionPost(request, response);
     if (method === "DELETE") return handlePrivySessionDelete(request, response);
@@ -411,21 +468,32 @@ async function routeRequest(request, response, pathname, method) {
     handleDeactivateGateAssignment(request, response, deactivateMatch[1]);
 }
 
+function handlePrivyHandoffStart(response) {
+  const state = createConsoleHandoffState();
+  const authUrl = consoleAuthHandoffUrl(state);
+  response.setHeader("Set-Cookie", consoleHandoffCookie(state));
+  return sendRedirect(response, 303, authUrl);
+}
+
 async function handlePrivySessionPost(request, response) {
   const originRequest = requestToFetchRequest(request);
   const corsHeaders = consoleMutationCorsHeaders(originRequest);
-  assertConsoleMutationOrigin(originRequest);
   const body = await readPrivySessionBody(request);
   const topLevelHandoff =
     requestContentType(request) === "application/x-www-form-urlencoded" &&
     body?.handoff === "top-level";
+  if (topLevelHandoff) {
+    assertConsoleSessionHandoff(request.headers.cookie, body?.handoffState);
+  } else {
+    assertConsoleMutationOrigin(originRequest);
+  }
   const accessToken = privyCookieAccessToken(request.headers.cookie) ?? "fixture-access-token";
   const upstream = await fetch(\`\${API_BASE_URL}/auth/privy/sync\`, { cache: "no-store" });
   const session = await upstream.json();
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
     return sendJson(response, 403, { ok: false });
   }
-  response.setHeader("Set-Cookie", consoleSessionCookie(accessToken, session.expiresAt));
+  response.setHeader("Set-Cookie", [clearConsoleHandoffCookie(), consoleSessionCookie(accessToken, session.expiresAt)]);
   if (topLevelHandoff) return sendRedirect(response, 303, "/");
   return sendJson(response, 200, {
     ok: true,
@@ -436,8 +504,13 @@ async function handlePrivySessionPost(request, response) {
   });
 }
 
+function sendPrivySessionFailure(response, topLevelHandoff, status, message, reason = "failed") {
+  if (topLevelHandoff) return sendRedirect(response, 303, "/?auth=" + reason);
+  return sendJson(response, status, { ok: false, message });
+}
+
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-function readPrivySessionBody() { return { handoff: "top-level" }; }
+function readPrivySessionBody() { return { handoff: "top-level", handoffState: "fixture" }; }
 function requestContentType() { return "application/x-www-form-urlencoded"; }
 
 function handlePrivySessionDelete(request, response) {
@@ -524,13 +597,18 @@ function consoleAuthHelper(options = {}) {
     "",
   ].join("\n");
   return `
+import { randomBytes, timingSafeEqual } from "node:crypto";
 const API_BASE_URL = "http://fixture";
 export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token";
 export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
+const CONSOLE_HANDOFF_COOKIE = "fanpass_console_handoff";
+const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff";
+const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
 const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
 ${publicTokenEnv}
 export class ConsoleAuthRequiredError extends Error {}
 export class ConsoleMutationOriginError extends Error {}
+export class ConsoleSessionHandoffError extends Error {}
 
 export async function consoleAccessToken(source) {
   if (configuredAccessToken) {
@@ -561,6 +639,40 @@ export function privyCookieAccessToken(cookieHeader?: string | null) {
   return parseCookies(cookieHeader).get(PRIVY_ACCESS_TOKEN_COOKIE) ?? null;
 }
 
+export function createConsoleHandoffState() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function consoleAuthHandoffUrl(state: string) {
+  const authUrl = new URL(process.env.FANPASS_CONSOLE_AUTH_ORIGIN ?? "https://auth.example.test");
+  const consoleOrigin = configuredConsoleOrigin();
+  if (authUrl.origin === consoleOrigin) return null;
+  authUrl.searchParams.set("handoff", state);
+  return authUrl.toString();
+}
+
+export function assertConsoleSessionHandoff(cookieHeader, state) {
+  const leftBuffer = Buffer.from(state);
+  const rightBuffer = Buffer.from(state);
+  if (!timingSafeEqual(leftBuffer, rightBuffer)) throw new ConsoleSessionHandoffError();
+}
+
+export function consoleHandoffCookie(state: string) {
+  const productionLike = isProductionLikeConsole();
+  return [
+    \`\${productionLike ? CONSOLE_HANDOFF_HOST_COOKIE : CONSOLE_HANDOFF_COOKIE}=\${state}\`,
+    "HttpOnly",
+    productionLike ? "SameSite=None" : "SameSite=Lax",
+    "Path=/",
+    \`Max-Age=\${CONSOLE_HANDOFF_MAX_AGE_SECONDS}\`,
+    "Secure",
+  ].join("; ");
+}
+
+export function clearConsoleHandoffCookie() {
+  return "Max-Age=0";
+}
+
 export function assertConsoleMutationOrigin(request: Request) {
   const origin = request.headers.get("origin");
   const allowedOrigins = consoleAllowedOrigins();
@@ -587,6 +699,10 @@ function consoleAllowedOrigins() {
   addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL ?? "");
   addAllowedOrigin(origins, process.env.NEXT_PUBLIC_CONSOLE_BASE_URL ?? "");
   return origins;
+}
+
+function configuredConsoleOrigin() {
+  return normalizeOrigin(process.env.RENDER_EXTERNAL_HOSTNAME ? \`https://\${process.env.RENDER_EXTERNAL_HOSTNAME}\` : "https://console.example.test");
 }
 
 export function consoleMutationCorsHeaders(request: Request) {

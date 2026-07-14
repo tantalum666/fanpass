@@ -8,11 +8,17 @@ import {
   CONSOLE_ACCESS_TOKEN_COOKIE,
   ConsoleAuthRequiredError,
   ConsoleMutationOriginError,
+  ConsoleSessionHandoffError,
   assertConsoleMutationOrigin,
+  assertConsoleSessionHandoff,
+  clearConsoleHandoffCookie,
   clearConsoleSessionCookie,
   consoleAccessToken,
+  consoleAuthHandoffUrl,
+  consoleHandoffCookie,
   consoleMutationCorsHeaders,
   consoleSessionCookie,
+  createConsoleHandoffState,
   privyCookieAccessToken,
 } from "../lib/console-auth.js";
 import { redactConsoleGateAssignmentResponse } from "../lib/gate-assignment-response.js";
@@ -38,6 +44,7 @@ interface PrivySessionResponse {
 interface PrivySessionRequestBody {
   accessToken?: unknown;
   handoff?: unknown;
+  handoffState?: unknown;
 }
 
 class RequestBodyError extends Error {
@@ -78,6 +85,10 @@ async function routeRequest(
 ) {
   const method = request.method ?? "GET";
   const pathname = new URL(request.url ?? "/", "http://fanpass.local").pathname;
+
+  if (pathname === "/api/console/privy-handoff" && method === "GET") {
+    return handlePrivyHandoffStart(response);
+  }
 
   if (pathname === "/api/console/privy-session") {
     if (method === "POST") {
@@ -133,6 +144,20 @@ async function routeRequest(
   }
 
   return serveStatic(pathname, response);
+}
+
+function handlePrivyHandoffStart(response: ServerResponse) {
+  const state = createConsoleHandoffState();
+  const authUrl = consoleAuthHandoffUrl(state);
+  if (!authUrl) {
+    return sendJson(response, 503, {
+      ok: false,
+      message: "Console authentication is not configured",
+    });
+  }
+
+  response.setHeader("Set-Cookie", consoleHandoffCookie(state));
+  return sendRedirect(response, 303, authUrl);
 }
 
 async function handleOperations(
@@ -383,75 +408,118 @@ async function handlePrivySessionPost(
   const originRequest = requestToFetchRequest(request);
   const corsHeaders = consoleMutationCorsHeaders(originRequest);
   setHeaders(response, corsHeaders);
-  try {
-    assertConsoleMutationOrigin(originRequest);
-  } catch (error) {
-    if (error instanceof ConsoleMutationOriginError) {
-      return sendJson(response, 403, { ok: false, message: error.message });
-    }
-    throw error;
-  }
+  const formRequest =
+    requestContentType(request) === "application/x-www-form-urlencoded";
 
   let body: PrivySessionRequestBody | null;
   try {
     body = await readPrivySessionBody(request);
   } catch (error) {
     if (error instanceof RequestBodyError) {
-      return sendJson(response, error.status, {
-        ok: false,
-        message: error.message,
-      });
+      return sendPrivySessionFailure(
+        response,
+        formRequest,
+        error.status,
+        error.message,
+      );
     }
     throw error;
   }
-  const topLevelHandoff =
-    requestContentType(request) === "application/x-www-form-urlencoded" &&
-    body?.handoff === "top-level";
+  const topLevelHandoff = formRequest && body?.handoff === "top-level";
+  try {
+    if (topLevelHandoff) {
+      assertConsoleSessionHandoff(
+        request.headers.cookie,
+        body?.handoffState,
+      );
+    } else {
+      assertConsoleMutationOrigin(originRequest);
+    }
+  } catch (error) {
+    if (
+      error instanceof ConsoleMutationOriginError ||
+      error instanceof ConsoleSessionHandoffError
+    ) {
+      return sendPrivySessionFailure(
+        response,
+        topLevelHandoff,
+        403,
+        error.message,
+        "handoff",
+      );
+    }
+    throw error;
+  }
+
+  if (topLevelHandoff) {
+    response.setHeader("Set-Cookie", clearConsoleHandoffCookie());
+  }
   const bodyAccessToken =
     typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
   const accessToken =
     privyCookieAccessToken(request.headers.cookie) ?? bodyAccessToken;
   if (!accessToken) {
-    return sendJson(response, 400, {
-      ok: false,
-      message: "Privy access token is required",
-    });
+    return sendPrivySessionFailure(
+      response,
+      topLevelHandoff,
+      400,
+      "Privy access token is required",
+    );
   }
 
-  const upstream = await fetch(`${API_BASE_URL}/auth/privy/sync`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({}),
-    cache: "no-store",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${API_BASE_URL}/auth/privy/sync`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+      cache: "no-store",
+    });
+  } catch {
+    return sendPrivySessionFailure(
+      response,
+      topLevelHandoff,
+      503,
+      "Privy session service is unavailable",
+    );
+  }
   const session = (await upstream.json().catch(() => null)) as
     | PrivySessionResponse
     | { message?: string }
     | null;
 
   if (!upstream.ok || !session || !("role" in session)) {
-    return sendJson(response, upstream.status || 401, {
-      ok: false,
-      message:
-        session && "message" in session && session.message
-          ? session.message
-          : "Privy session sync failed",
-    });
+    return sendPrivySessionFailure(
+      response,
+      topLevelHandoff,
+      upstream.status || 401,
+      session && "message" in session && session.message
+        ? session.message
+        : "Privy session sync failed",
+    );
   }
 
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
-    return sendJson(response, 403, {
-      ok: false,
-      message: "Console requires organizer or admin access",
-    });
+    return sendPrivySessionFailure(
+      response,
+      topLevelHandoff,
+      403,
+      "Console requires organizer or admin access",
+      "forbidden",
+    );
   }
 
   response.setHeader(
     "Set-Cookie",
-    consoleSessionCookie(accessToken, session.expiresAt),
+    topLevelHandoff
+      ? [
+          clearConsoleHandoffCookie(),
+          consoleSessionCookie(accessToken, session.expiresAt),
+        ]
+      : consoleSessionCookie(accessToken, session.expiresAt),
   );
   if (topLevelHandoff) {
     return sendRedirect(response, 303, "/");
@@ -463,6 +531,19 @@ async function handlePrivySessionPost(
     role: session.role,
     expiresAt: session.expiresAt,
   });
+}
+
+function sendPrivySessionFailure(
+  response: ServerResponse,
+  topLevelHandoff: boolean,
+  status: number,
+  message: string,
+  reason: "failed" | "handoff" | "forbidden" = "failed",
+) {
+  if (topLevelHandoff) {
+    return sendRedirect(response, 303, "/?auth=" + reason);
+  }
+  return sendJson(response, status, { ok: false, message });
 }
 
 function handlePrivySessionDelete(
@@ -608,6 +689,7 @@ async function readPrivySessionBody(request: IncomingMessage) {
     return {
       accessToken: fields.get("accessToken"),
       handoff: fields.get("handoff"),
+      handoffState: fields.get("handoffState"),
     } satisfies PrivySessionRequestBody;
   }
   throw new RequestBodyError("Unsupported request content type", 415);

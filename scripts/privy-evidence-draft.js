@@ -54,6 +54,7 @@ const consoleSnapshotFiles = [
   "render.yaml",
   "scripts/console-auth-runtime-audit.js",
   "scripts/console-route-contract-audit.js",
+  "scripts/console-session-handoff-integration-test.js",
   "scripts/provider-boundary-audit.js",
 ];
 

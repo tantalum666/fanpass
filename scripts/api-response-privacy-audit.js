@@ -183,6 +183,7 @@ function auditConsoleBff(absoluteFile) {
   const relativeFile = normalizePath(path.relative(rootDir, absoluteFile));
   const contents = fs.readFileSync(absoluteFile, "utf8");
   const handlers = [
+    ["handlePrivyHandoffStart", "GET /api/console/privy-handoff"],
     ["handlePrivySessionPost", "POST /api/console/privy-session"],
     ["handlePrivySessionDelete", "DELETE /api/console/privy-session"],
     ["handlePrivySessionOptions", "OPTIONS /api/console/privy-session"],
@@ -269,7 +270,7 @@ function validateClassification(handler, discovered, classification) {
     classification === "AUTH_SESSION" &&
     !handler.includes("/auth/") &&
     !handler.startsWith("apps/dashboard/app/api/console/privy-session/") &&
-    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivySession")
+    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivy")
   ) {
     errors.push(
       `${handler} is classified as AUTH_SESSION outside the auth controller.`,
@@ -346,7 +347,7 @@ function validateConsoleBffClassification(handler, discovered, classification) {
   }
   if (
     classification === "AUTH_SESSION" &&
-    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivySession")
+    !handler.startsWith("apps/dashboard/server/console-bff.ts:handlePrivy")
   ) {
     errors.push(
       `${handler} is classified as AUTH_SESSION outside the Console session bridge.`,

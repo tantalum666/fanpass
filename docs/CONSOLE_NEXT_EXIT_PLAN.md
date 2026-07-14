@@ -47,7 +47,7 @@ Production BFF duties that must be preserved if Next route handlers are removed:
 - Exchange a verified Privy access token through `POST /auth/privy/sync`.
 - Require `ORGANIZER` or `ADMIN` before issuing a Console session.
 - Store the Console API token only in an HttpOnly cookie or equivalent server-managed session.
-- Enforce mutation origin checks and CORS for Console session and staff invite mutations.
+- Enforce mutation origin checks and CORS for Console session and staff invite mutations; the isolated top-level login form additionally requires the Console-issued short-lived handoff state Cookie so browsers with an unavailable/opaque Origin never require a broad origin bypass.
 - Proxy gate assignment creation and invite rotation with server-side bearer auth.
 - Redact one-time staff invite tokens to the intended Console UI surface only.
 

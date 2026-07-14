@@ -254,6 +254,7 @@ function consoleBff(options = {}) {
 ${includeMarkers ? "import { consoleAccessToken } from '../console-session';" : ""}
 ${includeMarkers ? "import { redactConsoleGateAssignmentResponse } from './redaction';" : ""}
 
+function handlePrivyHandoffStart() {}
 function handlePrivySessionPost() {}
 function handlePrivySessionDelete() {}
 function handlePrivySessionOptions() {}
@@ -299,6 +300,12 @@ function matrix(options = {}) {
       "POST /payments/webhook",
       options.webhookClassification ?? "PROVIDER_INGRESS",
       "Webhook fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handlePrivyHandoffStart",
+      "GET /api/console/privy-handoff",
+      "AUTH_SESSION",
+      "Console handoff start fixture.",
     ],
     [
       "apps/dashboard/server/console-bff.ts:handlePrivySessionPost",

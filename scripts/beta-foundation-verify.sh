@@ -27,6 +27,8 @@ run_step "Console route contract audit self-test" npm run security:console-route
 run_step "Console route contract audit" npm run security:console-routes
 run_step "Console Auth runtime audit self-test" npm run security:console-auth-runtime:self-test
 run_step "Console Auth runtime audit" npm run security:console-auth-runtime
+run_step "Console production build" npm run build -w apps/dashboard
+run_step "Console session handoff integration" npm run security:console-session-handoff:integration
 run_step "Node runtime policy audit self-test" npm run security:node-runtime-policy:self-test
 run_step "Node runtime policy audit" npm run security:node-runtime-policy
 run_step "CI Node 22 workflow audit self-test" npm run security:ci-node22-workflow:self-test

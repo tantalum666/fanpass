@@ -1,3 +1,5 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+
 export const API_BASE_URL =
   process.env.FANPASS_API_BASE_URL ??
   process.env.VITE_API_BASE_URL ??
@@ -7,6 +9,10 @@ const CONSOLE_USER_ID =
   process.env.FANPASS_CONSOLE_USER_ID ?? "usr_organizer_demo";
 export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token";
 export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
+const CONSOLE_HANDOFF_COOKIE = "fanpass_console_handoff";
+const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff";
+const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
+const CONSOLE_HANDOFF_STATE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 const configuredAccessToken: string | null =
   process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
@@ -25,6 +31,13 @@ export class ConsoleMutationOriginError extends Error {
   constructor(message = "FanPass Console mutation origin is not allowed") {
     super(message);
     this.name = "ConsoleMutationOriginError";
+  }
+}
+
+export class ConsoleSessionHandoffError extends Error {
+  constructor(message = "FanPass Console login handoff is invalid or expired") {
+    super(message);
+    this.name = "ConsoleSessionHandoffError";
   }
 }
 
@@ -153,6 +166,79 @@ export function privyCookieAccessToken(cookieHeader?: string | null) {
   return parseCookies(cookieHeader).get(PRIVY_ACCESS_TOKEN_COOKIE) ?? null;
 }
 
+export function createConsoleHandoffState() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function consoleAuthHandoffUrl(state: string) {
+  if (!isValidConsoleHandoffState(state)) {
+    return null;
+  }
+
+  const configuredUrl =
+    process.env.FANPASS_CONSOLE_AUTH_ORIGIN ??
+    process.env.VITE_CONSOLE_AUTH_BASE_URL ??
+    process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL;
+  if (!configuredUrl) {
+    return null;
+  }
+
+  try {
+    const authUrl = new URL(configuredUrl);
+    if (
+      !["http:", "https:"].includes(authUrl.protocol) ||
+      (isProductionLikeConsole() && authUrl.protocol !== "https:") ||
+      authUrl.username ||
+      authUrl.password ||
+      authUrl.pathname !== "/" ||
+      authUrl.search ||
+      authUrl.hash
+    ) {
+      return null;
+    }
+    const consoleOrigin = configuredConsoleOrigin();
+    if (
+      (isProductionLikeConsole() && !consoleOrigin) ||
+      authUrl.origin === consoleOrigin
+    ) {
+      return null;
+    }
+    authUrl.searchParams.set("handoff", state);
+    return authUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function assertConsoleSessionHandoff(
+  cookieHeader: string | null | undefined,
+  state: unknown,
+) {
+  const submittedState = typeof state === "string" ? state : "";
+  const cookieState =
+    parseCookies(cookieHeader).get(consoleHandoffCookieName()) ?? "";
+  if (
+    !isValidConsoleHandoffState(submittedState) ||
+    !isValidConsoleHandoffState(cookieState) ||
+    !constantTimeEqual(submittedState, cookieState)
+  ) {
+    throw new ConsoleSessionHandoffError();
+  }
+}
+
+export function consoleHandoffCookie(state: string) {
+  if (!isValidConsoleHandoffState(state)) {
+    throw new ConsoleSessionHandoffError();
+  }
+  return handoffCookieAttributes(encodeURIComponent(state), {
+    maxAge: CONSOLE_HANDOFF_MAX_AGE_SECONDS,
+  });
+}
+
+export function clearConsoleHandoffCookie() {
+  return handoffCookieAttributes("", { maxAge: 0 });
+}
+
 export function consoleSessionCookie(
   accessToken: string,
   expiresAt: string | null,
@@ -182,6 +268,43 @@ export function clearConsoleSessionCookie() {
     attributes.push("Secure");
   }
   return attributes.join("; ");
+}
+
+function handoffCookieAttributes(
+  value: string,
+  options: { maxAge: number },
+) {
+  const productionLike = isProductionLikeConsole();
+  const attributes = [
+    `${consoleHandoffCookieName()}=${value}`,
+    "HttpOnly",
+    productionLike ? "SameSite=None" : "SameSite=Lax",
+    "Path=/",
+    `Max-Age=${options.maxAge}`,
+  ];
+  if (productionLike) {
+    attributes.push("Secure");
+  }
+  return attributes.join("; ");
+}
+
+function consoleHandoffCookieName() {
+  return isProductionLikeConsole()
+    ? CONSOLE_HANDOFF_HOST_COOKIE
+    : CONSOLE_HANDOFF_COOKIE;
+}
+
+function isValidConsoleHandoffState(value: string) {
+  return CONSOLE_HANDOFF_STATE_PATTERN.test(value);
+}
+
+function constantTimeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
 }
 
 function consoleAllowedOrigins() {
@@ -215,6 +338,18 @@ function consoleAllowedOrigins() {
   }
 
   return origins;
+}
+
+function configuredConsoleOrigin() {
+  const configuredOrigin =
+    process.env.FANPASS_CONSOLE_ORIGIN ??
+    process.env.FANPASS_CONSOLE_URL ??
+    process.env.VITE_CONSOLE_BASE_URL ??
+    process.env.NEXT_PUBLIC_CONSOLE_BASE_URL ??
+    (process.env.RENDER_EXTERNAL_HOSTNAME
+      ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+      : "");
+  return normalizeOrigin(configuredOrigin);
 }
 
 function addAllowedOrigin(origins: Set<string>, value: string) {

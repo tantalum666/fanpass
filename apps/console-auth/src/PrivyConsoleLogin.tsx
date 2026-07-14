@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConsoleAuthRuntimeConfig } from "./runtime-config";
 
 type SessionState = "idle" | "waiting" | "syncing" | "ready" | "failed";
+const HANDOFF_STATE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 export function ConsolePrivyLogin(props: ConsoleAuthRuntimeConfig) {
   return (
@@ -29,9 +30,22 @@ function PrivySessionBridge({
   const submittedSession = useRef(false);
   const handoffForm = useRef<HTMLFormElement>(null);
   const handoffTokenInput = useRef<HTMLInputElement>(null);
+  const handoffState = useMemo(
+    () =>
+      privySessionMode === "browser-sdk" ? currentHandoffState() : "",
+    [privySessionMode],
+  );
+  const handoffStartUrl = useMemo(
+    () => consoleHandoffStartUrl(consoleUrl),
+    [consoleUrl],
+  );
 
   const canLogin =
-    ready && !authenticated && state !== "syncing" && state !== "ready";
+    ready &&
+    !authenticated &&
+    (privySessionMode !== "browser-sdk" || Boolean(handoffState)) &&
+    state !== "syncing" &&
+    state !== "ready";
   const statusLabel = useMemo(() => {
     if (!ready) return "Initializing Privy";
     if (state === "syncing") return "Creating Console session";
@@ -41,7 +55,20 @@ function PrivySessionBridge({
   }, [authenticated, ready, state]);
 
   useEffect(() => {
-    if (!ready || !authenticated || submittedSession.current) return;
+    if (privySessionMode === "browser-sdk" && !handoffState) {
+      window.location.replace(handoffStartUrl);
+    }
+  }, [handoffStartUrl, handoffState, privySessionMode]);
+
+  useEffect(() => {
+    if (
+      !ready ||
+      !authenticated ||
+      submittedSession.current ||
+      (privySessionMode === "browser-sdk" && !handoffState)
+    ) {
+      return;
+    }
 
     submittedSession.current = true;
     let cancelled = false;
@@ -104,6 +131,7 @@ function PrivySessionBridge({
     authenticated,
     consoleUrl,
     getAccessToken,
+    handoffState,
     privySessionMode,
     ready,
     sessionBridgeUrl,
@@ -165,6 +193,7 @@ function PrivySessionBridge({
             autoComplete="off"
           />
           <input type="hidden" name="handoff" value="top-level" />
+          <input type="hidden" name="handoffState" value={handoffState} />
         </form>
       ) : null}
       {message ? (
@@ -182,4 +211,18 @@ function PrivySessionBridge({
       </p>
     </div>
   );
+}
+
+function currentHandoffState() {
+  const state =
+    new URLSearchParams(window.location.search).get("handoff") ?? "";
+  return HANDOFF_STATE_PATTERN.test(state) ? state : "";
+}
+
+function consoleHandoffStartUrl(consoleUrl: string) {
+  const url = new URL(consoleUrl);
+  url.pathname = "/api/console/privy-handoff";
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }

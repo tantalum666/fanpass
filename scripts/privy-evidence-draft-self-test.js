@@ -25,7 +25,7 @@ const cases = [
     provider: "privy-console-react-sdk-isolation",
     snapshotKey: "implementationSnapshot",
     source: "privy-console-sdk-isolation-boundaries",
-    fileCount: 20,
+    fileCount: 21,
   },
 ];
 

@@ -59,6 +59,30 @@ const cases = [
     marker: "must include form.requestSubmit()",
   },
   {
+    label: "rejects a session handoff without the one-time state",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/src/PrivyConsoleLogin.tsx",
+        'name="handoffState" value={handoffState}',
+        'name="handoffState" value=""',
+      ),
+    pass: false,
+    marker: "must include name=\"handoffState\" value={handoffState}",
+  },
+  {
+    label: "rejects direct Auth loads that cannot restart secure handoff",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/src/PrivyConsoleLogin.tsx",
+        "window.location.replace(handoffStartUrl)",
+        "return",
+      ),
+    pass: false,
+    marker: "must include window.location.replace(handoffStartUrl)",
+  },
+  {
     label: "rejects a CSP that cannot submit to the exact Console origin",
     mutate: (fixtureRoot) =>
       replace(
