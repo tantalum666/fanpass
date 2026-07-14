@@ -116,8 +116,28 @@ services:
       - key: FANPASS_CONSOLE_ORIGINS
         sync: false
       - key: FANPASS_CONSOLE_AUTH_ORIGIN
-        sync: false
+        value: https://fanpass-console-auth-staging.onrender.com
       - key: VITE_CONSOLE_AUTH_BASE_URL
-        sync: false
+        value: https://fanpass-console-auth-staging.onrender.com
       - key: FANPASS_CONSOLE_ACCESS_TOKEN
         sync: false
+  - type: web
+    name: fanpass-console-auth-staging
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: apps/console-auth
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_PRIVY_APP_ID
+        sync: false
+      - key: NEXT_PUBLIC_FANPASS_CONSOLE_SESSION_BRIDGE_URL
+        value: https://fanpass-console-staging.onrender.com/api/console/privy-session
+      - key: NEXT_PUBLIC_FANPASS_CONSOLE_URL
+        value: https://fanpass-console-staging.onrender.com

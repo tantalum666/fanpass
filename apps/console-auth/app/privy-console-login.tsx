@@ -25,12 +25,7 @@ export function ConsolePrivyLogin(props: ConsolePrivyLoginProps) {
     <PrivyProvider
       appId={props.appId}
       config={{
-        loginMethods: ["email", "wallet"],
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: "users-without-wallets",
-          },
-        },
+        loginMethods: ["email"],
       }}
     >
       <PrivySessionBridge {...props} />
@@ -48,7 +43,8 @@ function PrivySessionBridge({
   const [message, setMessage] = useState("");
   const submittedSession = useRef(false);
 
-  const canLogin = ready && !authenticated && state !== "waiting";
+  const canLogin =
+    ready && !authenticated && state !== "syncing" && state !== "ready";
   const statusLabel = useMemo(() => {
     if (!ready) {
       return "Initializing Privy";
@@ -120,8 +116,13 @@ function PrivySessionBridge({
 
   async function startLogin() {
     setState("waiting");
-    setMessage("");
-    await login();
+    setMessage("Complete sign-in in the Privy dialog.");
+    try {
+      await login();
+    } catch {
+      setState("failed");
+      setMessage("Privy sign-in could not be opened. Please try again.");
+    }
   }
 
   async function resetSession() {

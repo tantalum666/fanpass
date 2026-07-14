@@ -19,9 +19,12 @@ const cases = [
     label: "rejects missing Console BFF",
     expected: "fail",
     mutate: (fixtureRoot) =>
-      fs.rmSync(path.join(fixtureRoot, "apps/dashboard/server/console-bff.ts"), {
-        force: true,
-      }),
+      fs.rmSync(
+        path.join(fixtureRoot, "apps/dashboard/server/console-bff.ts"),
+        {
+          force: true,
+        },
+      ),
   },
   {
     label: "rejects legacy Next route handlers",
@@ -76,7 +79,10 @@ const cases = [
       writeFixtureFile(
         fixtureRoot,
         "apps/dashboard/server/console-bff.ts",
-        consoleBff().replaceAll("assertConsoleMutationOrigin(originRequest)", ""),
+        consoleBff().replaceAll(
+          "assertConsoleMutationOrigin(originRequest)",
+          "",
+        ),
       ),
   },
   {
@@ -148,6 +154,19 @@ const cases = [
         consoleLoginComponent().replace(
           'fetch("/api/console/privy-session", {',
           'fetch("/api/debug-session", {',
+        ),
+      ),
+  },
+  {
+    label: "rejects a same-origin Console auth link guard regression",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/src/ConsoleApp.tsx",
+        consoleLoginComponent().replace(
+          "authUrl.origin === window.location.origin",
+          "false",
         ),
       ),
   },
@@ -248,7 +267,11 @@ console.log(
 );
 
 function writePassingFixture(fixtureRoot) {
-  writeFixtureFile(fixtureRoot, "apps/dashboard/server/console-bff.ts", consoleBff());
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/dashboard/server/console-bff.ts",
+    consoleBff(),
+  );
   writeFixtureFile(
     fixtureRoot,
     "apps/dashboard/lib/console-auth.ts",
@@ -277,6 +300,7 @@ import { FormEvent, useState } from "react";
 
 export function ConsoleLoginForm({ onSessionReady }: { onSessionReady: () => Promise<void> }) {
   const [accessToken, setAccessToken] = useState("");
+  const consoleAuthUrl = safeConsoleAuthUrl("https://auth.example.test");
 
   async function submitSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -293,7 +317,12 @@ export function ConsoleLoginForm({ onSessionReady }: { onSessionReady: () => Pro
     }
   }
 
-  return <form onSubmit={submitSession} />;
+  return consoleAuthUrl ? <form onSubmit={submitSession} /> : <p>Privy sign-in is temporarily unavailable.</p>;
+}
+
+function safeConsoleAuthUrl(configuredUrl: string) {
+  const authUrl = new URL(configuredUrl, window.location.origin);
+  return authUrl.origin === window.location.origin ? "" : authUrl.toString();
 }
 `;
 }

@@ -7,8 +7,7 @@ const rootDir = process.env.FANPASS_CONSOLE_ROUTE_AUDIT_ROOT
 const consoleBff = "apps/dashboard/server/console-bff.ts";
 const consoleAuthHelper = "apps/dashboard/lib/console-auth.ts";
 const consoleLoginComponent = "apps/dashboard/src/ConsoleApp.tsx";
-const gateAssignmentRedactor =
-  "apps/dashboard/lib/gate-assignment-response.ts";
+const gateAssignmentRedactor = "apps/dashboard/lib/gate-assignment-response.ts";
 const errors = [];
 
 auditConsoleBff();
@@ -48,7 +47,7 @@ console.log(
 function auditConsoleBff() {
   const contents = readFile(consoleBff);
   const requiredSnippets = [
-    'createServer(async (request, response) => {',
+    "createServer(async (request, response) => {",
     'runtime: "vite-node-bff"',
     'pathname === "/api/console/privy-session"',
     'method === "POST"',
@@ -56,10 +55,10 @@ function auditConsoleBff() {
     'method === "OPTIONS"',
     'pathname === "/api/console/operations"',
     'pathname === "/api/console/events"',
-    'handleCreateTicketType(request, response, ticketTypeMatch[1])',
+    "handleCreateTicketType(request, response, ticketTypeMatch[1])",
     'pathname === "/api/console/gate-assignments"',
-    'handleRotateInvite(request, response, inviteMatch[1])',
-    'handleDeactivateGateAssignment(request, response, deactivateMatch[1])',
+    "handleRotateInvite(request, response, inviteMatch[1])",
+    "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
     "assertConsoleMutationOrigin(originRequest)",
     "consoleMutationCorsHeaders(originRequest)",
     "/auth/privy/sync",
@@ -184,6 +183,9 @@ function auditConsoleLoginComponent() {
     'cache: "no-store"',
     'setAccessToken("")',
     "await onSessionReady()",
+    "safeConsoleAuthUrl(",
+    "authUrl.origin === window.location.origin",
+    "Privy sign-in is temporarily unavailable.",
   ];
   requireSnippets(consoleLoginComponent, contents, requiredSnippets);
 

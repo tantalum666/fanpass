@@ -358,7 +358,9 @@ function ConsoleLoginForm({
   const [state, setState] = useState<
     "idle" | "submitting" | "ready" | "failed"
   >("idle");
-  const consoleAuthUrl = import.meta.env.VITE_CONSOLE_AUTH_BASE_URL ?? "";
+  const consoleAuthUrl = safeConsoleAuthUrl(
+    import.meta.env.VITE_CONSOLE_AUTH_BASE_URL,
+  );
 
   async function submitSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -397,10 +399,19 @@ function ConsoleLoginForm({
   return (
     <div className="auth-actions-stack">
       {consoleAuthUrl ? (
-        <a className="primary-link" href={consoleAuthUrl}>
+        <a
+          className="primary-link"
+          data-testid="console-privy-login"
+          href={consoleAuthUrl}
+        >
           Continue with Privy
         </a>
-      ) : null}
+      ) : (
+        <p className="form-message form-message--error" role="alert">
+          Privy sign-in is temporarily unavailable. Use developer access or
+          contact an administrator.
+        </p>
+      )}
       <details className="developer-access" open={!consoleAuthUrl}>
         <summary>
           {consoleAuthUrl ? "Developer access" : "Connect with an access token"}
@@ -430,6 +441,26 @@ function ConsoleLoginForm({
       </details>
     </div>
   );
+}
+
+function safeConsoleAuthUrl(configuredUrl: string | undefined) {
+  const value = configuredUrl?.trim();
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const authUrl = new URL(value, window.location.origin);
+    if (
+      !["http:", "https:"].includes(authUrl.protocol) ||
+      authUrl.origin === window.location.origin
+    ) {
+      return "";
+    }
+    return authUrl.toString();
+  } catch {
+    return "";
+  }
 }
 
 function ShellMessage({
