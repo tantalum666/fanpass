@@ -18,6 +18,7 @@ Result:
 - The root production audit remains clean at zero findings.
 - FanPass code creates no app-managed browser token store. Render staging still uses Privy's documented default browser SDK storage; a real-user production release requires a separate production Privy app, stable verified owner domain, Privy HttpOnly cookie mode, exact allowed origins, administrator allowlist, MFA/passkey enforcement, residual-risk review, and live production E2E.
 - The production bridge path is prewired: in HttpOnly mode the Auth UI sends no token body, and the Console BFF accepts the verified `privy-token` cookie before creating its own HttpOnly Console session.
+- The live Vite rollout is `6f129f9`. Its Render environment-migration fallback changes no dependencies: the root audit remains zero and the isolated Auth audit remains exactly 10 moderate with zero high/critical findings.
 
 Decision:
 

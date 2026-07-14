@@ -65,12 +65,13 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 
 Latest code-bearing deployments:
 
-- Code commit: `b3d7d8177e7f2aebab05562267c04e97db15a742`.
-- API deploy: `dep-d9b2hjp9rddc738kngvg`, status `live`.
-- Console deploy: `dep-d9b2hjp9rddc738kngpg`, status `live`.
-- Console Auth deploy: `dep-d9b2hjp9rddc738kngl0`, status `live`.
+- Current live Console Auth code release: `6f129f9ad2fec04a88d8e4c8299de29822e2a699`; a later documentation-only `[skip render]` commit may be the `main` head.
+- The Console Auth `/health` response reports HTTP 200, `runtime: vite-node-static`, `environment: staging`, and that exact release SHA. Render's deploy API timed out during final verification, so the new deploy id was not guessed or recorded.
+- Last API deploy id observed through Render: `dep-d9b2hjp9rddc738kngvg`, status `live`.
+- Last Console deploy id observed through Render: `dep-d9b2hjp9rddc738kngpg`, status `live`.
+- The superseded pre-migration Console Auth deploy was `dep-d9b2hjp9rddc738kngl0` for commit `b3d7d8177e7f2aebab05562267c04e97db15a742`.
 - All three Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
-- Live smoke passed API `/health`, the Console root, and the isolated Console Auth root with HTTP 200. The Console-to-Auth session-bridge preflight returned 204 with the exact Auth origin and credentials policy. Console/Auth security headers were present, neither response exposed `x-powered-by`, and post-deploy error-log queries returned no entries for any service.
+- Live smoke on `6f129f9` passed API `/health`, API `/events`, the Console root, the isolated Console Auth root, and Auth runtime config with HTTP 200. The Console-to-Auth session-bridge preflight returned 204 with the exact Auth origin and credentials policy. Console/Auth CSP, HSTS, frame, content-type, and opener headers were present and neither response exposed `x-powered-by`.
 - The public orderbook now includes at most 120 chronological settled-sale points containing only `price` and `tradedAt`. Current staging data has no settled resale trades, so `priceHistory` is present and empty rather than simulated.
 
 Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.
@@ -108,6 +109,7 @@ Current V4 repair in this worktree:
 - Desktop and 390x844 mobile browser checks passed event search/selection, VIP market selection, staff assignment, invite rotation, token clearing, responsive navigation, and zero browser console errors. The visual regression script passed the same event-first path.
 - The staging sign-in CTA no longer accepts a blank, non-HTTP, or same-origin Auth URL. It links to the separately deployed Console Auth runtime, whose email-only Privy dialog was verified in the live browser; the original no-op was a Render environment value that pointed the CTA back to the Console itself.
 - The isolated Auth runtime now uses Vite React plus a Node built-in static/runtime-config server rather than Next. It keeps the retry-safe email-only login state, `same-origin-allow-popups`, exact HTTPS redirect/bridge URL validation, static path containment, a Privy-compatible CSP, explicit Render port binding, and a `/health` endpoint that fails 503 when auth configuration is invalid.
+- The first Vite deploy correctly failed health with 503 because the existing Render service had not applied the new `FANPASS_ENV=staging` variable and `NODE_ENV=production` activated the real production Cookie gate. The live fix infers only `staging` or `beta` from Render's documented service name/hostname metadata when `FANPASS_ENV` is absent; unrecognized/production services remain fail-closed. Health now exposes only validated environment/runtime/release metadata for deployment proof.
 - FanPass code creates no app-managed browser token store. Render staging explicitly uses Privy's default `browser-sdk` storage mode for fictional staging access; production/beta configuration fails closed unless `httponly-cookie` mode is selected. The Console BFF can consume the verified `privy-token` HttpOnly cookie without a token request body before issuing its own organizer/admin-gated HttpOnly Console session.
 - Console and API strict typechecks, the production build, production dependency audit, route/provider/privacy/evidence security gates, and `npm run beta:foundation:verify` all passed. The API run remains 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
 - Mutating refunds, transfers, report exports, and Fan Access decisions are intentionally not represented as working actions until their backend contracts, authorization, audit, and idempotency behavior exist.
@@ -151,7 +153,7 @@ Current V4 repair in this worktree:
 - Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
 - Alpha reset deletes all current Prisma relations in one ordered transaction. Side-effect saga verification pins mock ownership so local testnet settings cannot leak into integration tests.
 - Jest loads a test-only provider boundary before imports; the full API run has 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
-- `npm run beta:foundation:verify` passed end to end on 2026-07-14, including real local PostgreSQL reset/saga verification, API/Console/Console Auth typechecks, the isolated Auth production build and 12 tests, privacy/security gates, and API tests.
+- `npm run beta:foundation:verify` passed end to end on the final `6f129f9` tree on 2026-07-14, including real local PostgreSQL reset/saga verification, API/Console/Console Auth typechecks, the isolated Auth production build and all 14 current Auth tests, privacy/security gates, the refreshed 20-file Privy isolation evidence, and 19 API suites / 118 API tests with 6 opt-in PostgreSQL concurrency tests skipped.
 - Do not force dependency fixes. Re-run the production audit and fail-closed advisory gate after manifest/lock changes.
 - Neon/PostgreSQL is final inventory authority. Cache or edge counters must never sell tickets.
 - Redemption and high-demand purchase races must resolve in database transactions/locks, not client state.

@@ -23,7 +23,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` is the only local and remote branch and the only active source line.
 - Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
-- Render API, Console, and isolated Console Auth all follow `main`; the latest code-bearing commit is `b3d7d81`, and all three services passed live smoke after deployment.
+- Render API, Console, and isolated Console Auth all follow `main`; the latest code-bearing commit is `6f129f9`, and Console Auth `/health` proves that exact release is live as the Vite/Node staging runtime. A later `[skip render]` documentation follow-up may be the `main` head.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
 - Documentation was consolidated and fully audited on 2026-07-12; use `docs/README.md` instead of recreating deleted V4 planning logs.
 
@@ -41,4 +41,4 @@ Console staging sign-in validates the Auth URL and links to the separate email-o
 
 FanPass adds no browser token store. Render staging explicitly uses Privy's documented default browser SDK storage; real-user production must use a separate production Privy app on a stable DNS-verified owner domain with Privy HttpOnly cookie mode, exact allowed origins, administrator allowlist, MFA/passkey enforcement, residual-risk review, and live production E2E. The Console BFF cookie-mode bridge is implemented, but the saved evidence remains `staging-only` and intentionally fails `--require-production`.
 
-The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, API/Console/Console Auth typechecks, the isolated Auth production build and 12 tests, dependency audits, API privacy, provider, route, and evidence-redaction gates passed. The deployment ids below must be refreshed after the Vite/Node Auth migration is pushed and verified live.
+The full API run has 19 passing suites and 118 passing tests; the full Beta foundation verification, API/Console/Console Auth typechecks, dependency audits, API privacy, provider, route, and evidence-redaction gates passed. After the Vite deployment exposed a missing Render environment migration as an honest 503, `6f129f9` added a narrowly tested Render staging/beta metadata fallback while keeping production fail-closed. All 14 current Auth tests and focused security gates passed. Live HTTP checks passed Auth/Console/API roots, Auth runtime config, exact-origin Console preflight, and security headers; the current browser transport could not load the live `onrender.com` page, while the local production build uniquely enabled the CTA and opened the real Privy email dialog.
