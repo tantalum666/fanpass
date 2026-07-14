@@ -23,7 +23,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` is the only local and remote branch and the only active source line.
 - Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
-- Render API and Console both follow `main`; the latest code-bearing commit is `49be599`, and both services passed live smoke after deployment.
+- Render API and Console both follow `main`; the latest code-bearing commit is `be6c548`, and both services passed live smoke after deployment.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
 - Documentation was consolidated and fully audited on 2026-07-12; use `docs/README.md` instead of recreating deleted V4 planning logs.
 
@@ -31,4 +31,6 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 V4 event covers lost by API mapping and the five Account destinations removed by `a8ff8ed` are restored. Re-exposed pages use live orders or honest unavailable states, not mock listings or fake support/settings success.
 
-A clean Debug build was installed on simulator `41D28602-FF01-4E4C-98AA-DA7F4FC93D27`. Runtime snapshots and screenshots confirmed image-backed Home events plus all ten Account destinations without clipping. `npm run beta:foundation:verify` passed end to end with API/Console typechecks, real local PostgreSQL saga verification, 19 API suites, and 117 tests. Production dependency audit is clean; four high findings remain confined to indirect Hardhat tooling.
+Market now uses a compact current-market entry, a searchable full-screen event selector, and a searchable seat-category child page instead of horizontal chip rails. The active V4 screen again mounts a restrained K-line built only from public settled-sale `price` / `tradedAt` history; current staging has no settled resale trades and therefore shows the honest empty state.
+
+A clean Debug build was installed on simulator `41D28602-FF01-4E4C-98AA-DA7F4FC93D27`. Runtime automation verified event search, seat search, selection, return-to-Market navigation, and the chart empty state. The full API run has 19 passing suites and 118 passing tests; API privacy, iOS role boundaries, API typecheck, and iOS build passed. Render deploys `dep-d9auhi6q1p3s73cqmmug` and `dep-d9auhi6q1p3s73cqmnog` are live with HTTP 200 smoke checks and no post-deploy error logs.

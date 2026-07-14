@@ -1,6 +1,6 @@
 # Codex Handoff
 
-Last updated: 2026-07-12 (Asia/Shanghai).
+Last updated: 2026-07-14 (Asia/Shanghai).
 
 ## Start Protocol
 
@@ -64,12 +64,12 @@ Preview fixtures may remain for Xcode previews. Active Beta/Release paths must n
 
 Latest code-bearing deployments:
 
-- Code commit: `49be599f79adfb917da09f4534608e40014d369b`.
-- API deploy: `dep-d99l7e647okc73e64efg`, status `live`.
-- Console deploy: `dep-d99l8ics728c73ddl6c0`, status `live`.
+- Code commit: `be6c548c633c0445089bb5d24e76525416567707`.
+- API deploy: `dep-d9auhi6q1p3s73cqmmug`, status `live`.
+- Console deploy: `dep-d9auhi6q1p3s73cqmnog`, status `live`.
 - Both Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
-- Live smoke passed API `/health`, API `/events`, and the Console root with HTTP 200.
-- This line includes transparent high-demand on-sale controls plus stricter payer-only payment response redaction.
+- Live smoke passed API `/health`, the public orderbook, and the Console root with HTTP 200. Post-deploy error-log queries returned no entries.
+- The public orderbook now includes at most 120 chronological settled-sale points containing only `price` and `tradedAt`. Current staging data has no settled resale trades, so `priceHistory` is present and empty rather than simulated.
 
 Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f314b1b4ec8be9` are API `dep-d99laqe47okc73e65rkg` and Console `dep-d99laq647okc73e65reg`; both are `live`. Later documentation-only commits may use Render's skip phrase because they do not change runtime code.
 
@@ -91,6 +91,10 @@ Current V4 repair in this worktree:
 - A clean XcodeBuildMCP Debug build used dedicated DerivedData at `outputs/ios-sim-build/FanPassV4Restored`, succeeded in 54.9 seconds, installed over `fun.fanpass.app`, and launched as process `30141` on the named simulator.
 - Runtime UI verification confirmed real Aurora/Neon event artwork nodes and an image-backed Aurora Home hero. Account exposed all ten destinations in four groups with no clipping, including while signed out; protected destinations still route through sign-in.
 - Home and Account screenshots were visually inspected at 368x800. No missing cover, overlap, or truncated Account row was observed.
+- Market once again mounts its verified resale K-line in the active V4 screen. The client buckets only settled-sale history into OHLC candles and shows an explicit empty state when no verified sale exists.
+- The horizontal event and seat-category chip rails were replaced by a compact current-market entry plus a full-screen searchable event list and a second searchable seat-category page.
+- Runtime automation covered event search, seat-category search, selection, and return to Market. Selecting Neon Harbor Festival / VIP updated the market without leaving a stale navigation page or switching tabs.
+- The final Debug source was rebuilt, installed, and launched through XcodeBuildMCP from DerivedData `outputs/ios-sim-build/FanPassMarketSelector` as process `75029` on the named simulator; the active Market selector and all four chart ranges were present in the runtime accessibility tree.
 
 ## Implemented Core Flows
 
@@ -126,7 +130,7 @@ Current V4 repair in this worktree:
 - `form-data`, `viem`, `ethers`, and `ws` were updated within compatible ranges to close newly surfaced high findings; all 6 contract tests pass.
 - Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
 - Alpha reset deletes all current Prisma relations in one ordered transaction. Side-effect saga verification pins mock ownership so local testnet settings cannot leak into integration tests.
-- Jest loads a test-only provider boundary before imports; the full API run has 19 passing suites and 117 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
+- Jest loads a test-only provider boundary before imports; the full API run has 19 passing suites and 118 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
 - `npm run beta:foundation:verify` passed end to end on 2026-07-12, including real local PostgreSQL reset/saga verification, API and Console typechecks, privacy/security gates, and API tests.
 - Do not force dependency fixes. Re-run the production audit and fail-closed advisory gate after manifest/lock changes.
 - Neon/PostgreSQL is final inventory authority. Cache or edge counters must never sell tickets.
@@ -143,3 +147,4 @@ Current V4 repair in this worktree:
 - A full workspace scan on 2026-07-12 read all 4,407 `.md` files outside `.git` (about 35.6 MB) with zero read errors. Of these, 4,349 are ignored dependency/build-cache Markdown and were audited without modification.
 - All 58 non-ignored project Markdown files were checked for current branch/deployment/V4-V5 wording and internal references. Broken Markdown links and missing referenced Markdown paths: zero.
 - Five UTF-8 replacement characters exist only in four third-party dependency README files under `node_modules` or isolated build dependencies; no project-authored Markdown contains them.
+- The 2026-07-14 Market pass again read every workspace Markdown file outside `.git`; after context compaction it re-read the Handoff and current non-ignored V4/Market contracts before resuming implementation.
