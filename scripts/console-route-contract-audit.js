@@ -58,9 +58,9 @@ function auditConsoleBff() {
     "handleCreateTicketType(request, response, ticketTypeMatch[1])",
     'pathname === "/api/console/gate-assignments"',
     "handleRotateInvite(request, response, inviteMatch[1])",
-    "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
     "assertConsoleMutationOrigin(originRequest)",
     "consoleMutationCorsHeaders(originRequest)",
+    "privyCookieAccessToken(request.headers.cookie)",
     "/auth/privy/sync",
     'session.role !== "ORGANIZER" && session.role !== "ADMIN"',
     "consoleSessionCookie(accessToken, session.expiresAt)",
@@ -88,6 +88,14 @@ function auditConsoleBff() {
     "object-src 'none'",
   ];
   requireSnippets(consoleBff, contents, requiredSnippets);
+  requirePatterns(consoleBff, contents, [
+    {
+      label:
+        "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
+      pattern:
+        /handleDeactivateGateAssignment\s*\(\s*request\s*,\s*response\s*,\s*deactivateMatch\[1\]\s*,?\s*\)/,
+    },
+  ]);
 
   const forbiddenSnippets = [
     "assignment: payload",
@@ -107,6 +115,7 @@ function auditConsoleAuthHelper() {
   const contents = readFile(consoleAuthHelper);
   const requiredSnippets = [
     'export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token"',
+    'export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token"',
     "process.env.FANPASS_CONSOLE_ACCESS_TOKEN",
     "process.env.FANPASS_CONSOLE_ORIGINS",
     "process.env.FANPASS_CONSOLE_ORIGIN",
@@ -117,6 +126,7 @@ function auditConsoleAuthHelper() {
     "process.env.NEXT_PUBLIC_CONSOLE_AUTH_BASE_URL",
     "process.env.NEXT_PUBLIC_CONSOLE_BASE_URL",
     "const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader)",
+    "export function privyCookieAccessToken(cookieHeader?: string | null)",
     "export function assertConsoleMutationOrigin(request: Request)",
     "export function consoleMutationCorsHeaders(",
     'request.headers.get("origin")',
@@ -232,6 +242,14 @@ function requireSnippets(file, contents, snippets) {
   for (const snippet of snippets) {
     if (!contents.includes(snippet)) {
       errors.push(`${file} is missing required Console boundary: ${snippet}`);
+    }
+  }
+}
+
+function requirePatterns(file, contents, requirements) {
+  for (const { label, pattern } of requirements) {
+    if (!pattern.test(contents)) {
+      errors.push(`${file} is missing required Console boundary: ${label}`);
     }
   }
 }

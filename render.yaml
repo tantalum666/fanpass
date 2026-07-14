@@ -129,15 +129,19 @@ services:
     rootDir: apps/console-auth
     buildCommand: npm_config_include=dev npm ci && npm run build
     startCommand: npm run start
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 22.22.3
       - key: NODE_ENV
         value: production
+      - key: FANPASS_ENV
+        value: staging
+      - key: FANPASS_PRIVY_SESSION_MODE
+        value: browser-sdk
       - key: NEXT_PUBLIC_PRIVY_APP_ID
         sync: false
-      - key: NEXT_PUBLIC_FANPASS_CONSOLE_SESSION_BRIDGE_URL
+      - key: FANPASS_CONSOLE_SESSION_BRIDGE_URL
         value: https://fanpass-console-staging.onrender.com/api/console/privy-session
-      - key: NEXT_PUBLIC_FANPASS_CONSOLE_URL
+      - key: FANPASS_CONSOLE_URL
         value: https://fanpass-console-staging.onrender.com

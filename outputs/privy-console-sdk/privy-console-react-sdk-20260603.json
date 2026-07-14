@@ -2,38 +2,59 @@
   "ok": true,
   "draft": false,
   "draftStatus": "completed-console-sdk-dependency-isolation-review",
-  "checkedAt": "2026-07-14T12:12:55.608Z",
+  "checkedAt": "2026-07-14T15:16:14.000Z",
   "provider": "privy-console-react-sdk-isolation",
   "evidenceSource": "node22-dependency-isolation-review",
   "realUserDataUsed": false,
   "productionCredentialsUsed": false,
   "deploymentCredentialsAvailable": false,
+  "releaseScope": "staging-only",
   "implementationSnapshot": {
     "source": "privy-console-sdk-isolation-boundaries",
     "files": [
       {
-        "file": "apps/console-auth/app/page.tsx",
-        "sha256": "bdf9eb5b6bd6f017c326297dceaa7ce6d8a464f0ef74e4a5d5f295e1c3aee7de"
+        "file": "apps/console-auth/src/AuthApp.tsx",
+        "sha256": "95aa0c1f5e81883ba35b2db59ea9494b97ef85fa362c5ec146fa8261c1cce228"
       },
       {
-        "file": "apps/console-auth/app/privy-console-login.tsx",
-        "sha256": "62fa7cd261a6a872dcf56cb99206043b53ed4f30702a3dcd67bf71e744028f5e"
+        "file": "apps/console-auth/src/PrivyConsoleLogin.tsx",
+        "sha256": "7d2266b8c20c508347fb49c8424fc3839a6ea92086e5ed413d1034ab9dd2029c"
       },
       {
-        "file": "apps/console-auth/next.config.ts",
-        "sha256": "ee8ad563c58d25528492b7e92917983f0343129cc4977e478635448b4805da2d"
+        "file": "apps/console-auth/src/runtime-config.ts",
+        "sha256": "0e8537b726811d56bbb4ab61fd824a8c9e8b2e9ee617f87364311fb38e542da6"
+      },
+      {
+        "file": "apps/console-auth/server/config.ts",
+        "sha256": "8d8271f0d28eedc089a2d9a36dcbb3b50e4684db89a041c87995e732346934f0"
+      },
+      {
+        "file": "apps/console-auth/server/index.ts",
+        "sha256": "b198a51739ae54bcb1909c65f2cab9098ce638e07b5ecc8c8f016e56c54f2ccf"
+      },
+      {
+        "file": "apps/console-auth/server/security.ts",
+        "sha256": "39f28739fed3a34067f92ee29dd0975ec7026e4220b3a4c5148599c590323d5d"
+      },
+      {
+        "file": "apps/console-auth/server/static-files.ts",
+        "sha256": "6a2b027d59e52cd2d1f8912e41baa95cebe08e14040aa29af795b5be29abd221"
+      },
+      {
+        "file": "apps/console-auth/vite.config.ts",
+        "sha256": "7427c9f605b2af62e9be917b738b4740e3ff8b01860c15d50129b26f11593e73"
       },
       {
         "file": "apps/console-auth/package.json",
-        "sha256": "58ec8e26fbfa4bc0ea5babcbc46ab0ab9164201a6f32fd23e63a96904ae320b9"
+        "sha256": "845fe0edd06b635004fb03eff326021f3cb2ba38c41905882876a4e9f81a41cb"
       },
       {
         "file": "apps/console-auth/package-lock.json",
-        "sha256": "7fb6b6d95ad94e53eea645f09348f282f28fd634e6372090ee94c20b47c4e826"
+        "sha256": "18612d8832d10e370ef94bea736ebde3f3ebd7dc3cd86ae1ee120b523f8e381a"
       },
       {
         "file": "apps/dashboard/server/console-bff.ts",
-        "sha256": "783c0407ed1753d88717c93d66d94043f43e2e63b40e114a40290a20fcf7d389"
+        "sha256": "8f882ef9f6880973f5ec9ea3c163a446a22a02207db9b124904cd7be0ad5582e"
       },
       {
         "file": "apps/dashboard/src/ConsoleApp.tsx",
@@ -41,7 +62,7 @@
       },
       {
         "file": "apps/dashboard/lib/console-auth.ts",
-        "sha256": "463860a71357f2e0eb4c4587d687951c84bc91115a60c4fdbd88ea6a67f8d6d2"
+        "sha256": "412ecb1fc539f76c8ffaa812e646968c6bcccd0807d02117ab65ab20adae26ce"
       },
       {
         "file": "apps/dashboard/package.json",
@@ -49,19 +70,27 @@
       },
       {
         "file": "package.json",
-        "sha256": "30a6f71969b6c62d93eb221859c422f9b76ff5468aa3efb51735d190b45de2e5"
+        "sha256": "9efaa9221002ac2b1476eb489bea6c06677c78e29bedd7f71cf488b1b6a56750"
       },
       {
         "file": "package-lock.json",
         "sha256": "c05d6835d60e334fa6453ce1987789482b9e3ee14ce524107fbd203a91e3a649"
       },
       {
+        "file": "render.yaml",
+        "sha256": "d7972b5442b23a5d3e7539484fae2c8ded9c9a21eaa52fa547f3db382e2d96df"
+      },
+      {
+        "file": "scripts/console-auth-runtime-audit.js",
+        "sha256": "6e36defc71cbda1127b0ce0f0c5256e3aa4e6a3a2520fb47146d097a5d7e12b8"
+      },
+      {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "49b9be450cd8d3720eff33d14f1837e6feb489a7bb235fe86e1228da2cf6c8fa"
+        "sha256": "a8315934a2433e920db25fab0be3d96c4c9ac41eda68316c3d9bfed9f9a24b03"
       },
       {
         "file": "scripts/provider-boundary-audit.js",
-        "sha256": "acd66eac0cdf3d0833842708af54502f2395e9c3ca8a49d8e695e24bc123810c"
+        "sha256": "1b0298cd146a551f3f124125a90f85e1e032ee1008403cad6a47ef344b4faca3"
       }
     ]
   },
@@ -75,11 +104,14 @@
     "fanPassConsoleProductionDependency": false,
     "isolatedRuntimeBoundary": true,
     "sdkImportsLimitedTo": [
-      "apps/console-auth/app/privy-console-login.tsx"
+      "apps/console-auth/src/PrivyConsoleLogin.tsx"
     ],
     "sessionBridgeRoute": "/api/console/privy-session",
     "serverRouteStoresHttpOnlyCookie": true,
-    "accessTokensStoredInBrowserStorage": false,
+    "fanPassCodeStoresAccessTokensInBrowserStorage": false,
+    "stagingPrivySessionMode": "browser-sdk",
+    "productionPrivySessionMode": "httponly-cookie",
+    "privyDefaultStorageRiskDocumented": true,
     "serverSideApiReadsUseCookieOrConfiguredToken": true
   },
   "dependencyAudit": {
@@ -111,10 +143,24 @@
       "command": "npm audit --omit=dev --audit-level=low",
       "workspacePath": "apps/console-auth",
       "defaultFanPassProductionAuditPath": false,
-      "total": 12,
-      "moderate": 12,
+      "runtime": "vite-node-static",
+      "nextDependencyPresent": false,
+      "total": 10,
+      "moderate": 10,
       "high": 0,
-      "critical": 0
+      "critical": 0,
+      "advisoryPackages": [
+        "@gemini-wallet/core",
+        "@metamask/rpc-errors",
+        "@metamask/sdk",
+        "@metamask/sdk-communication-layer",
+        "@metamask/utils",
+        "@privy-io/react-auth",
+        "@wagmi/connectors",
+        "uuid",
+        "wagmi",
+        "x402"
+      ]
     }
   },
   "boundaries": {
@@ -124,6 +170,28 @@
     "noProviderSecretsInEnvOrBundle": true,
     "noRawPrivyTokenLogging": true,
     "noRawUpstreamSessionForwarding": true
+  },
+  "productionReadiness": {
+    "dedicatedProductionPrivyApp": false,
+    "stagingAndProductionAppIdsDiffer": false,
+    "stableProductionDomainVerified": false,
+    "exactProductionAllowedOriginsVerified": false,
+    "privyHttpOnlyCookieModeVerified": false,
+    "administratorAllowlistEnforced": false,
+    "administratorMfaOrPasskeyRequired": false,
+    "organizerAdminBackendRoleGateVerified": true,
+    "isolatedAuditHighCriticalZero": true,
+    "isolatedModerateRiskReviewed": true,
+    "liveProductionLoginE2ePassed": false,
+    "unresolvedBlockers": [
+      "dedicated-production-privy-app",
+      "stable-production-domain",
+      "production-allowed-origins",
+      "privy-httponly-cookie-mode",
+      "administrator-allowlist",
+      "administrator-mfa-or-passkey",
+      "production-login-e2e"
+    ]
   },
   "redaction": {
     "accessTokensRedacted": true,
@@ -136,5 +204,5 @@
     "userIdentifiersRedacted": true,
     "dependencyLogsReviewed": true
   },
-  "nextValidator": "npm run security:privy-console-react-sdk:isolation -- <saved-json-output>"
+  "nextValidator": "npm run security:privy-console-react-sdk:isolation -- --require-production <saved-json-output>"
 }

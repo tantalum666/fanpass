@@ -337,7 +337,7 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "apps/console-auth/app/privy-console-login.tsx",
+    "apps/console-auth/src/PrivyConsoleLogin.tsx",
     'import { PrivyProvider, usePrivy } from "@privy-io/react-auth";\nexport function PrivyLogin() { return String(Boolean(PrivyProvider && usePrivy)); }\n',
   );
   writeFixtureFile(

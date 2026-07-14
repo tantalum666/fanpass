@@ -43,6 +43,7 @@ function auditWorkflow() {
     "node-version-file: .nvmrc",
     "cache: npm",
     "npm ci",
+    "npm --prefix apps/console-auth ci --include=dev",
     "npm run beta:foundation:verify",
     "postgres:16-alpine",
     "POSTGRES_USER: fanpass",
@@ -97,6 +98,8 @@ function auditCompositeVerifier() {
   const prismaGenerate = "npm run prisma:generate -w apps/api";
   const selfTest = "security:ci-node22-workflow:self-test";
   const audit = "security:ci-node22-workflow";
+  const consoleAuthTypecheck = "npm --prefix apps/console-auth run typecheck";
+  const consoleAuthTests = "npm --prefix apps/console-auth test";
   if (!contents.includes(prismaGenerate)) {
     errors.push(
       "scripts/beta-foundation-verify.sh must generate the API Prisma client before Jest audits.",
@@ -107,6 +110,14 @@ function auditCompositeVerifier() {
       "scripts/beta-foundation-verify.sh must run CI Node 22 workflow self-test and audit.",
     );
     return;
+  }
+  if (
+    !contents.includes(consoleAuthTypecheck) ||
+    !contents.includes(consoleAuthTests)
+  ) {
+    errors.push(
+      "scripts/beta-foundation-verify.sh must typecheck and test the isolated Console Auth runtime.",
+    );
   }
   if (
     contents.includes(prismaGenerate) &&

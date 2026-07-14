@@ -3,12 +3,21 @@ const path = require("path");
 const crypto = require("crypto");
 
 const rootDir = path.resolve(__dirname, "..");
-const evidenceFiles = process.argv.slice(2);
+const cliArgs = process.argv.slice(2);
+const requireProduction = cliArgs.includes("--require-production");
+const evidenceFiles = cliArgs.filter(
+  (argument) => argument !== "--require-production",
+);
 const errors = [];
 const implementationSnapshotFiles = [
-  "apps/console-auth/app/page.tsx",
-  "apps/console-auth/app/privy-console-login.tsx",
-  "apps/console-auth/next.config.ts",
+  "apps/console-auth/src/AuthApp.tsx",
+  "apps/console-auth/src/PrivyConsoleLogin.tsx",
+  "apps/console-auth/src/runtime-config.ts",
+  "apps/console-auth/server/config.ts",
+  "apps/console-auth/server/index.ts",
+  "apps/console-auth/server/security.ts",
+  "apps/console-auth/server/static-files.ts",
+  "apps/console-auth/vite.config.ts",
   "apps/console-auth/package.json",
   "apps/console-auth/package-lock.json",
   "apps/dashboard/server/console-bff.ts",
@@ -17,6 +26,8 @@ const implementationSnapshotFiles = [
   "apps/dashboard/package.json",
   "package.json",
   "package-lock.json",
+  "render.yaml",
+  "scripts/console-auth-runtime-audit.js",
   "scripts/console-route-contract-audit.js",
   "scripts/provider-boundary-audit.js",
 ];
@@ -32,6 +43,7 @@ if (evidenceFiles.length === 0) {
     [
       "Usage: npm run security:privy-console-react-sdk:isolation -- <evidence-file...>",
       "Validate saved Privy React SDK dependency-isolation evidence before adding Console SDK login.",
+      "Add --require-production to require dedicated production app, origin, allowlist, MFA/passkey, and live E2E proof.",
     ].join("\n"),
   );
   process.exit(1);
@@ -85,6 +97,11 @@ function validateEvidenceFile(filePath) {
     evidence.integration?.mode,
   );
   validateBoundaries(relativePath, evidence.boundaries);
+  validateProductionReadiness(
+    relativePath,
+    evidence.releaseScope,
+    evidence.productionReadiness,
+  );
   validateRedaction(relativePath, evidence.redaction);
 
   return {
@@ -247,9 +264,18 @@ function validateIntegration(relativePath, integration = {}) {
       `${relativePath}: Console integration must use the existing HttpOnly session bridge`,
     );
   }
-  if (integration.accessTokensStoredInBrowserStorage !== false) {
+  if (integration.fanPassCodeStoresAccessTokensInBrowserStorage !== false) {
     errors.push(
-      `${relativePath}: Privy access tokens must not be stored in browser storage`,
+      `${relativePath}: FanPass code must not add an app-managed browser access-token store`,
+    );
+  }
+  if (
+    integration.stagingPrivySessionMode !== "browser-sdk" ||
+    integration.productionPrivySessionMode !== "httponly-cookie" ||
+    integration.privyDefaultStorageRiskDocumented !== true
+  ) {
+    errors.push(
+      `${relativePath}: integration must document Privy staging browser SDK storage and required production HttpOnly cookie mode`,
     );
   }
   if (!Array.isArray(integration.sdkImportsLimitedTo)) {
@@ -261,10 +287,10 @@ function validateIntegration(relativePath, integration = {}) {
       : [];
     if (
       imports.length !== 1 ||
-      imports[0] !== "apps/console-auth/app/privy-console-login.tsx"
+      imports[0] !== "apps/console-auth/src/PrivyConsoleLogin.tsx"
     ) {
       errors.push(
-        `${relativePath}: isolated-auth-workspace sdkImportsLimitedTo must only allow apps/console-auth/app/privy-console-login.tsx`,
+        `${relativePath}: isolated-auth-workspace sdkImportsLimitedTo must only allow apps/console-auth/src/PrivyConsoleLogin.tsx`,
       );
     }
     if (integration.fanPassConsoleProductionDependency !== false) {
@@ -406,6 +432,130 @@ function validateDependencyAudit(relativePath, audit = {}, integrationMode) {
     errors.push(
       `${relativePath}: direct Console SDK integration must not increase production audit findings`,
     );
+  }
+
+  if (integrationMode === "isolated-auth-workspace") {
+    validateIsolatedWorkspaceAudit(relativePath, audit.isolatedWorkspaceAudit);
+  }
+}
+
+function validateIsolatedWorkspaceAudit(relativePath, isolated = {}) {
+  if (
+    isolated.command !== "npm audit --omit=dev --audit-level=low" ||
+    isolated.workspacePath !== "apps/console-auth" ||
+    isolated.defaultFanPassProductionAuditPath !== false
+  ) {
+    errors.push(
+      `${relativePath}: isolatedWorkspaceAudit must describe the isolated production audit command and boundary`,
+    );
+  }
+  validateAuditCounts(relativePath, "isolatedWorkspaceAudit", isolated);
+  if (isolated.high !== 0 || isolated.critical !== 0) {
+    errors.push(
+      `${relativePath}: isolatedWorkspaceAudit must have no high or critical advisories`,
+    );
+  }
+  if (
+    isolated.runtime !== "vite-node-static" ||
+    isolated.nextDependencyPresent !== false
+  ) {
+    errors.push(
+      `${relativePath}: isolatedWorkspaceAudit must prove the Vite/Node runtime with no Next dependency`,
+    );
+  }
+  const expectedAdvisoryPackages = [
+    "@gemini-wallet/core",
+    "@metamask/rpc-errors",
+    "@metamask/sdk",
+    "@metamask/sdk-communication-layer",
+    "@metamask/utils",
+    "@privy-io/react-auth",
+    "@wagmi/connectors",
+    "uuid",
+    "wagmi",
+    "x402",
+  ];
+  const advisoryPackages = Array.isArray(isolated.advisoryPackages)
+    ? [...isolated.advisoryPackages].sort()
+    : [];
+  if (
+    JSON.stringify(advisoryPackages) !==
+    JSON.stringify(expectedAdvisoryPackages)
+  ) {
+    errors.push(
+      `${relativePath}: isolatedWorkspaceAudit advisoryPackages must match the reviewed Privy wallet/provider transitive findings`,
+    );
+  }
+}
+
+function validateProductionReadiness(
+  relativePath,
+  releaseScope,
+  readiness = {},
+) {
+  if (!["staging-only", "production"].includes(releaseScope)) {
+    errors.push(
+      `${relativePath}: releaseScope must be staging-only or production`,
+    );
+    return;
+  }
+
+  if (
+    readiness.organizerAdminBackendRoleGateVerified !== true ||
+    readiness.isolatedAuditHighCriticalZero !== true
+  ) {
+    errors.push(
+      `${relativePath}: productionReadiness must prove backend organizer/admin gating and zero high/critical isolated audit findings`,
+    );
+  }
+
+  const productionChecks = [
+    "dedicatedProductionPrivyApp",
+    "stagingAndProductionAppIdsDiffer",
+    "stableProductionDomainVerified",
+    "exactProductionAllowedOriginsVerified",
+    "privyHttpOnlyCookieModeVerified",
+    "administratorAllowlistEnforced",
+    "administratorMfaOrPasskeyRequired",
+    "isolatedModerateRiskReviewed",
+    "liveProductionLoginE2ePassed",
+  ];
+  const blockers = Array.isArray(readiness.unresolvedBlockers)
+    ? readiness.unresolvedBlockers
+    : [];
+  const productionClaimed = requireProduction || releaseScope === "production";
+
+  if (productionClaimed) {
+    for (const check of productionChecks) {
+      if (readiness[check] !== true) {
+        errors.push(
+          `${relativePath}: production release requires productionReadiness.${check} true`,
+        );
+      }
+    }
+    if (blockers.length !== 0) {
+      errors.push(
+        `${relativePath}: production release evidence must have no unresolvedBlockers`,
+      );
+    }
+    return;
+  }
+
+  const requiredStagingBlockers = [
+    "dedicated-production-privy-app",
+    "stable-production-domain",
+    "production-allowed-origins",
+    "privy-httponly-cookie-mode",
+    "administrator-allowlist",
+    "administrator-mfa-or-passkey",
+    "production-login-e2e",
+  ];
+  for (const blocker of requiredStagingBlockers) {
+    if (!blockers.includes(blocker)) {
+      errors.push(
+        `${relativePath}: staging-only evidence must retain blocker ${blocker}`,
+      );
+    }
   }
 }
 

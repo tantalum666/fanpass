@@ -124,7 +124,8 @@ function validateProviderSurfaceBoundaries() {
 
   for (const sourceRoot of [
     "apps/api/src",
-    "apps/console-auth/app",
+    "apps/console-auth/server",
+    "apps/console-auth/src",
     "apps/dashboard/lib",
     "apps/dashboard/server",
     "apps/dashboard/src",

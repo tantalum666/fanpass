@@ -73,6 +73,19 @@ const cases = [
       ),
   },
   {
+    label: "rejects production session bridge without Privy HttpOnly cookie input",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
+          "privyCookieAccessToken(request.headers.cookie)",
+          "null",
+        ),
+      ),
+  },
+  {
     label: "rejects session bridge without mutation origin guard",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -121,6 +134,19 @@ const cases = [
         consoleBff().replace(
           "${encodeURIComponent(normalizedAssignmentId)}/invites",
           "${normalizedAssignmentId}/invites",
+        ),
+      ),
+  },
+  {
+    label: "rejects a missing gate assignment deactivation route",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
+          "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
+          "undefined",
         ),
       ),
   },
@@ -339,6 +365,7 @@ import {
   consoleAccessToken,
   consoleMutationCorsHeaders,
   consoleSessionCookie,
+  privyCookieAccessToken,
 } from "../lib/console-auth.js";
 import { redactConsoleGateAssignmentResponse } from "../lib/gate-assignment-response.js";
 
@@ -365,7 +392,7 @@ async function handlePrivySessionPost(request, response) {
   const originRequest = requestToFetchRequest(request);
   const corsHeaders = consoleMutationCorsHeaders(originRequest);
   assertConsoleMutationOrigin(originRequest);
-  const accessToken = "fixture-access-token";
+  const accessToken = privyCookieAccessToken(request.headers.cookie) ?? "fixture-access-token";
   const upstream = await fetch(\`\${API_BASE_URL}/auth/privy/sync\`, { cache: "no-store" });
   const session = await upstream.json();
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
@@ -467,6 +494,7 @@ function consoleAuthHelper(options = {}) {
   return `
 const API_BASE_URL = "http://fixture";
 export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token";
+export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
 const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
 ${publicTokenEnv}
 export class ConsoleAuthRequiredError extends Error {}
@@ -495,6 +523,10 @@ export async function apiGet() {
 
 export function consoleCookieAccessToken(cookieHeader) {
   return parseCookies(cookieHeader).get(CONSOLE_ACCESS_TOKEN_COOKIE) ?? null;
+}
+
+export function privyCookieAccessToken(cookieHeader?: string | null) {
+  return parseCookies(cookieHeader).get(PRIVY_ACCESS_TOKEN_COOKIE) ?? null;
 }
 
 export function assertConsoleMutationOrigin(request: Request) {

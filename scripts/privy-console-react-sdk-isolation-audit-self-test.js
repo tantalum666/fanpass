@@ -10,9 +10,14 @@ const auditScript = path.join(
   "scripts/privy-console-react-sdk-isolation-audit.js",
 );
 const implementationSnapshotFiles = [
-  "apps/console-auth/app/page.tsx",
-  "apps/console-auth/app/privy-console-login.tsx",
-  "apps/console-auth/next.config.ts",
+  "apps/console-auth/src/AuthApp.tsx",
+  "apps/console-auth/src/PrivyConsoleLogin.tsx",
+  "apps/console-auth/src/runtime-config.ts",
+  "apps/console-auth/server/config.ts",
+  "apps/console-auth/server/index.ts",
+  "apps/console-auth/server/security.ts",
+  "apps/console-auth/server/static-files.ts",
+  "apps/console-auth/vite.config.ts",
   "apps/console-auth/package.json",
   "apps/console-auth/package-lock.json",
   "apps/dashboard/server/console-bff.ts",
@@ -21,6 +26,8 @@ const implementationSnapshotFiles = [
   "apps/dashboard/package.json",
   "package.json",
   "package-lock.json",
+  "render.yaml",
+  "scripts/console-auth-runtime-audit.js",
   "scripts/console-route-contract-audit.js",
   "scripts/provider-boundary-audit.js",
 ];
@@ -53,6 +60,43 @@ try {
         }),
       ),
     ),
+  );
+
+  expectPass(
+    "accepts complete production release evidence when explicitly required",
+    writeEvidence(
+      "valid-production.txt",
+      withProgressText(
+        createEvidence({
+          releaseScope: "production",
+          productionReadiness: {
+            dedicatedProductionPrivyApp: true,
+            stagingAndProductionAppIdsDiffer: true,
+            stableProductionDomainVerified: true,
+            exactProductionAllowedOriginsVerified: true,
+            privyHttpOnlyCookieModeVerified: true,
+            administratorAllowlistEnforced: true,
+            administratorMfaOrPasskeyRequired: true,
+            isolatedModerateRiskReviewed: true,
+            liveProductionLoginE2ePassed: true,
+            unresolvedBlockers: [],
+          },
+        }),
+      ),
+    ),
+    ["--require-production"],
+  );
+
+  expectFail(
+    "rejects staging-only evidence for a production release",
+    writeEvidence(
+      "staging-not-production.txt",
+      withProgressText(createEvidence()),
+    ),
+    [
+      "production release requires productionReadiness.dedicatedProductionPrivyApp true",
+    ],
+    ["--require-production"],
   );
 
   expectFail(
@@ -269,6 +313,7 @@ function createEvidence(overrides = {}) {
       realUserDataUsed: false,
       productionCredentialsUsed: false,
       deploymentCredentialsAvailable: false,
+      releaseScope: "staging-only",
       implementationSnapshot: createImplementationSnapshot(),
       sdk: {
         package: "@privy-io/react-auth",
@@ -280,10 +325,13 @@ function createEvidence(overrides = {}) {
         mode: "isolated-auth-workspace",
         fanPassConsoleProductionDependency: false,
         isolatedRuntimeBoundary: true,
-        sdkImportsLimitedTo: ["apps/console-auth/app/privy-console-login.tsx"],
+        sdkImportsLimitedTo: ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
         sessionBridgeRoute: "/api/console/privy-session",
         serverRouteStoresHttpOnlyCookie: true,
-        accessTokensStoredInBrowserStorage: false,
+        fanPassCodeStoresAccessTokensInBrowserStorage: false,
+        stagingPrivySessionMode: "browser-sdk",
+        productionPrivySessionMode: "httponly-cookie",
+        privyDefaultStorageRiskDocumented: true,
         serverSideApiReadsUseCookieOrConfiguredToken: true,
       },
       dependencyAudit: {
@@ -311,6 +359,29 @@ function createEvidence(overrides = {}) {
           knownNextPostcssOnly: true,
           newAdvisoryPackages: [],
         },
+        isolatedWorkspaceAudit: {
+          command: "npm audit --omit=dev --audit-level=low",
+          workspacePath: "apps/console-auth",
+          defaultFanPassProductionAuditPath: false,
+          runtime: "vite-node-static",
+          nextDependencyPresent: false,
+          total: 10,
+          moderate: 10,
+          high: 0,
+          critical: 0,
+          advisoryPackages: [
+            "@gemini-wallet/core",
+            "@metamask/rpc-errors",
+            "@metamask/sdk",
+            "@metamask/sdk-communication-layer",
+            "@metamask/utils",
+            "@privy-io/react-auth",
+            "@wagmi/connectors",
+            "uuid",
+            "wagmi",
+            "x402",
+          ],
+        },
       },
       boundaries: {
         consoleRouteAuditPassed: true,
@@ -319,6 +390,28 @@ function createEvidence(overrides = {}) {
         noProviderSecretsInEnvOrBundle: true,
         noRawPrivyTokenLogging: true,
         noRawUpstreamSessionForwarding: true,
+      },
+      productionReadiness: {
+        dedicatedProductionPrivyApp: false,
+        stagingAndProductionAppIdsDiffer: false,
+        stableProductionDomainVerified: false,
+        exactProductionAllowedOriginsVerified: false,
+        privyHttpOnlyCookieModeVerified: false,
+        administratorAllowlistEnforced: false,
+        administratorMfaOrPasskeyRequired: false,
+        organizerAdminBackendRoleGateVerified: true,
+        isolatedAuditHighCriticalZero: true,
+        isolatedModerateRiskReviewed: true,
+        liveProductionLoginE2ePassed: false,
+        unresolvedBlockers: [
+          "dedicated-production-privy-app",
+          "stable-production-domain",
+          "production-allowed-origins",
+          "privy-httponly-cookie-mode",
+          "administrator-allowlist",
+          "administrator-mfa-or-passkey",
+          "production-login-e2e",
+        ],
       },
       redaction: {
         accessTokensRedacted: true,
@@ -362,8 +455,8 @@ function writeEvidence(fileName, contents) {
   return filePath;
 }
 
-function expectPass(label, filePath) {
-  const result = runAudit(filePath);
+function expectPass(label, filePath, extraArgs = []) {
+  const result = runAudit(filePath, extraArgs);
   cases.push({ label, expected: "pass", status: result.status });
   if (result.status !== 0) {
     errors.push(
@@ -372,8 +465,8 @@ function expectPass(label, filePath) {
   }
 }
 
-function expectFail(label, filePath, requiredMessages) {
-  const result = runAudit(filePath);
+function expectFail(label, filePath, requiredMessages, extraArgs = []) {
+  const result = runAudit(filePath, extraArgs);
   cases.push({ label, expected: "fail", status: result.status });
   if (result.status === 0) {
     errors.push(`${label}: expected failure, got success`);
@@ -387,8 +480,8 @@ function expectFail(label, filePath, requiredMessages) {
   }
 }
 
-function runAudit(filePath) {
-  return spawnSync(process.execPath, [auditScript, filePath], {
+function runAudit(filePath, extraArgs = []) {
+  return spawnSync(process.execPath, [auditScript, ...extraArgs, filePath], {
     cwd: rootDir,
     encoding: "utf8",
   });

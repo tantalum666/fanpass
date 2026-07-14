@@ -6,6 +6,7 @@ export const API_BASE_URL =
 const CONSOLE_USER_ID =
   process.env.FANPASS_CONSOLE_USER_ID ?? "usr_organizer_demo";
 export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token";
+export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
 
 const configuredAccessToken: string | null =
   process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
@@ -148,6 +149,10 @@ export function consoleCookieAccessToken(cookieHeader?: string | null) {
   return parseCookies(cookieHeader).get(CONSOLE_ACCESS_TOKEN_COOKIE) ?? null;
 }
 
+export function privyCookieAccessToken(cookieHeader?: string | null) {
+  return parseCookies(cookieHeader).get(PRIVY_ACCESS_TOKEN_COOKIE) ?? null;
+}
+
 export function consoleSessionCookie(
   accessToken: string,
   expiresAt: string | null,
@@ -237,7 +242,11 @@ function parseCookies(cookieHeader?: string | null) {
     if (!rawName || rawValue.length === 0) {
       continue;
     }
-    cookies.set(rawName, decodeURIComponent(rawValue.join("=")));
+    try {
+      cookies.set(rawName, decodeURIComponent(rawValue.join("=")));
+    } catch {
+      continue;
+    }
   }
   return cookies;
 }

@@ -25,6 +25,8 @@ run_step "Payment response redaction audit self-test" npm run security:payment-r
 run_step "Payment response redaction audit" npm run security:payment-response-redaction
 run_step "Console route contract audit self-test" npm run security:console-routes:self-test
 run_step "Console route contract audit" npm run security:console-routes
+run_step "Console Auth runtime audit self-test" npm run security:console-auth-runtime:self-test
+run_step "Console Auth runtime audit" npm run security:console-auth-runtime
 run_step "Node runtime policy audit self-test" npm run security:node-runtime-policy:self-test
 run_step "Node runtime policy audit" npm run security:node-runtime-policy
 run_step "CI Node 22 workflow audit self-test" npm run security:ci-node22-workflow:self-test
@@ -91,6 +93,8 @@ run_step "Side-effect outbox health self-test" npm run side-effects:health:self-
 run_step "Side-effect outbox health check" npm run side-effects:health
 run_step "API typecheck" npm run typecheck -w apps/api
 run_step "Console typecheck" npm run typecheck -w apps/dashboard
+run_step "Console Auth typecheck" npm --prefix apps/console-auth run typecheck
+run_step "Console Auth unit tests" npm --prefix apps/console-auth test
 run_step "API unit tests" npm run test -w apps/api
 
 echo

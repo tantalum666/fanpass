@@ -45,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install isolated Console Auth dependencies
+        run: npm --prefix apps/console-auth ci --include=dev
+
       - name: Apply Prisma schema
         run: npm run prisma:push -w apps/api
 

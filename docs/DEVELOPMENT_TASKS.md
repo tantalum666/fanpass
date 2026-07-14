@@ -271,6 +271,7 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
 - [x] Integrate Privy SDK login flows into FanPass, FanPass Ops, and FanPass Console.
   - FanPass Ops now uses the Privy Swift SDK email OTP result for staff invite linking in the release path; manual Privy access-token entry remains debug-only and is enforced by `npm run security:staff-invite-policy`.
   - FanPass uses the shared Privy Swift SDK email OTP provider and backend token-sync boundary, FanPass Ops uses the same provider for staff invite linking, and FanPass Console uses the isolated `apps/console-auth` Privy React SDK runtime. This closes the SDK-login implementation task; signed-device OTP and mobile config remain separate release blockers.
+  - The isolated Console Auth runtime has exited Next for Vite/Node, has fail-closed runtime URL/config/health checks, and supports both staging browser-SDK token exchange and production Privy HttpOnly cookie exchange. Real production remains an evidence/configuration task requiring the separate app, stable verified domain, exact origins, administrator allowlist, MFA/passkey policy, and live E2E.
 - [x] Lock FanPass Console data access behind organizer/admin bearer auth and redact personal data by default.
 - [x] Add event-scoped organizer access rules for Console operations.
 - [x] Harden QR generation/redeem authority for Alpha sessions and scanner role checks.

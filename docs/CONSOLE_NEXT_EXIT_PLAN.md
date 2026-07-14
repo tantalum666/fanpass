@@ -10,7 +10,7 @@ This plan exists because the current production dependency blocker is the known 
 - Status on 2026-06-06: the primary `apps/dashboard` Console production runtime has been migrated off Next to a Vite React static UI plus a Node built-in HTTP BFF.
 - `npm audit --omit=dev --audit-level=low --json` is clean for the root production dependency path.
 - `npm run security:dependency-advisories` now reports `releaseBlocker: null` and production audit total `0`.
-- The old Next/PostCSS advisory remains relevant only as historical context and for the isolated `apps/console-auth` Privy React SDK runtime, which remains outside root workspaces and outside the default production audit path.
+- The old Next/PostCSS advisory is now historical for both Web runtimes: the isolated `apps/console-auth` runtime also migrated to Vite React plus a Node built-in static/config server on 2026-07-14. It remains outside root workspaces because the official Privy SDK still contributes 10 moderate wallet/provider transitive advisories, but Next and PostCSS are no longer present in that runtime.
 - The latest Next metadata was still checked on 2026-06-06 and still declares `postcss: 8.4.31`, so the project closed this blocker by migration rather than by waiting for a safe Next patch path.
 
 ## Historical blocker
@@ -58,7 +58,7 @@ Completed target:
 1. Route-handler duties now live in `apps/dashboard/server/console-bff.ts`, which uses Node built-in HTTP primitives instead of Next, Express, or Hono.
 2. The Console UI now builds with Vite React and is served from `dist/public`.
 3. `socket.io-client` remains isolated to `apps/dashboard/src/OrderbookLivePanel.tsx`.
-4. Privy React SDK login remains isolated in `apps/console-auth` unless its audit impact is separately accepted or cleaned.
+4. Privy React SDK login remains isolated in the Vite/Node `apps/console-auth` runtime unless its remaining SDK audit impact is separately resolved and fully reverified.
 
 ## Rules for new Console work
 

@@ -1,6 +1,6 @@
 # Privy Console React SDK Isolation Evidence
 
-Status: isolated Console React SDK login complete for the local Beta foundation. The main `apps/dashboard` Console has since migrated off Next to Vite React plus a Node BFF with a clean root production audit. External Beta still requires the remaining iOS/TestFlight, Wallet, scanner, and release-grade chain custody evidence.
+Status: isolated Console React SDK login complete for the local Beta foundation. Both the main `apps/dashboard` Console and the isolated `apps/console-auth` login runtime now use Vite React plus narrow Node servers; the root production audit is clean, while the isolated official Privy SDK tree has 10 moderate and zero high/critical advisories. External Beta still requires the remaining iOS/TestFlight, Wallet, scanner, and release-grade chain custody evidence.
 
 This file defines the required evidence before FanPass changes `@privy-io/react-auth` placement in the Console login UI. The current approved shape is the isolated `apps/console-auth` runtime, which obtains a Privy access token client-side and posts it only to `POST /api/console/privy-session`. The bridge syncs through the backend, requires organizer/admin role, and stores only the server session cookie in an HttpOnly cookie.
 
@@ -36,11 +36,19 @@ The evidence must prove:
 - Any isolated-auth workspace keeps the SDK out of the default FanPass Console production dependency path and proves the runtime boundary.
 - The SDK hands access tokens only to `/api/console/privy-session`.
 - The Console route stores server session state in an HttpOnly cookie.
-- Privy access tokens are not stored in browser storage, logged, or returned from route handlers.
+- FanPass code does not create an additional browser token store, log tokens, or return them from route handlers. Current Render staging uses Privy's documented default browser SDK storage only for fictional staging access; production must use Privy HttpOnly cookie mode on a verified stable domain.
 - The evidence includes a current SHA-256 snapshot for the Console SDK isolation boundary files so stale evidence cannot be reused after session bridge, login UI, server API helper, dependency manifest, or boundary-audit policy changes.
 - `npm run security:console-routes` and `npm run security:provider-boundaries` passed after the integration shape was chosen.
 - If the SDK is added directly to the workspace, the provider-boundary blocked-provider source and dependency-manifest rules were intentionally updated in the same reviewed change.
 - Deployment/cloud credentials were unavailable to the evidence capture and redacted from saved output.
+
+Production release evidence must additionally pass:
+
+```bash
+npm run security:privy-console-react-sdk:isolation -- --require-production <saved-json-output>
+```
+
+That stricter mode requires dashboard-reviewed proof of a dedicated production Privy app whose app id differs from staging, a stable owner-controlled production domain with the required DNS records verified, Privy HttpOnly cookie mode enabled, exact production allowed origins without broad shared-host wildcards, an administrator allowlist, MFA or passkey enforcement for privileged access, explicit review of the remaining isolated moderate advisories, and a live production login/session-bridge E2E. Staging evidence deliberately retains those items as named blockers; setting environment flags is not accepted as dashboard proof.
 
 ## Forbidden Evidence
 
@@ -109,11 +117,14 @@ Evidence must not include:
     "fanPassConsoleProductionDependency": false,
     "isolatedRuntimeBoundary": true,
     "sdkImportsLimitedTo": [
-      "apps/dashboard/components/auth/PrivyConsoleLogin.tsx"
+      "apps/console-auth/src/PrivyConsoleLogin.tsx"
     ],
     "sessionBridgeRoute": "/api/console/privy-session",
     "serverRouteStoresHttpOnlyCookie": true,
-    "accessTokensStoredInBrowserStorage": false,
+    "fanPassCodeStoresAccessTokensInBrowserStorage": false,
+    "stagingPrivySessionMode": "browser-sdk",
+    "productionPrivySessionMode": "httponly-cookie",
+    "privyDefaultStorageRiskDocumented": true,
     "serverSideApiReadsUseCookieOrConfiguredToken": true
   },
   "dependencyAudit": {
@@ -166,4 +177,4 @@ Evidence must not include:
 
 ## Release Rule
 
-`Integrate Privy React SDK into FanPass Console` is complete for the current isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. The 2026-07-14 staging-login repair upgraded the isolated runtime to `@privy-io/react-auth@3.35.0`, restricted Console login to email, and pinned the patched `ws@8.21.0` transitively; the isolated production audit reports 12 moderate and zero high/critical advisories. Regenerate saved release evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, or boundary-audit policy change.
+`Integrate Privy React SDK into FanPass Console` is complete for the current staging-isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. On 2026-07-14 the Auth runtime moved from Next to Vite plus a Node built-in static/config server, kept official `@privy-io/react-auth@3.35.0`, restricted login to email, validated redirect and bridge URLs at both server and client boundaries, enforced a Privy-compatible CSP, and pinned patched `ws@8.21.0`. Removing Next/PostCSS reduced its isolated production audit from 12 to 10 moderate with zero high/critical findings. The saved evidence is `staging-only`; a real-user production release remains blocked until the stricter production evidence mode proves the dedicated app, stable verified domain, Privy HttpOnly cookie mode, exact origins, administrator allowlist, MFA/passkey policy, residual-risk review, and live production E2E. Regenerate saved evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, deployment contract, or boundary-audit policy change.

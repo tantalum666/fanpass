@@ -7,7 +7,8 @@ const rootDir = process.env.FANPASS_PROVIDER_AUDIT_ROOT
 
 const sourceRoots = [
   "apps/api/src",
-  "apps/console-auth/app",
+  "apps/console-auth/server",
+  "apps/console-auth/src",
   "apps/dashboard/lib",
   "apps/dashboard/server",
   "apps/dashboard/src",
@@ -43,7 +44,7 @@ const allowedProviderMatches = [
     label: "Privy React SDK",
     pattern:
       /\bfrom\s+["']@privy-io\/react-auth["']|\brequire\(["']@privy-io\/react-auth["']\)|\bimport\(["']@privy-io\/react-auth["']\)/,
-    allowedFiles: ["apps/console-auth/app/privy-console-login.tsx"],
+    allowedFiles: ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
   },
   {
     label: "Stripe iOS core",
@@ -100,7 +101,7 @@ const blockedProviderMatches = [
     label: "Privy React SDK",
     pattern:
       /\bfrom\s+["']@privy-io\/react-auth["']|\brequire\(["']@privy-io\/react-auth["']\)|\bimport\(["']@privy-io\/react-auth["']\)/,
-    allowedFiles: ["apps/console-auth/app/privy-console-login.tsx"],
+    allowedFiles: ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
     reason:
       "Privy React SDK imports are only allowed in the isolated Console auth runtime after the isolation evidence gate passes",
   },

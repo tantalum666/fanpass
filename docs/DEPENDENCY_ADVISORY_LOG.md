@@ -1,5 +1,30 @@
 # FanPass Dependency Advisory Log
 
+## 2026-07-14 - Isolated Console Auth Next exit completed
+
+Commands:
+
+```bash
+scripts/with-node-22.sh npm --prefix apps/console-auth audit --omit=dev --audit-level=low --json
+scripts/with-node-22.sh npm run security:audit:prod -- --json
+npm run security:console-auth-runtime
+npm run security:privy-console-react-sdk:isolation -- outputs/privy-console-sdk/privy-console-react-sdk-20260603.json
+```
+
+Result:
+
+- `apps/console-auth` migrated from Next to Vite React plus a Node built-in static/runtime-config server; `next` is absent from its dependency tree.
+- Removing Next/PostCSS reduced the isolated production audit from 12 moderate findings to 10 moderate findings, with zero high or critical findings. The remaining packages are the reviewed official Privy SDK wallet/provider transitive tree: `@privy-io/react-auth`, `x402`, `wagmi`, `@wagmi/connectors`, MetaMask/Gemini packages, and `uuid`.
+- The root production audit remains clean at zero findings.
+- FanPass code creates no app-managed browser token store. Render staging still uses Privy's documented default browser SDK storage; a real-user production release requires a separate production Privy app, stable verified owner domain, Privy HttpOnly cookie mode, exact allowed origins, administrator allowlist, MFA/passkey enforcement, residual-risk review, and live production E2E.
+- The production bridge path is prewired: in HttpOnly mode the Auth UI sends no token body, and the Console BFF accepts the verified `privy-token` cookie before creating its own HttpOnly Console session.
+
+Decision:
+
+- Do not use npm's destructive forced downgrade path to chase a cosmetic zero.
+- Keep the official SDK isolated until the remaining upstream advisories are patched or an alternative supported Privy integration is explicitly approved and fully reverified.
+- Treat the saved Console SDK evidence as `staging-only`; `--require-production` must reject it until all production dashboard/domain controls have real evidence.
+
 ## 2026-06-06 - Console Next production-runtime exit completed
 
 Commands:

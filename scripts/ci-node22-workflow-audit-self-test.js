@@ -182,6 +182,7 @@ function writePassingFixture(fixtureRoot) {
       "      node-version-file: .nvmrc",
       "      cache: npm",
       "  - run: npm ci",
+      "  - run: npm --prefix apps/console-auth ci --include=dev",
       "  - run: npm run beta:foundation:verify",
       "",
     ].join("\n"),
@@ -219,6 +220,8 @@ function writePassingFixture(fixtureRoot) {
       "npm run prisma:generate -w apps/api",
       "npm run security:ci-node22-workflow:self-test",
       "npm run security:ci-node22-workflow",
+      "npm --prefix apps/console-auth run typecheck",
+      "npm --prefix apps/console-auth test",
       "",
     ].join("\n"),
   );

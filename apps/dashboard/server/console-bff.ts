@@ -13,12 +13,15 @@ import {
   consoleAccessToken,
   consoleMutationCorsHeaders,
   consoleSessionCookie,
+  privyCookieAccessToken,
 } from "../lib/console-auth.js";
 import { redactConsoleGateAssignmentResponse } from "../lib/gate-assignment-response.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, "../public");
-const port = Number(process.env.FANPASS_CONSOLE_PORT ?? process.env.PORT ?? 3000);
+const port = Number(
+  process.env.FANPASS_CONSOLE_PORT ?? process.env.PORT ?? 3000,
+);
 
 interface PrivySessionResponse {
   userId: string;
@@ -52,7 +55,10 @@ createServer(async (request, response) => {
   );
 });
 
-async function routeRequest(request: IncomingMessage, response: ServerResponse) {
+async function routeRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+) {
   const method = request.method ?? "GET";
   const pathname = new URL(request.url ?? "/", "http://fanpass.local").pathname;
 
@@ -98,7 +104,11 @@ async function routeRequest(request: IncomingMessage, response: ServerResponse) 
     /^\/api\/console\/gate-assignments\/([^/]+)\/deactivate$/,
   );
   if (deactivateMatch && method === "POST") {
-    return handleDeactivateGateAssignment(request, response, deactivateMatch[1]);
+    return handleDeactivateGateAssignment(
+      request,
+      response,
+      deactivateMatch[1],
+    );
   }
 
   if (pathname.startsWith("/api/")) {
@@ -365,9 +375,13 @@ async function handlePrivySessionPost(
     throw error;
   }
 
-  const body = (await readJsonBody(request)) as { accessToken?: unknown } | null;
-  const accessToken =
+  const body = (await readJsonBody(request)) as {
+    accessToken?: unknown;
+  } | null;
+  const bodyAccessToken =
     typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
+  const accessToken =
+    privyCookieAccessToken(request.headers.cookie) ?? bodyAccessToken;
   if (!accessToken) {
     return sendJson(response, 400, {
       ok: false,
@@ -481,7 +495,9 @@ async function apiGet(pathname: string, request: IncomingMessage) {
   });
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new Error(responseMessage(payload, `API request failed: ${upstream.status}`));
+    throw new Error(
+      responseMessage(payload, `API request failed: ${upstream.status}`),
+    );
   }
   return payload;
 }
@@ -503,7 +519,9 @@ async function apiPost(
   });
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new Error(responseMessage(payload, `API request failed: ${upstream.status}`));
+    throw new Error(
+      responseMessage(payload, `API request failed: ${upstream.status}`),
+    );
   }
   return payload;
 }
@@ -540,17 +558,22 @@ async function readJsonBody(request: IncomingMessage) {
 
 async function serveStatic(pathname: string, response: ServerResponse) {
   const requestedPath =
-    pathname === "/" ? path.join(publicDir, "index.html") : path.join(publicDir, pathname);
+    pathname === "/"
+      ? path.join(publicDir, "index.html")
+      : path.join(publicDir, pathname);
   const normalizedPath = path.normalize(requestedPath);
   const safePath = normalizedPath.startsWith(publicDir)
     ? normalizedPath
     : path.join(publicDir, "index.html");
-  const filePath = existsSync(safePath) ? safePath : path.join(publicDir, "index.html");
+  const filePath = existsSync(safePath)
+    ? safePath
+    : path.join(publicDir, "index.html");
 
   if (!existsSync(filePath)) {
     return sendJson(response, 503, {
       ok: false,
-      message: "FanPass Console build artifacts are missing. Run npm run build -w apps/dashboard.",
+      message:
+        "FanPass Console build artifacts are missing. Run npm run build -w apps/dashboard.",
     });
   }
 
@@ -575,7 +598,10 @@ function applySecurityHeaders(response: ServerResponse) {
   response.setHeader("X-Frame-Options", "DENY");
   response.setHeader("Referrer-Policy", "no-referrer");
   response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  response.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=()",
+  );
   response.setHeader(
     "Content-Security-Policy",
     [
