@@ -59,6 +59,18 @@ const cases = [
     marker: "must include sessionBridgeUrl.pathname",
   },
   {
+    label: "rejects a missing Render staging migration boundary",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/server/config.ts",
+        "env.RENDER_SERVICE_NAME",
+        "undefined",
+      ),
+    pass: false,
+    marker: "must include env.RENDER_SERVICE_NAME",
+  },
+  {
     label: "rejects a missing production release evidence contract",
     mutate: (fixtureRoot) =>
       replace(

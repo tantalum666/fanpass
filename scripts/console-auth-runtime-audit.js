@@ -137,6 +137,8 @@ function auditRuntimeConfiguration() {
     "FANPASS_PRIVY_SESSION_MODE",
     'privySessionMode !== "httponly-cookie"',
     "Beta and production Console Auth must use Privy HttpOnly cookie mode",
+    "env.RENDER_SERVICE_NAME",
+    "env.RENDER_EXTERNAL_HOSTNAME",
     'sessionBridgeUrl.pathname !== "/api/console/privy-session"',
     "sessionBridgeUrl.origin !== consoleUrl.origin",
     'url.protocol !== "https:"',
@@ -158,6 +160,7 @@ function auditServer() {
     'response.setHeader("Cache-Control", "no-store")',
     'response.setHeader("Allow", "GET, HEAD")',
     'runtime: "vite-node-static"',
+    "releaseIdentifier(process.env.RENDER_GIT_COMMIT)",
     'message: "Console authentication is not configured."',
     'message: "Console authentication request failed."',
   ]);

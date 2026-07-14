@@ -88,6 +88,8 @@ async function routeRequest(
         ok: Boolean(runtimeConfig),
         service: "fanpass-console-auth",
         runtime: "vite-node-static",
+        environment: runtimeConfig?.environment ?? "invalid",
+        release: releaseIdentifier(process.env.RENDER_GIT_COMMIT),
       },
       method === "HEAD",
     );
@@ -161,6 +163,11 @@ function validatedPort(value: string) {
     );
   }
   return parsed;
+}
+
+function releaseIdentifier(value?: string) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return /^[a-f0-9]{40}$/.test(normalized) ? normalized : null;
 }
 
 function logServerError(event: string, error: unknown) {

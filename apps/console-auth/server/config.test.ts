@@ -36,6 +36,19 @@ test("accepts legacy public names only as a migration fallback", () => {
   ]);
 });
 
+test("infers staging from Render metadata during environment migration", () => {
+  const config = loadRuntimeConfig({
+    NODE_ENV: "production",
+    RENDER_SERVICE_NAME: "fanpass-console-auth-staging",
+    NEXT_PUBLIC_PRIVY_APP_ID: appId,
+    NEXT_PUBLIC_FANPASS_CONSOLE_URL: consoleUrl,
+    NEXT_PUBLIC_FANPASS_CONSOLE_SESSION_BRIDGE_URL: bridgeUrl,
+  });
+
+  assert.equal(config.environment, "staging");
+  assert.equal(config.privySessionMode, "browser-sdk");
+});
+
 test("allows loopback HTTP only for local development", () => {
   const config = loadRuntimeConfig({
     FANPASS_ENV: "development",
@@ -55,6 +68,22 @@ test("requires Privy HttpOnly cookie mode for production", () => {
   });
 
   assert.equal(config.privySessionMode, "httponly-cookie");
+});
+
+test("does not infer staging for an unrecognized Render production service", () => {
+  assert.throws(
+    () =>
+      loadRuntimeConfig({
+        NODE_ENV: "production",
+        RENDER_SERVICE_NAME: "fanpass-console-auth-production",
+        FANPASS_PRIVY_APP_ID: appId,
+        FANPASS_CONSOLE_URL: consoleUrl,
+        FANPASS_CONSOLE_SESSION_BRIDGE_URL: bridgeUrl,
+      }),
+    (error: unknown) =>
+      error instanceof RuntimeConfigError &&
+      error.message.includes("must use Privy HttpOnly cookie mode"),
+  );
 });
 
 for (const [label, env, message] of [

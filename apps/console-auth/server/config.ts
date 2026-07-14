@@ -169,9 +169,38 @@ function configuredHttpUrl(
 }
 
 function normalizedEnvironment(env: NodeJS.ProcessEnv) {
-  return String(env.FANPASS_ENV ?? env.NODE_ENV ?? "development")
+  const configuredEnvironment = String(env.FANPASS_ENV ?? "")
     .trim()
     .toLowerCase();
+  if (configuredEnvironment) return configuredEnvironment;
+
+  const renderEnvironment = inferredRenderEnvironment(env);
+  if (renderEnvironment) return renderEnvironment;
+
+  return String(env.NODE_ENV ?? "development").trim().toLowerCase();
+}
+
+function inferredRenderEnvironment(env: NodeJS.ProcessEnv) {
+  const renderIdentities = [
+    env.RENDER_SERVICE_NAME,
+    env.RENDER_EXTERNAL_HOSTNAME,
+  ]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const environment of ["staging", "beta"] as const) {
+    if (
+      renderIdentities.some((identity) =>
+        new RegExp(`(?:^|-)${environment}(?:\\.onrender\\.com)?$`).test(
+          identity,
+        ),
+      )
+    ) {
+      return environment;
+    }
+  }
+
+  return null;
 }
 
 function isProductionLike(environment: string, nodeEnvironment?: string) {

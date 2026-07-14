@@ -2,7 +2,7 @@
   "ok": true,
   "draft": false,
   "draftStatus": "completed-console-sdk-dependency-isolation-review",
-  "checkedAt": "2026-07-14T15:16:14.000Z",
+  "checkedAt": "2026-07-14T15:35:05.000Z",
   "provider": "privy-console-react-sdk-isolation",
   "evidenceSource": "node22-dependency-isolation-review",
   "realUserDataUsed": false,
@@ -26,11 +26,11 @@
       },
       {
         "file": "apps/console-auth/server/config.ts",
-        "sha256": "8d8271f0d28eedc089a2d9a36dcbb3b50e4684db89a041c87995e732346934f0"
+        "sha256": "7c696a0b5e893655130dd993c5495677fd571ee408eb6fccb2585745859a180d"
       },
       {
         "file": "apps/console-auth/server/index.ts",
-        "sha256": "b198a51739ae54bcb1909c65f2cab9098ce638e07b5ecc8c8f016e56c54f2ccf"
+        "sha256": "10e13f573d5fe144cd4d837cb57bc72190dbdb63b325ff3e0eeec9bbc4072826"
       },
       {
         "file": "apps/console-auth/server/security.ts",
@@ -82,7 +82,7 @@
       },
       {
         "file": "scripts/console-auth-runtime-audit.js",
-        "sha256": "6e36defc71cbda1127b0ce0f0c5256e3aa4e6a3a2520fb47146d097a5d7e12b8"
+        "sha256": "475b3c8abdf6d31d21ea9320ab4cc5908899d09ab8089d169c8b8b177caf0f56"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
