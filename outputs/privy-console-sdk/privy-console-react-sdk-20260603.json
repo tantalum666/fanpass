@@ -2,7 +2,7 @@
   "ok": true,
   "draft": false,
   "draftStatus": "completed-console-sdk-dependency-isolation-review",
-  "checkedAt": "2026-07-14T19:37:51.000Z",
+  "checkedAt": "2026-07-15T12:26:34.000Z",
   "provider": "privy-console-react-sdk-isolation",
   "evidenceSource": "node22-dependency-isolation-review",
   "realUserDataUsed": false,
@@ -18,7 +18,7 @@
       },
       {
         "file": "apps/console-auth/src/PrivyConsoleLogin.tsx",
-        "sha256": "163fc5a232bd7db73a1a30779fda2b5944746901108acaffe7e2306d60330787"
+        "sha256": "963c1ffc6d769cf9b9e8c3e99573841c41e96ef13aebf768d36ae6c38dda52ae"
       },
       {
         "file": "apps/console-auth/src/runtime-config.ts",
@@ -54,15 +54,15 @@
       },
       {
         "file": "apps/dashboard/server/console-bff.ts",
-        "sha256": "f8a888f4126e0588d328f3c31aaef6ed679598fa45dab87aed7df4d281afad5a"
+        "sha256": "f11357c435da861662b0f804e69231dd031edf293712366beb432f241392f5de"
       },
       {
         "file": "apps/dashboard/src/ConsoleApp.tsx",
-        "sha256": "06d50fdc27169533c240ffdb9b30d7d58116385a2fc7f784ee9dafa03f0f18de"
+        "sha256": "dc4301cf3749fbab828929fdd54420f1878b8285578f2356197439727fa64c0c"
       },
       {
         "file": "apps/dashboard/lib/console-auth.ts",
-        "sha256": "8ae79f2c60213278aa2fcf0591db60615465a5feff85d39e1d9237ac041673a8"
+        "sha256": "48d2975d84606995790377d566ef27ad7b347c7883ae36e13e4e55f19d1dce90"
       },
       {
         "file": "apps/dashboard/package.json",
@@ -82,15 +82,15 @@
       },
       {
         "file": "scripts/console-auth-runtime-audit.js",
-        "sha256": "79548b90de99455c4a747cb4df20f20e4fb79a988b0912ff4a8a34d7dd0776c3"
+        "sha256": "7a80c9818fbb859f2d51a14cf643615c3a15688a4b21417938f39b8392a8a97f"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "ced2791e17effce19c2e5935a8b51b0b8167fd9dd3858b8af2bc5c255ca11470"
+        "sha256": "814fae9fa2fc00c9a20ceaa9d8aba7eed4d5a13ca19a3987577e8b6db1d26d4b"
       },
       {
         "file": "scripts/console-session-handoff-integration-test.js",
-        "sha256": "6d4a2613d3818b1a203f6c5a9cd1796bd7132af37cbae9c325beb4d21b349de2"
+        "sha256": "3d18c47f9331d0eea7b1e5cccd9c2f325cbade539a49a6d391c3938e43ae0cee"
       },
       {
         "file": "scripts/provider-boundary-audit.js",

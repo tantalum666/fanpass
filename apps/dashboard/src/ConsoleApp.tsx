@@ -460,6 +460,12 @@ function consoleAuthFailureMessage() {
   if (reason === "failed") {
     return "Privy sign-in could not create a Console session. Please try again.";
   }
+  if (reason === "service") {
+    return "The Console authentication service is temporarily unavailable. Please try again shortly.";
+  }
+  if (reason === "session") {
+    return "Privy could not verify the refreshed session. Please contact an administrator if a fresh sign-in still fails.";
+  }
   return "";
 }
 

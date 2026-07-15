@@ -13,6 +13,7 @@ const CONSOLE_HANDOFF_COOKIE = "fanpass_console_handoff";
 const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff";
 const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
 const CONSOLE_HANDOFF_STATE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+export type ConsoleAuthRecoveryMode = "refresh" | "reauth";
 
 const configuredAccessToken: string | null =
   process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
@@ -170,7 +171,10 @@ export function createConsoleHandoffState() {
   return randomBytes(32).toString("base64url");
 }
 
-export function consoleAuthHandoffUrl(state: string) {
+export function consoleAuthHandoffUrl(
+  state: string,
+  recoveryMode?: ConsoleAuthRecoveryMode,
+) {
   if (!isValidConsoleHandoffState(state)) {
     return null;
   }
@@ -204,6 +208,9 @@ export function consoleAuthHandoffUrl(state: string) {
       return null;
     }
     authUrl.searchParams.set("handoff", state);
+    if (recoveryMode) {
+      authUrl.searchParams.set("recovery", recoveryMode);
+    }
     return authUrl.toString();
   } catch {
     return null;

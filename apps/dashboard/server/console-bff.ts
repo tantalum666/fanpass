@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   API_BASE_URL,
   CONSOLE_ACCESS_TOKEN_COOKIE,
+  type ConsoleAuthRecoveryMode,
   ConsoleAuthRequiredError,
   ConsoleMutationOriginError,
   ConsoleSessionHandoffError,
@@ -45,6 +46,7 @@ interface PrivySessionRequestBody {
   accessToken?: unknown;
   handoff?: unknown;
   handoffState?: unknown;
+  recovery?: unknown;
 }
 
 class RequestBodyError extends Error {
@@ -426,6 +428,7 @@ async function handlePrivySessionPost(
     throw error;
   }
   const topLevelHandoff = formRequest && body?.handoff === "top-level";
+  const recoveryMode = readConsoleAuthRecoveryMode(body?.recovery);
   try {
     if (topLevelHandoff) {
       assertConsoleSessionHandoff(
@@ -459,6 +462,9 @@ async function handlePrivySessionPost(
   const accessToken =
     privyCookieAccessToken(request.headers.cookie) ?? bodyAccessToken;
   if (!accessToken) {
+    if (topLevelHandoff) {
+      return sendPrivySessionRecovery(response, recoveryMode);
+    }
     return sendPrivySessionFailure(
       response,
       topLevelHandoff,
@@ -484,6 +490,7 @@ async function handlePrivySessionPost(
       topLevelHandoff,
       503,
       "Privy session service is unavailable",
+      "service",
     );
   }
   const session = (await upstream.json().catch(() => null)) as
@@ -492,6 +499,9 @@ async function handlePrivySessionPost(
     | null;
 
   if (!upstream.ok || !session || !("role" in session)) {
+    if (topLevelHandoff && upstream.status === 401) {
+      return sendPrivySessionRecovery(response, recoveryMode);
+    }
     return sendPrivySessionFailure(
       response,
       topLevelHandoff,
@@ -499,6 +509,7 @@ async function handlePrivySessionPost(
       session && "message" in session && session.message
         ? session.message
         : "Privy session sync failed",
+      upstream.status >= 500 ? "service" : "failed",
     );
   }
 
@@ -538,12 +549,51 @@ function sendPrivySessionFailure(
   topLevelHandoff: boolean,
   status: number,
   message: string,
-  reason: "failed" | "handoff" | "forbidden" = "failed",
+  reason: "failed" | "handoff" | "forbidden" | "service" | "session" =
+    "failed",
 ) {
   if (topLevelHandoff) {
     return sendRedirect(response, 303, "/?auth=" + reason);
   }
   return sendJson(response, status, { ok: false, message });
+}
+
+function sendPrivySessionRecovery(
+  response: ServerResponse,
+  currentMode: ConsoleAuthRecoveryMode | null,
+) {
+  if (currentMode === "reauth") {
+    return sendPrivySessionFailure(
+      response,
+      true,
+      401,
+      "Privy session verification failed after re-authentication",
+      "session",
+    );
+  }
+
+  const nextMode: ConsoleAuthRecoveryMode =
+    currentMode === "refresh" ? "reauth" : "refresh";
+  const state = createConsoleHandoffState();
+  const authUrl = consoleAuthHandoffUrl(state, nextMode);
+  if (!authUrl) {
+    return sendPrivySessionFailure(
+      response,
+      true,
+      503,
+      "Console authentication recovery is not configured",
+      "service",
+    );
+  }
+
+  response.setHeader("Set-Cookie", consoleHandoffCookie(state));
+  return sendRedirect(response, 303, authUrl);
+}
+
+function readConsoleAuthRecoveryMode(
+  value: unknown,
+): ConsoleAuthRecoveryMode | null {
+  return value === "refresh" || value === "reauth" ? value : null;
 }
 
 function handlePrivySessionDelete(
@@ -690,6 +740,7 @@ async function readPrivySessionBody(request: IncomingMessage) {
       accessToken: fields.get("accessToken"),
       handoff: fields.get("handoff"),
       handoffState: fields.get("handoffState"),
+      recovery: fields.get("recovery"),
     } satisfies PrivySessionRequestBody;
   }
   throw new RequestBodyError("Unsupported request content type", 415);

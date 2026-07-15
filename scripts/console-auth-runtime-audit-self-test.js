@@ -71,6 +71,18 @@ const cases = [
     marker: "must include name=\"handoffState\" value={handoffState}",
   },
   {
+    label: "rejects a session handoff without bounded recovery state",
+    mutate: (fixtureRoot) =>
+      replace(
+        fixtureRoot,
+        "apps/console-auth/src/PrivyConsoleLogin.tsx",
+        'name="recovery" value={recoveryMode}',
+        'name="recovery" value=""',
+      ),
+    pass: false,
+    marker: "must include name=\"recovery\" value={recoveryMode}",
+  },
+  {
     label: "rejects direct Auth loads that cannot restart secure handoff",
     mutate: (fixtureRoot) =>
       replace(

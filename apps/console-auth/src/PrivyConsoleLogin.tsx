@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConsoleAuthRuntimeConfig } from "./runtime-config";
 
 type SessionState = "idle" | "waiting" | "syncing" | "ready" | "failed";
+type SessionRecoveryMode = "" | "refresh" | "reauth";
 const HANDOFF_STATE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const SESSION_REFRESH_BACKOFF_MS = 750;
 
 export function ConsolePrivyLogin(props: ConsoleAuthRuntimeConfig) {
   return (
@@ -28,6 +30,7 @@ function PrivySessionBridge({
   const [state, setState] = useState<SessionState>("idle");
   const [message, setMessage] = useState("");
   const submittedSession = useRef(false);
+  const preparedRecovery = useRef(false);
   const handoffForm = useRef<HTMLFormElement>(null);
   const handoffTokenInput = useRef<HTMLInputElement>(null);
   const handoffState = useMemo(
@@ -39,20 +42,29 @@ function PrivySessionBridge({
     () => consoleHandoffStartUrl(consoleUrl),
     [consoleUrl],
   );
+  const recoveryMode = useMemo(currentSessionRecoveryMode, []);
+  const [recoveryReady, setRecoveryReady] = useState(!recoveryMode);
 
   const canLogin =
     ready &&
     !authenticated &&
+    recoveryReady &&
     (privySessionMode !== "browser-sdk" || Boolean(handoffState)) &&
     state !== "syncing" &&
     state !== "ready";
   const statusLabel = useMemo(() => {
     if (!ready) return "Initializing Privy";
+    if (state === "waiting" && recoveryMode === "refresh") {
+      return "Refreshing Privy session";
+    }
+    if (state === "waiting" && recoveryMode === "reauth") {
+      return "Resetting expired Privy session";
+    }
     if (state === "syncing") return "Creating Console session";
     if (state === "ready") return "Console session ready";
     if (authenticated) return "Privy session active";
     return "Sign in to FanPass Console";
-  }, [authenticated, ready, state]);
+  }, [authenticated, ready, recoveryMode, state]);
 
   useEffect(() => {
     if (privySessionMode === "browser-sdk" && !handoffState) {
@@ -63,8 +75,62 @@ function PrivySessionBridge({
   useEffect(() => {
     if (
       !ready ||
+      !recoveryMode ||
+      preparedRecovery.current ||
+      privySessionMode !== "browser-sdk"
+    ) {
+      return;
+    }
+
+    preparedRecovery.current = true;
+    submittedSession.current = true;
+    setState("waiting");
+
+    if (recoveryMode === "refresh") {
+      setMessage("Refreshing your expired Privy access token.");
+      const timer = window.setTimeout(() => {
+        submittedSession.current = false;
+        setRecoveryReady(true);
+      }, SESSION_REFRESH_BACKOFF_MS);
+      return () => window.clearTimeout(timer);
+    }
+
+    setMessage("Your Privy session expired. Sign in again to continue.");
+    if (!authenticated) {
+      submittedSession.current = false;
+      setRecoveryReady(true);
+      setState("idle");
+      return;
+    }
+
+    void logout().catch(() => {
+      submittedSession.current = false;
+      setState("failed");
+      setMessage("Privy session reset failed. Use Reset and try again.");
+    });
+  }, [authenticated, logout, privySessionMode, ready, recoveryMode]);
+
+  useEffect(() => {
+    if (
+      recoveryMode !== "reauth" ||
+      !preparedRecovery.current ||
+      authenticated ||
+      recoveryReady
+    ) {
+      return;
+    }
+    submittedSession.current = false;
+    setRecoveryReady(true);
+    setState("idle");
+    setMessage("Your Privy session expired. Sign in again to continue.");
+  }, [authenticated, recoveryMode, recoveryReady]);
+
+  useEffect(() => {
+    if (
+      !ready ||
       !authenticated ||
       submittedSession.current ||
+      !recoveryReady ||
       (privySessionMode === "browser-sdk" && !handoffState)
     ) {
       return;
@@ -134,6 +200,7 @@ function PrivySessionBridge({
     handoffState,
     privySessionMode,
     ready,
+    recoveryReady,
     sessionBridgeUrl,
   ]);
 
@@ -153,6 +220,7 @@ function PrivySessionBridge({
       handoffTokenInput.current.value = "";
     }
     submittedSession.current = false;
+    setRecoveryReady(true);
     setState("idle");
     setMessage("");
     await logout();
@@ -194,6 +262,7 @@ function PrivySessionBridge({
           />
           <input type="hidden" name="handoff" value="top-level" />
           <input type="hidden" name="handoffState" value={handoffState} />
+          <input type="hidden" name="recovery" value={recoveryMode} />
         </form>
       ) : null}
       {message ? (
@@ -217,6 +286,11 @@ function currentHandoffState() {
   const state =
     new URLSearchParams(window.location.search).get("handoff") ?? "";
   return HANDOFF_STATE_PATTERN.test(state) ? state : "";
+}
+
+function currentSessionRecoveryMode(): SessionRecoveryMode {
+  const mode = new URLSearchParams(window.location.search).get("recovery");
+  return mode === "refresh" || mode === "reauth" ? mode : "";
 }
 
 function consoleHandoffStartUrl(consoleUrl: string) {

@@ -66,6 +66,7 @@ function auditConsoleBff() {
     "consoleMutationCorsHeaders(originRequest)",
     "createConsoleHandoffState()",
     "consoleAuthHandoffUrl(state)",
+    "consoleAuthHandoffUrl(state, nextMode)",
     "consoleHandoffCookie(state)",
     "assertConsoleSessionHandoff(",
     "clearConsoleHandoffCookie()",
@@ -74,6 +75,8 @@ function auditConsoleBff() {
     'application/x-www-form-urlencoded',
     'body?.handoff === "top-level"',
     "body?.handoffState",
+    "readConsoleAuthRecoveryMode(body?.recovery)",
+    "sendPrivySessionRecovery(response, recoveryMode)",
     'sendRedirect(response, 303, "/")',
     '"/?auth=" + reason',
     "MAX_REQUEST_BODY_BYTES",
@@ -104,6 +107,12 @@ function auditConsoleBff() {
     "object-src 'none'",
   ];
   requireSnippets(consoleBff, contents, requiredSnippets);
+  requireOccurrences(
+    consoleBff,
+    contents,
+    "consoleHandoffCookie(state)",
+    2,
+  );
   requirePatterns(consoleBff, contents, [
     {
       label:
@@ -135,11 +144,13 @@ function auditConsoleAuthHelper() {
     'const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff"',
     "randomBytes(32).toString(\"base64url\")",
     "timingSafeEqual(leftBuffer, rightBuffer)",
-    "export function consoleAuthHandoffUrl(state: string)",
+    "export function consoleAuthHandoffUrl(",
+    "recoveryMode?: ConsoleAuthRecoveryMode",
     "export function assertConsoleSessionHandoff(",
     "export function consoleHandoffCookie(state: string)",
     "export function clearConsoleHandoffCookie()",
     'authUrl.searchParams.set("handoff", state)',
+    'authUrl.searchParams.set("recovery", recoveryMode)',
     "configuredConsoleOrigin()",
     "authUrl.origin === consoleOrigin",
     "process.env.RENDER_EXTERNAL_HOSTNAME",
@@ -227,6 +238,8 @@ function auditConsoleLoginComponent() {
     "authUrl.origin === window.location.origin",
     'href="/api/console/privy-handoff"',
     "consoleAuthFailureMessage()",
+    'reason === "service"',
+    'reason === "session"',
     "Privy sign-in is temporarily unavailable.",
   ];
   requireSnippets(consoleLoginComponent, contents, requiredSnippets);
@@ -284,6 +297,15 @@ function requirePatterns(file, contents, requirements) {
     if (!pattern.test(contents)) {
       errors.push(`${file} is missing required Console boundary: ${label}`);
     }
+  }
+}
+
+function requireOccurrences(file, contents, snippet, minimum) {
+  const occurrences = contents.split(snippet).length - 1;
+  if (occurrences < minimum) {
+    errors.push(
+      `${file} requires at least ${minimum} occurrences of Console boundary: ${snippet}`,
+    );
   }
 }
 

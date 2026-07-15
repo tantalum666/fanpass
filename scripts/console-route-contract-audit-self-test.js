@@ -415,7 +415,12 @@ export function ConsoleLoginForm({ onSessionReady }: { onSessionReady: () => Pro
   return consoleAuthUrl ? <><a href="/api/console/privy-handoff">Continue with Privy</a><form onSubmit={submitSession} /></> : <p>Privy sign-in is temporarily unavailable.</p>;
 }
 
-function consoleAuthFailureMessage() { return ""; }
+function consoleAuthFailureMessage() {
+  const reason = new URLSearchParams(window.location.search).get("auth");
+  if (reason === "service") return "Authentication service unavailable";
+  if (reason === "session") return "Session verification failed";
+  return "";
+}
 
 function safeConsoleAuthUrl(configuredUrl: string) {
   const authUrl = new URL(configuredUrl, window.location.origin);
@@ -482,6 +487,7 @@ async function handlePrivySessionPost(request, response) {
   const topLevelHandoff =
     requestContentType(request) === "application/x-www-form-urlencoded" &&
     body?.handoff === "top-level";
+  const recoveryMode = readConsoleAuthRecoveryMode(body?.recovery);
   if (topLevelHandoff) {
     assertConsoleSessionHandoff(request.headers.cookie, body?.handoffState);
   } else {
@@ -490,6 +496,7 @@ async function handlePrivySessionPost(request, response) {
   const accessToken = privyCookieAccessToken(request.headers.cookie) ?? "fixture-access-token";
   const upstream = await fetch(\`\${API_BASE_URL}/auth/privy/sync\`, { cache: "no-store" });
   const session = await upstream.json();
+  if (!upstream.ok) return sendPrivySessionRecovery(response, recoveryMode);
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
     return sendJson(response, 403, { ok: false });
   }
@@ -509,8 +516,21 @@ function sendPrivySessionFailure(response, topLevelHandoff, status, message, rea
   return sendJson(response, status, { ok: false, message });
 }
 
+function sendPrivySessionRecovery(response, currentMode) {
+  if (currentMode === "reauth") return sendPrivySessionFailure(response, true, 401, "rejected", "session");
+  const nextMode = currentMode === "refresh" ? "reauth" : "refresh";
+  const state = createConsoleHandoffState();
+  const authUrl = consoleAuthHandoffUrl(state, nextMode);
+  response.setHeader("Set-Cookie", consoleHandoffCookie(state));
+  return sendRedirect(response, 303, authUrl);
+}
+
+function readConsoleAuthRecoveryMode(value) {
+  return value === "refresh" || value === "reauth" ? value : null;
+}
+
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-function readPrivySessionBody() { return { handoff: "top-level", handoffState: "fixture" }; }
+function readPrivySessionBody() { return { handoff: "top-level", handoffState: "fixture", recovery: "refresh" }; }
 function requestContentType() { return "application/x-www-form-urlencoded"; }
 
 function handlePrivySessionDelete(request, response) {
@@ -604,6 +624,7 @@ export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token";
 const CONSOLE_HANDOFF_COOKIE = "fanpass_console_handoff";
 const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff";
 const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
+export type ConsoleAuthRecoveryMode = "refresh" | "reauth";
 const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
 ${publicTokenEnv}
 export class ConsoleAuthRequiredError extends Error {}
@@ -643,11 +664,15 @@ export function createConsoleHandoffState() {
   return randomBytes(32).toString("base64url");
 }
 
-export function consoleAuthHandoffUrl(state: string) {
+export function consoleAuthHandoffUrl(
+  state: string,
+  recoveryMode?: ConsoleAuthRecoveryMode,
+) {
   const authUrl = new URL(process.env.FANPASS_CONSOLE_AUTH_ORIGIN ?? "https://auth.example.test");
   const consoleOrigin = configuredConsoleOrigin();
   if (authUrl.origin === consoleOrigin) return null;
   authUrl.searchParams.set("handoff", state);
+  if (recoveryMode) authUrl.searchParams.set("recovery", recoveryMode);
   return authUrl.toString();
 }
 
