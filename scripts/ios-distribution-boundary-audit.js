@@ -57,7 +57,8 @@ console.log(
         fanPassOpsCapabilities:
           "Ops owns QR camera scanning; native NFC remains DEBUG-only for release",
         releaseApiConfigs: "staging/beta/production configs are HTTPS-only",
-        localApiConfig: "local debug may use localhost HTTP",
+        localApiConfig:
+          "local debug defaults to deployed Staging HTTPS; local HTTP requires an ignored explicit override",
         providerSecrets: "checked iOS configs for server-side secret markers",
         privyPublicConfig:
           "runtime rejects secret-like values for public Privy app config",
@@ -297,22 +298,23 @@ function validateConfigFiles() {
     {
       label: "Local",
       file: files.localConfig,
-      allowLocalhostHttp: true,
+      requiredDefaultOrigin:
+        "https:/$()/fanpass-api-staging.onrender.com",
     },
     {
       label: "Staging",
       file: files.stagingConfig,
-      allowLocalhostHttp: false,
+      requiredDefaultOrigin: null,
     },
     {
       label: "Beta",
       file: files.betaConfig,
-      allowLocalhostHttp: false,
+      requiredDefaultOrigin: null,
     },
     {
       label: "Production",
       file: files.productionConfig,
-      allowLocalhostHttp: false,
+      requiredDefaultOrigin: null,
     },
   ];
 
@@ -323,9 +325,11 @@ function validateConfigFiles() {
       errors.push(`${config.label} xcconfig must set FANPASS_API_BASE_URL`);
       continue;
     }
-    if (config.allowLocalhostHttp) {
-      if (apiBaseUrl !== "http:/$()/localhost:4000") {
-        errors.push("Local xcconfig must point at localhost:4000 only");
+    if (config.requiredDefaultOrigin) {
+      if (apiBaseUrl !== config.requiredDefaultOrigin) {
+        errors.push(
+          "Local xcconfig must default to the deployed FanPass Staging HTTPS API",
+        );
       }
     } else {
       if (!apiBaseUrl.startsWith("https:/$()/")) {

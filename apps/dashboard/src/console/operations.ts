@@ -34,6 +34,9 @@ export function eventOperations(
       (checkin) =>
         checkin.eventId === event.id || ticketIds.has(checkin.ticketId),
     ),
+    fanCampaigns: operations.fanCampaigns.filter(
+      (campaign) => campaign.eventId === event.id,
+    ),
     fanTaskSubmissions: operations.fanTaskSubmissions.filter(
       (submission) => submission.eventId === event.id,
     ),

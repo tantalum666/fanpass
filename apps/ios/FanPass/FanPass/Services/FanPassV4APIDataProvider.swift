@@ -1,22 +1,197 @@
 import Foundation
 
+extension Notification.Name {
+    static let fanPassPublicCatalogDidRefresh = Notification.Name("FanPassPublicCatalogDidRefresh")
+}
+
+enum FanPassV4EventCatalogSource: Equatable {
+    case live
+    case saved
+}
+
+struct FanPassV4EventCatalogSnapshot {
+    let events: [FanPassV4.Event]
+    let source: FanPassV4EventCatalogSource
+    let updatedAt: Date
+}
+
+struct FanPassEventCatalogSnapshot {
+    let events: [FanPassEvent]
+    let source: FanPassV4EventCatalogSource
+    let updatedAt: Date
+}
+
+actor FanPassEventCatalogRepository {
+    static let shared = FanPassEventCatalogRepository()
+
+    private struct CachedCatalog: Codable {
+        let schemaVersion: Int
+        let baseURL: String
+        let savedAt: Date
+        let events: [FanPassEvent]
+    }
+
+    private let fileURL: URL?
+    private let maximumSavedAge: TimeInterval = 7 * 24 * 60 * 60
+    private var cachedCatalog: CachedCatalog?
+    private var inFlightRequest: Task<[FanPassEvent], Error>?
+    private var lastSuccessfulRefreshAt: Date?
+
+    init(fileManager: FileManager = .default) {
+        fileURL = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appending(path: "FanPass", directoryHint: .isDirectory)
+            .appending(path: "public-event-catalog-v1.json", directoryHint: .notDirectory)
+    }
+
+    func load(using apiClient: FanPassAPIClient) async throws -> FanPassEventCatalogSnapshot {
+        let baseURL = apiClient.baseURL.absoluteString
+        let now = Date()
+        let saved = loadSavedCatalog(for: baseURL, now: now)
+        if let saved,
+           let lastSuccessfulRefreshAt,
+           now.timeIntervalSince(lastSuccessfulRefreshAt) < 60
+        {
+            return FanPassEventCatalogSnapshot(
+                events: saved.events,
+                source: .live,
+                updatedAt: saved.savedAt
+            )
+        }
+
+        let request = startRefreshIfNeeded(
+            using: apiClient,
+            baseURL: baseURL,
+            observeCompletion: saved != nil
+        )
+        if let saved {
+            return FanPassEventCatalogSnapshot(
+                events: saved.events,
+                source: .saved,
+                updatedAt: saved.savedAt
+            )
+        }
+
+        do {
+            let events = try await request.value
+            finishRefresh(events: events, baseURL: baseURL)
+            let refreshed = loadSavedCatalog(for: baseURL, now: Date()) ?? CachedCatalog(
+                schemaVersion: 1,
+                baseURL: baseURL,
+                savedAt: Date(),
+                events: events
+            )
+            return FanPassEventCatalogSnapshot(
+                events: refreshed.events,
+                source: .live,
+                updatedAt: refreshed.savedAt
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            finishFailedRefresh()
+            throw error
+        }
+    }
+
+    private func startRefreshIfNeeded(
+        using apiClient: FanPassAPIClient,
+        baseURL: String,
+        observeCompletion: Bool
+    ) -> Task<[FanPassEvent], Error> {
+        if let inFlightRequest {
+            return inFlightRequest
+        }
+
+        let request = Task { try await apiClient.events() }
+        inFlightRequest = request
+        if observeCompletion {
+            Task { [weak self] in
+                do {
+                    let events = try await request.value
+                    await self?.finishRefresh(events: events, baseURL: baseURL)
+                } catch {
+                    await self?.finishFailedRefresh()
+                }
+            }
+        }
+        return request
+    }
+
+    private func finishRefresh(events: [FanPassEvent], baseURL: String) {
+        guard inFlightRequest != nil else { return }
+        let now = Date()
+        inFlightRequest = nil
+        lastSuccessfulRefreshAt = now
+        save(CachedCatalog(schemaVersion: 1, baseURL: baseURL, savedAt: now, events: events))
+        NotificationCenter.default.post(name: .fanPassPublicCatalogDidRefresh, object: nil)
+    }
+
+    private func finishFailedRefresh() {
+        inFlightRequest = nil
+    }
+
+    private func loadSavedCatalog(for baseURL: String, now: Date) -> CachedCatalog? {
+        if cachedCatalog == nil,
+           let fileURL,
+           let data = try? Data(contentsOf: fileURL)
+        {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            cachedCatalog = try? decoder.decode(CachedCatalog.self, from: data)
+        }
+
+        guard let cachedCatalog,
+              cachedCatalog.schemaVersion == 1,
+              cachedCatalog.baseURL == baseURL,
+              now.timeIntervalSince(cachedCatalog.savedAt) <= maximumSavedAge
+        else {
+            return nil
+        }
+        return cachedCatalog
+    }
+
+    private func save(_ catalog: CachedCatalog) {
+        cachedCatalog = catalog
+        guard let fileURL else { return }
+        do {
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(catalog).write(to: fileURL, options: .atomic)
+        } catch {
+            // The public catalog remains available in memory when disk caching is unavailable.
+        }
+    }
+}
+
 struct FanPassV4APIDataProvider {
     let apiClient: FanPassAPIClient
+    let eventCatalog: FanPassEventCatalogRepository
 
-    init(apiClient: FanPassAPIClient = FanPassAPIClient(baseURL: FanPassEnvironment.apiBaseURL)) {
+    init(
+        apiClient: FanPassAPIClient = FanPassAPIClient(baseURL: FanPassEnvironment.apiBaseURL),
+        eventCatalog: FanPassEventCatalogRepository = .shared
+    ) {
         self.apiClient = apiClient
+        self.eventCatalog = eventCatalog
     }
 
     func withAccessToken(_ token: String?) -> FanPassV4APIDataProvider {
-        FanPassV4APIDataProvider(apiClient: apiClient.withAccessToken(token))
+        FanPassV4APIDataProvider(
+            apiClient: apiClient.withAccessToken(token),
+            eventCatalog: eventCatalog
+        )
     }
 
     func eventService() -> FanPassV4APIEventService {
-        FanPassV4APIEventService(apiClient: apiClient)
+        FanPassV4APIEventService(apiClient: apiClient, eventCatalog: eventCatalog)
     }
 
     func ticketService() -> FanPassV4APITicketService {
-        FanPassV4APITicketService(apiClient: apiClient)
+        FanPassV4APITicketService(apiClient: apiClient, eventCatalog: eventCatalog)
     }
 
     func scannerService() -> FanPassV4APIScannerService {
@@ -26,24 +201,33 @@ struct FanPassV4APIDataProvider {
 
 struct FanPassV4APIEventService: FanPassV4EventServicing {
     let apiClient: FanPassAPIClient
+    let eventCatalog: FanPassEventCatalogRepository
 
     func featuredEvents(network: FanPassV4.DemoNetworkCondition = .online) async throws -> [FanPassV4.Event] {
+        try await featuredEventSnapshot(network: network).events
+    }
+
+    func featuredEventSnapshot(
+        network: FanPassV4.DemoNetworkCondition = .online
+    ) async throws -> FanPassV4EventCatalogSnapshot {
         if network == .unavailable {
-            throw FanPassV4MockError.networkUnavailable
+            throw FanPassV4ServiceError.networkUnavailable
         }
-        let events = try await apiClient.events()
-        let apiEvents = events
+        let catalog = try await eventCatalog.load(using: apiClient)
+        let apiEvents = try catalog.events
             .map(FanPassV4APIMapper.event)
             .filter(Self.isPublicDisplayEvent)
             .sorted(by: Self.preferPurchasableStagingEvents)
-        return Array(apiEvents.prefix(10))
+        return FanPassV4EventCatalogSnapshot(
+            events: Array(apiEvents.prefix(10)),
+            source: catalog.source,
+            updatedAt: catalog.updatedAt
+        )
     }
 
     func event(id: String) async -> FanPassV4.Event? {
         do {
-            return try await apiClient.events()
-                .map(FanPassV4APIMapper.event)
-                .first { $0.id == id }
+            return try await featuredEventSnapshot(network: .online).events.first { $0.id == id }
         } catch {
             return nil
         }
@@ -98,13 +282,14 @@ struct FanPassV4APIEventService: FanPassV4EventServicing {
 
 struct FanPassV4APITicketService: FanPassV4TicketServicing {
     let apiClient: FanPassAPIClient
+    let eventCatalog: FanPassEventCatalogRepository
 
     func walletTickets(for user: FanPassV4.User, statusOverride: FanPassV4.TicketStatus? = nil) async throws -> [FanPassV4.Ticket] {
-        async let apiEvents = apiClient.events()
+        async let apiEvents = eventCatalog.load(using: apiClient)
         async let apiTickets = apiClient.tickets(ownerId: user.id)
 
-        let eventRecords = try await apiEvents
-        let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
+        let eventRecords = try await apiEvents.events
+        let context = try FanPassV4APIMapper.Context(apiEvents: eventRecords)
         let ticketRecords = try await apiTickets
         var tickets = try ticketRecords.map {
             try FanPassV4APIMapper.ticket($0, context: context)
@@ -117,18 +302,18 @@ struct FanPassV4APITicketService: FanPassV4TicketServicing {
     }
 
     func ticket(id: String) async throws -> FanPassV4.Ticket? {
-        async let apiEvents = apiClient.events()
+        async let apiEvents = eventCatalog.load(using: apiClient)
         async let apiTicket = apiClient.ticket(ticketId: id)
 
-        let eventRecords = try await apiEvents
-        let context = FanPassV4APIMapper.Context(apiEvents: eventRecords)
+        let eventRecords = try await apiEvents.events
+        let context = try FanPassV4APIMapper.Context(apiEvents: eventRecords)
         let ticketRecord = try await apiTicket
         return try FanPassV4APIMapper.ticket(ticketRecord, context: context)
     }
 
     func proofHistory(for ticket: FanPassV4.Ticket) async throws -> [FanPassV4.ProofHistoryItem] {
         let response = try await apiClient.proofHistory(ticketId: ticket.id)
-        return response.items.map(FanPassV4APIMapper.proofHistoryItem)
+        return try response.items.map(FanPassV4APIMapper.proofHistoryItem)
     }
 
     func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
@@ -137,10 +322,10 @@ struct FanPassV4APITicketService: FanPassV4TicketServicing {
 
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing {
         guard ticket.ticketType.transferRule.transferable, ticket.status.allowsResale else {
-            throw FanPassV4MockError.ticketNotTransferable
+            throw FanPassV4ServiceError.ticketNotTransferable
         }
         if let cap = ticket.ticketType.transferRule.resaleCap, price > cap {
-            throw FanPassV4MockError.resaleCapExceeded
+            throw FanPassV4ServiceError.resaleCapExceeded
         }
 
         let response = try await apiClient.createOrder(
@@ -210,7 +395,7 @@ struct FanPassV4APIScannerService: FanPassV4ScannerServicing {
 
     func refreshQRCredential(ticket: FanPassV4.Ticket) async throws -> String {
         guard ticket.status.allowsEntryCode else {
-            throw FanPassV4MockError.invalidCredential
+            throw FanPassV4ServiceError.invalidCredential
         }
         let payload = try await apiClient.qrPayload(ticketId: ticket.id)
         let data = try encoder.encode(payload)
@@ -237,6 +422,8 @@ struct FanPassV4APIScannerService: FanPassV4ScannerServicing {
 enum FanPassV4APIDataError: LocalizedError {
     case missingEvent(String)
     case missingTicketType(String)
+    case invalidEventDate(eventId: String, value: String)
+    case invalidProofTimestamp(itemId: String, value: String)
 
     var errorDescription: String? {
         switch self {
@@ -244,6 +431,10 @@ enum FanPassV4APIDataError: LocalizedError {
             "Ticket event \(eventId) is missing from the live catalog."
         case let .missingTicketType(ticketTypeId):
             "Ticket category \(ticketTypeId) is missing from the live catalog."
+        case let .invalidEventDate(eventId, value):
+            "Event \(eventId) has an invalid start time: \(value)."
+        case let .invalidProofTimestamp(itemId, value):
+            "Ticket history item \(itemId) has an invalid timestamp: \(value)."
         }
     }
 }
@@ -266,8 +457,8 @@ enum FanPassV4APIMapper {
         let events: [FanPassV4.Event]
         let ticketTypesById: [String: FanPassV4.TicketType]
 
-        init(apiEvents: [FanPassEvent]) {
-            let mappedEvents = apiEvents.map(Self.mapEvent)
+        init(apiEvents: [FanPassEvent]) throws {
+            let mappedEvents = try apiEvents.map(Self.mapEvent)
             self.events = mappedEvents
             self.ticketTypesById = Dictionary(
                 uniqueKeysWithValues: mappedEvents.flatMap { event in
@@ -276,14 +467,20 @@ enum FanPassV4APIMapper {
             )
         }
 
-        private static func mapEvent(_ event: FanPassEvent) -> FanPassV4.Event {
-            FanPassV4APIMapper.event(event)
+        private static func mapEvent(_ event: FanPassEvent) throws -> FanPassV4.Event {
+            try FanPassV4APIMapper.event(event)
         }
     }
 
-    static func event(_ event: FanPassEvent) -> FanPassV4.Event {
+    static func event(_ event: FanPassEvent) throws -> FanPassV4.Event {
         let apiTicketTypes = event.ticketTypes.map(ticketType)
         let mappedVenue = venue(event.venue)
+        guard let startTime = isoDate(event.startTime) else {
+            throw FanPassV4APIDataError.invalidEventDate(
+                eventId: event.id,
+                value: event.startTime
+            )
+        }
         return FanPassV4.Event(
             id: event.id,
             title: event.title,
@@ -298,8 +495,8 @@ enum FanPassV4APIMapper {
                 label: "Verified event"
             ),
             coverAssetName: bundledCoverAssetByEventId[event.id],
-            fanAccessAvailable: false,
-            startTime: isoDate(event.startTime) ?? Date(),
+            fanAccessAvailable: event.fanAccessAvailable ?? false,
+            startTime: startTime,
             status: eventStatus(event.status),
             venue: mappedVenue,
             ticketTypes: apiTicketTypes,
@@ -390,13 +587,13 @@ enum FanPassV4APIMapper {
         return (section, row, seat)
     }
 
-    static func proofHistoryItem(_ item: FanPassProofHistoryItem) -> FanPassV4.ProofHistoryItem {
+    static func proofHistoryItem(_ item: FanPassProofHistoryItem) throws -> FanPassV4.ProofHistoryItem {
         FanPassV4.ProofHistoryItem(
             id: item.id,
             type: proofType(id: item.id, label: item.label),
             title: item.label,
             description: item.description,
-            timestamp: proofTimestamp(item.timestamp),
+            timestamp: try proofTimestamp(item.timestamp, itemId: item.id),
             actorLabel: proofActorLabel(item.state),
             proofReference: item.proofReference ?? item.safeTicketRef,
             externalURL: item.externalUrl.flatMap(URL.init(string:)),
@@ -522,28 +719,36 @@ enum FanPassV4APIMapper {
         state.lowercased() == "redacted" ? "FanPass" : "FanPass"
     }
 
-    private static func proofTimestamp(_ value: String) -> Date {
-        if let date = ISO8601DateFormatter().date(from: value) {
-            return date
+    private static func proofTimestamp(_ value: String, itemId: String) throws -> Date {
+        guard let date = isoDate(value) else {
+            throw FanPassV4APIDataError.invalidProofTimestamp(
+                itemId: itemId,
+                value: value
+            )
         }
-        return Date()
+        return date
     }
 
     private static func defaultMarketSummary(ticketTypes: [FanPassV4.TicketType]) -> FanPassV4.MarketSummary {
         let faceValue = ticketTypes.first?.faceValue ?? 0
         let currency = ticketTypes.first?.currency ?? "HKD"
         return FanPassV4.MarketSummary(
-            floorPrice: faceValue,
+            floorPrice: nil,
             organizerCap: ticketTypes.first?.transferRule.resaleCap ?? faceValue,
-            recentSale: faceValue,
+            recentSale: nil,
             volume: 0,
             currency: currency,
-            suggestedResalePrice: faceValue,
+            suggestedResalePrice: nil,
             priceHistory: []
         )
     }
 
     private static func isoDate(_ value: String) -> Date? {
-        ISO8601DateFormatter().date(from: value)
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) {
+            return date
+        }
+        return ISO8601DateFormatter().date(from: value)
     }
 }

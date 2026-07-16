@@ -191,7 +191,11 @@ function writePassingFixture(fixtureRoot) {
     "apps/api/src/modules/payments/payments.controller.ts",
     paymentsController(),
   );
-  writeFixtureFile(fixtureRoot, "apps/dashboard/server/console-bff.ts", consoleBff());
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/dashboard/server/console-bff.ts",
+    consoleBff(),
+  );
   writeFixtureFile(
     fixtureRoot,
     "docs/API_RESPONSE_PRIVACY_MATRIX.md",
@@ -261,6 +265,8 @@ function handlePrivySessionOptions() {}
 function handleOperations() {}
 function handleCreateEvent() {}
 function handleCreateTicketType() {}
+function handleSaveFanCampaign() {}
+function handleReviewFanSubmission() {}
 
 function handleCreateGateAssignment() {
   ${includeMarkers ? "consoleAccessToken(cookieSource(request));" : ""}
@@ -342,6 +348,18 @@ function matrix(options = {}) {
       "POST /api/console/events/:eventId/ticket-types",
       "ORGANIZER_REDACTED",
       "Console ticket type fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleSaveFanCampaign",
+      "POST /api/console/events/:eventId/fan-access",
+      "ORGANIZER_REDACTED",
+      "Console Fan Access campaign fixture.",
+    ],
+    [
+      "apps/dashboard/server/console-bff.ts:handleReviewFanSubmission",
+      "POST /api/console/fan-access/submissions/:submissionId/decision",
+      "ORGANIZER_REDACTED",
+      "Console Fan Access review fixture.",
     ],
     [
       "apps/dashboard/server/console-bff.ts:handleCreateGateAssignment",

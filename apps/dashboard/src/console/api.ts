@@ -1,4 +1,8 @@
-import type { AlphaOperations, GateAssignmentResponse } from "./types";
+import type {
+  AlphaOperations,
+  FanCampaignTask,
+  GateAssignmentResponse,
+} from "./types";
 
 export class ConsoleApiError extends Error {
   constructor(
@@ -31,6 +35,32 @@ export interface CreateGateAssignmentInput {
   gate: string;
   staffName: string;
   staffEmail: string;
+}
+
+export interface SaveFanCampaignInput {
+  title: string;
+  description: string;
+  rewardTitle: string;
+  rewardDescription: string;
+  rewardSupply: number;
+  qualificationPoints: number;
+  allocationMethod: "EQUAL_DRAW" | "GUARANTEED";
+  status: "DRAFT" | "ACTIVE";
+  startsAt: string;
+  closesAt: string;
+  tasks: Array<
+    Pick<
+      FanCampaignTask,
+      | "title"
+      | "description"
+      | "taskType"
+      | "points"
+      | "verificationMethod"
+      | "verificationLabel"
+      | "actionKind"
+      | "optional"
+    > & { id?: string }
+  >;
 }
 
 export async function loadOperations() {
@@ -78,6 +108,32 @@ export async function deactivateGateAssignment(assignmentId: string) {
   return request<unknown>(
     `/api/console/gate-assignments/${encodeURIComponent(assignmentId)}/deactivate`,
     { method: "POST" },
+  );
+}
+
+export async function saveFanCampaign(
+  eventId: string,
+  input: SaveFanCampaignInput,
+) {
+  return request<unknown>(
+    `/api/console/events/${encodeURIComponent(eventId)}/fan-access`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function reviewFanSubmission(
+  submissionId: string,
+  input: { decision: "APPROVED" | "REJECTED"; reason: string },
+) {
+  return request<unknown>(
+    `/api/console/fan-access/submissions/${encodeURIComponent(submissionId)}/decision`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
   );
 }
 

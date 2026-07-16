@@ -16,9 +16,12 @@ async function reset() {
     prisma.payment.deleteMany(),
     prisma.order.deleteMany(),
     prisma.queueEntry.deleteMany(),
+    prisma.fanEntitlement.deleteMany(),
+    prisma.fanWalletLink.deleteMany(),
     prisma.fanScore.deleteMany(),
     prisma.fanTaskSubmission.deleteMany(),
     prisma.fanTask.deleteMany(),
+    prisma.fanCampaign.deleteMany(),
     prisma.gateAssignment.deleteMany(),
     prisma.ticket.deleteMany(),
     prisma.onsale.deleteMany(),
@@ -43,6 +46,23 @@ async function seed() {
         privyId: user.privyId,
         walletAddress: user.walletAddress,
         riskScore: user.riskScore,
+      },
+    });
+  }
+
+  for (const user of seedData.users) {
+    if (!user.walletAddress) {
+      continue;
+    }
+    await prisma.fanWalletLink.create({
+      data: {
+        id: `fwl_${user.id}`,
+        userId: user.id,
+        address: user.walletAddress.toLowerCase(),
+        chainType: "EVM",
+        status: "ACTIVE",
+        isPrimary: true,
+        verifiedAt: new Date("2026-07-16T00:00:00.000Z"),
       },
     });
   }
@@ -84,6 +104,16 @@ async function seed() {
   for (const ticket of seedData.tickets) {
     await prisma.ticket.create({
       data: ticket,
+    });
+  }
+
+  for (const campaign of seedData.fanCampaigns) {
+    await prisma.fanCampaign.create({
+      data: {
+        ...campaign,
+        startsAt: new Date(campaign.startsAt),
+        closesAt: new Date(campaign.closesAt),
+      },
     });
   }
 

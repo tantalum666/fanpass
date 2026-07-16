@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { demoSeedIds } from "../../common/demo-seed";
 import { DemoStore } from "../../common/demo-store";
@@ -29,43 +29,77 @@ export class EventsService {
   constructor(
     private readonly store: DemoStore,
     private readonly audit: AuditService,
-    @Optional() private readonly prisma?: PrismaService
+    @Optional() private readonly prisma?: PrismaService,
   ) {}
 
   listEvents() {
     const prisma = this.prismaClient();
     if (prisma) {
+      const now = new Date();
       return prisma.event
         .findMany({
+          where: {
+            status: "PUBLISHED",
+          },
           include: {
             venue: true,
-            ticketTypes: true
+            ticketTypes: true,
+            fanCampaigns: {
+              where: {
+                status: "ACTIVE",
+                startsAt: { lte: now },
+                closesAt: { gt: now },
+              },
+              select: { id: true },
+            },
           },
           orderBy: {
-            startTime: "asc"
-          }
+            startTime: "asc",
+          },
         })
         .then((events) => events.map((event) => this.mapPrismaEvent(event)));
     }
 
-    return this.store.events.map((event) => this.expandEvent(event.id));
+    return this.store.events
+      .filter((event) => event.status === "PUBLISHED")
+      .map((event) => this.expandEvent(event.id));
   }
 
-  getEvent(id: string) {
+  async getEvent(id: string) {
     const prisma = this.prismaClient();
     if (prisma) {
-      return prisma.event
-        .findUniqueOrThrow({
-          where: { id },
-          include: {
-            venue: true,
-            ticketTypes: true
-          }
-        })
-        .then((event) => this.mapPrismaEvent(event));
+      const now = new Date();
+      const event = await prisma.event.findFirst({
+        where: {
+          id,
+          status: "PUBLISHED",
+        },
+        include: {
+          venue: true,
+          ticketTypes: true,
+          fanCampaigns: {
+            where: {
+              status: "ACTIVE",
+              startsAt: { lte: now },
+              closesAt: { gt: now },
+            },
+            select: { id: true },
+          },
+        },
+      });
+      if (!event) {
+        throw new NotFoundException(`Event ${id} not found`);
+      }
+      return this.mapPrismaEvent(event);
     }
 
-    return this.expandEvent(this.store.getEvent(id).id);
+    const event = this.store.events.find(
+      (candidate) => candidate.id === id && candidate.status === "PUBLISHED",
+    );
+    if (!event) {
+      throw new NotFoundException(`Event ${id} not found`);
+    }
+    return this.expandEvent(event.id);
   }
 
   createEvent(input: CreateEventInput) {
@@ -85,7 +119,7 @@ export class EventsService {
       city: input.city,
       address: input.venueName,
       timezone: "Asia/Hong_Kong",
-      capacity: 1000
+      capacity: 1000,
     });
 
     const event = {
@@ -96,10 +130,16 @@ export class EventsService {
       startTime: input.startTime,
       endTime: input.endTime,
       status: "DRAFT" as const,
-      posterUrl: null
+      posterUrl: null,
     };
     this.store.events.unshift(event);
-    this.audit.record(demoSeedIds.organizerUserId, "EVENT_CREATED", "event", eventId, { title: input.title });
+    this.audit.record(
+      demoSeedIds.organizerUserId,
+      "EVENT_CREATED",
+      "event",
+      eventId,
+      { title: input.title },
+    );
     return event;
   }
 
@@ -119,26 +159,45 @@ export class EventsService {
       supply: input.supply,
       transferable: input.transferable,
       resaleCap: input.resaleCap ?? null,
-      maxTransferCount: input.maxTransferCount
+      maxTransferCount: input.maxTransferCount,
     };
     this.store.ticketTypes.push(ticketType);
-    this.audit.record(demoSeedIds.organizerUserId, "TICKET_TYPE_CREATED", "ticket_type", ticketType.id, {
-      eventId,
-      name: input.name
-    });
+    this.audit.record(
+      demoSeedIds.organizerUserId,
+      "TICKET_TYPE_CREATED",
+      "ticket_type",
+      ticketType.id,
+      {
+        eventId,
+        name: input.name,
+      },
+    );
     return ticketType;
   }
 
   private expandEvent(id: string) {
     const event = this.store.getEvent(id);
+    const now = Date.now();
     return {
       ...event,
       venue: this.store.venues.find((venue) => venue.id === event.venueId),
-      ticketTypes: this.store.ticketTypes.filter((ticketType) => ticketType.eventId === event.id)
+      ticketTypes: this.store.ticketTypes.filter(
+        (ticketType) => ticketType.eventId === event.id,
+      ),
+      fanAccessAvailable: this.store.fanCampaigns.some(
+        (campaign) =>
+          campaign.eventId === event.id &&
+          campaign.status === "ACTIVE" &&
+          Date.parse(campaign.startsAt) <= now &&
+          Date.parse(campaign.closesAt) > now,
+      ),
     };
   }
 
-  private async createPrismaEvent(prisma: PrismaService, input: CreateEventInput) {
+  private async createPrismaEvent(
+    prisma: PrismaService,
+    input: CreateEventInput,
+  ) {
     const venue = await prisma.venue.create({
       data: {
         id: `ven_${randomUUID()}`,
@@ -147,8 +206,8 @@ export class EventsService {
         city: input.city,
         address: input.venueName,
         timezone: "Asia/Hong_Kong",
-        capacity: 1000
-      }
+        capacity: 1000,
+      },
     });
 
     const event = await prisma.event.create({
@@ -160,22 +219,32 @@ export class EventsService {
         startTime: new Date(input.startTime),
         endTime: new Date(input.endTime),
         status: "DRAFT",
-        posterUrl: null
+        posterUrl: null,
       },
       include: {
         venue: true,
-        ticketTypes: true
-      }
+        ticketTypes: true,
+      },
     });
 
-    await this.audit.record(demoSeedIds.organizerUserId, "EVENT_CREATED", "event", event.id, {
-      title: input.title
-    });
+    await this.audit.record(
+      demoSeedIds.organizerUserId,
+      "EVENT_CREATED",
+      "event",
+      event.id,
+      {
+        title: input.title,
+      },
+    );
 
     return this.mapPrismaEvent(event);
   }
 
-  private async createPrismaTicketType(prisma: PrismaService, eventId: string, input: CreateTicketTypeInput) {
+  private async createPrismaTicketType(
+    prisma: PrismaService,
+    eventId: string,
+    input: CreateTicketTypeInput,
+  ) {
     await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     const ticketType = await prisma.ticketType.create({
       data: {
@@ -187,32 +256,37 @@ export class EventsService {
         supply: input.supply,
         transferable: input.transferable,
         resaleCap: input.resaleCap ?? null,
-        maxTransferCount: input.maxTransferCount
-      }
+        maxTransferCount: input.maxTransferCount,
+      },
     });
 
-    await this.audit.record(demoSeedIds.organizerUserId, "TICKET_TYPE_CREATED", "ticket_type", ticketType.id, {
-      eventId,
-      name: input.name
-    });
+    await this.audit.record(
+      demoSeedIds.organizerUserId,
+      "TICKET_TYPE_CREATED",
+      "ticket_type",
+      ticketType.id,
+      {
+        eventId,
+        name: input.name,
+      },
+    );
 
     return ticketType;
   }
 
-  private mapPrismaEvent(
-    event: {
-      id: string;
-      organizerId: string;
-      title: string;
-      venueId: string;
-      startTime: Date;
-      endTime: Date;
-      status: EventRecord["status"];
-      posterUrl: string | null;
-      venue: unknown;
-      ticketTypes: unknown[];
-    }
-  ) {
+  private mapPrismaEvent(event: {
+    id: string;
+    organizerId: string;
+    title: string;
+    venueId: string;
+    startTime: Date;
+    endTime: Date;
+    status: EventRecord["status"];
+    posterUrl: string | null;
+    venue: unknown;
+    ticketTypes: unknown[];
+    fanCampaigns?: Array<{ id: string }>;
+  }) {
     return {
       id: event.id,
       organizerId: event.organizerId,
@@ -223,11 +297,14 @@ export class EventsService {
       status: event.status,
       posterUrl: event.posterUrl,
       venue: event.venue,
-      ticketTypes: event.ticketTypes
+      ticketTypes: event.ticketTypes,
+      fanAccessAvailable: (event.fanCampaigns?.length ?? 0) > 0,
     };
   }
 
   private prismaClient() {
-    return process.env.FANPASS_DATA_SOURCE === "prisma" ? this.prisma : undefined;
+    return process.env.FANPASS_DATA_SOURCE === "prisma"
+      ? this.prisma
+      : undefined;
   }
 }

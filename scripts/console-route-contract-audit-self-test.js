@@ -470,9 +470,23 @@ async function routeRequest(request, response, pathname, method) {
   if (pathname === "/api/console/events") return handleCreateEvent(request, response);
   if (pathname === "/api/console/gate-assignments") return handleCreateGateAssignment(request, response);
   return handleCreateTicketType(request, response, ticketTypeMatch[1]) ||
+    handleSaveFanCampaign(request, response, fanCampaignMatch[1]) ||
+    handleReviewFanSubmission(request, response, fanSubmissionMatch[1]) ||
     handleCreateGateAssignment(request, response) ||
     handleRotateInvite(request, response, inviteMatch[1]) ||
     handleDeactivateGateAssignment(request, response, deactivateMatch[1]);
+}
+
+async function handleSaveFanCampaign(request, response, eventIdParam) {
+  const originRequest = requestToFetchRequest(request);
+  assertConsoleMutationOrigin(originRequest);
+  return apiPost(\`/fan-access/events/\${encodeURIComponent(eventIdParam)}/campaign\`, {}, request);
+}
+
+async function handleReviewFanSubmission(request, response, submissionIdParam) {
+  const originRequest = requestToFetchRequest(request);
+  assertConsoleMutationOrigin(originRequest);
+  return apiPost(\`/fan-access/submissions/\${encodeURIComponent(submissionIdParam)}/decision\`, {}, request);
 }
 
 function handlePrivyHandoffStart(response) {

@@ -95,6 +95,14 @@ Scope:
 - Deployment-ready environment configuration.
 - Automated tests for matching, scoring, verification, and contracts.
 
+Fan Access V1 local implementation status on 2026-07-16:
+
+- The API owns campaign publication windows, public reward terms, task verification, visible fan score, entitlement state, organizer review, and private risk decisions.
+- The organizer Console has event-scoped campaign configuration and an audited review queue. The active V4 iOS app has the selected Aurora campaign experience, honest guest/auth states, policy disclosure, and real navigation.
+- V1 uses off-chain score/risk and equal-draw disclosure, limits campaigns to three meaningful tasks, treats wallets as proof sources rather than score multipliers, and does not introduce a tradable Fan Token.
+- Local implementation and simulator/design QA are complete. Staging database migration plus real Privy organizer/fan E2E evidence remain required before external testing.
+- Public wallet linking remains intentionally disabled until ownership signatures, replay protection, cooldown, earning-wallet limits, one-account/campaign claim enforcement, and audit evidence can ship as one boundary.
+
 Optional fallback scope:
 
 - A web fan fallback can cover event discovery, login, checkout, ticket wallet, dynamic QR display, QR scanner fallback, secure resale, market overview, Proof & History, and Fan Access.
@@ -111,6 +119,7 @@ Exit criteria:
 - The Beta local start script must keep passing its fixture-backed self-test so inherited Stripe secrets are scrubbed by default, Stripe forwarding requires explicit opt-in, and async ownership/payment-authorization local flags cannot silently drift before local demos or recordings.
 - The Beta local verification script must keep passing its fixture-backed self-test so async ownership finalization, local payment capture, admin-only side-effect outbox health, DB reset skip behavior, and health-response redaction checks cannot silently drift before live local verification is trusted.
 - Local and staging gates can prove through an admin-only API boundary that the side-effect outbox has no dead, failed, or stale runnable jobs after settlement verification.
+- A Fan Access campaign can be published by an authorized organizer, discovered only while active/open, completed through server-authoritative evidence, reviewed with an audited reason where manual proof is needed, and shown to the fan without exposing private risk signals.
 - The local Beta verifier exercises that admin-only health boundary after the live API/worker completes async ownership finalization and payment capture; deployed staging now also proves the same check with a real staging Privy admin bearer from the FanPass Ops simulator login path.
 - The staging dry-run proves the same admin-only health path locally with a Prisma-backed outbox and an ephemeral Privy-like admin bearer, but it is not a substitute for deployed HTTPS staging evidence.
 - Deployed staging runtime evidence must be saved as JSON with real HTTPS URLs, `"localDryRun": false`, API and Console `strict-transport-security` proof, Console `cross-origin-opener-policy` proof, `apiRuntime.trustProxyHops` bounded to the documented 1-3 hop deployment value with a matching `trust proxy hops configured: <n>` checked item, healthy admin side-effect outbox status, the current API/Console header, trust-proxy, admin-health, WebSocket, and evidence-validator implementation SHA-256 snapshot, `"deploymentCredentialsAvailable": false`, `"redaction.deploymentCredentialsRedacted": true`, `"redaction.ciSecretMaskingCommandsRedacted": true`, and no provider keys, deployment/cloud credentials, CI secret masking command literals, database URLs, bearer tokens, JWTs, private keys, or admin-token assignments before the staging gate is closed.

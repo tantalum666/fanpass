@@ -67,6 +67,16 @@ class RequestBodyError extends Error {
   }
 }
 
+class UpstreamApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "UpstreamApiError";
+  }
+}
+
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
 createServer(async (request, response) => {
@@ -74,6 +84,18 @@ createServer(async (request, response) => {
     applySecurityHeaders(response);
     await routeRequest(request, response);
   } catch (error) {
+    if (
+      error instanceof RequestBodyError ||
+      error instanceof UpstreamApiError
+    ) {
+      return sendJson(response, error.status, {
+        ok: false,
+        message: error.message,
+      });
+    }
+    if (error instanceof ConsoleAuthRequiredError) {
+      return sendJson(response, 401, { ok: false, message: error.message });
+    }
     const message =
       error instanceof Error ? error.message : "FanPass Console request failed";
     sendJson(response, 500, { ok: false, message });
@@ -125,6 +147,20 @@ async function routeRequest(
   );
   if (ticketTypeMatch && method === "POST") {
     return handleCreateTicketType(request, response, ticketTypeMatch[1]);
+  }
+
+  const fanCampaignMatch = pathname.match(
+    /^\/api\/console\/events\/([^/]+)\/fan-access$/,
+  );
+  if (fanCampaignMatch && method === "POST") {
+    return handleSaveFanCampaign(request, response, fanCampaignMatch[1]);
+  }
+
+  const fanSubmissionMatch = pathname.match(
+    /^\/api\/console\/fan-access\/submissions\/([^/]+)\/decision$/,
+  );
+  if (fanSubmissionMatch && method === "POST") {
+    return handleReviewFanSubmission(request, response, fanSubmissionMatch[1]);
   }
 
   if (pathname === "/api/console/gate-assignments" && method === "POST") {
@@ -321,6 +357,58 @@ async function handleCreateGateAssignment(
     }
     throw error;
   }
+}
+
+async function handleSaveFanCampaign(
+  request: IncomingMessage,
+  response: ServerResponse,
+  eventIdParam: string,
+) {
+  const originRequest = requestToFetchRequest(request);
+  if (!assertMutationOrigin(originRequest, response)) {
+    return;
+  }
+
+  const eventId = decodeURIComponent(eventIdParam).trim();
+  const body = await readJsonRecord(request);
+  if (!eventId) {
+    return sendJson(response, 400, {
+      ok: false,
+      message: "Event is required",
+    });
+  }
+  const campaign = await apiPost(
+    `/fan-access/events/${encodeURIComponent(eventId)}/campaign`,
+    body,
+    request,
+  );
+  sendJson(response, 200, campaign);
+}
+
+async function handleReviewFanSubmission(
+  request: IncomingMessage,
+  response: ServerResponse,
+  submissionIdParam: string,
+) {
+  const originRequest = requestToFetchRequest(request);
+  if (!assertMutationOrigin(originRequest, response)) {
+    return;
+  }
+
+  const submissionId = decodeURIComponent(submissionIdParam).trim();
+  const body = await readJsonRecord(request);
+  if (!submissionId) {
+    return sendJson(response, 400, {
+      ok: false,
+      message: "Submission is required",
+    });
+  }
+  const submission = await apiPost(
+    `/fan-access/submissions/${encodeURIComponent(submissionId)}/decision`,
+    body,
+    request,
+  );
+  sendJson(response, 200, submission);
 }
 
 async function handleRotateInvite(
@@ -717,8 +805,9 @@ async function apiGet(pathname: string, request: IncomingMessage) {
   });
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new Error(
+    throw new UpstreamApiError(
       responseMessage(payload, `API request failed: ${upstream.status}`),
+      upstream.status,
     );
   }
   return payload;
@@ -741,8 +830,9 @@ async function apiPost(
   });
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new Error(
+    throw new UpstreamApiError(
       responseMessage(payload, `API request failed: ${upstream.status}`),
+      upstream.status,
     );
   }
   return payload;
@@ -777,6 +867,14 @@ async function readJsonBody(request: IncomingMessage) {
   } catch {
     throw new RequestBodyError("Request body must be valid JSON", 400);
   }
+}
+
+async function readJsonRecord(request: IncomingMessage) {
+  const body = await readJsonBody(request);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new RequestBodyError("Request body must be a JSON object", 400);
+  }
+  return body as Record<string, unknown>;
 }
 
 async function readPrivySessionBody(request: IncomingMessage) {

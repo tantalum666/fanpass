@@ -22,6 +22,9 @@ The staging API is backend-authoritative for orders, payments, ownership, resale
 4. Security is release-blocking. Never commit or print provider secrets, bearer tokens, private keys, database URLs, raw QR payloads, or real personal data.
 5. Backend changes must be deployed to the staging backend before asking the owner to test them.
 6. Update the relevant Markdown and especially `docs/CODEX_HANDOFF.md` after meaningful work.
+7. Active consumer/runtime paths must use explicit deployed Staging or Production services. Mock data belongs only to Preview, isolated tests, deterministic fault injection, or clearly labelled internal demos.
+8. Local builds and simulators are supporting compile/debug/regression evidence, not proof of availability, authentication, payment, data integrity, or release readiness. Close those claims with deployed HTTPS, TestFlight/physical-device, and real user-path evidence as appropriate.
+9. When changing a user journey, inspect adjacent entry, loading, empty, failure, recovery, authenticated, and cross-device states proactively instead of waiting for the owner to report each regression.
 
 ## Product Surfaces
 

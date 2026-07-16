@@ -300,6 +300,7 @@ struct FPEventPoster: View {
     var gradient: FanPassV4.HeroGradient?
     var coverAssetName: String?
     var height: CGFloat = 152
+    var showsLabels = true
 
     private var startColor: Color {
         Color(hex: UInt32(gradient?.startHex ?? 0x46E8FF))
@@ -371,26 +372,28 @@ struct FPEventPoster: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: FPSpacing.sm) {
-                if let eyebrow {
-                    FPStatusPill(
-                        title: eyebrow,
-                        foreground: FPColors.textPrimary,
-                        background: Color.black.opacity(0.28),
-                        border: Color.white.opacity(0.22)
-                    )
+            if showsLabels {
+                VStack(alignment: .leading, spacing: FPSpacing.sm) {
+                    if let eyebrow {
+                        FPStatusPill(
+                            title: eyebrow,
+                            foreground: FPColors.textPrimary,
+                            background: Color.black.opacity(0.28),
+                            border: Color.white.opacity(0.22)
+                        )
+                    }
+                    Text(title)
+                        .font(FPTypography.title2)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.76)
+                    Text(gradient?.label.uppercased() ?? "FANPASS")
+                        .font(FPTypography.caption)
+                        .foregroundStyle(Color.white.opacity(0.72))
+                        .tracking(1.2)
                 }
-                Text(title)
-                    .font(FPTypography.title2)
-                    .foregroundStyle(FPColors.textPrimary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.76)
-                Text(gradient?.label.uppercased() ?? "FANPASS")
-                    .font(FPTypography.caption)
-                    .foregroundStyle(Color.white.opacity(0.72))
-                    .tracking(1.2)
+                .padding(FPSpacing.lg)
             }
-            .padding(FPSpacing.lg)
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
         .clipped()

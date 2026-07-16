@@ -68,6 +68,7 @@ struct FanPassEvent: Codable, Identifiable, Hashable {
     let title: String
     let startTime: String
     let status: String
+    let fanAccessAvailable: Bool?
     let venue: Venue?
     let ticketTypes: [TicketType]
 
@@ -515,10 +516,33 @@ struct FanPassCryptoConfirmationResponse: Codable, Hashable {
 struct FanTask: Codable, Identifiable, Hashable {
     let id: String
     let eventId: String
+    let campaignId: String?
     let title: String
+    let description: String?
     let taskType: String
     let points: Int
     let verificationMethod: String
+    let verificationLabel: String?
+    let actionKind: String?
+    let actionTarget: String?
+    let optional: Bool?
+    let sortOrder: Int?
+}
+
+struct FanCampaign: Codable, Identifiable, Hashable {
+    let id: String
+    let eventId: String
+    let title: String
+    let description: String
+    let rewardTitle: String
+    let rewardDescription: String
+    let rewardSupply: Int
+    let qualificationPoints: Int
+    let allocationMethod: String
+    let status: String
+    let startsAt: String
+    let closesAt: String
+    let tasks: [FanTask]
 }
 
 struct FanTaskSubmission: Codable, Identifiable, Hashable {
@@ -533,5 +557,10 @@ struct FanScore: Codable, Hashable {
     let userId: String
     let eventId: String
     let score: Int
+    let fanScore: Int?
+    let campaignId: String?
+    let qualificationPoints: Int?
+    let pointsToQualify: Int?
+    let completedTaskIds: [String]?
     let entitlementStatus: String
 }

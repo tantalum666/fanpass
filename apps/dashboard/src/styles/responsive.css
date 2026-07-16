@@ -16,6 +16,16 @@
   .invite-notice {
     grid-template-columns: 1fr;
   }
+
+  .fan-campaign-contract {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .fan-campaign-contract dl > div:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 880px) {
@@ -99,6 +109,11 @@
   .event-facts > div:nth-child(2) {
     border-right: 0;
   }
+
+  .fan-campaign-settings,
+  .fan-task-editor-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -148,8 +163,38 @@
   .form-columns,
   .event-facts,
   .orderbook-columns,
-  .orderbook-topline {
+  .orderbook-topline,
+  .fan-campaign-settings,
+  .fan-task-editor-toolbar,
+  .fan-campaign-contract dl {
     grid-template-columns: 1fr;
+  }
+
+  .fan-campaign-contract dl > div,
+  .fan-campaign-contract dl > div:first-child {
+    border-bottom: 1px solid #d8e5fb;
+    border-left: 0;
+    padding: 8px 0;
+  }
+
+  .fan-campaign-contract dl > div:last-child {
+    border-bottom: 0;
+  }
+
+  .fan-task-contract {
+    align-items: start;
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .fan-task-contract > div:last-child {
+    align-items: center;
+    display: flex;
+    grid-column: 2;
+    justify-content: space-between;
+  }
+
+  .fan-task-optional {
+    margin-top: 0;
   }
 
   .event-facts > div,

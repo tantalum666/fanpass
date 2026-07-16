@@ -502,7 +502,7 @@ if (!Array.isArray(releasedTicket) || releasedTicket[0].status !== "ACTIVE") {
   throw new Error(`Expected cancelled sell order to release the ticket: ${JSON.stringify(releasedTicket)}`);
 }
 
-const submission = await request("/fan-access/tasks/task_quiz_demo/submissions", {
+const submission = await request("/fan-access/tasks/task_share_demo/submissions", {
   method: "POST",
   headers: auth(fanToken),
   body: JSON.stringify({
@@ -514,7 +514,7 @@ if (submission.status !== "APPROVED") {
 }
 
 const score = await request("/fan-access/events/evt_weekend_demo/users/usr_fan_demo/score", { headers: auth(fanToken) });
-if (score.score !== 20 || score.entitlementStatus !== "WAITLIST") {
+if (score.score !== 35 || score.fanScore !== 35 || score.entitlementStatus !== "NOT_ELIGIBLE") {
   throw new Error(`Unexpected score response: ${JSON.stringify(score)}`);
 }
 

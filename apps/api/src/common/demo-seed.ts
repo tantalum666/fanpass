@@ -1,5 +1,6 @@
 import {
   EventRecord,
+  FanCampaignRecord,
   FanTaskRecord,
   GateAssignmentRecord,
   OrderRecord,
@@ -32,6 +33,7 @@ export const demoSeedIds = {
   settledTicketId: "tkt_demo_003",
   quizTaskId: "task_quiz_demo",
   shareTaskId: "task_share_demo",
+  fanCampaignId: "fac_demo_concert",
 } as const;
 
 export interface DemoSeedData {
@@ -43,12 +45,17 @@ export interface DemoSeedData {
   tickets: TicketRecord[];
   orders: OrderRecord[];
   trades: TradeRecord[];
+  fanCampaigns: FanCampaignRecord[];
   fanTasks: FanTaskRecord[];
   gateAssignments: GateAssignmentRecord[];
 }
 
-export function createDemoSeed(options: { includeMarketDepth?: boolean } = {}): DemoSeedData {
-  const marketDepth = options.includeMarketDepth ? createDemoMarketDepth() : { orders: [], trades: [] };
+export function createDemoSeed(
+  options: { includeMarketDepth?: boolean } = {},
+): DemoSeedData {
+  const marketDepth = options.includeMarketDepth
+    ? createDemoMarketDepth()
+    : { orders: [], trades: [] };
   const publicCatalog = createPublicCatalogSeed();
 
   return {
@@ -188,29 +195,66 @@ export function createDemoSeed(options: { includeMarketDepth?: boolean } = {}): 
         active: true,
       },
     ],
+    fanCampaigns: [
+      {
+        id: demoSeedIds.fanCampaignId,
+        eventId: demoSeedIds.eventId,
+        title: "Demo Concert Fan Access",
+        description:
+          "Choose the actions that fit you. One verified action can be enough.",
+        rewardTitle: "Demo Concert Priority Access",
+        rewardDescription:
+          "A priority purchase window for a future organizer release.",
+        rewardSupply: 240,
+        qualificationPoints: 40,
+        allocationMethod: "EQUAL_DRAW",
+        status: "ACTIVE",
+        startsAt: "2026-07-16T00:00:00.000Z",
+        closesAt: "2026-09-30T15:59:59.000Z",
+        maxLinkedWallets: 5,
+        maxActiveEarningWallets: 3,
+        createdByUserId: demoSeedIds.organizerUserId,
+      },
+      ...publicCatalog.fanCampaigns,
+    ],
     fanTasks: [
       {
         id: demoSeedIds.quizTaskId,
         eventId: demoSeedIds.eventId,
-        title: "Complete artist quiz",
-        taskType: "QUIZ",
-        points: 20,
-        verificationMethod: "AUTO",
+        campaignId: demoSeedIds.fanCampaignId,
+        title: "Follow Demo Artist",
+        description: "Follow the official artist profile on FanPass.",
+        taskType: "FOLLOW",
+        points: 5,
+        verificationMethod: "MANUAL",
+        verificationLabel: "Organizer review",
+        actionKind: "FOLLOW_ARTIST",
+        optional: false,
+        sortOrder: 0,
       },
       {
         id: demoSeedIds.shareTaskId,
         eventId: demoSeedIds.eventId,
-        title: "Share the event page",
-        taskType: "SHARE",
-        points: 10,
+        campaignId: demoSeedIds.fanCampaignId,
+        title: "Hold a verified Demo Concert ticket",
+        description: "FanPass verifies ticket ownership automatically.",
+        taskType: "TICKET_HOLD",
+        points: 35,
         verificationMethod: "AUTO",
+        verificationLabel: "Automatic ticket verification",
+        actionKind: "VIEW_ELIGIBLE_TICKETS",
+        optional: false,
+        sortOrder: 1,
       },
       ...publicCatalog.fanTasks,
     ],
   };
 }
 
-function createPublicCatalogSeed(): Pick<DemoSeedData, "venues" | "events" | "ticketTypes" | "fanTasks"> {
+function createPublicCatalogSeed(): Pick<
+  DemoSeedData,
+  "venues" | "events" | "ticketTypes" | "fanCampaigns" | "fanTasks"
+> {
   const venues: VenueRecord[] = [
     {
       id: "venue_harbor",
@@ -305,16 +349,126 @@ function createPublicCatalogSeed(): Pick<DemoSeedData, "venues" | "events" | "ti
   ];
 
   const eventSpecs = [
-    publicEvent("evt_aurora", "Aurora Nights World Tour", "venue_harbor", "2026-10-12T20:00:00+08:00", 1280, "concerts", true, true, 35_000, 8_000),
-    publicEvent("evt_neon", "Neon Harbor Festival", "venue_riverside", "2026-11-15T18:00:00+08:00", 860, "festivals", true, true, 128, 36),
-    publicEvent("evt_finals", "City Finals 2026", "venue_city", "2026-12-18T19:00:00+08:00", 720, "sports", false, true, 0, 0),
-    publicEvent("evt_indie", "Indie Pulse Live", "venue_indie", "2026-12-22T21:00:00+08:00", 420, "concerts", true, false, 360, 92),
-    publicEvent("evt_lab", "Global Sound Lab", "venue_lab", "2027-01-10T20:00:00+08:00", 560, "theatre", false, true, 0, 0),
-    publicEvent("evt_midnight", "Midnight Stadium Show", "venue_midnight", "2027-02-14T21:00:00+08:00", 1480, "concerts", true, true, 38, 8),
-    publicEvent("evt_future", "Future Beats Conference", "venue_future", "2027-03-06T10:00:00+08:00", 640, "conference", true, true, 360, 92),
-    publicEvent("evt_jazz", "Skyline Jazz Room", "venue_jazz", "2027-04-18T20:00:00+08:00", 520, "concerts", false, true, 360, 92),
-    publicEvent("evt_family", "Family Matinee Spectacular", "venue_family", "2027-05-02T14:00:00+08:00", 5, "theatre", false, true, 1080, 260),
-    publicEvent("evt_comedy", "Underground Comedy Night", "venue_comedy", "2027-05-21T21:00:00+08:00", 320, "theatre", false, true, 690, 170),
+    publicEvent(
+      "evt_aurora",
+      "Aurora Nights World Tour",
+      "venue_harbor",
+      "2026-10-12T20:00:00+08:00",
+      1280,
+      "concerts",
+      true,
+      true,
+      35_000,
+      8_000,
+    ),
+    publicEvent(
+      "evt_neon",
+      "Neon Harbor Festival",
+      "venue_riverside",
+      "2026-11-15T18:00:00+08:00",
+      860,
+      "festivals",
+      true,
+      true,
+      128,
+      36,
+    ),
+    publicEvent(
+      "evt_finals",
+      "City Finals 2026",
+      "venue_city",
+      "2026-12-18T19:00:00+08:00",
+      720,
+      "sports",
+      false,
+      true,
+      0,
+      0,
+    ),
+    publicEvent(
+      "evt_indie",
+      "Indie Pulse Live",
+      "venue_indie",
+      "2026-12-22T21:00:00+08:00",
+      420,
+      "concerts",
+      true,
+      false,
+      360,
+      92,
+    ),
+    publicEvent(
+      "evt_lab",
+      "Global Sound Lab",
+      "venue_lab",
+      "2027-01-10T20:00:00+08:00",
+      560,
+      "theatre",
+      false,
+      true,
+      0,
+      0,
+    ),
+    publicEvent(
+      "evt_midnight",
+      "Midnight Stadium Show",
+      "venue_midnight",
+      "2027-02-14T21:00:00+08:00",
+      1480,
+      "concerts",
+      true,
+      true,
+      38,
+      8,
+    ),
+    publicEvent(
+      "evt_future",
+      "Future Beats Conference",
+      "venue_future",
+      "2027-03-06T10:00:00+08:00",
+      640,
+      "conference",
+      true,
+      true,
+      360,
+      92,
+    ),
+    publicEvent(
+      "evt_jazz",
+      "Skyline Jazz Room",
+      "venue_jazz",
+      "2027-04-18T20:00:00+08:00",
+      520,
+      "concerts",
+      false,
+      true,
+      360,
+      92,
+    ),
+    publicEvent(
+      "evt_family",
+      "Family Matinee Spectacular",
+      "venue_family",
+      "2027-05-02T14:00:00+08:00",
+      5,
+      "theatre",
+      false,
+      true,
+      1080,
+      260,
+    ),
+    publicEvent(
+      "evt_comedy",
+      "Underground Comedy Night",
+      "venue_comedy",
+      "2027-05-21T21:00:00+08:00",
+      320,
+      "theatre",
+      false,
+      true,
+      690,
+      170,
+    ),
   ];
 
   return {
@@ -330,29 +484,97 @@ function createPublicCatalogSeed(): Pick<DemoSeedData, "venues" | "events" | "ti
       posterUrl: null,
     })),
     ticketTypes: eventSpecs.flatMap((event) => ticketTypesForEvent(event)),
+    fanCampaigns: eventSpecs
+      .filter((event) => event.fanAccess)
+      .map((event) => fanCampaignForEvent(event)),
     fanTasks: eventSpecs.flatMap((event) =>
       event.fanAccess
         ? [
             {
-              id: `${event.id}_task_share`,
+              id: `${event.id}_task_follow`,
               eventId: event.id,
-              title: "Follow event updates",
-              taskType: "SHARE",
-              points: 20,
-              verificationMethod: "AUTO",
+              campaignId: `fac_${event.id}`,
+              title: `Follow ${artistName(event)}`,
+              description: "Follow the official artist account.",
+              taskType: "FOLLOW",
+              points: 5,
+              verificationMethod: "MANUAL",
+              verificationLabel: "Organizer review",
+              actionKind: "FOLLOW_ARTIST",
+              optional: false,
+              sortOrder: 0,
             },
             {
-              id: `${event.id}_task_quiz`,
+              id: `${event.id}_task_ticket`,
               eventId: event.id,
-              title: "Complete event quiz",
-              taskType: "QUIZ",
+              campaignId: `fac_${event.id}`,
+              title: `Hold a verified ${artistName(event)} ticket`,
+              description: "Automatic verification.",
+              taskType: "TICKET_HOLD",
               points: 35,
               verificationMethod: "AUTO",
+              verificationLabel: "Automatic ticket verification",
+              actionKind: "VIEW_ELIGIBLE_TICKETS",
+              optional: false,
+              sortOrder: 1,
+            },
+            {
+              id: `${event.id}_task_attend`,
+              eventId: event.id,
+              campaignId: `fac_${event.id}`,
+              title:
+                event.id === demoSeedIds.arenaEventId
+                  ? "Attend Aurora Nights live"
+                  : `Attend ${event.title} live`,
+              description: "Available on event day.",
+              taskType: "CHECK_IN",
+              points: 30,
+              verificationMethod: "AUTO",
+              verificationLabel: "Automatic entry verification",
+              actionKind: "EVENT_DAY",
+              optional: true,
+              sortOrder: 2,
             },
           ]
         : [],
     ),
   };
+}
+
+function fanCampaignForEvent(event: PublicEventSpec): FanCampaignRecord {
+  const isAurora = event.id === demoSeedIds.arenaEventId;
+  return {
+    id: `fac_${event.id}`,
+    eventId: event.id,
+    title: `${event.title} Fan Access`,
+    description:
+      "Choose the actions that fit you. One verified action can be enough.",
+    rewardTitle: isAurora
+      ? "Aurora Encore Priority Presale"
+      : `${event.title} Priority Access`,
+    rewardDescription:
+      "Qualified fans enter the published allocation for a future organizer benefit.",
+    rewardSupply: isAurora ? 240 : 100,
+    qualificationPoints: 40,
+    allocationMethod: "EQUAL_DRAW",
+    status: "ACTIVE",
+    startsAt: "2026-07-16T00:00:00.000Z",
+    closesAt: isAurora
+      ? "2026-07-28T15:59:59.000Z"
+      : new Date(
+          Date.parse(event.startTime) - 30 * 24 * 60 * 60 * 1_000,
+        ).toISOString(),
+    maxLinkedWallets: 5,
+    maxActiveEarningWallets: 3,
+    createdByUserId: demoSeedIds.organizerUserId,
+  };
+}
+
+function artistName(event: PublicEventSpec) {
+  if (event.id === demoSeedIds.arenaEventId) {
+    return "Aurora";
+  }
+  return event.title;
 }
 
 interface PublicEventSpec {
@@ -404,7 +626,9 @@ function ticketTypesForEvent(event: PublicEventSpec): TicketTypeRecord[] {
   const supplies = [
     event.generalSupply,
     event.premiumSupply,
-    event.generalSupply === 0 ? 0 : Math.max(2, Math.floor(event.premiumSupply / 4)),
+    event.generalSupply === 0
+      ? 0
+      : Math.max(2, Math.floor(event.premiumSupply / 4)),
   ];
   const ticketTypes = names.map((name, index) => ({
     id: [`${event.id}_ga`, `${event.id}_premium`, `${event.id}_vip`][index],

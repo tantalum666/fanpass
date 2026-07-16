@@ -104,7 +104,7 @@ struct FanAccessView: View {
     }
 
     private func submit(_ task: FanTask) {
-        guard appState.requireAuth(.fanAccess), let session = appState.session else {
+        guard appState.requireAuth(.fanAccess), appState.session != nil else {
             return
         }
 
@@ -112,7 +112,6 @@ struct FanAccessView: View {
             do {
                 let submission = try await appState.apiClient.submitFanTask(
                     taskId: task.id,
-                    userId: session.userId,
                     proof: "ios-alpha-\(task.taskType.lowercased())"
                 )
                 statusMessage = "\(task.title): \(submission.status)"

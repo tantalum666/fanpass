@@ -1,4 +1,6 @@
-FANPASS_API_BASE_URL = http:/$()/localhost:4000
+// Debug builds use deployed Staging by default. Override this only in the ignored
+// LocalSecrets.xcconfig when intentionally debugging a running local API.
+FANPASS_API_BASE_URL = https:/$()/fanpass-api-staging.onrender.com
 FANPASS_PRIVY_APP_ID =
 FANPASS_PRIVY_APP_CLIENT_ID =
 FANPASS_STRIPE_PUBLISHABLE_KEY =

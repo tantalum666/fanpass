@@ -112,10 +112,42 @@ export interface TradeRecord {
 export interface FanTaskRecord {
   id: string;
   eventId: string;
+  campaignId?: string | null;
   title: string;
-  taskType: "QUIZ" | "SHARE" | "CHECK_IN" | "PURCHASE_HISTORY" | "MANUAL";
+  description?: string;
+  taskType:
+    | "FOLLOW"
+    | "TICKET_HOLD"
+    | "CHECK_IN"
+    | "PURCHASE_HISTORY"
+    | "QUIZ"
+    | "SHARE"
+    | "MANUAL";
   points: number;
   verificationMethod: "AUTO" | "MANUAL";
+  verificationLabel?: string;
+  actionKind?: string;
+  actionTarget?: string | null;
+  optional?: boolean;
+  sortOrder?: number;
+}
+
+export interface FanCampaignRecord {
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  rewardTitle: string;
+  rewardDescription: string;
+  rewardSupply: number;
+  qualificationPoints: number;
+  allocationMethod: "EQUAL_DRAW" | "GUARANTEED";
+  status: "DRAFT" | "ACTIVE" | "CLOSED" | "ALLOCATED" | "ARCHIVED";
+  startsAt: string;
+  closesAt: string;
+  maxLinkedWallets: number;
+  maxActiveEarningWallets: number;
+  createdByUserId: string;
 }
 
 export interface FanTaskSubmissionRecord {

@@ -3,7 +3,7 @@ import SwiftUI
 struct FanPassV4CheckoutView: View {
     @Environment(FanPassBackendContext.self) private var backend
     @Environment(FanPassRootViewModel.self) private var appViewModel
-    @State private var viewModel = CheckoutViewModel()
+    @State private var viewModel: CheckoutViewModel
     @State private var paymentSheetRequest: UUID?
     @State private var preparedPayment: FanPassPaymentIntent?
     @State private var isPreparingStripe = false
@@ -16,8 +16,8 @@ struct FanPassV4CheckoutView: View {
     @State private var availableByTicketType: [String: Int] = [:]
 
     init(
-        event: FanPassV4.Event = FanPassMockData.events[0],
-        ticketType: FanPassV4.TicketType = FanPassMockData.events[0].safePrimaryTicketType,
+        event: FanPassV4.Event,
+        ticketType: FanPassV4.TicketType,
         quotedPrice: Int? = nil,
         priceLineTitle: String = "Face value",
         fulfillmentMode: FanPassOrderFulfillmentMode = .primaryOnly,
@@ -777,6 +777,11 @@ private enum CryptoPaymentState: Equatable {
     case failed(String)
 }
 
+#if DEBUG
 #Preview {
-    FanPassV4CheckoutView()
+    FanPassV4CheckoutView(
+        event: FanPassV4PreviewContent.event,
+        ticketType: FanPassV4PreviewContent.event.safePrimaryTicketType
+    )
 }
+#endif

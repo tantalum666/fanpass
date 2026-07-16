@@ -9,13 +9,17 @@ import {
   TableFrame,
   toneForStatus,
 } from "../../components/ConsoleUi";
+import { FanAccessCampaignPanel } from "./FanAccessCampaignPanel";
+import { FanAccessReviewQueue } from "./FanAccessReviewQueue";
 
 export function RiskPage({
   operations,
   eventView,
+  onRefresh,
 }: {
   operations: AlphaOperations;
   eventView: EventOperationsView;
+  onRefresh: () => Promise<void>;
 }) {
   const pendingReviews = eventView.fanTaskSubmissions.filter(
     (item) => item.status === "PENDING",
@@ -26,6 +30,8 @@ export function RiskPage({
   const pendingJobs = operations.sideEffects.filter(
     (item) => item.status === "PENDING",
   ).length;
+  const campaign =
+    eventView.fanCampaigns.find((item) => item.status !== "ARCHIVED") ?? null;
 
   return (
     <>
@@ -61,46 +67,17 @@ export function RiskPage({
         ]}
       />
 
-      <Section
-        title="Fan Access review"
-        description={`Task submissions scoped to ${eventView.event.title}.`}
-      >
-        {eventView.fanTaskSubmissions.length === 0 ? (
-          <EmptyState
-            title="No submissions"
-            description="Fan Access submissions will appear here when review is required."
-          />
-        ) : (
-          <TableFrame>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Task</th>
-                  <th>User</th>
-                  <th>Proof</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventView.fanTaskSubmissions.map((submission) => (
-                  <tr key={submission.id}>
-                    <td>
-                      <strong>{submission.taskTitle}</strong>
-                    </td>
-                    <td className="mono-cell">{shortId(submission.userId)}</td>
-                    <td className="proof-cell">{submission.proof}</td>
-                    <td>
-                      <Badge tone={toneForStatus(submission.status)}>
-                        {titleCase(submission.status)}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableFrame>
-        )}
-      </Section>
+      <FanAccessCampaignPanel
+        campaign={campaign}
+        event={eventView.event}
+        onRefresh={onRefresh}
+      />
+
+      <FanAccessReviewQueue
+        eventTitle={eventView.event.title}
+        onRefresh={onRefresh}
+        submissions={eventView.fanTaskSubmissions}
+      />
 
       <div className="content-columns content-columns--risk">
         <Section

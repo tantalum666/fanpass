@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FanPassV4AppShellView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = FanPassRootViewModel()
     @State private var backend = FanPassBackendContext()
 
@@ -41,6 +42,25 @@ struct FanPassV4AppShellView: View {
         .preferredColorScheme(.dark)
         .task {
             await backend.runRealtimeSyncLoop()
+        }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await backend.handleAppBecameActive()
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(60))
+                    backend.requestPublicCatalogRefresh()
+                }
+            } catch {
+                // Leaving the active scene cancels adaptive catalog refresh.
+            }
+        }
+        .task {
+            for await _ in NotificationCenter.default.notifications(
+                named: .fanPassPublicCatalogDidRefresh
+            ) {
+                backend.requestPublicCatalogRefresh()
+            }
         }
     }
 }

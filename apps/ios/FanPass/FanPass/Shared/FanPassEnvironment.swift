@@ -15,10 +15,10 @@ enum FanPassEnvironment {
               !rawValue.hasPrefix("$("),
               let url = URL(string: rawValue)
         else {
-            return localDevelopmentAPIBaseURL
+            fatalError("FanPassAPIBaseURL must be configured explicitly for every build.")
         }
 
-        assertSafeDistributionURL(url)
+        assertConfiguredAPIURL(url)
         return url
     }
 
@@ -49,17 +49,16 @@ enum FanPassEnvironment {
         return PrivyConfiguration(appId: appId, appClientId: appClientId)
     }
 
-    private static var localDevelopmentAPIBaseURL: URL {
-        #if DEBUG
-        URL(string: "http://localhost:4000")!
-        #else
-        fatalError("FanPassAPIBaseURL must be configured for non-Debug builds.")
-        #endif
-    }
-
-    private static func assertSafeDistributionURL(_ url: URL) {
-        #if !DEBUG
+    private static func assertConfiguredAPIURL(_ url: URL) {
         let host = url.host?.lowercased()
+        if !["http", "https"].contains(url.scheme?.lowercased() ?? "") ||
+            host == nil ||
+            host?.contains("replace-me") == true ||
+            host?.hasSuffix(".invalid") == true {
+            fatalError("FanPassAPIBaseURL must be a configured HTTP(S) origin.")
+        }
+
+        #if !DEBUG
         if url.scheme != "https" ||
             host == "localhost" ||
             host == "127.0.0.1" ||

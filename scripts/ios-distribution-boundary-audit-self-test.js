@@ -96,6 +96,16 @@ const cases = [
       ),
   },
   {
+    label: "rejects Local Debug default pointing at localhost",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/Config/Local.xcconfig",
+        "FANPASS_API_BASE_URL = http:/$()/localhost:4000\nFANPASS_PRIVY_APP_ID =\nFANPASS_PRIVY_APP_CLIENT_ID =\nFANPASS_STRIPE_PUBLISHABLE_KEY =\n",
+      ),
+  },
+  {
     label: "rejects server-side secret marker in iOS config",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -320,7 +330,7 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(
     fixtureRoot,
     "apps/ios/FanPass/Config/Local.xcconfig",
-    "FANPASS_API_BASE_URL = http:/$()/localhost:4000\nFANPASS_PRIVY_APP_ID =\nFANPASS_PRIVY_APP_CLIENT_ID =\nFANPASS_STRIPE_PUBLISHABLE_KEY =\n",
+    "FANPASS_API_BASE_URL = https:/$()/fanpass-api-staging.onrender.com\nFANPASS_PRIVY_APP_ID =\nFANPASS_PRIVY_APP_CLIENT_ID =\nFANPASS_STRIPE_PUBLISHABLE_KEY =\n",
   );
   for (const [file, host] of [
     [

@@ -27,7 +27,7 @@ struct FanPassV4HomeView: View {
             HomeWindowSheet(window: window)
                 .presentationDetents([.medium, .large])
         }
-        .task(id: "\(backend.user.id)-\(backend.isAuthenticated)-\(backend.connectionState.rawValue)") {
+        .task(id: "\(backend.user.id)-\(backend.isAuthenticated)-\(backend.publicCatalogRefreshRevision)") {
             await viewModel.load(
                 user: backend.user,
                 isAuthenticated: backend.isAuthenticated,
@@ -110,10 +110,10 @@ struct FanPassV4HomeView: View {
     private var sourceBanner: some View {
         if let sourceMessage = viewModel.sourceMessage {
             FPStateBanner(
-                title: "Could not refresh",
+                title: viewModel.isUsingSavedEvents ? "Saved events available" : "Could not refresh",
                 message: sourceMessage,
                 kind: .warning,
-                actionTitle: "Retry"
+                actionTitle: "Refresh now"
             ) {
                 Task {
                     await viewModel.load(

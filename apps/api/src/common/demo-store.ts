@@ -17,6 +17,7 @@ import {
   VenueRecord,
   EventRecord,
   FanTaskRecord,
+  FanCampaignRecord,
   TicketTypeRecord,
 } from "./domain";
 import { createDemoSeed } from "./demo-seed";
@@ -32,6 +33,7 @@ export class DemoStore {
   readonly orders: OrderRecord[] = [];
   readonly trades: TradeRecord[] = [];
   readonly fanTasks: FanTaskRecord[] = [];
+  readonly fanCampaigns: FanCampaignRecord[] = [];
   readonly fanTaskSubmissions: FanTaskSubmissionRecord[] = [];
   readonly gateAssignments: GateAssignmentRecord[] = [];
   readonly checkins: CheckinRecord[] = [];
@@ -51,6 +53,7 @@ export class DemoStore {
     this.orders.length = 0;
     this.trades.length = 0;
     this.fanTasks.length = 0;
+    this.fanCampaigns.length = 0;
     this.fanTaskSubmissions.length = 0;
     this.gateAssignments.length = 0;
     this.checkins.length = 0;
@@ -69,6 +72,7 @@ export class DemoStore {
     this.orders.push(...seed.orders);
     this.trades.push(...seed.trades);
     this.fanTasks.push(...seed.fanTasks);
+    this.fanCampaigns.push(...seed.fanCampaigns);
     this.gateAssignments.push(...seed.gateAssignments);
   }
 

@@ -4,6 +4,8 @@ Date: 2026-05-29
 
 This document defines the minimum environment separation before FanPass is exposed outside local development.
 
+Capacity, cost, global regional placement, paid-plan upgrades, and AWS/GCP migration decisions are governed by `docs/INFRASTRUCTURE_SCALING_PLAN.md`. The current Oregon Free services are staging-only. Production region selection must use actual organizer/event geography and latency evidence; it must not be inferred from demo city copy.
+
 ## Environment Tiers
 
 | Tier       | Purpose                                         | Real users           | Real money                       | Demo auth |

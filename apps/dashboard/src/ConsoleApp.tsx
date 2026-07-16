@@ -210,7 +210,11 @@ export function ConsoleApp() {
           <TeamPage eventView={eventView} onRefresh={refresh} />
         ) : null}
         {page === "risk" ? (
-          <RiskPage eventView={eventView} operations={operations} />
+          <RiskPage
+            eventView={eventView}
+            onRefresh={refresh}
+            operations={operations}
+          />
         ) : null}
       </Suspense>
     </ConsoleShell>

@@ -35,6 +35,8 @@ console.log(
         "/api/console/operations": ["GET"],
         "/api/console/events": ["POST"],
         "/api/console/events/:eventId/ticket-types": ["POST"],
+        "/api/console/events/:eventId/fan-access": ["POST"],
+        "/api/console/fan-access/submissions/:submissionId/decision": ["POST"],
         "/api/console/gate-assignments": ["POST"],
         "/api/console/gate-assignments/:assignmentId/invites": ["POST"],
         "/api/console/gate-assignments/:assignmentId/deactivate": ["POST"],
@@ -60,6 +62,10 @@ function auditConsoleBff() {
     'pathname === "/api/console/operations"',
     'pathname === "/api/console/events"',
     "handleCreateTicketType(request, response, ticketTypeMatch[1])",
+    "handleSaveFanCampaign(request, response, fanCampaignMatch[1])",
+    "handleReviewFanSubmission(",
+    "/fan-access/events/",
+    "/fan-access/submissions/",
     'pathname === "/api/console/gate-assignments"',
     "handleRotateInvite(request, response, inviteMatch[1])",
     "assertConsoleMutationOrigin(originRequest)",
@@ -114,6 +120,16 @@ function auditConsoleBff() {
         "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
       pattern:
         /handleDeactivateGateAssignment\s*\(\s*request\s*,\s*response\s*,\s*deactivateMatch\[1\]\s*,?\s*\)/,
+    },
+  ]);
+  requireFunctionPatterns(consoleBff, contents, "handleRotateInvite", [
+    {
+      label: "encode normalizedAssignmentId before invite rotation",
+      pattern: /encodeURIComponent\(\s*normalizedAssignmentId\s*,?\s*\)/,
+    },
+    {
+      label: "target the invite rotation endpoint",
+      pattern: /\/invites/,
     },
   ]);
 
@@ -294,6 +310,26 @@ function requirePatterns(file, contents, requirements) {
       errors.push(`${file} is missing required Console boundary: ${label}`);
     }
   }
+}
+
+function requireFunctionPatterns(file, contents, functionName, requirements) {
+  const escapedFunctionName = functionName.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const functionPattern = new RegExp(
+    `async function ${escapedFunctionName}\\b[\\s\\S]*?(?=\\n(?:async )?function |$)`,
+  );
+  const functionContents = contents.match(functionPattern)?.[0];
+
+  if (!functionContents) {
+    errors.push(
+      `${file} is missing required Console function: ${functionName}`,
+    );
+    return;
+  }
+
+  requirePatterns(file, functionContents, requirements);
 }
 
 function requireOccurrences(file, contents, snippet, minimum) {

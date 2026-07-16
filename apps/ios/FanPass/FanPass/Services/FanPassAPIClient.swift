@@ -28,15 +28,26 @@ extension APIClientError: LocalizedError {
 struct FanPassAPIClient {
     let baseURL: URL
     var accessToken: String? = nil
+    private let session: URLSession
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
+    init(
+        baseURL: URL,
+        accessToken: String? = nil,
+        session: URLSession = FanPassNetworkSession.shared
+    ) {
+        self.baseURL = baseURL
+        self.accessToken = accessToken
+        self.session = session
+    }
+
     func withAccessToken(_ token: String?) -> FanPassAPIClient {
-        FanPassAPIClient(baseURL: baseURL, accessToken: token)
+        FanPassAPIClient(baseURL: baseURL, accessToken: token, session: session)
     }
 
     func events() async throws -> [FanPassEvent] {
-        try await get("/events")
+        try await get("/events", retryOnTransientNetworkLoss: true)
     }
 
     func onsaleSnapshot(eventId: String) async throws -> FanPassOnsaleSnapshot {
@@ -270,15 +281,18 @@ struct FanPassAPIClient {
         try await get("/fan-access/events/\(eventId)/tasks")
     }
 
-    func submitFanTask(taskId: String, userId: String, proof: String) async throws -> FanTaskSubmission {
+    func fanCampaign(eventId: String) async throws -> FanCampaign? {
+        try await get("/fan-access/events/\(eventId)/campaign")
+    }
+
+    func submitFanTask(taskId: String, proof: String? = nil) async throws -> FanTaskSubmission {
         struct SubmitTaskRequest: Encodable {
-            let userId: String
-            let proof: String
+            let proof: String?
         }
 
         return try await post(
             "/fan-access/tasks/\(taskId)/submissions",
-            body: SubmitTaskRequest(userId: userId, proof: proof)
+            body: SubmitTaskRequest(proof: proof)
         )
     }
 
@@ -348,16 +362,10 @@ struct FanPassAPIClient {
 
     private func get<T: Decodable>(
         _ path: String,
-        retryOnTransientNetworkLoss: Bool = false
+        retryOnTransientNetworkLoss: Bool = true
     ) async throws -> T {
-        do {
-            return try await performGet(path)
-        } catch {
-            guard retryOnTransientNetworkLoss, isTransientNetworkFailure(error) else {
-                throw error
-            }
-            try await Task.sleep(nanoseconds: 350_000_000)
-            return try await performGet(path)
+        try await retryingTransientFailures(enabled: retryOnTransientNetworkLoss) {
+            try await performGet(path)
         }
     }
 
@@ -365,9 +373,15 @@ struct FanPassAPIClient {
         let url = baseURL.appending(path: path)
         var request = URLRequest(url: url)
         applyAuthorization(to: &request)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw decodeAPIError(data)
+            let apiError = decodeAPIError(data)
+            if let http = response as? HTTPURLResponse,
+               Self.isRetryableHTTPStatus(http.statusCode)
+            {
+                throw FanPassTransientHTTPError(apiError: apiError)
+            }
+            throw apiError
         }
         return try decoder.decode(T.self, from: data)
     }
@@ -378,14 +392,8 @@ struct FanPassAPIClient {
         headers: [String: String] = [:],
         retryOnTransientNetworkLoss: Bool = false
     ) async throws -> T {
-        do {
-            return try await performPost(path, body: body, headers: headers)
-        } catch {
-            guard retryOnTransientNetworkLoss, isTransientNetworkFailure(error) else {
-                throw error
-            }
-            try await Task.sleep(nanoseconds: 350_000_000)
-            return try await performPost(path, body: body, headers: headers)
+        try await retryingTransientFailures(enabled: retryOnTransientNetworkLoss) {
+            try await performPost(path, body: body, headers: headers)
         }
     }
 
@@ -403,9 +411,15 @@ struct FanPassAPIClient {
         }
         applyAuthorization(to: &request)
         request.httpBody = try encoder.encode(body)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw decodeAPIError(data)
+            let apiError = decodeAPIError(data)
+            if let http = response as? HTTPURLResponse,
+               Self.isRetryableHTTPStatus(http.statusCode)
+            {
+                throw FanPassTransientHTTPError(apiError: apiError)
+            }
+            throw apiError
         }
         if data.isEmpty {
             guard let emptyResponse = EmptyResponse() as? T else {
@@ -416,14 +430,50 @@ struct FanPassAPIClient {
         return try decoder.decode(T.self, from: data)
     }
 
+    private func retryingTransientFailures<T>(
+        enabled: Bool,
+        operation: () async throws -> T
+    ) async throws -> T {
+        let retryDelays: [Duration] = [.milliseconds(300), .milliseconds(900)]
+        var attempt = 0
+
+        while true {
+            do {
+                return try await operation()
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                let surfacedError = (error as? FanPassTransientHTTPError)?.apiError ?? error
+                guard enabled,
+                      attempt < retryDelays.count,
+                      isTransientNetworkFailure(error)
+                else {
+                    throw surfacedError
+                }
+                try await Task.sleep(for: retryDelays[attempt])
+                attempt += 1
+            }
+        }
+    }
+
     private func isTransientNetworkFailure(_ error: Error) -> Bool {
+        if error is FanPassTransientHTTPError {
+            return true
+        }
         let nsError = error as NSError
         guard nsError.domain == NSURLErrorDomain else {
             return false
         }
         return nsError.code == NSURLErrorNetworkConnectionLost ||
             nsError.code == NSURLErrorCannotConnectToHost ||
+            nsError.code == NSURLErrorCannotFindHost ||
+            nsError.code == NSURLErrorNotConnectedToInternet ||
+            nsError.code == NSURLErrorDNSLookupFailed ||
             nsError.code == NSURLErrorTimedOut
+    }
+
+    private static func isRetryableHTTPStatus(_ statusCode: Int) -> Bool {
+        statusCode == 408 || statusCode == 425 || statusCode == 429 || (500...599).contains(statusCode)
     }
 
     private func applyAuthorization(to request: inout URLRequest) {
@@ -439,6 +489,25 @@ struct FanPassAPIClient {
         }
         return .api(result: body.result, message: body.messageText)
     }
+}
+
+private enum FanPassNetworkSession {
+    static let shared: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 30
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        configuration.urlCache = URLCache(
+            memoryCapacity: 20 * 1_024 * 1_024,
+            diskCapacity: 100 * 1_024 * 1_024
+        )
+        return URLSession(configuration: configuration)
+    }()
+}
+
+private struct FanPassTransientHTTPError: Error {
+    let apiError: APIClientError
 }
 
 struct FanPassWalletBalancesResponse: Codable, Hashable {

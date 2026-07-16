@@ -14,17 +14,31 @@ This directory contains current product contracts and machine-checked evidence. 
 
 ## Core Contracts
 
+| Document                                            | Purpose                                                                    |
+| --------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ARCHITECTURE.md`                                   | Product surfaces and system ownership boundaries.                          |
+| `FAN_ACCESS_V1.md`                                  | Fan Access campaign, score, wallet, anti-abuse, Console, and iOS contract. |
+| `MAIN_APP_PRODUCT_AUDIT.md`                         | Living V4 consumer release audit, severity backlog, evidence, and gates.   |
+| `DEPLOYMENT_ENVIRONMENTS.md`                        | Local, staging, and production-like environment rules.                     |
+| `INFRASTRUCTURE_SCALING_PLAN.md`                    | Global regions, cost stages, upgrade triggers, and AWS/GCP migration plan. |
+| `PROVIDER_COST_FEASIBILITY.md`                      | Stripe, Privy, and provider constraints.                                   |
+| `IOS_DISTRIBUTION_PLAN.md`                          | Signing, TestFlight, and release boundaries.                               |
+| `PROTOTYPE_SHORTCUT_REGISTER.md`                    | Explicitly contained prototype-only behavior.                              |
+| `technical/FanPass_High_Demand_Onsale_Design_V4.md` | Queue, hold, inventory, and fairness design.                               |
+| `technical/FanPass_Orderbook_Design_V4.md`          | Controlled resale orderbook behavior.                                      |
+| `technical/FanPass_QR_NFC_Verification_Plan_V4.md`  | Backend-authoritative entry and replay rules.                              |
+| `technical/FanPass_Chain_Custody_Runbook_V4.md`     | Chain signer/custody operations.                                           |
+
+## Commercial Vibe Coding System
+
 | Document | Purpose |
 | --- | --- |
-| `ARCHITECTURE.md` | Product surfaces and system ownership boundaries. |
-| `DEPLOYMENT_ENVIRONMENTS.md` | Local, staging, and production-like environment rules. |
-| `PROVIDER_COST_FEASIBILITY.md` | Stripe, Privy, and provider constraints. |
-| `IOS_DISTRIBUTION_PLAN.md` | Signing, TestFlight, and release boundaries. |
-| `PROTOTYPE_SHORTCUT_REGISTER.md` | Explicitly contained prototype-only behavior. |
-| `technical/FanPass_High_Demand_Onsale_Design_V4.md` | Queue, hold, inventory, and fairness design. |
-| `technical/FanPass_Orderbook_Design_V4.md` | Controlled resale orderbook behavior. |
-| `technical/FanPass_QR_NFC_Verification_Plan_V4.md` | Backend-authoritative entry and replay rules. |
-| `technical/FanPass_Chain_Custody_Runbook_V4.md` | Chain signer/custody operations. |
+| `vibe-coding/README.md` | Entry point, usage model, evidence layers, and maintenance rules. |
+| `vibe-coding/FANPASS_JOURNEY.md` | Continuously updated FanPass progress, experiments, problems, decisions, and current next steps. |
+| `vibe-coding/COMMERCIAL_PROJECT_PLAYBOOK.md` | Reusable stage gates from opportunity through paid pilot and scale. |
+| `vibe-coding/TEMPLATES.md` | Copyable project, task, decision, incident, release, content, cost, and review templates. |
+
+The Journey is the continuously updated project-learning record; `CODEX_HANDOFF.md` remains the concise current-state snapshot. Neither document claims that the in-progress product has completed commercial launch, and neither should duplicate a raw chat transcript.
 
 ## Evidence Contracts
 

@@ -78,12 +78,12 @@ Use separate build configurations or `.xcconfig` files before TestFlight:
 
 | Environment     | API base URL                                                      | Data/payment mode                | Intended audience         |
 | --------------- | ----------------------------------------------------------------- | -------------------------------- | ------------------------- |
-| Local Debug     | `Config/Local.xcconfig` -> `http://localhost:4000`                | local demo/mock                  | Simulator and development |
+| Local Debug     | `Config/Local.xcconfig` -> deployed Staging HTTPS by default      | real Staging services            | Simulator and development |
 | Staging Debug   | `Config/Staging.xcconfig` -> replace with HTTPS staging API       | Stripe test mode, Privy test app | Founder/internal QA       |
 | TestFlight Beta | `Config/Beta.xcconfig` -> replace with HTTPS beta API             | Stripe test mode only            | Closed external testers   |
 | Production      | `Config/Production.xcconfig` -> replace with HTTPS production API | Production-grade providers only  | Future public launch      |
 
-Local HTTP must not ship in TestFlight. Both apps need an environment-aware API client before external testers receive builds.
+Local HTTP is allowed only through an explicit gitignored `LocalSecrets.xcconfig` override while a developer is intentionally running the local API. It must never be the checked-in default and must not ship in TestFlight. Both apps use the environment-aware API client before external testers receive builds.
 
 ## TestFlight Rollout Stages
 

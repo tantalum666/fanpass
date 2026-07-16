@@ -76,6 +76,15 @@ targets:
           - CFBundleURLName: fun.fanpass.app
             CFBundleURLSchemes:
               - fanpass-payments
+  FanPassTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - FanPassTests
+    dependencies:
+      - target: FanPass
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
   FanPassOps:
     type: application
     platform: iOS
@@ -127,3 +136,23 @@ targets:
           - CFBundleURLName: com.fanpass.ops
             CFBundleURLSchemes:
               - fanpass-ops
+schemes:
+  FanPass:
+    build:
+      targets:
+        FanPass: all
+        FanPassTests:
+          - test
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - FanPassTests
+  FanPassOps:
+    build:
+      targets:
+        FanPassOps: all
+    run:
+      config: Debug

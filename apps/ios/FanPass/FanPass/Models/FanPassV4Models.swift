@@ -444,17 +444,24 @@ enum FanPassV4 {
     }
 
     struct MarketSummary: Hashable {
-        var floorPrice: Int
+        var floorPrice: Int?
         var organizerCap: Int
-        var recentSale: Int
+        var recentSale: Int?
         var volume: Int
         var currency: String
-        var suggestedResalePrice: Int
+        var suggestedResalePrice: Int?
         var priceHistory: [PricePoint]
 
-        var floorPriceLabel: String { MoneyFormatter.format(floorPrice, currency: currency) }
+        var floorPriceLabel: String {
+            floorPrice.map { MoneyFormatter.format($0, currency: currency) } ?? "No asks"
+        }
         var capLabel: String { MoneyFormatter.format(organizerCap, currency: currency) }
-        var suggestedResalePriceLabel: String { MoneyFormatter.format(suggestedResalePrice, currency: currency) }
+        var recentSaleLabel: String {
+            recentSale.map { MoneyFormatter.format($0, currency: currency) } ?? "No sales"
+        }
+        var suggestedResalePriceLabel: String {
+            suggestedResalePrice.map { MoneyFormatter.format($0, currency: currency) } ?? "Unavailable"
+        }
     }
 
     struct PricePoint: Identifiable, Hashable {
@@ -546,7 +553,7 @@ extension FanPassV4.TicketType {
             id: "\(event.id)_ticket_unavailable",
             eventId: event.id,
             name: "Tickets unavailable",
-            faceValue: event.marketSummary.floorPrice,
+            faceValue: 0,
             currency: event.marketSummary.currency,
             supply: 0,
             availableQuantity: 0,
@@ -559,6 +566,18 @@ extension FanPassV4.TicketType {
             refundPolicy: "Ticket categories are not available for this event yet."
         )
     }
+}
+
+extension FanPassV4.User {
+    static let guest = FanPassV4.User(
+        id: "usr_guest",
+        displayName: "Guest",
+        email: "",
+        role: .guest,
+        scenario: .normalFan,
+        walletReference: nil,
+        accessBadges: []
+    )
 }
 
 enum MoneyFormatter {

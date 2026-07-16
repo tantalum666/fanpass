@@ -1,12 +1,29 @@
 # Development Tasks
 
+## Main App Real-Product Audit - 2026-07-17
+
+Source: `MAIN_APP_PRODUCT_AUDIT.md` and a fresh V4 runtime/source/Staging review.
+
+- [x] Audit Home, Explore, Market, Tickets, Account, Event Detail, public Staging catalog, runtime provenance, accessibility surface, and active mock/local boundaries as one consumer journey.
+- [ ] P0: filter public event list/detail reads by backend-owned publication/visibility policy; isolate DRAFT/test evidence from externally reachable Staging APIs and add negative contract tests.
+- [ ] P0: parse fractional-second ISO-8601 timestamps strictly, remove required-date fallback to `Date()`, and add mapper tests covering time zones and malformed input.
+- [ ] P0: make market floor/recent sale nullable and sourced only from live asks/settled trades; never substitute face value for resale history.
+- [ ] P0: remove active production initializers that default to mock services/data, make Staging/Beta/Release API configuration fail closed, and require explicit opt-in for localhost.
+- [ ] P0: add consumer iOS unit/UI test targets and protect session, payment, ticket, resale, QR, redemption, and recovery lifecycles before external Beta.
+- [ ] P1: replace Home concept search, notifications, favorite, location, popularity, and announcement claims with real services or honest release copy.
+- [ ] P1: rebuild Explore in stages around real event search/filter, artist entities/follows, and rights-cleared editorial content; collapse empty Fan Access.
+- [ ] P1: align Event Detail and Market to one truthful market contract, preserve selected event/category context, hide closed Fan Access, and make the purchase action state-aware.
+- [ ] P1: distinguish persisted Account settings from local-only UI state and prioritize real support, notifications, region/currency, and payout services for the launch scope.
+- [ ] P2: complete global currency/localization/content QA, 44-point touch targets, VoiceOver/Dynamic Type/focus testing, privacy-safe journey analytics, domain-scoped refresh, and feature-file decomposition.
+- [ ] Close each release gate with deployed Staging, TestFlight/physical-device, and real user-path evidence; local builds and mocks remain supporting tools only.
+
 ## Main App Productization - 2026-07-11 Audit
 
 Source: consolidated from the 2026-07-11 main-app audit; the full historical review remains in Git history.
 
 - [x] Resolve the six high production dependency advisories, pass the fail-closed advisory gate, run backend regressions, and deploy the verified update to staging.
 - [ ] Add `FanPassTests` and critical auth/payment/ticket/resale/redemption lifecycle tests. Owner deferred this action on 2026-07-11 after completing the requested testing; no new target was added.
-- [x] Remove mock events, tickets, listings, orders, checkout tickets, proof history, and success-only local mutations from active Beta/Release paths. Preview fixtures remain isolated for design previews.
+- [x] Remove mock success-only transactions from the explicitly wired Beta/Release journeys. The 2026-07-17 audit reopened the remaining compiled default mock dependencies and localhost fallback as a separate P0 runtime-injection task above.
 - [x] Make Market Sell load the signed-in user's eligible backend tickets and let the seller choose the exact seat.
 - [x] Remove the fake limit-order/review confirmations and connect lowest-ask resale purchase to real backend order/payment state.
 - [x] Replace swallowed ticket/event/order errors with visible loading, empty, and failure states.
@@ -14,11 +31,33 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [ ] Replace global five-second and ticket one-second polling with domain-scoped realtime or adaptive refresh.
 - [x] Connect V4 Market to the existing Socket.IO orderbook feed with 30-second HTTP fallback and make ticket-detail polling active-scene/adaptive. The shared 15-second refresh revision still needs domain separation.
 - [x] Restore the active V4 Market K-line from redacted settled resale history and replace horizontally scrolling event/seat chips with searchable full-page event and seat-category selection.
+- [x] Add shared public-event stale-while-revalidate caching, bounded GET retry, foreground recovery, and non-destructive Home/Explore/Market refresh states.
 - [x] Cache QR bitmaps by credential and isolate countdown state from bitmap generation.
 - [x] Exclude the unused legacy iOS shell/features from the main target while keeping shared payment, Privy, and realtime services.
 - [x] Make a friend's remote SELL ask directly purchasable, restore cross-device listing price/order details, and protect simultaneous buyers with atomic rollback plus payment compensation.
 - [ ] Split Market, Profile, Tickets, and shared components into focused feature modules.
 - [ ] Run the physical-device release regression matrix after the above changes.
+
+## Infrastructure Scaling Plan - 2026-07-17
+
+- [x] Define global edge, global directory, and event-owned regional transaction-plane boundaries in `INFRASTRUCTURE_SCALING_PLAN.md`.
+- [ ] Record actual Render/Vercel/Neon plans, Neon region, CU-hours, storage, transfer, and current monthly spend before approving upgrades.
+- [ ] Add synthetic latency checks from North America, Europe, and APAC; select the first production transaction region from organizer/event demand rather than demo city copy.
+- [ ] Establish stable provider-independent API, Console, Auth, and media hostnames before the next external app build.
+- [ ] Replace production-like `prisma db push` with reviewed migrations and `prisma migrate deploy` through a controlled release step.
+- [ ] Upgrade every externally relied-on runtime from sleeping Free compute before closed beta.
+- [ ] Split the side-effect worker and add distributed rate limits plus Socket.IO coordination before running more than one API instance.
+- [ ] Add provider budgets, uptime/error/latency/database/outbox dashboards, and a tested database restore before closed beta.
+- [ ] Keep each event's inventory, holds, purchase, resale, and redemption writes in one authoritative region; add another region only for sustained market demand or residency requirements.
+
+## Commercial Vibe Coding System - 2026-07-17
+
+- [x] Initialize the ongoing FanPass journey from the archived product report, all 138 Git commits, current contracts, and recorded runtime/user evidence.
+- [x] Separate raw evidence, milestone-level project learning, and cross-project reusable guidance so the Handoff does not become an append-only diary.
+- [x] Define a reusable commercial-project path from opportunity and product contract through vertical slice, honest Alpha, secure Beta, paid Pilot, and measured Scale.
+- [x] Add copyable templates for project start, authority mapping, AI task briefs, decisions, incidents, release evidence, product audits, content rights, capacity/cost reviews, weekly reviews, and context recovery.
+- [ ] Add a concise Journey entry after every meaningful future work pass, with consolidated summaries at pivots or stage transitions; keep raw details in Git/Handoff/contracts and do not frame the unfinished project as a success or failure.
+- [ ] Run the commercial-release scorecard at every FanPass stage review and require no undefined dimension before external Beta.
 
 ## Technical Prototype
 
@@ -106,6 +145,8 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [x] Split the Console into typed API/data helpers, shared shell/UI components, lazy-loaded feature modules, and layered styles; remove the unused charting dependency.
 - [x] Add event attribution to organizer-redacted check-in and Fan Access operation records so page-level event scoping is explicit.
 - [x] Update the local Console browser verifier to cover event search/selection, ticket-type market selection, one-time staff invite rotation/clearing, and browser-console errors.
+- [x] Add a maintainable Fan Access V1 campaign editor and audited review queue under event-scoped Risk & audit, with one to three tasks and required decision reasons.
+- [x] Add typed Console BFF routes for campaign persistence and submission decisions while preserving exact-origin mutation checks and upstream status codes.
 
 ### Alpha 2 - FanPass Consumer App
 
@@ -115,6 +156,8 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [x] Add private-action auth gates for buy, list, task submission, wallet, and profile actions.
 - [x] Add one-ticket buy/list/cancel marketplace flows.
 - [x] Add fan task submission and score status.
+- [x] Replace the active V4 Fan Access mock flow with backend-owned campaign/score models, an optimized selected-concept screen, public fairness/appeal disclosure, and real task/auth/ticket navigation while keeping numeric wallet thresholds private.
+- [x] Make Explore Fan Access availability backend-owned and limited to active campaigns inside their open window.
 - [x] Add price chart and fan-readable orderbook analytics.
 - [x] Add UI/product smoke checks proving no staff/admin controls appear in FanPass.
 
@@ -264,6 +307,11 @@ TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR
 - [x] Add self-test coverage for prototype shortcut register audit acceptance and rejection semantics.
 - [x] Add composite Beta foundation local gate verifier for API contracts, API response privacy, Console routes, provider/lifecycle boundaries, shortcut register, typecheck, and API tests.
 - [x] Add FanPass Console typecheck to the composite Beta foundation local verifier.
+- [x] Define and implement the backend-only Fan Access V1 control contract: one person per account, wallets as proof sources, private limits for linked and earning wallets, one claim per account/campaign, and no wallet-based point multiplication; numeric thresholds remain backend-only policy.
+- [x] Add persisted Fan Access campaigns, entitlements, wallet-link records, public campaign reads, server-owned task verification, visible score/private risk separation, and organizer/admin campaign/review mutations.
+- [x] Keep Fan Access V1 off-chain for score and risk, with no tradable Fan Token and no public wallet-link mutation before the complete ownership/replay/cooldown/audit boundary exists.
+- [ ] Apply the Fan Access Prisma migration to staging and complete real Privy organizer/fan E2E evidence for campaign publication, score, eligibility, review, and audit visibility.
+- [ ] Add wallet linking only with signed ownership proof, replay protection, cooldown, earning-wallet enforcement, one-claim enforcement, and auditable abuse controls in the same release.
 - [x] Add side-effect worker saga verification to the composite Beta foundation local verifier.
 - [x] Add ticket issuance/redemption ownership side-effect boundary and lock ticket/verification lifecycle imports.
 - [x] Add backend Privy access-token verification and remove email-only/demo session issuance from production-like builds.

@@ -82,6 +82,7 @@ export class AlphaPersistenceService {
         trades,
         payments,
         checkins,
+        fanCampaigns,
         fanTasks,
         fanTaskSubmissions,
         auditLogs,
@@ -98,6 +99,7 @@ export class AlphaPersistenceService {
         this.prisma.trade.count({ where: scopedTicketFilter }),
         this.prisma.payment.count({ where: scopedPaymentFilter }),
         this.prisma.checkin.count({ where: scopedTicketFilter }),
+        this.prisma.fanCampaign.count({ where: scopedEventFilter }),
         this.prisma.fanTask.count({ where: scopedEventFilter }),
         this.prisma.fanTaskSubmission.count({ where: scopedTaskFilter }),
         this.prisma.auditLog.count(),
@@ -119,6 +121,7 @@ export class AlphaPersistenceService {
           trades,
           payments,
           checkins,
+          fanCampaigns,
           fanTasks,
           fanTaskSubmissions,
           auditLogs,
@@ -163,6 +166,7 @@ export class AlphaPersistenceService {
         payments,
         checkins,
         submissions,
+        fanCampaigns,
         gateAssignments,
         staffInvites,
         auditLogCandidates,
@@ -253,6 +257,22 @@ export class AlphaPersistenceService {
             id: "desc",
           },
         }),
+        this.prisma.fanCampaign.findMany({
+          where: eventScopedWhere,
+          include: {
+            tasks: {
+              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            },
+            _count: {
+              select: {
+                entitlements: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
         this.prisma.gateAssignment.findMany({
           where: eventScopedWhere,
           include: {
@@ -319,6 +339,10 @@ export class AlphaPersistenceService {
         ...staffInvites.map((invite) => invite.id),
         ...submissions.map((submission) => submission.id),
         ...submissions.map((submission) => submission.taskId),
+        ...fanCampaigns.map((campaign) => campaign.id),
+        ...fanCampaigns.flatMap((campaign) =>
+          campaign.tasks.map((task) => task.id),
+        ),
       ]);
       const auditLogs = auditLogCandidates
         .filter(
@@ -530,6 +554,34 @@ export class AlphaPersistenceService {
           result: checkin.result,
           checkedInAt: checkin.checkedInAt.toISOString(),
         })),
+        fanCampaigns: fanCampaigns.map((campaign) => ({
+          id: campaign.id,
+          eventId: campaign.eventId,
+          eventTitle: eventTitles.get(campaign.eventId) ?? "Unknown event",
+          title: campaign.title,
+          description: campaign.description,
+          rewardTitle: campaign.rewardTitle,
+          rewardDescription: campaign.rewardDescription,
+          rewardSupply: campaign.rewardSupply,
+          qualificationPoints: campaign.qualificationPoints,
+          allocationMethod: campaign.allocationMethod,
+          status: campaign.status,
+          startsAt: campaign.startsAt.toISOString(),
+          closesAt: campaign.closesAt.toISOString(),
+          entitlementCount: campaign._count.entitlements,
+          tasks: campaign.tasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            taskType: task.taskType,
+            points: task.points,
+            verificationMethod: task.verificationMethod,
+            verificationLabel: task.verificationLabel,
+            actionKind: task.actionKind,
+            optional: task.optional,
+            sortOrder: task.sortOrder,
+          })),
+        })),
         fanTaskSubmissions: submissions.map((submission) => ({
           id: submission.id,
           eventId: submission.task.eventId,
@@ -569,6 +621,7 @@ export class AlphaPersistenceService {
         sideEffects: [],
         gateAssignments: [],
         checkins: [],
+        fanCampaigns: [],
         fanTaskSubmissions: [],
         auditLogs: [],
       };

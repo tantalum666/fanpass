@@ -51,6 +51,41 @@ enum SubmissionStatus {
   REJECTED
 }
 
+enum FanCampaignStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ALLOCATED
+  ARCHIVED
+}
+
+enum FanAllocationMethod {
+  EQUAL_DRAW
+  GUARANTEED
+}
+
+enum FanRiskDecision {
+  ALLOW
+  REVIEW
+  BLOCK
+}
+
+enum FanEntitlementStatus {
+  NOT_ELIGIBLE
+  ELIGIBLE
+  SELECTED
+  CLAIMED
+  EXPIRED
+  REVOKED
+}
+
+enum FanWalletLinkStatus {
+  ACTIVE
+  COOLDOWN
+  UNDER_REVIEW
+  REVOKED
+}
+
 enum OnsaleStatus {
   SCHEDULED
   OPEN
@@ -82,24 +117,28 @@ enum InventoryHoldSource {
 }
 
 model User {
-  id              String           @id @default(cuid())
-  name            String
-  email           String           @unique
-  phone           String?
-  role            UserRole         @default(FAN)
-  privyId         String?          @unique @map("privy_id")
-  privyWalletId   String?          @map("privy_wallet_id")
-  walletAddress   String?          @map("wallet_address")
-  riskScore       Float            @default(0) @map("risk_score")
-  kycStatus       String           @default("NOT_REQUIRED") @map("kyc_status")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  tickets         Ticket[]         @relation("TicketOwner")
-  orders          Order[]
-  payments        Payment[]
-  checkins        Checkin[]        @relation("ScannerCheckins")
-  gateAssignments GateAssignment[] @relation("GateStaffAssignments")
-  queueEntries    QueueEntry[]
-  inventoryHolds  InventoryHold[]
+  id                 String              @id @default(cuid())
+  name               String
+  email              String              @unique
+  phone              String?
+  role               UserRole            @default(FAN)
+  privyId            String?             @unique @map("privy_id")
+  privyWalletId      String?             @map("privy_wallet_id")
+  walletAddress      String?             @map("wallet_address")
+  riskScore          Float               @default(0) @map("risk_score")
+  kycStatus          String              @default("NOT_REQUIRED") @map("kyc_status")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  tickets            Ticket[]            @relation("TicketOwner")
+  orders             Order[]
+  payments           Payment[]
+  checkins           Checkin[]           @relation("ScannerCheckins")
+  gateAssignments    GateAssignment[]    @relation("GateStaffAssignments")
+  queueEntries       QueueEntry[]
+  inventoryHolds     InventoryHold[]
+  fanTaskSubmissions FanTaskSubmission[]
+  fanScores          FanScore[]
+  fanEntitlements    FanEntitlement[]
+  fanWalletLinks     FanWalletLink[]
 
   @@map("users")
 }
@@ -147,6 +186,8 @@ model Event {
   gateAssignments GateAssignment[]
   onsale          Onsale?
   inventoryHolds  InventoryHold[]
+  fanCampaigns    FanCampaign[]
+  fanScores       FanScore[]
 
   @@map("events")
 }
@@ -360,28 +401,43 @@ model Trade {
 model FanTask {
   id                 String              @id @default(cuid())
   eventId            String              @map("event_id")
+  campaignId         String?             @map("campaign_id")
   title              String
+  description        String              @default("")
   taskType           String              @map("task_type")
   points             Int
   verificationMethod String              @map("verification_method")
+  verificationLabel  String              @default("Organizer verified") @map("verification_label")
+  actionKind         String              @default("NONE") @map("action_kind")
+  actionTarget       String?             @map("action_target")
+  optional           Boolean             @default(false)
+  sortOrder          Int                 @default(0) @map("sort_order")
   startTime          DateTime?           @map("start_time")
   endTime            DateTime?           @map("end_time")
   event              Event               @relation(fields: [eventId], references: [id])
+  campaign           FanCampaign?        @relation(fields: [campaignId], references: [id])
   submissions        FanTaskSubmission[]
 
+  @@index([campaignId, sortOrder])
   @@map("fan_tasks")
 }
 
 model FanTaskSubmission {
-  id         String           @id @default(cuid())
-  userId     String           @map("user_id")
-  taskId     String           @map("task_id")
-  proof      String
-  status     SubmissionStatus @default(PENDING)
-  reviewedBy String?          @map("reviewed_by")
-  reviewedAt DateTime?        @map("reviewed_at")
-  task       FanTask          @relation(fields: [taskId], references: [id])
+  id           String           @id @default(cuid())
+  userId       String           @map("user_id")
+  taskId       String           @map("task_id")
+  proof        String
+  status       SubmissionStatus @default(PENDING)
+  reviewedBy   String?          @map("reviewed_by")
+  reviewedAt   DateTime?        @map("reviewed_at")
+  reviewReason String?          @map("review_reason")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  task         FanTask          @relation(fields: [taskId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
 
+  @@unique([userId, taskId])
+  @@index([taskId, status])
   @@map("fan_task_submissions")
 }
 
@@ -392,9 +448,77 @@ model FanScore {
   score             Int
   rank              Int?
   entitlementStatus String @map("entitlement_status")
+  user              User   @relation(fields: [userId], references: [id])
+  event             Event  @relation(fields: [eventId], references: [id])
 
   @@unique([userId, eventId])
   @@map("fan_scores")
+}
+
+model FanCampaign {
+  id                      String              @id @default(cuid())
+  eventId                 String              @map("event_id")
+  title                   String
+  description             String              @default("")
+  rewardTitle             String              @map("reward_title")
+  rewardDescription       String              @default("") @map("reward_description")
+  rewardSupply            Int                 @map("reward_supply")
+  qualificationPoints     Int                 @map("qualification_points")
+  allocationMethod        FanAllocationMethod @default(EQUAL_DRAW) @map("allocation_method")
+  status                  FanCampaignStatus   @default(DRAFT)
+  startsAt                DateTime            @map("starts_at")
+  closesAt                DateTime            @map("closes_at")
+  maxLinkedWallets        Int                 @default(5) @map("max_linked_wallets")
+  maxActiveEarningWallets Int                 @default(3) @map("max_active_earning_wallets")
+  createdByUserId         String              @map("created_by_user_id")
+  createdAt               DateTime            @default(now()) @map("created_at")
+  updatedAt               DateTime            @updatedAt @map("updated_at")
+  event                   Event               @relation(fields: [eventId], references: [id])
+  tasks                   FanTask[]
+  entitlements            FanEntitlement[]
+
+  @@index([eventId, status, closesAt])
+  @@map("fan_campaigns")
+}
+
+model FanEntitlement {
+  id               String               @id @default(cuid())
+  campaignId       String               @map("campaign_id")
+  userId           String               @map("user_id")
+  status           FanEntitlementStatus @default(NOT_ELIGIBLE)
+  riskDecision     FanRiskDecision      @default(ALLOW) @map("risk_decision")
+  riskReasonCode   String?              @map("risk_reason_code")
+  selectedAt       DateTime?            @map("selected_at")
+  claimedAt        DateTime?            @map("claimed_at")
+  claimDestination String?              @map("claim_destination")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  campaign         FanCampaign          @relation(fields: [campaignId], references: [id])
+  user             User                 @relation(fields: [userId], references: [id])
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status, riskDecision])
+  @@map("fan_entitlements")
+}
+
+model FanWalletLink {
+  id               String              @id @default(cuid())
+  userId           String              @map("user_id")
+  address          String              @unique
+  chainType        String              @default("EVM") @map("chain_type")
+  providerWalletId String?             @unique @map("provider_wallet_id")
+  status           FanWalletLinkStatus @default(ACTIVE)
+  isPrimary        Boolean             @default(false) @map("is_primary")
+  verifiedAt       DateTime            @map("verified_at")
+  lastEarningAt    DateTime?           @map("last_earning_at")
+  cooldownUntil    DateTime?           @map("cooldown_until")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  user             User                @relation(fields: [userId], references: [id])
+
+  @@unique([userId, address])
+  @@index([userId, status, lastEarningAt])
+  @@map("fan_wallet_links")
 }
 
 model Payment {

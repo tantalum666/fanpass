@@ -10,6 +10,7 @@ final class FanPassBackendContext {
     var connectionState: BackendConnectionState = .offline
     var authMessage: String?
     private(set) var remoteRefreshRevision = 0
+    private(set) var publicCatalogRefreshRevision = 0
     private(set) var listingStatusOverrides: [String: FanPassV4.TicketStatus] = [:]
     private(set) var activeResaleListingsByTicketId: [String: FanPassV4.ResaleListing] = [:]
 
@@ -28,7 +29,7 @@ final class FanPassBackendContext {
         self.apiClient = apiClient
         self.privyAuthProvider = privyAuthProvider ?? FanPassPrivyAuthProvider()
         self.sessionStore = sessionStore ?? FanPassKeychainSessionStore()
-        self.user = FanPassMockData.guestFan
+        self.user = .guest
         if let storedSession = self.sessionStore.loadValidSession(now: Date()) {
             apply(session: storedSession, persist: false)
             connectionState = .online
@@ -91,6 +92,19 @@ final class FanPassBackendContext {
                 return
             }
         }
+    }
+
+    func handleAppBecameActive() async {
+        if session == nil {
+            await restorePrivySessionIfAvailable()
+        } else {
+            await refreshPrivySessionIfNeeded(force: true)
+        }
+        requestPublicCatalogRefresh()
+    }
+
+    func requestPublicCatalogRefresh() {
+        publicCatalogRefreshRevision += 1
     }
 
     func restorePrivySessionIfAvailable() async {
@@ -227,7 +241,7 @@ final class FanPassBackendContext {
         sessionStore.clear()
         session = nil
         apiClient = apiClient.withAccessToken(nil)
-        user = FanPassMockData.guestFan
+        user = .guest
         listingStatusOverrides = [:]
         activeResaleListingsByTicketId = [:]
         markRemoteDataRefreshNeeded()

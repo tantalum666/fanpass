@@ -33,10 +33,15 @@ struct FanPassV4MarketView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(FPSpacing.lg)
-                } else {
+                } else if let market = currentMarket {
                     ScrollView(.vertical, showsIndicators: false) {
-                        tradingPanel
+                        tradingPanel(market: market)
                     }
+                } else {
+                    ProgressView("Preparing market")
+                        .tint(FPColors.pulseCyan)
+                        .foregroundStyle(FPColors.textPrimary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
@@ -45,32 +50,36 @@ struct FanPassV4MarketView: View {
             .padding(.bottom, FPSpacing.threeXL + 96)
         }
         .background(FPColors.surfaceCard.ignoresSafeArea(edges: .top))
-        .ignoresSafeArea(edges: .top)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            marketCatalogBanner
+        }
         .safeAreaInset(edge: .bottom) {
-            if !viewModel.availableEvents.isEmpty {
+            if currentMarket != nil {
                 marketActionBar
             }
         }
         .sheet(isPresented: $showBuyFlow) {
-            NavigationStack {
-                FanPassV4BuyOrderSheet(
-                    event: viewModel.selectedEvent,
-                    ticketType: selectedMarketTicketType,
-                    bestAskPrice: remoteOrderbook?.asks.first?.price,
-                    bestAsk: selectedMarketContext.bestAskLabel,
-                    onAuthRequired: openSignInFromMarketSheet
-                )
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showBuyFlow = false
-                        } label: {
-                            Label("Back", systemImage: "chevron.left")
+            if let market = currentMarket {
+                NavigationStack {
+                    FanPassV4BuyOrderSheet(
+                        event: market.event,
+                        ticketType: market.ticketType,
+                        bestAskPrice: remoteOrderbook?.asks.first?.price,
+                        bestAsk: market.pricing.bestAskLabel,
+                        onAuthRequired: openSignInFromMarketSheet
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                showBuyFlow = false
+                            } label: {
+                                Label("Back", systemImage: "chevron.left")
+                            }
                         }
                     }
                 }
+                .presentationDetents([.large])
             }
-            .presentationDetents([.large])
         }
         .sheet(item: $selectedSellTicket) { ticket in
             NavigationStack {
@@ -94,14 +103,14 @@ struct FanPassV4MarketView: View {
         .onAppear {
             applyFocusedMarketEvent()
         }
-        .task(id: backend.connectionState) {
+        .task(id: backend.publicCatalogRefreshRevision) {
             await viewModel.load(eventService: backend.eventService())
             applyFocusedMarketEvent()
-            if selectedTicketTypeID == nil {
-                selectedTicketTypeID = viewModel.selectedEvent.safePrimaryTicketType.id
+            if selectedTicketTypeID == nil, let event = viewModel.selectedEvent {
+                selectedTicketTypeID = event.safePrimaryTicketType.id
             }
         }
-        .task(id: "\(viewModel.selectedEvent.id)-\(selectedMarketTicketType.id)") {
+        .task(id: currentMarket.map { "\($0.event.id)-\($0.ticketType.id)" } ?? "market-unavailable") {
             await runOrderbookFeed()
         }
         .task(id: "owned-\(backend.ticketRefreshKey)") {
@@ -128,29 +137,53 @@ struct FanPassV4MarketView: View {
             Text(marketActionMessage ?? "The market action could not continue.")
         }
         .fullScreenCover(isPresented: $showMarketSelector) {
-            NavigationStack {
-                FanPassV4MarketSelectionView(
-                    events: viewModel.availableEvents,
-                    selectedEventID: viewModel.selectedEvent.id,
-                    selectedTicketTypeID: selectedTicketTypeID
-                ) { event, ticketType in
-                    viewModel.selectedEvent = event
-                    selectedTicketTypeID = ticketType.id
+            if let selectedEvent = viewModel.selectedEvent {
+                NavigationStack {
+                    FanPassV4MarketSelectionView(
+                        events: viewModel.availableEvents,
+                        selectedEventID: selectedEvent.id,
+                        selectedTicketTypeID: selectedTicketTypeID
+                    ) { event, ticketType in
+                        viewModel.selectedEvent = event
+                        selectedTicketTypeID = ticketType.id
+                    }
                 }
+                .preferredColorScheme(.dark)
             }
-            .preferredColorScheme(.dark)
         }
     }
 
-    private var tradingPanel: some View {
+    private func tradingPanel(market: CurrentMarket) -> some View {
         MarketTradingPanel(
-            event: viewModel.selectedEvent,
+            event: market.event,
             selectedTicketTypeID: selectedTicketTypeID,
             orderbook: remoteOrderbook,
             realtimeStatus: realtimeStatus,
             orderbookError: orderbookError
         ) {
             showMarketSelector = true
+        }
+    }
+
+    @ViewBuilder
+    private var marketCatalogBanner: some View {
+        if !viewModel.availableEvents.isEmpty,
+           let errorMessage = viewModel.errorMessage
+        {
+            FPStateBanner(
+                title: viewModel.isUsingSavedEvents ? "Saved market available" : "Market refresh delayed",
+                message: errorMessage,
+                kind: .warning,
+                actionTitle: "Refresh now"
+            ) {
+                Task {
+                    await viewModel.load(eventService: backend.eventService())
+                    applyFocusedMarketEvent()
+                }
+            }
+            .padding(.horizontal, FPSpacing.lg)
+            .padding(.vertical, FPSpacing.sm)
+            .background(FPColors.surfaceCard)
         }
     }
 
@@ -198,34 +231,37 @@ struct FanPassV4MarketView: View {
     }
 
     private var eligibleOwnedTickets: [FanPassV4.Ticket] {
-        ownedTickets.filter { ticket in
-            ticket.event.id == viewModel.selectedEvent.id &&
-                ticket.ticketType.id == selectedMarketTicketType.id &&
+        guard let market = currentMarket else { return [] }
+        return ownedTickets.filter { ticket in
+            ticket.event.id == market.event.id &&
+                ticket.ticketType.id == market.ticketType.id &&
                 (ticket.status.allowsResale || ticket.status == .listed)
         }
     }
 
-    private var selectedMarketTicketType: FanPassV4.TicketType {
-        viewModel.selectedEvent.ticketTypes.first { $0.id == selectedTicketTypeID } ?? viewModel.selectedEvent.safePrimaryTicketType
-    }
-
-    private var selectedMarketContext: MarketPricingSnapshot {
-        MarketPricingSnapshot(
-            event: viewModel.selectedEvent,
-            ticketType: selectedMarketTicketType,
-            remoteFloorPrice: remoteOrderbook?.floorPrice,
-            remoteBestBid: remoteOrderbook?.bids.first?.price,
-            remoteBestAsk: remoteOrderbook?.asks.first?.price,
-            remoteLastSale: remoteOrderbook?.lastTradePrice
+    private var currentMarket: CurrentMarket? {
+        guard let event = viewModel.selectedEvent else { return nil }
+        let ticketType = event.ticketTypes.first { $0.id == selectedTicketTypeID } ?? event.safePrimaryTicketType
+        return CurrentMarket(
+            event: event,
+            ticketType: ticketType,
+            pricing: MarketPricingSnapshot(
+                event: event,
+                ticketType: ticketType,
+                remoteFloorPrice: remoteOrderbook?.floorPrice,
+                remoteBestBid: remoteOrderbook?.bids.first?.price,
+                remoteBestAsk: remoteOrderbook?.asks.first?.price,
+                remoteLastSale: remoteOrderbook?.lastTradePrice
+            )
         )
     }
 
     private func applyFocusedMarketEvent() {
-        if selectedTicketTypeID == nil {
-            selectedTicketTypeID = viewModel.selectedEvent.safePrimaryTicketType.id
+        if selectedTicketTypeID == nil, let event = viewModel.selectedEvent {
+            selectedTicketTypeID = event.safePrimaryTicketType.id
         }
         guard let event = appViewModel.focusedMarketEvent,
-              event.id != viewModel.selectedEvent.id
+              event.id != viewModel.selectedEvent?.id
         else {
             return
         }
@@ -254,10 +290,11 @@ struct FanPassV4MarketView: View {
     }
 
     private func refreshRemoteOrderbook() async {
+        guard let market = currentMarket else { return }
         do {
             remoteOrderbook = try await backend.apiClient.orderbook(
-                eventId: viewModel.selectedEvent.id,
-                ticketTypeId: selectedMarketTicketType.id
+                eventId: market.event.id,
+                ticketTypeId: market.ticketType.id
             )
             orderbookError = nil
         } catch {
@@ -268,6 +305,10 @@ struct FanPassV4MarketView: View {
     }
 
     private func runOrderbookFeed() async {
+        guard let market = currentMarket else {
+            realtimeClient.disconnect()
+            return
+        }
         await refreshRemoteOrderbook()
         realtimeClient.onStatusChange = { status in
             realtimeStatus = status
@@ -278,8 +319,8 @@ struct FanPassV4MarketView: View {
         }
         realtimeClient.connect(
             apiBaseURL: backend.apiClient.baseURL,
-            eventId: viewModel.selectedEvent.id,
-            ticketTypeId: selectedMarketTicketType.id
+            eventId: market.event.id,
+            ticketTypeId: market.ticketType.id
         )
 
         do {
@@ -321,7 +362,7 @@ struct FanPassV4MarketView: View {
         }
         switch eligibleOwnedTickets.count {
         case 0:
-            marketActionMessage = "You do not own an eligible \(selectedMarketTicketType.name) ticket for this event."
+            marketActionMessage = "You do not own an eligible \(currentMarket?.ticketType.name ?? "selected") ticket for this event."
         case 1:
             selectedSellTicket = eligibleOwnedTickets[0]
         default:
@@ -425,7 +466,7 @@ private struct MarketTradingPanel: View {
             }
         }
         .padding(FPSpacing.md)
-        .padding(.top, 72)
+        .padding(.top, FPSpacing.md)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(FPColors.surfaceCard)
         .overlay {
@@ -1003,61 +1044,10 @@ private enum MarketMode: String, CaseIterable, Hashable {
     }
 }
 
-struct FanPassV4OrderbookDetailView: View {
-    let viewModel: MarketViewModel
-
-    var buyOrders: [FanPassV4.OrderbookOrder] {
-        viewModel.orderbook.filter { $0.side == .buy }.sorted { $0.price > $1.price }
-    }
-
-    var sellOrders: [FanPassV4.OrderbookOrder] {
-        viewModel.orderbook.filter { $0.side == .sell }.sorted { $0.price < $1.price }
-    }
-
-    var body: some View {
-        FanPassV4Scaffold(title: "Market depth", subtitle: "Fan-friendly bid/ask context for \(viewModel.selectedEvent.title).") {
-            FPConceptStatStrip(stats: [
-                ("Best fan bid", viewModel.bestBidLabel, "Highest willing buyer"),
-                ("Lowest resale", viewModel.bestAskLabel, "Lowest open listing"),
-                ("Last sale", viewModel.recentSaleLabel, "Recent settled price"),
-                ("Cap 110%", viewModel.selectedEvent.marketSummary.capLabel, "Organizer maximum")
-            ])
-            orderSection("Fans willing to buy", orders: buyOrders, color: FPColors.pulseCyan)
-            orderSection("Tickets listed for resale", orders: sellOrders, color: FPColors.neonMagenta)
-            MarketCandlestickPanel(
-                event: viewModel.selectedEvent,
-                ticketType: viewModel.selectedEvent.safePrimaryTicketType,
-                priceHistory: [],
-                lastSalePrice: nil
-            )
-            FPPolicyNotice(
-                title: "Plain-language market data",
-                message: "This screen explains price context before checkout. Matching, payment, and transfer remain server-owned.",
-                kind: .info
-            )
-        }
-    }
-
-    private func orderSection(_ title: String, orders: [FanPassV4.OrderbookOrder], color: Color) -> some View {
-        VStack(alignment: .leading, spacing: FPSpacing.md) {
-            FPSectionHeader(title: title)
-            FPSurfaceCard {
-                VStack(spacing: 0) {
-                    ForEach(orders) { order in
-                        FPOrderbookRow(
-                            label: order.side.fanLabel,
-                            price: MoneyFormatter.format(order.price, currency: viewModel.selectedEvent.marketSummary.currency),
-                            quantity: "\(order.remainingQuantity)",
-                            accent: color
-                        )
-                        if order.id != orders.last?.id {
-                            FPDivider()
-                        }
-                    }
-                }
-            }
-        }
-    }
+private struct CurrentMarket {
+    let event: FanPassV4.Event
+    let ticketType: FanPassV4.TicketType
+    let pricing: MarketPricingSnapshot
 }
 
 private struct FanPassV4BuyOrderSheet: View {
@@ -1451,8 +1441,8 @@ struct FanPassV4ListTicketView: View {
     }
 
     private func listingErrorMessage(for error: Error) -> String {
-        if let mockError = error as? FanPassV4MockError {
-            return mockError.title
+        if let serviceError = error as? FanPassV4ServiceError {
+            return serviceError.title
         }
         return error.localizedDescription
     }

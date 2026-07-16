@@ -143,7 +143,7 @@ enum FanPassMockData {
 
     static let orderbookByEvent: [String: [FanPassV4.OrderbookOrder]] = Dictionary(uniqueKeysWithValues: events.map { event in
         let face = event.ticketTypes[0].faceValue
-        let floor = event.marketSummary.floorPrice
+        let floor = event.marketSummary.floorPrice ?? face
         let cap = event.marketSummary.organizerCap
         let bidStep = max(12, face / 24)
         let askStep = max(16, face / 18)
@@ -162,7 +162,7 @@ enum FanPassMockData {
     static var orderbookOrders: [FanPassV4.OrderbookOrder] { orderbook(for: events[0]) }
 
     static let tradesByEvent: [String: [FanPassV4.Trade]] = Dictionary(uniqueKeysWithValues: events.map { event in
-        let recent = event.marketSummary.recentSale
+        let recent = event.marketSummary.recentSale ?? event.ticketTypes[0].faceValue
         return (event.id, [
             .init(id: "\(event.id)_trade_1", ticketId: "FP-\(event.id)-A", price: max(1, recent - max(18, event.ticketTypes[0].faceValue / 28)), fee: max(18, Int(Double(recent) * 0.032)), settlementStatus: "Settled", createdAt: date(2026, 6, 5, 8, 30)),
             .init(id: "\(event.id)_trade_2", ticketId: "FP-\(event.id)-B", price: recent, fee: max(18, Int(Double(recent) * 0.035)), settlementStatus: "Settled", createdAt: date(2026, 6, 5, 9, 45)),

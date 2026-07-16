@@ -1,5 +1,6 @@
 import Foundation
 
+#if DEBUG
 enum FanPassV4PreviewContent {
     static let user = FanPassMockData.currentUser
     static let staff = FanPassMockData.staffUser
@@ -8,3 +9,4 @@ enum FanPassV4PreviewContent {
     static let listing = FanPassMockData.listings[0]
     static let scanAccepted = FanPassMockData.scanResults[0]
 }
+#endif

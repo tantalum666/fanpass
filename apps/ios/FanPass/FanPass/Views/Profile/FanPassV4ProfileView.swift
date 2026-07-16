@@ -39,7 +39,7 @@ struct FanPassV4ProfileView: View {
     let onSignOut: () -> Void
 
     init(
-        user: FanPassV4.User = FanPassMockData.currentUser,
+        user: FanPassV4.User,
         selectedSection: Binding<FanPassAccountSection> = .constant(.overview),
         onSignOut: @escaping () -> Void = {}
     ) {
@@ -1388,8 +1388,10 @@ private extension FanPassV4ProfileView {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
-        FanPassV4ProfileView()
+        FanPassV4ProfileView(user: FanPassV4PreviewContent.user)
     }
 }
+#endif

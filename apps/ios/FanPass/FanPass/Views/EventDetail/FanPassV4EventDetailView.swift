@@ -7,8 +7,11 @@ struct FanPassV4EventDetailView: View {
     @State private var showingAuthGate = false
     @State private var onsaleCheckoutGate: FanPassOnsaleCheckoutGate = .checking
     @State private var availableByTicketType: [String: Int] = [:]
+    @State private var marketSnapshot: OrderbookSnapshot?
+    @State private var marketDataLoaded = false
+    @State private var marketDataUnavailable = false
 
-    init(event: FanPassV4.Event = FanPassMockData.events[0]) {
+    init(event: FanPassV4.Event) {
         _viewModel = State(initialValue: EventDetailViewModel(event: event))
     }
 
@@ -24,7 +27,7 @@ struct FanPassV4EventDetailView: View {
             )
 
             HStack(spacing: FPSpacing.md) {
-                FPMetricCard(title: "Floor", value: viewModel.event.marketSummary.floorPriceLabel, caption: "Lowest resale")
+                FPMetricCard(title: "Floor", value: liveFloorLabel, caption: "Lowest resale")
                 FPMetricCard(title: "Cap", value: viewModel.event.marketSummary.capLabel, caption: "Organizer cap")
             }
 
@@ -66,7 +69,9 @@ struct FanPassV4EventDetailView: View {
                             } else {
                                 FPStatusPill(title: "Non-transferable", systemImage: "lock.fill", foreground: FPColors.warningAmber, background: FPColors.warningAmber.opacity(0.12), border: FPColors.warningAmber.opacity(0.55))
                             }
-                            FPStatusPill(title: "Fan Access", systemImage: FPIcons.fanAccess, foreground: FPColors.pulseCyan, background: FPColors.pulseCyan.opacity(0.12), border: FPColors.pulseCyan.opacity(0.55))
+                            if viewModel.event.fanAccessAvailable {
+                                FPStatusPill(title: "Fan Access", systemImage: FPIcons.fanAccess, foreground: FPColors.pulseCyan, background: FPColors.pulseCyan.opacity(0.12), border: FPColors.pulseCyan.opacity(0.55))
+                            }
                         }
                         FPPolicyNotice(
                             title: ticketType.transferRule.transferable ? "Organizer resale rule" : "Organizer transfer rule",
@@ -91,33 +96,38 @@ struct FanPassV4EventDetailView: View {
                 }
             }
 
-            NavigationLink {
-                FanPassV4FanAccessView(event: viewModel.event)
-            } label: {
-                FPSurfaceCard {
-                    HStack(spacing: FPSpacing.md) {
-                        Image(systemName: FPIcons.fanAccess)
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(FPGradients.passAurora)
-                        VStack(alignment: .leading, spacing: FPSpacing.xs) {
-                            Text("Join Fan Access")
-                                .font(FPTypography.headline)
-                                .foregroundStyle(FPColors.textPrimary)
-                            Text("Complete tasks and earn Access Badges for this event.")
-                                .font(FPTypography.caption)
+            if viewModel.event.fanAccessAvailable {
+                NavigationLink {
+                    FanPassV4FanAccessView(event: viewModel.event)
+                } label: {
+                    FPSurfaceCard {
+                        HStack(spacing: FPSpacing.md) {
+                            Image(systemName: FPIcons.fanAccess)
+                                .font(.system(size: 30, weight: .semibold))
+                                .foregroundStyle(FPGradients.passAurora)
+                            VStack(alignment: .leading, spacing: FPSpacing.xs) {
+                                Text("Join Fan Access")
+                                    .font(FPTypography.headline)
+                                    .foregroundStyle(FPColors.textPrimary)
+                                Text("Complete tasks and earn Access Badges for this event.")
+                                    .font(FPTypography.caption)
+                                    .foregroundStyle(FPColors.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
                                 .foregroundStyle(FPColors.textSecondary)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(FPColors.textSecondary)
                     }
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             marketChartJumpCard
         }
         .navigationTitle("Event")
+        .task(id: viewModel.event.id) {
+            await refreshMarketSnapshot()
+        }
         .sheet(isPresented: $showingAuthGate) {
             FanPassV4AuthRequiredSheet(
                 title: authGateTitle,
@@ -218,7 +228,7 @@ struct FanPassV4EventDetailView: View {
                     }
                     Spacer(minLength: FPSpacing.md)
                     VStack(alignment: .trailing, spacing: FPSpacing.xs) {
-                        Text(viewModel.event.marketSummary.floorPriceLabel)
+                        Text(liveFloorLabel)
                             .font(FPTypography.title2)
                             .foregroundStyle(FPColors.textPrimary)
                             .monospacedDigit()
@@ -234,10 +244,50 @@ struct FanPassV4EventDetailView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Open Market chart for \(viewModel.event.title)")
     }
-}
 
-#Preview {
-    NavigationStack {
-        FanPassV4EventDetailView()
+    private var liveFloorLabel: String {
+        if let floorPrice = marketSnapshot?.floorPrice {
+            return MoneyFormatter.format(
+                floorPrice,
+                currency: viewModel.event.safePrimaryTicketType.currency
+            )
+        }
+        if marketDataUnavailable {
+            return "Unavailable"
+        }
+        return marketDataLoaded ? "No asks" : "Loading"
+    }
+
+    private func refreshMarketSnapshot() async {
+        guard let ticketType = viewModel.event.ticketTypes.first else {
+            marketSnapshot = nil
+            marketDataUnavailable = false
+            marketDataLoaded = true
+            return
+        }
+
+        marketDataLoaded = false
+        marketDataUnavailable = false
+        do {
+            marketSnapshot = try await backend.apiClient.orderbook(
+                eventId: viewModel.event.id,
+                ticketTypeId: ticketType.id
+            )
+            marketDataLoaded = true
+        } catch is CancellationError {
+            return
+        } catch {
+            marketSnapshot = nil
+            marketDataUnavailable = true
+            marketDataLoaded = true
+        }
     }
 }
+
+#if DEBUG
+#Preview {
+    NavigationStack {
+        FanPassV4EventDetailView(event: FanPassV4PreviewContent.event)
+    }
+}
+#endif

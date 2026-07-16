@@ -179,6 +179,44 @@ export interface FanTaskSubmission {
   status: string;
 }
 
+export interface FanCampaignTask {
+  id: string;
+  title: string;
+  description: string;
+  taskType:
+    | "FOLLOW"
+    | "TICKET_HOLD"
+    | "CHECK_IN"
+    | "PURCHASE_HISTORY"
+    | "QUIZ"
+    | "SHARE"
+    | "MANUAL";
+  points: number;
+  verificationMethod: "AUTO" | "MANUAL";
+  verificationLabel: string;
+  actionKind: string;
+  optional: boolean;
+  sortOrder: number;
+}
+
+export interface FanCampaign {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  title: string;
+  description: string;
+  rewardTitle: string;
+  rewardDescription: string;
+  rewardSupply: number;
+  qualificationPoints: number;
+  allocationMethod: "EQUAL_DRAW" | "GUARANTEED";
+  status: "DRAFT" | "ACTIVE" | "CLOSED" | "ALLOCATED" | "ARCHIVED";
+  startsAt: string;
+  closesAt: string;
+  entitlementCount: number;
+  tasks: FanCampaignTask[];
+}
+
 export interface AuditLogRecord {
   id: string;
   actorId: string;
@@ -206,6 +244,7 @@ export interface AlphaOperations {
   sideEffects: SideEffectRecord[];
   gateAssignments: GateAssignment[];
   checkins: CheckinRecord[];
+  fanCampaigns: FanCampaign[];
   fanTaskSubmissions: FanTaskSubmission[];
   auditLogs: AuditLogRecord[];
 }
@@ -218,6 +257,7 @@ export interface EventOperationsView {
   trades: TradeRecord[];
   gateAssignments: GateAssignment[];
   checkins: CheckinRecord[];
+  fanCampaigns: FanCampaign[];
   fanTaskSubmissions: FanTaskSubmission[];
 }
 

@@ -24,7 +24,7 @@ struct FanPassV4ExploreView: View {
             fanAccessSpotlight
             recommendedEvents
         }
-        .task(id: backend.connectionState.rawValue) {
+        .task(id: backend.publicCatalogRefreshRevision) {
             await viewModel.load(eventService: backend.eventService())
         }
     }
@@ -106,16 +106,17 @@ struct FanPassV4ExploreView: View {
             FPSectionHeader(title: "Recommended")
             if let errorMessage = viewModel.errorMessage {
                 FPStateBanner(
-                    title: "Events unavailable",
+                    title: viewModel.isUsingSavedEvents ? "Saved events available" : "Events unavailable",
                     message: errorMessage,
                     kind: .warning,
-                    actionTitle: "Retry"
+                    actionTitle: "Refresh now"
                 ) {
                     Task {
                         await viewModel.load(eventService: backend.eventService())
                     }
                 }
-            } else if viewModel.isLoading && viewModel.events.isEmpty {
+            }
+            if viewModel.isLoading && viewModel.events.isEmpty {
                 ProgressView("Loading events")
                     .tint(FPColors.pulseCyan)
                     .frame(maxWidth: .infinity, minHeight: 180)

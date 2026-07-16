@@ -193,6 +193,11 @@ function auditConsoleBff(absoluteFile) {
       "handleCreateTicketType",
       "POST /api/console/events/:eventId/ticket-types",
     ],
+    ["handleSaveFanCampaign", "POST /api/console/events/:eventId/fan-access"],
+    [
+      "handleReviewFanSubmission",
+      "POST /api/console/fan-access/submissions/:submissionId/decision",
+    ],
     ["handleCreateGateAssignment", "POST /api/console/gate-assignments"],
     [
       "handleRotateInvite",
@@ -358,13 +363,19 @@ function validateConsoleBffClassification(handler, discovered, classification) {
       !handler.startsWith(
         "apps/dashboard/server/console-bff.ts:handleCreateGateAssignment",
       ) &&
-      !handler.startsWith("apps/dashboard/server/console-bff.ts:handleRotateInvite")
+      !handler.startsWith(
+        "apps/dashboard/server/console-bff.ts:handleRotateInvite",
+      )
     ) {
       errors.push(
         `${handler} is classified as ORGANIZER_SECRET_ONCE outside the Console gate-assignment boundary.`,
       );
     }
-    if (!discovered.fileContents.includes("consoleAccessToken(cookieSource(request))")) {
+    if (
+      !discovered.fileContents.includes(
+        "consoleAccessToken(cookieSource(request))",
+      )
+    ) {
       errors.push(
         `${handler} returns organizer one-time secret data but does not use consoleAccessToken().`,
       );

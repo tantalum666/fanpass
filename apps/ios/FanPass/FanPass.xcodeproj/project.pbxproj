@@ -34,6 +34,7 @@
 		4AF3112AA0F354E15F241018 /* event-cover-family.png in Resources */ = {isa = PBXBuildFile; fileRef = 0ECFE2D510BFD1C95868934A /* event-cover-family.png */; };
 		4B5A7835FFBF613668FCD045 /* FPAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39113753AE5F5E59E381D399 /* FPAnimation.swift */; };
 		4E85BA855EEA6F9219CAD86E /* FanPassOrderbookRealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3E0E0F7365B9F630D852AB /* FanPassOrderbookRealtimeClient.swift */; };
+		4F13A8C3E9A8DC0373EC71B2 /* FanPassV4APIMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B278A880CEC5E82D37929BD /* FanPassV4APIMapperTests.swift */; };
 		4F2B8A90E239D272C2A28248 /* fanpass-mark-v4.svg in Resources */ = {isa = PBXBuildFile; fileRef = D1EE815C65F7179F7B41B2AA /* fanpass-mark-v4.svg */; };
 		4F3019B5AEFC088C2CE159FD /* fanpass-horizontal-lockup-v4.png in Resources */ = {isa = PBXBuildFile; fileRef = DE7CA95F07330F53D1D3D6BC /* fanpass-horizontal-lockup-v4.png */; };
 		4F7DF89EF647921AE677F16F /* NFCPayloadScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E75BD9EAA29AC23F69520F /* NFCPayloadScanner.swift */; };
@@ -106,6 +107,16 @@
 		FFF912167C97578793287CDB /* FanPassV4HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0157BD5CED2D76590B7ABD4A /* FanPassV4HomeView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7AB9E5C3F2C1D9030EA6D601 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1DB809E7FB42912D9EEE9227 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6468B305EED0BA28D2469974;
+			remoteInfo = FanPass;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		0157BD5CED2D76590B7ABD4A /* FanPassV4HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4HomeView.swift; sourceTree = "<group>"; };
 		046E34368C0055E9DF887850 /* FPSpacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPSpacing.swift; sourceTree = "<group>"; };
@@ -135,9 +146,11 @@
 		466CDBBDA22A363300286D44 /* FPColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPColors.swift; sourceTree = "<group>"; };
 		473E7165A26D223815FDE2B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		47C1C8DF80310AB09917884E /* FPTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FPTypography.swift; sourceTree = "<group>"; };
+		48AC0CA13097AD399B1A4F72 /* FanPassTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FanPassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		516CD6E90C1CC30E57B240DA /* fanpass-brand-sheet-v4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "fanpass-brand-sheet-v4.png"; sourceTree = "<group>"; };
 		539C03177CDD4FF9E415A6E6 /* FanPass.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FanPass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53B61C15B5F19BEE79777164 /* FanPassClientInstanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassClientInstanceStore.swift; sourceTree = "<group>"; };
+		5B278A880CEC5E82D37929BD /* FanPassV4APIMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4APIMapperTests.swift; sourceTree = "<group>"; };
 		5B2BF643BF866C7134FACECE /* FanPassBackendContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassBackendContext.swift; sourceTree = "<group>"; };
 		5C429C1122714C1E2ED59818 /* FanPassV4CheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanPassV4CheckoutView.swift; sourceTree = "<group>"; };
 		63C816149998EF60BC83394F /* QRCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScannerView.swift; sourceTree = "<group>"; };
@@ -436,6 +449,14 @@
 			path = EventDetail;
 			sourceTree = "<group>";
 		};
+		8ED6220C5DCB23691AD3BABE /* FanPassTests */ = {
+			isa = PBXGroup;
+			children = (
+				5B278A880CEC5E82D37929BD /* FanPassV4APIMapperTests.swift */,
+			);
+			path = FanPassTests;
+			sourceTree = "<group>";
+		};
 		959706655FE8185946AB9309 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
@@ -468,6 +489,7 @@
 			children = (
 				539C03177CDD4FF9E415A6E6 /* FanPass.app */,
 				159045E5FB505823B92FBF01 /* FanPassOps.app */,
+				48AC0CA13097AD399B1A4F72 /* FanPassTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -512,6 +534,7 @@
 				FF21B0E8379A1C5E8CAE3BA4 /* Config */,
 				3FD8C719F8F751EAEF4B3BE1 /* FanPass */,
 				69AA8A8D3254FCEB3A5173F6 /* FanPassOps */,
+				8ED6220C5DCB23691AD3BABE /* FanPassTests */,
 				9FFB877E7C0D5F2F1269C376 /* Scanner */,
 				AE2AC82FD2123E9C4D1E13A9 /* Products */,
 			);
@@ -550,6 +573,24 @@
 			productName = FanPassOps;
 			productReference = 159045E5FB505823B92FBF01 /* FanPassOps.app */;
 			productType = "com.apple.product-type.application";
+		};
+		3E9A1E55A2EC4FEB348BFD72 /* FanPassTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0E62C10D09A406AAD95FADCE /* Build configuration list for PBXNativeTarget "FanPassTests" */;
+			buildPhases = (
+				19F6A351ED4FD70319552940 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2C7BDB31BB753D0AABB555F0 /* PBXTargetDependency */,
+			);
+			name = FanPassTests;
+			packageProductDependencies = (
+			);
+			productName = FanPassTests;
+			productReference = 48AC0CA13097AD399B1A4F72 /* FanPassTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		6468B305EED0BA28D2469974 /* FanPass */ = {
 			isa = PBXNativeTarget;
@@ -613,6 +654,7 @@
 			targets = (
 				6468B305EED0BA28D2469974 /* FanPass */,
 				345B967D8CB66448FED74826 /* FanPassOps */,
+				3E9A1E55A2EC4FEB348BFD72 /* FanPassTests */,
 			);
 		};
 /* End PBXProject section */
@@ -692,6 +734,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		19F6A351ED4FD70319552940 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F13A8C3E9A8DC0373EC71B2 /* FanPassV4APIMapperTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D0CCE8614F70AEAA313B9744 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -744,6 +794,14 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		2C7BDB31BB753D0AABB555F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6468B305EED0BA28D2469974 /* FanPass */;
+			targetProxy = 7AB9E5C3F2C1D9030EA6D601 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		291E30415B4917D457F24C94 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -783,6 +841,23 @@
 				PROVISIONING_PROFILE_SPECIFIER = "$(FANPASS_OPS_PROVISIONING_PROFILE_SPECIFIER)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+		4035EFBB657909B9DDDB7F3E /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.FanPassTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FanPass.app/FanPass";
 			};
 			name = Beta;
 		};
@@ -974,6 +1049,57 @@
 			};
 			name = Staging;
 		};
+		8CDF993057DADCBEEB8D4F9E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.FanPassTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FanPass.app/FanPass";
+			};
+			name = Release;
+		};
+		939D99ED44BF8C2DA9482AD6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.FanPassTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FanPass.app/FanPass";
+			};
+			name = Debug;
+		};
+		9C835E1925C23AFCD7AC08FA /* Staging */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fanpass.FanPassTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FanPass.app/FanPass";
+			};
+			name = Staging;
+		};
 		A04B53C8E99A33E26C36563D /* Beta */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AD0382E6A0C390AD4D2C8B9E /* Beta.xcconfig */;
@@ -1150,6 +1276,17 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0E62C10D09A406AAD95FADCE /* Build configuration list for PBXNativeTarget "FanPassTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4035EFBB657909B9DDDB7F3E /* Beta */,
+				939D99ED44BF8C2DA9482AD6 /* Debug */,
+				8CDF993057DADCBEEB8D4F9E /* Release */,
+				9C835E1925C23AFCD7AC08FA /* Staging */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Beta;
+		};
 		5E981ACB0CA70CBB9A2AF2A7 /* Build configuration list for PBXProject "FanPass" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

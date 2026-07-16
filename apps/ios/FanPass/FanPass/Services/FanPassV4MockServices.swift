@@ -1,6 +1,6 @@
 import Foundation
 
-enum FanPassV4MockError: Error, Hashable {
+enum FanPassV4ServiceError: Error, Hashable {
     case networkUnavailable
     case paymentFailed
     case checkoutExpired
@@ -22,7 +22,20 @@ enum FanPassV4MockError: Error, Hashable {
 
 protocol FanPassV4EventServicing {
     func featuredEvents(network: FanPassV4.DemoNetworkCondition) async throws -> [FanPassV4.Event]
+    func featuredEventSnapshot(network: FanPassV4.DemoNetworkCondition) async throws -> FanPassV4EventCatalogSnapshot
     func event(id: String) async -> FanPassV4.Event?
+}
+
+extension FanPassV4EventServicing {
+    func featuredEventSnapshot(
+        network: FanPassV4.DemoNetworkCondition
+    ) async throws -> FanPassV4EventCatalogSnapshot {
+        FanPassV4EventCatalogSnapshot(
+            events: try await featuredEvents(network: network),
+            source: .live,
+            updatedAt: Date()
+        )
+    }
 }
 
 protocol FanPassV4TicketServicing {
@@ -40,6 +53,7 @@ protocol FanPassV4ScannerServicing {
     func nfcResult(state: FanPassV4.NFCScanState, event: FanPassV4.Event, gate: String) async -> FanPassV4.CheckInResult
 }
 
+#if DEBUG
 protocol MockAuthServicing {
     func currentUser(scenario: FanPassV4.DemoUserScenario) async -> FanPassV4.User
     func signIn(scenario: FanPassV4.DemoUserScenario) async -> FanPassV4.User
@@ -70,7 +84,7 @@ struct MockEventService: FanPassV4EventServicing {
 
     private func validate(_ network: FanPassV4.DemoNetworkCondition) throws {
         if network == .unavailable {
-            throw FanPassV4MockError.networkUnavailable
+            throw FanPassV4ServiceError.networkUnavailable
         }
     }
 }
@@ -93,15 +107,15 @@ struct MockTicketService: FanPassV4TicketServicing {
     }
 
     func chainProof(for ticket: FanPassV4.Ticket) async throws -> FanPassChainProofResponse {
-        throw FanPassV4MockError.networkUnavailable
+        throw FanPassV4ServiceError.networkUnavailable
     }
 
     func listForResale(ticket: FanPassV4.Ticket, price: Int) async throws -> FanPassV4.ResaleListing {
         guard ticket.ticketType.transferRule.transferable, ticket.status.allowsResale else {
-            throw FanPassV4MockError.ticketNotTransferable
+            throw FanPassV4ServiceError.ticketNotTransferable
         }
         if let cap = ticket.ticketType.transferRule.resaleCap, price > cap {
-            throw FanPassV4MockError.resaleCapExceeded
+            throw FanPassV4ServiceError.resaleCapExceeded
         }
         var listedTicket = ticket
         listedTicket.status = .listed
@@ -168,7 +182,7 @@ struct MockScannerService: FanPassV4ScannerServicing {
 
     func refreshQRCredential(ticket: FanPassV4.Ticket) async throws -> String {
         guard ticket.status.allowsEntryCode else {
-            throw FanPassV4MockError.invalidCredential
+            throw FanPassV4ServiceError.invalidCredential
         }
         let formatter = ISO8601DateFormatter()
         let issuedAt = Date()
@@ -237,3 +251,4 @@ struct MockWalletService {
         ticket
     }
 }
+#endif

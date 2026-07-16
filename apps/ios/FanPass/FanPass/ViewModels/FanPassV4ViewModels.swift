@@ -115,28 +115,39 @@ final class FanPassRootViewModel {
 @MainActor
 @Observable
 final class HomeViewModel {
-    var user: FanPassV4.User = FanPassMockData.currentUser
+    var user: FanPassV4.User = .guest
     var featuredEvents: [FanPassV4.Event] = []
     var nextTicket: FanPassV4.Ticket?
     var accessBadge: FanPassV4.AccessBadge?
     var isLoading = false
     var sourceMessage: String?
+    var isUsingSavedEvents = false
+    var catalogUpdatedAt: Date?
 
     func load(
-        user: FanPassV4.User = FanPassMockData.currentUser,
-        isAuthenticated: Bool = false,
-        eventService: FanPassV4EventServicing = MockEventService(),
-        ticketService: FanPassV4TicketServicing = MockTicketService()
+        user: FanPassV4.User,
+        isAuthenticated: Bool,
+        eventService: FanPassV4EventServicing,
+        ticketService: FanPassV4TicketServicing
     ) async {
         isLoading = true
         defer { isLoading = false }
         self.user = user
         do {
-            featuredEvents = try await eventService.featuredEvents(network: .online)
-            sourceMessage = nil
+            let catalog = try await eventService.featuredEventSnapshot(network: .online)
+            featuredEvents = catalog.events
+            catalogUpdatedAt = catalog.updatedAt
+            isUsingSavedEvents = catalog.source == .saved
+            sourceMessage = isUsingSavedEvents
+                ? "Showing saved events. FanPass will update automatically when the connection returns."
+                : nil
+        } catch is CancellationError {
+            return
         } catch {
-            featuredEvents = []
-            sourceMessage = "Events could not load. Check your connection and try again."
+            isUsingSavedEvents = !featuredEvents.isEmpty
+            sourceMessage = featuredEvents.isEmpty
+                ? "Events could not load. Check your connection and try again."
+                : "Events could not refresh. Showing the last loaded catalog."
         }
         if isAuthenticated {
             do {
@@ -162,24 +173,29 @@ final class ExploreViewModel {
     var selectedEvent: FanPassV4.Event?
     var isLoading = false
     var errorMessage: String?
-    private let eventService: FanPassV4EventServicing
-
-    init(eventService: FanPassV4EventServicing = MockEventService()) {
-        self.eventService = eventService
-    }
-
+    var isUsingSavedEvents = false
+    var catalogUpdatedAt: Date?
     func load(
-        eventService overrideService: FanPassV4EventServicing? = nil,
+        eventService: FanPassV4EventServicing,
         network: FanPassV4.DemoNetworkCondition = .online
     ) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            events = try await (overrideService ?? eventService).featuredEvents(network: network)
+            let catalog = try await eventService.featuredEventSnapshot(network: network)
+            events = catalog.events
             selectedEvent = events.first
-            errorMessage = nil
+            catalogUpdatedAt = catalog.updatedAt
+            isUsingSavedEvents = catalog.source == .saved
+            errorMessage = isUsingSavedEvents
+                ? "Showing saved events while FanPass reconnects."
+                : nil
+        } catch is CancellationError {
+            return
         } catch {
-            errorMessage = "Connection unavailable. Events could not refresh."
+            errorMessage = events.isEmpty
+                ? "Connection unavailable. Events could not refresh."
+                : "Events could not refresh. Showing the last loaded catalog."
         }
     }
 }
@@ -194,7 +210,7 @@ final class EventDetailViewModel {
         event.ticketTypes.isEmpty ? [event.safePrimaryTicketType] : event.ticketTypes
     }
 
-    init(event: FanPassV4.Event = FanPassMockData.events[0]) {
+    init(event: FanPassV4.Event) {
         self.event = event
         self.selectedTicketType = event.safePrimaryTicketType
     }
@@ -212,8 +228,8 @@ final class CheckoutViewModel {
     var errorMessage: String?
 
     init(
-        event: FanPassV4.Event = FanPassMockData.events[0],
-        ticketType: FanPassV4.TicketType = FanPassMockData.events[0].safePrimaryTicketType,
+        event: FanPassV4.Event,
+        ticketType: FanPassV4.TicketType,
         quotedPrice: Int? = nil,
         priceLineTitle: String = "Face value",
         fulfillmentMode: FanPassOrderFulfillmentMode = .primaryOnly
@@ -337,39 +353,87 @@ final class CheckoutViewModel {
 @Observable
 final class FanAccessViewModel {
     var event: FanPassV4.Event
-    var tasks: [FanPassV4.FanTask]
-    var badge: FanPassV4.AccessBadge = FanPassMockData.currentUser.accessBadges[0]
-    var lastCompletedTask: FanPassV4.FanTask?
-    var badgeEarned = false
-    private let service = MockFanAccessService()
+    var campaign: FanCampaign?
+    var score: FanScore?
+    var pendingTaskIDs: Set<String> = []
+    var isLoading = false
+    var errorMessage: String?
 
-    init(event: FanPassV4.Event = FanPassMockData.events[0]) {
+    init(event: FanPassV4.Event) {
         self.event = event
-        self.tasks = event.fanTasks
+    }
+
+    var tasks: [FanTask] {
+        campaign?.tasks.sorted {
+            ($0.sortOrder ?? 0, $0.id) < ($1.sortOrder ?? 0, $1.id)
+        } ?? []
     }
 
     var approvedPoints: Int {
-        tasks.filter { $0.status == .approved }.reduce(0) { $0 + $1.points }
+        score?.fanScore ?? score?.score ?? 0
     }
 
-    var totalPoints: Int {
-        tasks.reduce(0) { $0 + $1.points }
+    var qualificationPoints: Int {
+        campaign?.qualificationPoints ?? score?.qualificationPoints ?? 0
+    }
+
+    var pointsToQualify: Int {
+        score?.pointsToQualify ?? max(0, qualificationPoints - approvedPoints)
     }
 
     var progress: Double {
-        guard totalPoints > 0 else { return 0 }
-        return min(1, Double(approvedPoints) / Double(totalPoints))
+        guard qualificationPoints > 0 else { return 0 }
+        return min(1, Double(approvedPoints) / Double(qualificationPoints))
     }
 
-    func completeTask(_ task: FanPassV4.FanTask) async {
-        let completed = await service.completeTask(task)
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index] = completed
+    func isCompleted(_ task: FanTask) -> Bool {
+        score?.completedTaskIds?.contains(task.id) == true
+    }
+
+    func load(apiClient: FanPassAPIClient, userID: String?) async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            campaign = try await apiClient.fanCampaign(eventId: event.id)
+            if let userID {
+                score = try? await apiClient.fanScore(
+                    eventId: event.id,
+                    userId: userID
+                )
+            } else {
+                score = nil
+            }
+            errorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = "Fan Access is temporarily unavailable. Pull to refresh or try again later."
         }
-        lastCompletedTask = completed
-        if progress >= 0.7 {
-            badge = await service.earnBadge(for: event)
-            badgeEarned = true
+    }
+
+    func submit(
+        task: FanTask,
+        proof: String?,
+        apiClient: FanPassAPIClient,
+        userID: String
+    ) async -> Bool {
+        do {
+            let submission = try await apiClient.submitFanTask(
+                taskId: task.id,
+                proof: proof
+            )
+            if submission.status == "PENDING" {
+                pendingTaskIDs.insert(task.id)
+            }
+            score = try? await apiClient.fanScore(
+                eventId: event.id,
+                userId: userID
+            )
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 }
@@ -381,21 +445,15 @@ final class TicketsViewModel {
     var selectedTicket: FanPassV4.Ticket?
     var isLoading = false
     var errorMessage: String?
-    private let ticketService: FanPassV4TicketServicing
-
-    init(ticketService: FanPassV4TicketServicing = MockTicketService()) {
-        self.ticketService = ticketService
-    }
-
     func load(
-        user: FanPassV4.User = FanPassMockData.currentUser,
+        user: FanPassV4.User,
         statusOverride: FanPassV4.TicketStatus? = nil,
-        ticketService overrideService: FanPassV4TicketServicing? = nil
+        ticketService: FanPassV4TicketServicing
     ) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            tickets = try await (overrideService ?? ticketService).walletTickets(for: user, statusOverride: statusOverride)
+            tickets = try await ticketService.walletTickets(for: user, statusOverride: statusOverride)
             selectedTicket = tickets.first
             errorMessage = nil
         } catch is CancellationError {
@@ -424,62 +482,43 @@ final class MarketViewModel {
     var availableEvents: [FanPassV4.Event] = []
     var listings: [FanPassV4.ResaleListing] = []
     var trades: [FanPassV4.Trade] = []
-    var selectedEvent: FanPassV4.Event = FanPassMockData.events[0] {
+    var selectedEvent: FanPassV4.Event? {
         didSet {
             loadSelectedEventData()
         }
     }
     var isLoading = false
     var errorMessage: String?
+    var isUsingSavedEvents = false
+    var catalogUpdatedAt: Date?
 
-    var orderbook: [FanPassV4.OrderbookOrder] {
-        FanPassMockData.orderbook(for: selectedEvent)
-    }
-
-    func load(eventService: FanPassV4EventServicing = MockEventService()) async {
+    func load(eventService: FanPassV4EventServicing) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            let events = try await eventService.featuredEvents(network: .online)
+            let catalog = try await eventService.featuredEventSnapshot(network: .online)
+            let events = catalog.events
             availableEvents = events
-            errorMessage = nil
+            catalogUpdatedAt = catalog.updatedAt
+            isUsingSavedEvents = catalog.source == .saved
+            errorMessage = isUsingSavedEvents
+                ? "Showing saved market events while FanPass reconnects."
+                : nil
             guard !events.isEmpty else { return }
-            if let matchingEvent = events.first(where: { $0.id == selectedEvent.id }) {
-                selectedEvent = matchingEvent
+            if let selectedEvent,
+               let matchingEvent = events.first(where: { $0.id == selectedEvent.id }) {
+                self.selectedEvent = matchingEvent
             } else if let firstEvent = events.first {
-                selectedEvent = firstEvent
+                self.selectedEvent = firstEvent
             }
+        } catch is CancellationError {
+            return
         } catch {
-            availableEvents = []
-            errorMessage = "Market events could not load. Check your connection and try again."
+            isUsingSavedEvents = !availableEvents.isEmpty
+            errorMessage = availableEvents.isEmpty
+                ? "Market events could not load. Check your connection and try again."
+                : "Market events could not refresh. Showing the last loaded catalog."
         }
-    }
-
-    var premiumLabel: String {
-        let faceValue = selectedEvent.safePrimaryTicketType.faceValue
-        guard faceValue > 0 else { return "0%" }
-        let premium = Double(selectedEvent.marketSummary.floorPrice - faceValue) / Double(faceValue)
-        return premium.formatted(.percent.precision(.fractionLength(0)))
-    }
-
-    var recentSaleLabel: String {
-        MoneyFormatter.format(selectedEvent.marketSummary.recentSale, currency: selectedEvent.marketSummary.currency)
-    }
-
-    var bestBidLabel: String {
-        let bestBid = orderbook.filter { $0.side == .buy }.map(\.price).max() ?? 0
-        return MoneyFormatter.format(bestBid, currency: selectedEvent.marketSummary.currency)
-    }
-
-    var bestAskLabel: String {
-        let bestAsk = orderbook.filter { $0.side == .sell }.map(\.price).min() ?? 0
-        return MoneyFormatter.format(bestAsk, currency: selectedEvent.marketSummary.currency)
-    }
-
-    var spreadLabel: String {
-        let bid = orderbook.filter { $0.side == .buy }.map(\.price).max() ?? 0
-        let ask = orderbook.filter { $0.side == .sell }.map(\.price).min() ?? 0
-        return MoneyFormatter.format(max(0, ask - bid), currency: selectedEvent.marketSummary.currency)
     }
 
     func loadSelectedEventData() {
@@ -490,57 +529,10 @@ final class MarketViewModel {
 
 @MainActor
 @Observable
-final class ScannerViewModel {
-    typealias NFCScanState = FanPassV4.NFCScanState
-
-    var selectedEvent: FanPassV4.Event = FanPassMockData.events[0]
-    var selectedGate: String = "A1"
-    var lastResult: FanPassV4.CheckInResult? = FanPassMockData.scanResults.first
-    var nfcModeAvailable: Bool = false
-    var nfcState: NFCScanState = .ready
-    var qrCredential: String = "qr-ready"
-    private let scannerService: FanPassV4ScannerServicing
-
-    init(scannerService: FanPassV4ScannerServicing = MockScannerService()) {
-        self.scannerService = scannerService
-    }
-
-    func simulateQRScan(_ result: FanPassV4.ScanResult) async {
-        lastResult = await scannerService.scan(result: result, event: selectedEvent, gate: selectedGate)
-    }
-
-    func simulateNFCScan(_ state: NFCScanState) async {
-        nfcState = .scanning
-        nfcState = state
-        lastResult = await scannerService.nfcResult(state: state, event: selectedEvent, gate: selectedGate)
-    }
-
-    func refreshQRCode(ticket: FanPassV4.Ticket) async {
-        do {
-            qrCredential = try await scannerService.refreshQRCredential(ticket: ticket)
-        } catch {
-            qrCredential = "qr-unavailable"
-        }
-    }
-
-}
-
-@MainActor
-@Observable
 final class ProfileViewModel {
     var user: FanPassV4.User
-    var staffUser: FanPassV4.User = FanPassMockData.staffUser
-    var staffScannerAvailable: Bool = true
-    var controls = FanPassV4.PrototypeControlState()
-    var controlMessage = "Account controls updated."
 
-    init(user: FanPassV4.User = FanPassMockData.currentUser) {
+    init(user: FanPassV4.User) {
         self.user = user
-        self.controls.userScenario = user.scenario
-    }
-
-    func applyControls() {
-        user = FanPassMockData.user(for: controls.userScenario)
-        controlMessage = "\(controls.userScenario.title) • \(controls.ticketStatus.title) • \(controls.paymentResult.title)"
     }
 }
