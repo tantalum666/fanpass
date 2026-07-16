@@ -5,24 +5,25 @@
 Source: `MAIN_APP_PRODUCT_AUDIT.md` and a fresh V4 runtime/source/Staging review.
 
 - [x] Audit Home, Explore, Market, Tickets, Account, Event Detail, public Staging catalog, runtime provenance, accessibility surface, and active mock/local boundaries as one consumer journey.
-- [ ] P0: filter public event list/detail reads by backend-owned publication/visibility policy; isolate DRAFT/test evidence from externally reachable Staging APIs and add negative contract tests.
-- [ ] P0: parse fractional-second ISO-8601 timestamps strictly, remove required-date fallback to `Date()`, and add mapper tests covering time zones and malformed input.
-- [ ] P0: make market floor/recent sale nullable and sourced only from live asks/settled trades; never substitute face value for resale history.
-- [ ] P0: remove active production initializers that default to mock services/data, make Staging/Beta/Release API configuration fail closed, and require explicit opt-in for localhost.
-- [ ] P0: add consumer iOS unit/UI test targets and protect session, payment, ticket, resale, QR, redemption, and recovery lifecycles before external Beta.
+- [x] P0: filter public event list/detail reads by backend-owned publication policy; deployed Staging returns 11/11 `PUBLISHED`, rejects a former DRAFT detail with 404, and preserves published detail with 200.
+- [x] P0: parse fractional-second ISO-8601 timestamps strictly, remove required-date fallback to `Date()`, and add mapper fixtures covering fractional/non-fractional values and malformed input.
+- [x] P0: make market floor/recent sale nullable and sourced only from live asks/settled trades; Beta runtime shows consistent `No asks` and no verified sales across Home, Event Detail, and Market.
+- [x] P0: remove active production initializers that default to mock services/data, make Staging/Beta/Release API configuration fail closed, and require an ignored explicit override for localhost.
+- [ ] P0: expand the new `FanPassTests` target beyond four compiling mapper tests and make tests execute reliably; Xcode 26.5's simulator test host exited before XCTest connected, and session/payment/ticket/resale/QR/redemption/recovery UI coverage remains open.
 - [ ] P1: replace Home concept search, notifications, favorite, location, popularity, and announcement claims with real services or honest release copy.
 - [ ] P1: rebuild Explore in stages around real event search/filter, artist entities/follows, and rights-cleared editorial content; collapse empty Fan Access.
 - [ ] P1: align Event Detail and Market to one truthful market contract, preserve selected event/category context, hide closed Fan Access, and make the purchase action state-aware.
 - [ ] P1: distinguish persisted Account settings from local-only UI state and prioritize real support, notifications, region/currency, and payout services for the launch scope.
 - [ ] P2: complete global currency/localization/content QA, 44-point touch targets, VoiceOver/Dynamic Type/focus testing, privacy-safe journey analytics, domain-scoped refresh, and feature-file decomposition.
-- [ ] Close each release gate with deployed Staging, TestFlight/physical-device, and real user-path evidence; local builds and mocks remain supporting tools only.
+- [x] Close Gate A with deployed Staging API positive/negative checks, Beta-configured runtime evidence, an atomic fail-closed schema/catalog deploy, and the deployed runtime security suite.
+- [ ] Close Gate B/C with TestFlight/physical-device and real user-path evidence; local builds and mocks remain supporting tools only.
 
 ## Main App Productization - 2026-07-11 Audit
 
 Source: consolidated from the 2026-07-11 main-app audit; the full historical review remains in Git history.
 
 - [x] Resolve the six high production dependency advisories, pass the fail-closed advisory gate, run backend regressions, and deploy the verified update to staging.
-- [ ] Add `FanPassTests` and critical auth/payment/ticket/resale/redemption lifecycle tests. Owner deferred this action on 2026-07-11 after completing the requested testing; no new target was added.
+- [ ] Expand `FanPassTests` into critical auth/payment/ticket/resale/redemption lifecycle coverage. The target and four mapper tests were added on 2026-07-17 and compile, but the iOS 26.5 simulator test host did not establish an XCTest session in this run.
 - [x] Remove mock success-only transactions from the explicitly wired Beta/Release journeys. The 2026-07-17 audit reopened the remaining compiled default mock dependencies and localhost fallback as a separate P0 runtime-injection task above.
 - [x] Make Market Sell load the signed-in user's eligible backend tickets and let the seller choose the exact seat.
 - [x] Remove the fake limit-order/review confirmations and connect lowest-ask resale purchase to real backend order/payment state.
@@ -44,7 +45,8 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 - [ ] Record actual Render/Vercel/Neon plans, Neon region, CU-hours, storage, transfer, and current monthly spend before approving upgrades.
 - [ ] Add synthetic latency checks from North America, Europe, and APAC; select the first production transaction region from organizer/event demand rather than demo city copy.
 - [ ] Establish stable provider-independent API, Console, Auth, and media hostnames before the next external app build.
-- [ ] Replace production-like `prisma db push` with reviewed migrations and `prisma migrate deploy` through a controlled release step.
+- [ ] Replace production `prisma db push` with reviewed migrations and `prisma migrate deploy` through a controlled release step. Staging now guards duplicate-sensitive changes, refuses implicit data loss, and atomically syncs public catalog data before the build can pass.
+- [ ] Reconcile the live Render API service build command with `render.yaml` through a verified dashboard/Blueprint update; the current older command is safe only because `prisma:push` now invokes the guarded wrapper, and the prior CLI update did not survive readback.
 - [ ] Upgrade every externally relied-on runtime from sleeping Free compute before closed beta.
 - [ ] Split the side-effect worker and add distributed rate limits plus Socket.IO coordination before running more than one API instance.
 - [ ] Add provider budgets, uptime/error/latency/database/outbox dashboards, and a tested database restore before closed beta.

@@ -84,17 +84,17 @@ The saved JSON evidence must include:
 
 The current implementation snapshot files and SHA-256 hashes are:
 
-- `apps/api/src/main.ts`: `955e81fae5436f0301a23e32d69e3c60c9741d1ca277736e43ffb7037b6efe5a`
-- `apps/api/src/config/security-config.ts`: `a61e7eec663335936a94f64baf6b15c15722dd22bb6a02b3750a4ac6c954a3a2`
-- `apps/api/.env.staging.example`: `fbb6955c0a223ac163174d0726fd5d3086454a7ef5b70ca7f826851360cd4f1a`
+- `apps/api/src/main.ts`: `b7c255ff3a3c3df382ac3599e5e0e75d65460235f2a4a619611ab0add049fd24`
+- `apps/api/src/config/security-config.ts`: `b513290927f3f53263b8e16a8dd845379c6da1ffb4fd9f35bb453ac39b3ae718`
+- `apps/api/.env.staging.example`: `42490d531c7df401d60237382cf5216174aeb5ae3335218f6b6f905836de26cf`
 - `apps/api/src/common/fanpass-socket-io.adapter.ts`: `148f80303b5dac2b8310c58a952c42a1a5d70f03c1f76a459a46b4cd7f71a246`
 - `apps/api/src/modules/alpha/alpha.controller.ts`: `79e13f9aef0ac0ca55f3a07a292fee56bc3c3df76361aa8a153a45b2c7109645`
 - `apps/api/src/modules/side-effects/side-effect-health.service.ts`: `0804138b2db924583c48869ad998a70b38dfdb077d3e0ac00c33d56235a20dfe`
-- `apps/dashboard/server/console-bff.ts`: regenerate with the current source before accepting new staging evidence.
-- `scripts/security-runtime-staging-check.sh`: `cb9ac39b3b6035b06ec76bc5de08bc53576434d59fc7d6a71fb5247c86855275`
-- `scripts/staging-runtime-evidence-audit.js`: `32146678533c94e5f813803ce1f235274b7dca462bd660495ffae7b87d246ab7`
-- `scripts/security-runtime-staging-local-dry-run.sh`: `69ee2213d6fa06596baf713d82c475e490f5ad83432723a68a9082747b1bce49`
-- `scripts/security-header-policy-audit.js`: `5e4821dca0ae34efe862dfd2ebc04b217a3de2ce43e2a87b7f02b40be3e04876`
+- `apps/dashboard/server/console-bff.ts`: `5bb789302bc61be7f48ea4b23c18539e7e79b83bbde9b74c0bdd26c3484acd70`
+- `scripts/security-runtime-staging-check.sh`: `fc02f4f68c56d58f11a5b4b84fbb6f4bd371f443ccfbfd92643ca13e4fbf05b3`
+- `scripts/staging-runtime-evidence-audit.js`: `cf68b3b97b4cc99c247fefd11ce50de4634279969163fd0ee5c90b72b46e17f9`
+- `scripts/security-runtime-staging-local-dry-run.sh`: `a77c4900a9ec90e56a38c498d70b60dd36447af4d085dd6573651ec089be238e`
+- `scripts/security-header-policy-audit.js`: `5cf6eab1d1256b44679866733ff78dbd9b614a0d7a1b69daf411295b0285e20e`
 
 Validate the saved evidence before treating the staging gate as closed:
 
@@ -116,7 +116,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 
 1. Provision managed Postgres for staging. The current Neon project is `fanpass-staging`; do not commit or print its connection string.
 2. Configure API environment from `apps/api/.env.staging.example`.
-3. Run Prisma schema push/migration for staging only after confirming the database is not production.
+3. Run the fail-closed Staging schema/catalog deploy only after confirming the database is not production. Duplicate Fan Access submissions stop the deploy for reviewed remediation; `--accept-data-loss` is not used in the hosted path.
 4. Deploy API and verify `/health`. Current API origin: `https://fanpass-api-staging.onrender.com`.
 5. Configure Console environment from `apps/dashboard/.env.staging.example` or the `fanpass-console-staging` service in `render.yaml`.
 6. Deploy Console and verify unauthenticated locked/sign-in state.
@@ -126,7 +126,8 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 ## Current Open Items
 
 - Neon staging database exists and has the current Prisma schema plus local demo seed data.
-- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com` from `main`. Deploy `dep-d99l7e647okc73e64efg` for commit `49be599f79adfb917da09f4534608e40014d369b` is live; `/health` and `/events` passed on 2026-07-12.
+- Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com` from `main`. Deploy `dep-d9ckdqsvikkc73d29km0` for commit `8f845a19e32bd072b4e6b4df6e61ce11a7548214` is live; the guarded schema step and atomic public catalog/Fan Access upsert passed, `/health` returned 200, `/events` returned 11/11 `PUBLISHED`, a former DRAFT detail returned 404, and the deployed runtime security check passed on 2026-07-17.
+- The live service-level API build command still uses `npm run prisma:push -w apps/api`; that script is now a safe wrapper around the guarded schema/catalog deploy, so the current Staging release is protected. The service setting nevertheless differs from the desired explicit audit/migration command in `render.yaml`, and a CLI update did not change its readback value. Reconcile this drift through a verified Render dashboard/Blueprint update before Production.
 - Historical Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`, but that evidence belongs to the old Next runtime.
 - Current Vite/Node Console service `fanpass-console-staging` is live at `https://fanpass-console-staging.onrender.com` from `main`. Deploy `dep-d99l8ics728c73ddl6c0` for the same commit is live and the root returned HTTP 200 on 2026-07-12.
 - Cookie-backed Console mutations in staging currently allow the Render Console origin `https://fanpass-console-staging.onrender.com` through `FANPASS_CONSOLE_ORIGINS`; the old dashboard origin itself should not be assumed to be an allowed mutation origin.
@@ -142,7 +143,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 ## High-Demand On-Sale Runtime - 2026-07-12
 
 - Render must define a production-grade `FANPASS_ONSALE_QUEUE_SECRET`; production-like validation fails when it is absent or weak.
-- Render startup applies the Prisma schema and upserts the Aurora on-sale policy/allocation ledger.
+- The guarded Render deploy step applies the Staging schema and atomically upserts the Aurora on-sale policy/allocation ledger before the build can pass; application startup is read/runtime initialization only.
 - Neon remains the final inventory authority; no edge/cache counter may sell a ticket.
 - Current Render/Neon staging is for functional and moderate concurrency testing. Do not expose it directly to concert-scale polling.
 - Before a major sale, place a managed edge waiting room in front of the API and admit bounded cohorts with short-lived signed tokens.

@@ -393,4 +393,34 @@ Owner 进一步校准工作方式：后续不把 Mock 或 Local Build 当作默�
 
 做出的决定：先执行 [Main App Product Audit](../MAIN_APP_PRODUCT_AUDIT.md) 的 Truth Gate，再扩展视觉和内容。以后 Local/Simulator 用于编译、调试和回归，但不能关闭可用性、身份、支付、数据或发布结论；这些结论需要部署后的 HTTPS、TestFlight/实体设备和真实用户路径证据。
 
-仍在进行：本次只完成诊断、优先级和持续文档，没有把审计结果写成“产品已修复”。下一阶段从公开活动边界、严格日期解析和市场事实统一开始。
+仍在进行：这一阶段最初只完成诊断、优先级和持续文档，没有提前把审计结果写成“产品已修复”。随后 Gate A 进入实现和部署，结果记录在下一节。
+
+## 19. 2026-07-17：Truth Gate 从审计进入真实 Staging
+
+目标：先关闭会让用户看到错误事实的 Gate A，再进入 Explore 和转化体验优化。
+
+发生了什么：
+
+- API 公开列表和详情改为只允许 `PUBLISHED`，并增加 DRAFT 负向测试；
+- iOS 严格解析带/不带毫秒的 ISO-8601，非法必填日期不再替换成“现在”；
+- 票面价与真实转售行情分离，空市场在 Home、Event Detail 和 Market 中统一显示 `No asks` / 无成交；
+- Fan Access 由开放 campaign 决定是否出现，钱包数量阈值继续只留在后端；
+- Beta/Release 构造不再默认注入 Mock，缺少或不安全的 API Origin 直接失败；
+- 新增 `FanPassTests` 目标和四个 mapper fixture，但当前 iOS 26.5 test host 没有完成 XCTest 连接，不能把“编译成功”写成“测试已执行”。
+
+部署过程没有一次直线成功：第一次本地 `git push` 返回了看似成功的退出状态，但远端 `main` 没有前进；回读远端 commit 才发现 Render 根本没收到代码。真正推送后，Render 又因为新唯一约束可能造成数据损失而拒绝 raw `prisma db push`。处理时没有加 `--accept-data-loss`，而是加入 advisory lock、重复数据前置检查和 fail-closed 迁移。随后部署日志又暴露 public upsert 先写 task、后写 campaign 的外键顺序错误；最终把 catalog/Fan Access 同步改成单事务、campaign-before-task，并从应用启动副作用移动到部署门内。
+
+Render CLI 还出现了另一种“假成功”：更新服务 build command 后返回成功，但再次读取服务配置时仍是旧命令。当前旧命令调用的 `prisma:push` 已被改成安全包装器，因此本次 Staging 没有退回 raw push；不过仓库 `render.yaml` 和云端服务设置的漂移仍被保留为 Production 前任务，而不是在文档里假装已经同步。
+
+当前验证证据：
+
+- API deploy `dep-d9ckdqsvikkc73d29km0` 从 commit `8f845a1` 上线；
+- `/events` 为 11/11 `PUBLISHED`，旧 DRAFT id 为 404，Aurora 为 200；
+- Aurora campaign 为 `ACTIVE`、三项任务，公开响应没有钱包数量字段；
+- Staging 运行时安全检查通过安全头、demo auth 禁用、未登录边界和 WebSocket Origin；
+- Beta 模拟器从 Staging HTTPS 显示真实未来日期、诚实空行情和条件化 Fan Access；
+- API 22 个 suite、132 个测试通过，生产依赖审计为 0 漏洞。
+
+仍在进行：这不是正式上线或全球商业落地。Home 的位置/推荐/通知仍有概念行为，Explore 卡片在窄屏的海报/状态层仍显杂乱，Market 在无 Ask 时仍把绿色 Buy 作为主按钮；生命周期自动化、TestFlight、实体设备、非休眠容量、全球化、内容权利和真实 Fan Access 双角色 E2E 仍属于 Gate B/C。
+
+可复制经验：部署完成必须同时回读远端 commit、云端 deploy commit、构建日志和业务正负向结果；`live`、Health 200、编译成功、CLI 退出 0 都只能证明其中一层。AI 看到相邻错误时应继续追到同一发布门的根因，但要把未完成的下一阶段明确留下，而不是无限把所有产品问题混成一次改动。

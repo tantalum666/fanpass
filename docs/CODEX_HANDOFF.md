@@ -60,7 +60,7 @@ Fan Access V1 follows the same boundary: the API owns campaign publication windo
 
 Preview fixtures may remain for Xcode previews. Active Beta/Release paths must not mutate mock orders, tickets, listings, payments, support requests, or account state and claim success.
 
-The current consumer release backlog is owned by `docs/MAIN_APP_PRODUCT_AUDIT.md`. Its first priority is trusted product truth, not another broad visual redesign.
+The current consumer release backlog is owned by `docs/MAIN_APP_PRODUCT_AUDIT.md`. Gate A trusted-product truth is closed in Staging; Gate B discovery/conversion and Gate C release reliability are next, not another broad visual redesign.
 
 ## Current Deployments
 
@@ -72,8 +72,11 @@ The current consumer release backlog is owned by `docs/MAIN_APP_PRODUCT_AUDIT.md
 
 Latest code-bearing deployments:
 
-- Current live API and Console release: `ce5b4f29d3ff319a53816ff378fb673a2938c4c9`; Console Auth remains on compatible release `108f4e65fc8c1ecb584aa2e6a29f8f2478bb0307`. A later documentation-only `[skip render]` commit may be the `main` head.
-- API deploy `dep-d9cdicc2m8qs73f0r3i0` and Console deploy `dep-d9cdicc2m8qs73f0r3c0` are both `live`. Post-deploy checks returned HTTP 200 from API health and Console root, with no deploy-window error logs. Console Auth health also returned HTTP 200 after a 21.8-second Render free-instance cold start.
+- Current live API release is `8f845a19e32bd072b4e6b4df6e61ce11a7548214`; Console remains on compatible release `ce5b4f29d3ff319a53816ff378fb673a2938c4c9`, and Console Auth remains on `108f4e65fc8c1ecb584aa2e6a29f8f2478bb0307`. A later documentation-only `[skip render]` commit may be the `main` head.
+- API deploy `dep-d9ckdqsvikkc73d29km0` is `live`. Its guarded schema step rejected implicit data loss, the atomic public catalog/Fan Access upsert passed before build completion, `/health` returned 200, `/events` returned 11/11 `PUBLISHED`, a former DRAFT detail returned 404, and published Aurora detail returned 200. The deployed runtime security suite passed API/Console headers, unauthenticated boundaries, disabled demo auth, and WebSocket Origin checks.
+- The superseded `dep-d9cjs9ihil2s738ap070` failed safely because raw `prisma db push` required `--accept-data-loss` for a new uniqueness constraint. The replacement takes an advisory lock, rejects real duplicates for reviewed remediation, and never adds the destructive flag. A following deploy exposed and then fixed campaign-before-task foreign-key ordering; catalog sync is now one transaction and no longer runs as a swallowed startup side effect.
+- The live Render API service still stores the older build command `npm ci --include=dev && npm run prisma:push -w apps/api && npm run build -w apps/api`. It is safe for the current Staging deploy because `prisma:push` now routes through the fail-closed schema guard and atomic catalog sync, but it does not yet match the explicit audit/migration command in `render.yaml`. A Render CLI update reported success without changing the readback value; reconcile the service/Blueprint configuration before Production instead of assuming the CLI response applied it.
+- Console deploy `dep-d9cdicc2m8qs73f0r3c0` remains `live`. Console root and Console Auth health returned HTTP 200 after the earlier auth release, with no change to their compatible session boundary in the API Gate A deploy.
 - The Console Auth `/health` response reports HTTP 200, `runtime: vite-node-static`, and `environment: staging`. The live Console handoff starts with `303`, redirects only to the exact Auth origin, and sets a five-minute host-only `HttpOnly; SameSite=None; Secure` state Cookie.
 - The superseded pre-migration Console Auth deploy was `dep-d9b2hjp9rddc738kngl0` for commit `b3d7d8177e7f2aebab05562267c04e97db15a742`.
 - All three Render services follow `main` with commit-triggered auto-deploy; no service depends on a deleted branch.
@@ -86,7 +89,7 @@ Latest documentation-only deploys for `main` commit `13b1f0554a072d14036396aed3f
 ## iOS Baseline
 
 - Xcode project: `apps/ios/FanPass/FanPass.xcodeproj`.
-- Active scheme/config for local validation: `FanPass`, Debug.
+- Active scheme/config for the latest consumer validation: `FanPass`, Beta.
 - Simulator: `FanPass-iPhone-17`, id `41D28602-FF01-4E4C-98AA-DA7F4FC93D27`.
 - Physical phone: `tantalum`, iPhone 16 Pro Max, CoreDevice id `0185F0DC-2EC1-5340-9999-B8EA666DC02C`.
 - Both installed apps report marketing version `1.0`, build `2`; that version number does not identify a source commit.
@@ -110,7 +113,9 @@ Current V4 repair in this worktree:
 - Public event loading now uses a shared stale-while-revalidate repository. Idempotent GETs use bounded transient retry, the last successful catalog is stored by API origin for seven days, Home/Explore/Market preserve existing content on refresh failure, and scene activation plus a 60-second active-scene cadence triggers coalesced recovery.
 - The reported long-idle simulator failure was traced to an installed local Debug build whose `FanPassAPIBaseURL` was `http://localhost:4000` after the local API had been stopped, not to account logout. Runtime QA then proved `online load -> API stopped -> immediate saved Home/Market content -> API restored -> banner removed automatically`; the final simulator install must use the staging HTTPS origin unless local API work is intentional.
 - Fan Access numeric wallet thresholds remain in backend domain/persistence policy only. Public campaign responses omit both threshold fields, and consumer plus Console copy no longer states a wallet count.
-- Final verification rebuilt and launched `fun.fanpass.app` with `FanPassAPIBaseURL=https://fanpass-api-staging.onrender.com` while local port 4000 was stopped; Home loaded Aurora content and Market rendered its selector plus verified-resale chart without clipping. `npm run beta:foundation:verify` passed, including 20 API suites and 128 tests.
+- Final Gate A verification built and launched the `Beta` configuration of `fun.fanpass.app` with `FanPassAPIBaseURL=https://fanpass-api-staging.onrender.com`. Home rendered Aurora `OCT 12` and Neon `NOV 15`; Home/Event Detail/Market consistently showed `No asks` and no verified sales; Explore showed Fan Access only for open campaigns and omitted it for Skyline Jazz. Runtime logs contained no localhost, DRAFT, refresh, market-unavailable, fatal, or failed markers.
+- `FanPassTests` now exists with four mapper fixtures and compiles. On the installed iOS 26.5 runtime, testmanager repeatedly exited before connecting to the XCTest host, so zero tests executed. Do not treat this as lifecycle coverage; session/payment/ticket/resale/QR/redemption/recovery UI tests and physical-device evidence remain open.
+- `npm run beta:foundation:verify`, strict typechecks/builds, the production dependency audit, and the full API regression pass. The current API run has 22 passing suites and 132 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
 
 ## Console Baseline
 
@@ -128,7 +133,7 @@ Current V4 repair in this worktree:
 - The first Vite deploy correctly failed health with 503 because the existing Render service had not applied the new `FANPASS_ENV=staging` variable and `NODE_ENV=production` activated the real production Cookie gate. The live fix infers only `staging` or `beta` from Render's documented service name/hostname metadata when `FANPASS_ENV` is absent; unrecognized/production services remain fail-closed. Health now exposes only validated environment/runtime/release metadata for deployment proof.
 - FanPass code creates no app-managed browser token store. Render staging explicitly uses Privy's default `browser-sdk` storage mode for fictional staging access; production/beta configuration fails closed unless `httponly-cookie` mode is selected. The Console BFF can consume the verified `privy-token` HttpOnly cookie without a token request body before issuing its own organizer/admin-gated HttpOnly Console session.
 - Fan Access campaign editing is split into a dedicated campaign panel and review queue. Console can persist reward, supply, qualification threshold, allocation method, dates, and one to three tasks; organizer/admin review decisions require a reason and write audit evidence.
-- Console and API strict typechecks, production builds, the clean production dependency audit, route/provider/privacy security gates, the focused handoff integration, the refreshed 21-file Privy isolation evidence, and the full Node 22 `beta:foundation:verify` all pass. The current focused Fan Access run has 20 passing API suites and 128 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
+- Console and API strict typechecks, production builds, the clean production dependency audit, route/provider/privacy security gates, the focused handoff integration, the refreshed 21-file Privy isolation evidence, and the full Node 22 `beta:foundation:verify` all pass. The current full API run has 22 passing suites and 132 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default.
 - Mutating refunds, transfers, and report exports are intentionally not represented as working actions until their backend contracts, authorization, audit, and idempotency behavior exist.
 
 ## Implemented Core Flows
@@ -147,7 +152,7 @@ Current V4 repair in this worktree:
 
 ## Open Engineering Work
 
-1. Close the `docs/MAIN_APP_PRODUCT_AUDIT.md` Gate A truth blockers: public event visibility, strict timestamps, nullable market facts, conditional Fan Access, and fail-closed real dependency/environment injection.
+1. Execute Gate B in `docs/MAIN_APP_PRODUCT_AUDIT.md`: replace Home concept claims, build real discovery/search continuity, reorder Event Detail around conversion, make Market actions liquidity-aware, and distinguish persisted Account settings.
 2. Add iOS unit/UI coverage for session restore, Stripe outcome, list/cancel QR state, remote redemption, and duplicate redemption.
 3. Replace Home concept search/notifications/personalization claims and complete the real Explore/Event Detail/Market discovery-to-purchase journey.
 4. Add one centralized 401 refresh policy and typed repository errors.
@@ -157,7 +162,7 @@ Current V4 repair in this worktree:
 8. Run physical-device regression for Stripe settlement, resale list/cancel, simultaneous Ops redemption, and multi-device state.
 9. Add managed edge waiting room, attestation/risk, verified phone/recovery, cached fan-out, and load/failover tests before a concert-scale sale.
 10. Complete release chain custody, signed Apple Wallet evidence, TestFlight, legal/compliance, and venue integration.
-11. Deploy the Fan Access Prisma migration and API/Console/iOS changes to staging, then capture a real Privy organizer/fan E2E covering publication, eligibility, review, and audit visibility.
+11. Complete a real Privy organizer/fan Fan Access E2E covering publication, eligibility, review, and audit visibility. The schema/API/iOS deployment and public campaign/task reads are live; the authenticated two-role journey is not yet closed.
 12. Keep wallet-link mutation disabled until signed ownership proof, replay protection, cooldown, earning-wallet limits, and audit evidence ship together; keep one account/campaign claim authoritative across wallets.
 13. Add backend-owned Console workflows for refunds, transfers, and report exports before enabling those mutations in the UI.
 14. Before real-user Console production, create and verify the separate production Privy app/domain, enable Privy HttpOnly cookies, restrict exact origins and administrator identities, require MFA/passkeys, review the remaining isolated moderate advisories, and capture passing production-mode E2E evidence.
@@ -177,7 +182,7 @@ Current V4 repair in this worktree:
 - `form-data`, `viem`, `ethers`, and `ws` were updated within compatible ranges to close newly surfaced high findings; all 6 contract tests pass.
 - Payer-only payment fields are limited to PaymentIntent creation responses. USDC, webhook, worker, and admin payment responses use the redacted mapper.
 - Alpha reset deletes all current Prisma relations in one ordered transaction. Side-effect saga verification pins mock ownership so local testnet settings cannot leak into integration tests.
-- Jest loads a test-only provider boundary before imports; the current full API run has 20 passing suites and 128 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
+- Jest loads a test-only provider boundary before imports; the current full API run has 22 passing suites and 132 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped in the default run.
 - The focused 2026-07-15 Console session repairs passed Console/Auth typechecks and builds, all 16 current Auth tests, the permanent state/Cookie/form/JSON/blocked-origin and bounded expired-session integration regression, Console route/Auth runtime self-tests and live audits, header/provider/privacy gates, a clean root production audit, and the refreshed 21-file Privy isolation evidence validator. The full Node 22 Beta verifier finished with 19 passing API suites and 118 passing tests. Live HTTP then proved the deployed refresh/reauth/stop state machine and that rejected tokens never create a session. The follow-up `ce5b4f2` shared-egress limiter repair passed the expanded Node 22 gate with 20 API suites and 124 tests, and the owner-visible staging E2E completed successfully with a token-free accepted/201 Console exchange event.
 - Do not force dependency fixes. Re-run the production audit and fail-closed advisory gate after manifest/lock changes.
 - Neon/PostgreSQL is final inventory authority. Cache or edge counters must never sell tickets.

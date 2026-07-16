@@ -13,26 +13,34 @@ The audit uses four evidence layers:
 3. the active V4 Swift and API source;
 4. existing release, security, payment, ticket, and infrastructure contracts.
 
-The installed app is a Debug build pointed at `https://fanpass-api-staging.onrender.com`. It is useful runtime evidence, but it is not TestFlight, physical-device, production-capacity, or real-user launch proof.
+The current simulator evidence uses the `Beta` configuration pointed at `https://fanpass-api-staging.onrender.com`, with Debug-only concrete mocks excluded. It is useful runtime evidence, but it is not TestFlight, physical-device, production-capacity, or real-user launch proof.
 
 ## Overall Verdict
 
-The V4 visual system is coherent and the product already has credible ticketing, controlled resale, payment, ownership, and entry foundations. It is not ready for external users yet because several trusted facts can currently be false or internally inconsistent.
+The V4 visual system is coherent and the product already has credible ticketing, controlled resale, payment, ownership, and entry foundations. Gate A's catalog, timestamp, market-fact, conditional Fan Access, and runtime-injection blockers are now fixed and verified against deployed Staging.
 
-The next product phase is not another broad visual redesign. It is a **truth-and-completion pass**:
+The app is still not ready for external users. The next product phase is Gate B and Gate C rather than another broad visual redesign:
 
-- the API must publish only public events;
-- dates, prices, availability, market history, and Fan Access must never be inferred as facts;
 - concept-only interactions must either become real or leave the release surface;
-- a deployed Staging/TestFlight journey, automated iOS lifecycle tests, and physical-device evidence must protect the core path.
+- Home, Explore, Event Detail, Market, and Account must form one honest discovery-to-purchase journey;
+- automated iOS lifecycle tests, TestFlight, physical-device evidence, non-sleeping capacity, accessibility, localization, and recovery evidence must protect the core path.
+
+## 2026-07-17 Gate A Closeout
+
+- API deploy `dep-d9ckdqsvikkc73d29km0` is live from commit `8f845a1`. `/health` returned 200; `/events` returned 11 records and every status was `PUBLISHED`; a previously exposed DRAFT id returned 404 while `evt_aurora` returned 200.
+- The schema deploy is fail-closed: it refuses duplicate `(user_id, task_id)` pairs instead of using `--accept-data-loss`. Public catalog, Fan Access campaigns, and tasks are upserted atomically before the build can pass; application startup no longer mutates catalog data or swallows seed failures.
+- The API has 22 passing suites and 132 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default. The production dependency audit reports 0 vulnerabilities.
+- The deployed runtime security check passed API/Console security headers, disabled demo sessions, unauthenticated admin/Console rejection, and allowed/disallowed WebSocket Origin behavior. The privileged outbox-health check was not repeated because no admin bearer was supplied.
+- A `Beta` simulator build launched from the deployed HTTPS API with no localhost fallback. Runtime evidence showed `OCT 12` and `NOV 15`, `No asks`, `No verified sales`, and conditional Fan Access; Skyline Jazz rendered without Fan Access.
+- `FanPassTests` now exists and four mapper tests compile. Xcode 26.5's simulator test host repeatedly exited before establishing the XCTest session, so zero tests executed in that run. Broader session/payment/ticket/resale/QR/redemption UI coverage remains an external-Beta blocker rather than an assumed pass.
 
 ## Release Severity
 
 ### P0 - Block External Beta
 
-#### 1. Public event authority is missing
+#### 1. Public event authority - Resolved at Gate A
 
-The public Staging `/events` response returned 20 events: 11 `PUBLISHED` and 9 `DRAFT`. The draft set includes staff, cross-organizer, invite, and test-evidence titles. The iOS app hides some of them with keyword filtering in `isPublicDisplayEvent`, but a consumer must not enforce server publication policy.
+At audit time, public Staging `/events` returned 20 events: 11 `PUBLISHED` and 9 `DRAFT`. The API now owns this boundary for both list and detail reads; the deployed negative check proves a former draft id is no longer reachable publicly.
 
 Required boundary:
 
@@ -41,9 +49,9 @@ Required boundary:
 - test evidence is isolated from the externally reachable Staging catalog;
 - API tests prove draft, cancelled, tenant-private, and test records cannot cross the public boundary.
 
-#### 2. Real event dates are replaced with the current date
+#### 2. Real event dates replaced with the current date - Resolved at Gate A
 
-The API returns timestamps such as `2026-10-12T12:00:00.000Z`. The current mapper uses a default `ISO8601DateFormatter` that rejects this fractional-second form, then falls back to `Date()`. Runtime evidence therefore rendered Aurora and other future events as `JUL 17`.
+The original mapper rejected fractional-second timestamps such as `2026-10-12T12:00:00.000Z` and fell back to `Date()`. It now accepts fractional and non-fractional ISO-8601 input and throws a typed mapping error for malformed required dates. The Beta runtime rendered the future dates rather than the current day.
 
 Required boundary:
 
@@ -52,9 +60,9 @@ Required boundary:
 - add unit fixtures for fractional and non-fractional ISO-8601 values and time zones;
 - reject or quarantine malformed catalog records instead of silently changing their meaning.
 
-#### 3. Face value is presented as market truth
+#### 3. Face value presented as market truth - Resolved at Gate A
 
-`defaultMarketSummary` currently assigns the first ticket type's face value to `floorPrice`, `recentSale`, and `suggestedResalePrice` even when no resale ask or settled trade exists. Event Detail can therefore show `Floor HK$1,280` and `Lowest resale` while Market correctly shows `No asks` and no verified sales.
+The original fallback assigned face value to market floor and recent sale when no resale existed. Market facts are now nullable and sourced from the live orderbook/settled-sale path. Home, Event Detail, and Market consistently rendered `No asks` and no verified sales while keeping face value labelled as face value.
 
 Required boundary:
 
@@ -63,9 +71,9 @@ Required boundary:
 - no ask, no sale, and no chart history remain explicit empty states on every screen;
 - Home, Event Detail, and Market share one market-summary contract.
 
-#### 4. Production code can silently fall back to prototype state
+#### 4. Silent prototype fallback - Resolved at Gate A
 
-The active target still compiles mock services/data and several production-facing initializers default to `MockEventService`, `MockTicketService`, or `FanPassMockData`. Missing Debug API configuration silently points to `http://localhost:4000`.
+Release-facing construction now requires explicit dependencies, concrete mock services compile only under `DEBUG`, and missing or unsafe environment values fail closed. The checked-in Local default is the Staging HTTPS origin; localhost requires an ignored explicit override.
 
 Required boundary:
 
@@ -75,9 +83,9 @@ Required boundary:
 - all Staging/Beta/Release configurations fail closed when the API origin is absent or unsafe;
 - local API use requires an explicit opt-in scheme and cannot be the normal Debug fallback.
 
-#### 5. Core iOS lifecycle has no automated test target
+#### 5. Core iOS lifecycle automation - Partially addressed
 
-The Xcode project has no consumer unit or UI test target. Critical session restore, payment settlement, ticket issuance, list/cancel, QR suppression, remote redemption, and multi-device reconciliation behavior is therefore protected mainly by manual checks.
+The Xcode project now has a shared `FanPassTests` target with focused mapper fixtures, and the target compiles. The current iOS 26.5 simulator failed to establish the XCTest host session, so the four tests did not execute in this environment. Critical session restore, payment settlement, ticket issuance, list/cancel, QR suppression, remote redemption, and multi-device reconciliation still need executable unit/UI coverage and physical-device evidence.
 
 Required boundary before external Beta:
 
@@ -103,7 +111,7 @@ Decision: keep Home small and truthful. Until recommendation, saved-artist, noti
 
 - Search covers only event title, venue, city, and category; the placeholder and Home copy imply broader artist discovery.
 - “Recommended” is the full filtered event list, not a ranking or personalized recommendation.
-- An empty Fan Access card occupies prime space even when the backend reports no open campaign.
+- Fan Access is now campaign-conditional, but compact Explore cards still show visually noisy poster/status layers at 368-point width.
 - There is no artist entity, editorial story, genre/topic navigation, follow graph, content-rights state, or source attribution model in the active experience.
 
 Decision: evolve Explore into a discovery hub in stages: real event search/filter first, then artist pages/follows, then rights-cleared editorial content. Empty Fan Access should collapse into a small contextual module instead of dominating the page.
@@ -135,7 +143,7 @@ Decision: keep only settings that are either real, read-only and accurately labe
 #### Event Detail And Purchase
 
 - The first viewport repeats artwork and derived market metrics while the ticket category and purchase action sit below the fold.
-- Fan Access is linked for every event even when `fanAccessAvailable` is false or missing.
+- Fan Access is now shown only for an open backend campaign; expiry/closure transitions still need automated coverage.
 - The persistent tab bar competes with a focused event/purchase journey.
 - Availability and checkout gating are backend-backed, which is the correct authority boundary.
 
@@ -154,9 +162,9 @@ Decision: move event time/place/status and the first valid ticket action into th
 
 ## Screen Review
 
-### 1. Runtime And Data Provenance - At Risk
+### 1. Runtime And Data Provenance - Gate A Closed, Release Provenance Pending
 
-The installed build points to real Staging, but it is locally installed Debug evidence. The service-backed path is visible; release provenance, public catalog isolation, and fail-closed configuration are not complete.
+The installed Beta-configured build points to real Staging, public catalog isolation is server-owned, and runtime configuration fails closed. TestFlight, physical-device, production-capacity, and real-user provenance remain incomplete.
 
 ### 2. Home - Visually Strong, Semantically Weak
 
@@ -188,9 +196,9 @@ The information architecture is understandable. The product should not confuse a
 
 Evidence: `outputs/product-audit/2026-07-17-main-app/05-account.png`.
 
-### 7. Event Detail - Trust Contradiction Blocks Purchase Confidence
+### 7. Event Detail - Truth Contradiction Resolved, Conversion Hierarchy Pending
 
-The page looks polished but currently surfaces the date and market contradictions most clearly. Purchase intent and real ticket availability need to lead the screen.
+The page now shows the real date and an honest no-ask state. Purchase intent and real ticket availability still need to lead the screen, and the persistent tab bar still competes with the focused journey.
 
 Evidence: `outputs/product-audit/2026-07-17-main-app/06-event-detail.png`.
 
@@ -200,15 +208,15 @@ This pass inspected the simulator accessibility overlay and source-level target 
 
 ## Remediation Sequence
 
-### Gate A - Truthful Catalog And Market
+### Gate A - Truthful Catalog And Market - Closed in Staging
 
-1. Enforce public event visibility on the API.
-2. Fix strict timestamp decoding and remove `Date()` fallbacks.
-3. Separate face value from nullable market facts.
-4. Hide Fan Access unless the API reports an open campaign.
-5. remove silent mock/local defaults from active runtime construction.
+1. [x] Enforce public event visibility on the API.
+2. [x] Fix strict timestamp decoding and remove `Date()` fallbacks.
+3. [x] Separate face value from nullable market facts.
+4. [x] Hide Fan Access unless the API reports an open campaign.
+5. [x] Remove silent mock/local defaults from active runtime construction.
 
-Exit evidence: API contract tests, iOS mapper tests, a deployed Staging build, public endpoint checks, and screenshots showing correct future dates plus consistent no-market-data states.
+Exit evidence: deployed API contract checks, compiled iOS mapper tests, a Beta-configured Staging runtime, public endpoint positive/negative checks, and visual/runtime evidence showing correct future dates plus consistent no-market-data states. The XCTest execution limitation remains in Gate C.
 
 ### Gate B - Real Discovery And Core Conversion
 

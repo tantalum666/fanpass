@@ -19,21 +19,21 @@ Prices are USD list-price snapshots reviewed on 2026-07-17, before tax, domains,
 
 ## Current Runtime Boundary
 
-| Surface | Current location | Role | Planning decision |
-| --- | --- | --- | --- |
-| FanPass API | Render Free web service, Oregon | NestJS, Prisma, Socket.IO, payments, inventory, auth and in-process side-effect scheduler | First service to become paid and always-on; later split worker |
-| Organizer Console | Render Free web service, Oregon | Vite UI, Node BFF and HttpOnly Console session | Keep separate; Starter is sufficient initially |
-| Console Auth | Render Free web service, Oregon | Isolated Privy browser-auth runtime | Keep isolated; Starter is sufficient initially |
-| PostgreSQL | Neon `fanpass-staging` | Inventory, order, payment, ticket and audit authority | Keep Neon through early growth; create a separate production project |
-| Public web | `apps/web`; old Vercel dashboard is historical | Public discovery/marketing candidate | Commercial use requires Vercel Pro or another commercial host |
-| Background work | Timer inside API plus PostgreSQL outbox | Payment, ownership and chain side effects | Split before real-money production or horizontal API scaling |
-| Shared cache/queue | Not implemented in the active API path | Needed for multi-instance rate limits, Socket.IO fan-out and cached snapshots | Add Valkey/Redis-compatible service before API count exceeds one |
-| Media | Bundled/external URLs | Event/editorial artwork | Put owned/licensed assets in object storage, not PostgreSQL |
+| Surface            | Current location                               | Role                                                                                      | Planning decision                                                    |
+| ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| FanPass API        | Render Free web service, Oregon                | NestJS, Prisma, Socket.IO, payments, inventory, auth and in-process side-effect scheduler | First service to become paid and always-on; later split worker       |
+| Organizer Console  | Render Free web service, Oregon                | Vite UI, Node BFF and HttpOnly Console session                                            | Keep separate; Starter is sufficient initially                       |
+| Console Auth       | Render Free web service, Oregon                | Isolated Privy browser-auth runtime                                                       | Keep isolated; Starter is sufficient initially                       |
+| PostgreSQL         | Neon `fanpass-staging`                         | Inventory, order, payment, ticket and audit authority                                     | Keep Neon through early growth; create a separate production project |
+| Public web         | `apps/web`; old Vercel dashboard is historical | Public discovery/marketing candidate                                                      | Commercial use requires Vercel Pro or another commercial host        |
+| Background work    | Timer inside API plus PostgreSQL outbox        | Payment, ownership and chain side effects                                                 | Split before real-money production or horizontal API scaling         |
+| Shared cache/queue | Not implemented in the active API path         | Needed for multi-instance rate limits, Socket.IO fan-out and cached snapshots             | Add Valkey/Redis-compatible service before API count exceeds one     |
+| Media              | Bundled/external URLs                          | Event/editorial artwork                                                                   | Put owned/licensed assets in object storage, not PostgreSQL          |
 
 Current structural constraints:
 
 - `render.yaml` runs all three services on Free compute in Oregon.
-- Staging runs `prisma db push` during build. Production must use reviewed migrations and `prisma migrate deploy`, not schema push during an application build.
+- Staging still runs schema synchronization during build, but the 2026-07-17 deploy path first takes a database advisory lock, rejects duplicate-sensitive changes instead of accepting data loss, and atomically syncs public catalog/Fan Access data before the build can pass. Production must use reviewed migrations and `prisma migrate deploy`, not schema push during an application build.
 - API rate limits are process-local and are not authoritative across multiple instances.
 - Socket.IO has no shared adapter, so broadcasts are single-instance.
 - The side-effect scheduler runs inside the API. Multiple API instances would create competing schedulers even though the database outbox has recovery controls.
@@ -74,14 +74,14 @@ Target: roughly 50-300 invited testers, Stripe test mode, no public on-sale, one
 
 Expected infrastructure spend: **$55-$90/month**, or **$75-$110/month** with a commercial Vercel web frontend.
 
-| Component | Plan | Planning cost |
-| --- | --- | ---: |
-| API | Render Standard, 1 instance, chosen primary region | $25/month |
-| Console | Render Starter, same primary region | $7/month |
-| Console Auth | Render Starter, same primary region | $7/month |
-| PostgreSQL | Neon Launch, nearest matching region, capped autoscaling | approximately $15-$30/month |
-| Public web | Vercel Pro only when commercially active | $20/month including usage credit |
-| DNS/CDN/WAF | Cloudflare Free | $0 base |
+| Component    | Plan                                                     |                    Planning cost |
+| ------------ | -------------------------------------------------------- | -------------------------------: |
+| API          | Render Standard, 1 instance, chosen primary region       |                        $25/month |
+| Console      | Render Starter, same primary region                      |                         $7/month |
+| Console Auth | Render Starter, same primary region                      |                         $7/month |
+| PostgreSQL   | Neon Launch, nearest matching region, capped autoscaling |      approximately $15-$30/month |
+| Public web   | Vercel Pro only when commercially active                 | $20/month including usage credit |
+| DNS/CDN/WAF  | Cloudflare Free                                          |                          $0 base |
 
 API Standard is recommended over Starter because NestJS, Prisma, Socket.IO, auth, and test-mode payments share the process. Standard provides 1 CPU/2 GB; Starter provides 0.5 CPU/512 MB.
 
@@ -104,18 +104,18 @@ Target: roughly 1,000-10,000 MAU, real organizers, limited real-money events, no
 
 Expected infrastructure spend: **$175-$325/month** plus Privy, Stripe, messaging, chain RPC and support.
 
-| Component | Plan/topology | Planning cost |
-| --- | --- | ---: |
-| Render workspace | Pro for autoscaling and environment/team controls | $25/month plus compute |
-| API | 2 x Standard minimum in the primary region | $50/month |
-| Console and Auth | 1 x Starter each | $14/month |
-| Side-effect worker | Separate Starter or Standard | $7-$25/month |
-| Shared cache/queue | Render Key Value Starter | $10/month |
-| PostgreSQL | Neon Launch, warm production minimum, bounded autoscaling | approximately $25-$80/month |
-| Public web | Vercel Pro | $20/month plus overage |
-| Edge admission/light logic | Cloudflare Workers Paid when required | $5/month base |
-| Media | Cloudflare R2 Standard | usually free initially, then usage based |
-| Observability | Error, uptime, logs and traces | reserve $20-$80/month |
+| Component                  | Plan/topology                                             |                            Planning cost |
+| -------------------------- | --------------------------------------------------------- | ---------------------------------------: |
+| Render workspace           | Pro for autoscaling and environment/team controls         |                   $25/month plus compute |
+| API                        | 2 x Standard minimum in the primary region                |                                $50/month |
+| Console and Auth           | 1 x Starter each                                          |                                $14/month |
+| Side-effect worker         | Separate Starter or Standard                              |                             $7-$25/month |
+| Shared cache/queue         | Render Key Value Starter                                  |                                $10/month |
+| PostgreSQL                 | Neon Launch, warm production minimum, bounded autoscaling |              approximately $25-$80/month |
+| Public web                 | Vercel Pro                                                |                   $20/month plus overage |
+| Edge admission/light logic | Cloudflare Workers Paid when required                     |                            $5/month base |
+| Media                      | Cloudflare R2 Standard                                    | usually free initially, then usage based |
+| Observability              | Error, uptime, logs and traces                            |                    reserve $20-$80/month |
 
 Before a second API instance:
 
@@ -172,22 +172,22 @@ Do not enter because MAU crossed an arbitrary number. Enter when at least one ha
 
 ## Upgrade And Migration Triggers
 
-| Signal | First action | Migration action |
-| --- | --- | --- |
-| External user sees a Render wake screen | Move affected service from Free to paid | None |
-| Cached public-read p95 exceeds 300 ms in a strategic continent | Fix CDN/cache/origin policy first | Add regional read/edge compute only if misses remain |
-| Authenticated write p95 exceeds 900 ms in a strategic market | Measure provider and database path; choose nearer primary for early launch | Add an event-owned regional transaction plane when demand is sustained |
-| API CPU >60% or memory >70% for 15 minutes at expected peak | Profile, fix hot paths, then scale vertically | Add instances after shared-state work |
-| API p95 >500 ms or error rate >1% at ordinary peak | Trace database/provider latency and tune | Scale only after root cause |
-| Database connections >60% of safe pool or query p95 >50 ms | Query/index review, pooled URL, cache read models | Increase compute; add replica only for proven read load |
-| PostgreSQL storage reaches 70% of budget/limit | Retention/index review, then expand | Migrate only for feature/cost requirement |
-| One API instance is no longer an acceptable failure domain | Shared rate limits, Socket.IO adapter and worker split | Run at least two instances |
-| Outbox lag >60 seconds or backlog grows for 5 minutes | Scale worker and inspect provider errors | Managed queue only after outbox authority is preserved |
-| On-sale forecast exceeds proven capacity or 2x ordinary peak | Waiting room, cached fan-out, pre-provision | Major cloud is optional, not first response |
-| Managed-platform spend >$800/month for 3 months | Model actual workload in GCP/AWS calculators | Move only if 3-year TCO improves at least 25% after staff/ops |
-| Need SLA, private networking, IP restrictions or 30-day PITR | Neon Scale/Render enterprise feasibility | Migrate if feature/price is unacceptable |
-| Need data residency or low-latency transactions in another jurisdiction | Select a supported GCP/AWS region in that jurisdiction | Move that region's event API/cache/worker/database as one transaction plane |
-| No infrastructure owner and no on-call rotation | Stay on managed platforms | Migration is blocked regardless of compute savings |
+| Signal                                                                  | First action                                                               | Migration action                                                            |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| External user sees a Render wake screen                                 | Move affected service from Free to paid                                    | None                                                                        |
+| Cached public-read p95 exceeds 300 ms in a strategic continent          | Fix CDN/cache/origin policy first                                          | Add regional read/edge compute only if misses remain                        |
+| Authenticated write p95 exceeds 900 ms in a strategic market            | Measure provider and database path; choose nearer primary for early launch | Add an event-owned regional transaction plane when demand is sustained      |
+| API CPU >60% or memory >70% for 15 minutes at expected peak             | Profile, fix hot paths, then scale vertically                              | Add instances after shared-state work                                       |
+| API p95 >500 ms or error rate >1% at ordinary peak                      | Trace database/provider latency and tune                                   | Scale only after root cause                                                 |
+| Database connections >60% of safe pool or query p95 >50 ms              | Query/index review, pooled URL, cache read models                          | Increase compute; add replica only for proven read load                     |
+| PostgreSQL storage reaches 70% of budget/limit                          | Retention/index review, then expand                                        | Migrate only for feature/cost requirement                                   |
+| One API instance is no longer an acceptable failure domain              | Shared rate limits, Socket.IO adapter and worker split                     | Run at least two instances                                                  |
+| Outbox lag >60 seconds or backlog grows for 5 minutes                   | Scale worker and inspect provider errors                                   | Managed queue only after outbox authority is preserved                      |
+| On-sale forecast exceeds proven capacity or 2x ordinary peak            | Waiting room, cached fan-out, pre-provision                                | Major cloud is optional, not first response                                 |
+| Managed-platform spend >$800/month for 3 months                         | Model actual workload in GCP/AWS calculators                               | Move only if 3-year TCO improves at least 25% after staff/ops               |
+| Need SLA, private networking, IP restrictions or 30-day PITR            | Neon Scale/Render enterprise feasibility                                   | Migrate if feature/price is unacceptable                                    |
+| Need data residency or low-latency transactions in another jurisdiction | Select a supported GCP/AWS region in that jurisdiction                     | Move that region's event API/cache/worker/database as one transaction plane |
+| No infrastructure owner and no on-call rotation                         | Stay on managed platforms                                                  | Migration is blocked regardless of compute savings                          |
 
 ## AWS Versus Google Cloud
 
@@ -248,16 +248,16 @@ Trade-offs: load balancers, public IPv4, NAT, logs, storage and transfer are sep
 
 Record before each quarter and high-demand event:
 
-| Category | Evidence |
-| --- | --- |
-| Product | MAU, paid orders, organizers, events/month, expected on-sale arrivals |
-| API | requests, peak RPS, p50/p95/p99, error rate, CPU and memory |
-| Database | size/growth, connections, CU-hours/CPU, slow queries, lock waits, restore time |
-| Async | outbox depth/age, retry/dead counts, webhook lag, worker saturation |
-| Realtime | concurrent sockets, reconnects, dropped subscriptions, fan-out lag |
-| Edge/media | cache hit, origin requests, transfer, storage, abusive/bot traffic |
-| Reliability | availability, incidents, achieved RPO/RTO, last restore/failover drill |
-| Cost | actual/forecast by provider, cost/MAU, cost/order, budget variance |
+| Category    | Evidence                                                                       |
+| ----------- | ------------------------------------------------------------------------------ |
+| Product     | MAU, paid orders, organizers, events/month, expected on-sale arrivals          |
+| API         | requests, peak RPS, p50/p95/p99, error rate, CPU and memory                    |
+| Database    | size/growth, connections, CU-hours/CPU, slow queries, lock waits, restore time |
+| Async       | outbox depth/age, retry/dead counts, webhook lag, worker saturation            |
+| Realtime    | concurrent sockets, reconnects, dropped subscriptions, fan-out lag             |
+| Edge/media  | cache hit, origin requests, transfer, storage, abusive/bot traffic             |
+| Reliability | availability, incidents, achieved RPO/RTO, last restore/failover drill         |
+| Cost        | actual/forecast by provider, cost/MAU, cost/order, budget variance             |
 
 The outcome must be: keep, tune, resize, add a managed component, run a migration proof, or approve migration. “Move to AWS/GCP because we are growing” is not evidence.
 
