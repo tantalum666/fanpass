@@ -25,5 +25,5 @@ if ! DATABASE_URL="$DATABASE_URL" npx prisma db execute --schema apps/api/prisma
   exit 1
 fi
 
-DATABASE_URL="$DATABASE_URL" npm run prisma:push -w @fanpass/api -- --accept-data-loss
+DATABASE_URL="$DATABASE_URL" npm run prisma:push:raw -w @fanpass/api -- --accept-data-loss
 DATABASE_URL="$DATABASE_URL" npm run alpha:seed -w @fanpass/api
