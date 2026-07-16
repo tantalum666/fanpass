@@ -460,6 +460,9 @@ function consoleAuthFailureMessage() {
   if (reason === "failed") {
     return "Privy sign-in could not create a Console session. Please try again.";
   }
+  if (reason === "rate") {
+    return "Console sign-in received too many requests. Wait one minute, then try once.";
+  }
   if (reason === "service") {
     return "The Console authentication service is temporarily unavailable. Please try again shortly.";
   }

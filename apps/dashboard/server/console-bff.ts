@@ -49,6 +49,14 @@ interface PrivySessionRequestBody {
   recovery?: unknown;
 }
 
+type PrivySessionFailureReason =
+  | "failed"
+  | "handoff"
+  | "forbidden"
+  | "rate"
+  | "service"
+  | "session";
+
 class RequestBodyError extends Error {
   constructor(
     message: string,
@@ -431,10 +439,7 @@ async function handlePrivySessionPost(
   const recoveryMode = readConsoleAuthRecoveryMode(body?.recovery);
   try {
     if (topLevelHandoff) {
-      assertConsoleSessionHandoff(
-        request.headers.cookie,
-        body?.handoffState,
-      );
+      assertConsoleSessionHandoff(request.headers.cookie, body?.handoffState);
     } else {
       assertConsoleMutationOrigin(originRequest);
     }
@@ -500,8 +505,21 @@ async function handlePrivySessionPost(
 
   if (!upstream.ok || !session || !("role" in session)) {
     if (topLevelHandoff && upstream.status === 401) {
+      logPrivySessionExchange({
+        outcome: "recovery",
+        upstreamStatus: upstream.status,
+        failureReason: "session",
+        recoveryMode,
+      });
       return sendPrivySessionRecovery(response, recoveryMode);
     }
+    const failureReason = privySessionFailureReason(upstream.status);
+    logPrivySessionExchange({
+      outcome: "rejected",
+      upstreamStatus: upstream.status || 401,
+      failureReason,
+      recoveryMode,
+    });
     return sendPrivySessionFailure(
       response,
       topLevelHandoff,
@@ -509,11 +527,17 @@ async function handlePrivySessionPost(
       session && "message" in session && session.message
         ? session.message
         : "Privy session sync failed",
-      upstream.status >= 500 ? "service" : "failed",
+      failureReason,
     );
   }
 
   if (session.role !== "ORGANIZER" && session.role !== "ADMIN") {
+    logPrivySessionExchange({
+      outcome: "rejected",
+      upstreamStatus: 403,
+      failureReason: "forbidden",
+      recoveryMode,
+    });
     return sendPrivySessionFailure(
       response,
       topLevelHandoff,
@@ -532,6 +556,12 @@ async function handlePrivySessionPost(
         ]
       : consoleSessionCookie(accessToken, session.expiresAt),
   );
+  logPrivySessionExchange({
+    outcome: "accepted",
+    upstreamStatus: upstream.status,
+    failureReason: null,
+    recoveryMode,
+  });
   if (topLevelHandoff) {
     return sendRedirect(response, 303, "/");
   }
@@ -549,13 +579,42 @@ function sendPrivySessionFailure(
   topLevelHandoff: boolean,
   status: number,
   message: string,
-  reason: "failed" | "handoff" | "forbidden" | "service" | "session" =
-    "failed",
+  reason: PrivySessionFailureReason = "failed",
 ) {
   if (topLevelHandoff) {
     return sendRedirect(response, 303, "/?auth=" + reason);
   }
   return sendJson(response, status, { ok: false, message });
+}
+
+function privySessionFailureReason(status: number): PrivySessionFailureReason {
+  if (status === 429) {
+    return "rate";
+  }
+  if (status >= 500) {
+    return "service";
+  }
+  return "failed";
+}
+
+function logPrivySessionExchange(input: {
+  outcome: "accepted" | "recovery" | "rejected";
+  upstreamStatus: number;
+  failureReason: PrivySessionFailureReason | null;
+  recoveryMode: ConsoleAuthRecoveryMode | null;
+}) {
+  const payload = JSON.stringify({
+    event: "console_privy_session_exchange",
+    outcome: input.outcome,
+    upstreamStatus: input.upstreamStatus,
+    failureReason: input.failureReason,
+    recoveryMode: input.recoveryMode ?? "initial",
+  });
+  if (input.outcome === "accepted") {
+    console.info(payload);
+    return;
+  }
+  console.warn(payload);
 }
 
 function sendPrivySessionRecovery(
@@ -801,11 +860,7 @@ function sendJson(response: ServerResponse, status: number, payload: unknown) {
   response.end(JSON.stringify(payload));
 }
 
-function sendRedirect(
-  response: ServerResponse,
-  status: 303,
-  location: string,
-) {
+function sendRedirect(response: ServerResponse, status: 303, location: string) {
   response.statusCode = status;
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("Location", location);

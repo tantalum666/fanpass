@@ -12,6 +12,10 @@ import {
   isProductionLikeEnvironment,
   readIntegerConfig,
 } from "./config/security-config";
+import {
+  privyCredentialRateLimitKey,
+  usesDedicatedAuthRateLimit,
+} from "./common/auth-rate-limit";
 import { upsertPublicEvents } from "./workers/upsert-public-events";
 
 async function bootstrap() {
@@ -74,6 +78,7 @@ async function bootstrap() {
       limit: readIntegerConfig(config, "RATE_LIMIT_AUTH_PER_MINUTE", 30),
       standardHeaders: "draft-8",
       legacyHeaders: false,
+      skip: usesDedicatedAuthRateLimit,
       message: {
         message: "Too many authentication requests",
       },
@@ -83,7 +88,21 @@ async function bootstrap() {
     "/auth/privy/sync",
     rateLimit({
       windowMs: 60_000,
+      limit: readIntegerConfig(
+        config,
+        "RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE",
+        300,
+      ),
+      standardHeaders: false,
+      legacyHeaders: false,
+      message: {
+        message: "Too many Privy requests from this network",
+      },
+    }),
+    rateLimit({
+      windowMs: 60_000,
       limit: readIntegerConfig(config, "RATE_LIMIT_PRIVY_PER_MINUTE", 12),
+      keyGenerator: privyCredentialRateLimitKey,
       standardHeaders: "draft-8",
       legacyHeaders: false,
       message: {

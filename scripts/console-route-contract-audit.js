@@ -72,7 +72,7 @@ function auditConsoleBff() {
     "clearConsoleHandoffCookie()",
     "privyCookieAccessToken(request.headers.cookie)",
     "readPrivySessionBody(request)",
-    'application/x-www-form-urlencoded',
+    "application/x-www-form-urlencoded",
     'body?.handoff === "top-level"',
     "body?.handoffState",
     "readConsoleAuthRecoveryMode(body?.recovery)",
@@ -107,12 +107,7 @@ function auditConsoleBff() {
     "object-src 'none'",
   ];
   requireSnippets(consoleBff, contents, requiredSnippets);
-  requireOccurrences(
-    consoleBff,
-    contents,
-    "consoleHandoffCookie(state)",
-    2,
-  );
+  requireOccurrences(consoleBff, contents, "consoleHandoffCookie(state)", 2);
   requirePatterns(consoleBff, contents, [
     {
       label:
@@ -142,7 +137,7 @@ function auditConsoleAuthHelper() {
     'export const CONSOLE_ACCESS_TOKEN_COOKIE = "fanpass_console_access_token"',
     'export const PRIVY_ACCESS_TOKEN_COOKIE = "privy-token"',
     'const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff"',
-    "randomBytes(32).toString(\"base64url\")",
+    'randomBytes(32).toString("base64url")',
     "timingSafeEqual(leftBuffer, rightBuffer)",
     "export function consoleAuthHandoffUrl(",
     "recoveryMode?: ConsoleAuthRecoveryMode",
@@ -240,6 +235,7 @@ function auditConsoleLoginComponent() {
     "consoleAuthFailureMessage()",
     'reason === "service"',
     'reason === "session"',
+    'reason === "rate"',
     "Privy sign-in is temporarily unavailable.",
   ];
   requireSnippets(consoleLoginComponent, contents, requiredSnippets);

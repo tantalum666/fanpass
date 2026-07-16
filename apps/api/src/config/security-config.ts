@@ -64,6 +64,13 @@ export function validateEnvironment(config: EnvMap) {
   );
   validatePositiveInteger(
     config,
+    "RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE",
+    errors,
+    1,
+    10_000,
+  );
+  validatePositiveInteger(
+    config,
     "RATE_LIMIT_STAFF_INVITE_PER_MINUTE",
     errors,
     1,

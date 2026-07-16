@@ -86,7 +86,8 @@ const cases = [
       ),
   },
   {
-    label: "rejects production session bridge without Privy HttpOnly cookie input",
+    label:
+      "rejects production session bridge without Privy HttpOnly cookie input",
     expected: "fail",
     mutate: (fixtureRoot) =>
       writeFixtureFile(
@@ -419,6 +420,7 @@ function consoleAuthFailureMessage() {
   const reason = new URLSearchParams(window.location.search).get("auth");
   if (reason === "service") return "Authentication service unavailable";
   if (reason === "session") return "Session verification failed";
+  if (reason === "rate") return "Authentication rate limited";
   return "";
 }
 

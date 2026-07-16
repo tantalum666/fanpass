@@ -66,6 +66,8 @@ services:
         value: "120"
       - key: RATE_LIMIT_PRIVY_PER_MINUTE
         value: "12"
+      - key: RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE
+        value: "300"
       - key: RATE_LIMIT_STAFF_INVITE_PER_MINUTE
         value: "6"
       - key: RATE_LIMIT_STAFF_ASSIGNMENT_PER_MINUTE

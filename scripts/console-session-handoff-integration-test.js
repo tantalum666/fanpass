@@ -8,6 +8,7 @@ const dashboardEntry = path.join(
   "apps/dashboard/dist/server/console-bff.js",
 );
 const fixtureAccessToken = "fixture-console-access-token";
+const rateLimitedAccessToken = "fixture-rate-limited-access-token";
 
 main().catch((error) => {
   console.error(
@@ -70,10 +71,7 @@ async function main() {
     const startCookies = startResponse.headers.getSetCookie();
     assertEqual(startCookies.length, 1, "handoff start cookie count");
     const handoffCookie = startCookies[0];
-    assertCookieAttribute(
-      handoffCookie,
-      "__Host-fanpass_console_handoff=",
-    );
+    assertCookieAttribute(handoffCookie, "__Host-fanpass_console_handoff=");
     assertCookieAttribute(handoffCookie, "HttpOnly");
     assertCookieAttribute(handoffCookie, "SameSite=None");
     assertCookieAttribute(handoffCookie, "Secure");
@@ -128,7 +126,11 @@ async function main() {
       "null",
       { accessToken: "expired-fixture-access-token" },
     );
-    const refreshHandoff = recoveryHandoff(expiredResponse, authOrigin, "refresh");
+    const refreshHandoff = recoveryHandoff(
+      expiredResponse,
+      authOrigin,
+      "refresh",
+    );
     assert(
       !hasSessionCookie(expiredResponse),
       "expired token must not create a session",
@@ -144,7 +146,11 @@ async function main() {
         recovery: "refresh",
       },
     );
-    const reauthHandoff = recoveryHandoff(refreshResponse, authOrigin, "reauth");
+    const reauthHandoff = recoveryHandoff(
+      refreshResponse,
+      authOrigin,
+      "reauth",
+    );
     assert(
       !hasSessionCookie(refreshResponse),
       "failed refresh must not create a session",
@@ -169,6 +175,32 @@ async function main() {
     assert(
       !hasSessionCookie(reauthResponse),
       "failed re-authentication must not create a session",
+    );
+
+    const rateLimitedStart = await startHandoff(consoleOrigin);
+    const rateLimitedResponse = await postForm(
+      consoleOrigin,
+      rateLimitedStart.cookie,
+      rateLimitedStart.state,
+      "null",
+      { accessToken: rateLimitedAccessToken },
+    );
+    assertEqual(rateLimitedResponse.status, 303, "rate-limit status");
+    assertEqual(
+      requiredHeader(rateLimitedResponse, "location"),
+      "/?auth=rate",
+      "rate-limit redirect",
+    );
+    assert(
+      !hasSessionCookie(rateLimitedResponse),
+      "rate-limited handoff must not create a session",
+    );
+    await waitForOutput(child, () =>
+      childOutput.includes('"failureReason":"rate"'),
+    );
+    assert(
+      !childOutput.includes(rateLimitedAccessToken),
+      "Console diagnostics must not log the Privy access token",
     );
 
     const formResponse = await postForm(
@@ -232,6 +264,7 @@ async function main() {
             "invalid JSON origin rejected",
             "expired token gets one refresh then explicit re-authentication",
             "bounded recovery never creates a session from a rejected token",
+            "upstream rate limiting gets a distinct token-safe Console state",
             "opaque-origin form accepted only with matching state cookie",
             "handoff state consumed on success",
             "exact-origin JSON client retained",
@@ -316,9 +349,7 @@ function recoveryHandoff(response, authOrigin, expectedMode) {
   );
   const stateCookie = response.headers
     .getSetCookie()
-    .find((cookie) =>
-      cookie.startsWith("__Host-fanpass_console_handoff="),
-    );
+    .find((cookie) => cookie.startsWith("__Host-fanpass_console_handoff="));
   assert(Boolean(stateCookie), `${expectedMode} recovery cookie is required`);
   assertCookieAttribute(stateCookie, "HttpOnly");
   assertCookieAttribute(stateCookie, "SameSite=None");
@@ -329,6 +360,18 @@ function recoveryHandoff(response, authOrigin, expectedMode) {
 
 async function startMockApi() {
   const server = createServer((request, response) => {
+    if (
+      request.method === "POST" &&
+      request.url === "/auth/privy/sync" &&
+      request.headers.authorization === `Bearer ${rateLimitedAccessToken}`
+    ) {
+      response.writeHead(429, {
+        "Content-Type": "application/json",
+        "Retry-After": "60",
+      });
+      response.end(JSON.stringify({ message: "Too many Privy sync requests" }));
+      return;
+    }
     if (
       request.method === "POST" &&
       request.url === "/auth/privy/sync" &&
@@ -355,6 +398,19 @@ async function startMockApi() {
   });
   const port = await listenOnAvailablePort(server);
   return { server, origin: `http://127.0.0.1:${port}` };
+}
+
+async function waitForOutput(child, predicate) {
+  const deadline = Date.now() + 2_000;
+  while (!predicate()) {
+    if (child.exitCode !== null) {
+      throw new Error("Console BFF exited before diagnostics were written");
+    }
+    if (Date.now() >= deadline) {
+      throw new Error("Console BFF did not write safe auth diagnostics");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 }
 
 async function availablePort() {

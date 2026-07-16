@@ -202,6 +202,11 @@ describe("security config validation", () => {
     ).toThrow(/RATE_LIMIT_PRIVY_PER_MINUTE/);
     expect(() =>
       validateEnvironment({
+        RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE: "10001",
+      }),
+    ).toThrow(/RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE/);
+    expect(() =>
+      validateEnvironment({
         RATE_LIMIT_STAFF_INVITE_PER_MINUTE: "501",
       }),
     ).toThrow(/RATE_LIMIT_STAFF_INVITE_PER_MINUTE/);
