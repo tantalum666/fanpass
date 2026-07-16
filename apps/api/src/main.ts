@@ -16,7 +16,6 @@ import {
   privyCredentialRateLimitKey,
   usesDedicatedAuthRateLimit,
 } from "./common/auth-rate-limit";
-import { upsertPublicEvents } from "./workers/upsert-public-events";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -187,16 +186,6 @@ async function bootstrap() {
   console.log(
     `FanPass API listening on http://localhost:${port} (${environmentLabel})`,
   );
-  if (
-    config.get<string>("FANPASS_ENV") === "staging" &&
-    config.get<string>("FANPASS_DATA_SOURCE") === "prisma"
-  ) {
-    void upsertPublicEvents(app.get(PrismaService))
-      .then((result) => console.log(JSON.stringify(result)))
-      .catch((error: unknown) => {
-        console.error("Public event upsert failed", error);
-      });
-  }
 }
 
 bootstrap().catch((error) => {

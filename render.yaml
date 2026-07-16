@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci --include=dev --audit=false && npm audit --omit=dev --audit-level=high && npm run prisma:deploy -w apps/api && npm run build -w apps/api && npm run public-events:upsert -w apps/api
+    buildCommand: npm ci --include=dev --audit=false && npm audit --omit=dev --audit-level=high && npm run prisma:deploy -w apps/api && npm run build -w apps/api
     startCommand: npm run start -w apps/api
     healthCheckPath: /health
     envVars:

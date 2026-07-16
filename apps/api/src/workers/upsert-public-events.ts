@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { createDemoSeed } from "../common/demo-seed";
 
 export interface PublicEventsUpsertResult {
@@ -7,6 +7,7 @@ export interface PublicEventsUpsertResult {
   mode: "upsert-public-events";
   events: number;
   ticketTypes: number;
+  fanCampaigns: number;
   fanTasks: number;
   onsales: number;
 }
@@ -15,7 +16,19 @@ export async function upsertPublicEvents(
   prisma: PrismaClient,
 ): Promise<PublicEventsUpsertResult> {
   const seed = createDemoSeed();
+  return prisma.$transaction(
+    (transaction) => upsertPublicEventsTransaction(transaction, seed),
+    {
+      maxWait: 10_000,
+      timeout: 60_000,
+    },
+  );
+}
 
+async function upsertPublicEventsTransaction(
+  prisma: Prisma.TransactionClient,
+  seed: ReturnType<typeof createDemoSeed>,
+): Promise<PublicEventsUpsertResult> {
   for (const user of seed.users) {
     await prisma.user.upsert({
       where: { id: user.id },
@@ -154,16 +167,52 @@ export async function upsertPublicEvents(
     update: auroraOnsalePolicy,
   });
 
+  for (const campaign of seed.fanCampaigns) {
+    const startsAt = new Date(campaign.startsAt);
+    const closesAt = new Date(campaign.closesAt);
+    await prisma.fanCampaign.upsert({
+      where: { id: campaign.id },
+      create: {
+        ...campaign,
+        startsAt,
+        closesAt,
+      },
+      update: {
+        eventId: campaign.eventId,
+        title: campaign.title,
+        description: campaign.description,
+        rewardTitle: campaign.rewardTitle,
+        rewardDescription: campaign.rewardDescription,
+        rewardSupply: campaign.rewardSupply,
+        qualificationPoints: campaign.qualificationPoints,
+        allocationMethod: campaign.allocationMethod,
+        status: campaign.status,
+        startsAt,
+        closesAt,
+        maxLinkedWallets: campaign.maxLinkedWallets,
+        maxActiveEarningWallets: campaign.maxActiveEarningWallets,
+        createdByUserId: campaign.createdByUserId,
+      },
+    });
+  }
+
   for (const task of seed.fanTasks) {
     await prisma.fanTask.upsert({
       where: { id: task.id },
       create: task,
       update: {
         eventId: task.eventId,
+        campaignId: task.campaignId,
         title: task.title,
+        description: task.description,
         taskType: task.taskType,
         points: task.points,
         verificationMethod: task.verificationMethod,
+        verificationLabel: task.verificationLabel,
+        actionKind: task.actionKind,
+        actionTarget: task.actionTarget,
+        optional: task.optional,
+        sortOrder: task.sortOrder,
       },
     });
   }
@@ -187,24 +236,27 @@ export async function upsertPublicEvents(
   await markLegacyDuplicateEvents(prisma);
 
   const publicEventIds = seed.events.map((event) => event.id);
-  const [events, ticketTypes, fanTasks, onsales] = await Promise.all([
-    prisma.event.count({ where: { id: { in: publicEventIds } } }),
-    prisma.ticketType.count({ where: { eventId: { in: publicEventIds } } }),
-    prisma.fanTask.count({ where: { eventId: { in: publicEventIds } } }),
-    prisma.onsale.count({ where: { eventId: { in: publicEventIds } } }),
-  ]);
+  const [events, ticketTypes, fanCampaigns, fanTasks, onsales] =
+    await Promise.all([
+      prisma.event.count({ where: { id: { in: publicEventIds } } }),
+      prisma.ticketType.count({ where: { eventId: { in: publicEventIds } } }),
+      prisma.fanCampaign.count({ where: { eventId: { in: publicEventIds } } }),
+      prisma.fanTask.count({ where: { eventId: { in: publicEventIds } } }),
+      prisma.onsale.count({ where: { eventId: { in: publicEventIds } } }),
+    ]);
 
   return {
     ok: true,
     mode: "upsert-public-events",
     events,
     ticketTypes,
+    fanCampaigns,
     fanTasks,
     onsales,
   };
 }
 
-async function markLegacyDuplicateEvents(prisma: PrismaClient) {
+async function markLegacyDuplicateEvents(prisma: Prisma.TransactionClient) {
   await prisma.event.updateMany({
     where: {
       id: {
