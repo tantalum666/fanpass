@@ -83,11 +83,14 @@ RATE_LIMIT_GENERAL_PER_MINUTE=600
 RATE_LIMIT_AUTH_PER_MINUTE=30
 RATE_LIMIT_VERIFY_PER_MINUTE=120
 RATE_LIMIT_PRIVY_PER_MINUTE=12
+RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE=300
 RATE_LIMIT_STAFF_INVITE_PER_MINUTE=6
 RATE_LIMIT_STAFF_ASSIGNMENT_PER_MINUTE=30
 ```
 
 Local builds can keep using demo/email sessions for simulator and prototype speed. Production-like builds must use Privy bearer tokens: the API verifies the ES256 JWT signature with `PRIVY_VERIFICATION_KEY`, requires `iss=privy.io`, requires `aud=PRIVY_APP_ID`, checks expiry, and maps `sub` to `users.privy_id`.
+
+`RATE_LIMIT_AUTH_PER_MINUTE` does not also count the dedicated Privy sync and staff-invite routes. Console Privy sync is limited per non-plaintext access-token fingerprint by `RATE_LIMIT_PRIVY_PER_MINUTE`, with `RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE` retained as a higher network flood ceiling. Do not collapse these back into one low IP-only bucket: deployed Console traffic reaches the API through a shared service egress IP, so doing so rate-limits unrelated organizers as one caller.
 
 FanPass Console local builds can still fetch a local organizer demo token. Production-like Console builds do not fall back to demo auth. They require `FANPASS_CONSOLE_ACCESS_TOKEN` until the Privy Console login flow is implemented; otherwise the page renders a locked state and does not request operational data.
 
