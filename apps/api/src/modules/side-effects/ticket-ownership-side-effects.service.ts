@@ -1,6 +1,7 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
+import type { OwnershipContractRoute } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import {
   IssueOwnershipInput,
@@ -28,10 +29,13 @@ export class TicketOwnershipSideEffectsService {
     input: IssueOwnershipInput,
     options: OwnershipSideEffectOptions = {},
   ) {
+    const contractRoute =
+      input.contractRoute ?? this.ownership.routeForNewTicket();
+    const routedInput = contractRoute ? { ...input, contractRoute } : input;
     if (this.usesOutboxProofSync()) {
-      return this.enqueueIssueTicket(input, options.writer);
+      return this.enqueueIssueTicket(routedInput, options.writer);
     }
-    return this.ownership.issueTicket(input);
+    return this.ownership.issueTicket(routedInput);
   }
 
   redeemTicket(
@@ -56,16 +60,20 @@ export class TicketOwnershipSideEffectsService {
     writer?: PrismaWriter,
   ): Promise<OwnershipReceipt> {
     const payload: Prisma.InputJsonValue = {
+      ownershipAdapter: this.ownership.adapterName(),
       localTicketId: input.localTicketId,
       tokenIdHint: input.tokenIdHint,
       eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
       ownerWalletAddress: input.ownerWalletAddress,
+      ownerWalletBindingVersion: input.ownerWalletBindingVersion,
+      ownerWalletBindingFingerprint: input.ownerWalletBindingFingerprint,
       transferable: input.transferable,
       resaleCap: input.resaleCap,
       maxTransferCount: input.maxTransferCount,
       metadataUri: input.metadataUri,
+      contractRoute: input.contractRoute ?? null,
     };
     await this.enqueue(
       {
@@ -80,6 +88,7 @@ export class TicketOwnershipSideEffectsService {
     return this.pendingReceipt(
       input.tokenIdHint,
       `pending:ownership-issue:${input.localTicketId}`,
+      input.contractRoute ?? null,
     );
   }
 
@@ -88,8 +97,10 @@ export class TicketOwnershipSideEffectsService {
     writer?: PrismaWriter,
   ): Promise<OwnershipReceipt> {
     const payload: Prisma.InputJsonValue = {
+      ownershipAdapter: this.ownership.adapterName(),
       ticketId: input.ticketId,
       tokenId: input.tokenId,
+      contractRoute: input.contractRoute ?? null,
     };
     await this.enqueue(
       {
@@ -104,6 +115,7 @@ export class TicketOwnershipSideEffectsService {
     return this.pendingReceipt(
       input.tokenId ?? "pending",
       `pending:ownership-redeem:${input.ticketId}`,
+      input.contractRoute ?? null,
     );
   }
 
@@ -123,6 +135,7 @@ export class TicketOwnershipSideEffectsService {
   private pendingReceipt(
     tokenId: string,
     ownershipRef: string,
+    contractRoute: OwnershipContractRoute | null,
   ): OwnershipReceipt {
     return {
       adapter: this.ownership.adapterName(),
@@ -130,6 +143,7 @@ export class TicketOwnershipSideEffectsService {
       tokenId,
       ownershipRef,
       transactionHash: null,
+      contractRoute,
     };
   }
 

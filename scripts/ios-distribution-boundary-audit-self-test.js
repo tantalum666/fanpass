@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -239,8 +242,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "#!/usr/bin/env bash\necho missing ios distribution audit\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture(["security:api-contracts"]),
       ),
   },
 ];
@@ -308,8 +311,11 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "package.json", packageJson());
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    "npm run security:ios-distribution-boundaries:self-test\nnpm run security:ios-distribution-boundaries\n",
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:ios-distribution-boundaries:self-test",
+      "security:ios-distribution-boundaries",
+    ]),
   );
   writeFixtureFile(fixtureRoot, "apps/ios/FanPass/project.yml", projectYml());
   writeFixtureFile(

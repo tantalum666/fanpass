@@ -1,11 +1,27 @@
-import { BadRequestException, Injectable, Optional } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Optional,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { DemoStore } from "../../common/demo-store";
-import { OrderFulfillmentMode, OrderRecord } from "../../common/domain";
+import {
+  OrderFulfillmentMode,
+  OrderRecord,
+  OwnershipContractRoute,
+} from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
+import { requireVerifiedWalletBinding } from "../../common/wallet-binding";
+import { requiresDurableOwnershipDispatch } from "../../config/security-config";
 import { AuditService } from "../audit/audit.service";
+import {
+  assertMarketplaceEventPublished,
+  lockMarketplaceEvent,
+} from "../events/event-marketplace-policy";
 import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
 import { SettlementSideEffectsService } from "../side-effects/settlement-side-effects.service";
 import { TicketsService } from "../tickets/tickets.service";
@@ -34,10 +50,19 @@ interface FinalizeOwnershipTransferInput {
   sellOrderId: string;
   ticketId: string;
   ownership: {
+    status: "CONFIRMED" | "PENDING" | "FAILED";
     adapter: "mock" | "testnet" | "privy";
     ownershipRef: string;
     transactionHash: string | null;
+    contractRoute?: OwnershipContractRoute | null;
   };
+}
+
+interface FailOwnershipTransferInput {
+  buyOrderId: string;
+  sellOrderId: string;
+  ticketId: string;
+  reason: string;
 }
 
 class OrderClaimConflictError extends Error {}
@@ -70,6 +95,19 @@ export class OrderbookService {
       return this.getPrismaOrderbook(prisma, eventId, ticketTypeId);
     }
 
+    const event = this.store.events.find(
+      (candidate) =>
+        candidate.id === eventId && candidate.status === "PUBLISHED",
+    );
+    const ticketType = this.store.ticketTypes.find(
+      (candidate) =>
+        candidate.id === ticketTypeId && candidate.eventId === eventId,
+    );
+    if (!event || !ticketType) {
+      throw new BadRequestException(
+        "Event or ticket category is not available",
+      );
+    }
     const orders = this.store.orders.filter(
       (order) =>
         order.eventId === eventId &&
@@ -98,7 +136,6 @@ export class OrderbookService {
         ticket.ticketTypeId === ticketTypeId
       );
     });
-    const ticketType = this.store.getTicketType(ticketTypeId);
     const priceHistory = this.publicPriceHistory(trades);
     const lastTradePrice = priceHistory.at(-1)?.price ?? null;
     const floorPrice = asks[0]?.price ?? null;
@@ -125,8 +162,9 @@ export class OrderbookService {
       return this.createPrismaOrder(prisma, input);
     }
 
-    this.store.getEvent(input.eventId);
+    const event = this.store.getEvent(input.eventId);
     const ticketType = this.store.getTicketType(input.ticketTypeId);
+    const fulfillmentMode = this.fulfillmentModeFor(input);
     const existingOrder = this.findIdempotentMemoryOrder(input);
     if (existingOrder) {
       this.assertIdempotentOrderMatches(existingOrder, input);
@@ -135,11 +173,14 @@ export class OrderbookService {
         trade: this.findMemoryTradeForOrder(existingOrder.id),
       };
     }
+    assertMarketplaceEventPublished(
+      event.status,
+      this.marketplaceUnavailableMessage(input.side, fulfillmentMode),
+    );
 
     if (input.price > (ticketType.resaleCap ?? Number.MAX_SAFE_INTEGER)) {
       throw new BadRequestException("Order price exceeds organizer resale cap");
     }
-    const fulfillmentMode = this.fulfillmentModeFor(input);
     if (
       input.side === "BUY" &&
       fulfillmentMode === "PRIMARY_ONLY" &&
@@ -155,6 +196,14 @@ export class OrderbookService {
         throw new BadRequestException("Sell orders require a ticket ID");
       }
       const ticket = this.store.getTicket(input.ticketId);
+      if (
+        ticket.eventId !== input.eventId ||
+        ticket.ticketTypeId !== input.ticketTypeId
+      ) {
+        throw new BadRequestException(
+          "Ticket is not available for this market",
+        );
+      }
       if (ticket.ownerId !== input.userId) {
         throw new BadRequestException(
           "Only the ticket owner can place a sell order",
@@ -296,6 +345,11 @@ export class OrderbookService {
   }
 
   async finalizeOwnershipTransfer(input: FinalizeOwnershipTransferInput) {
+    if (input.ownership.status !== "CONFIRMED") {
+      throw new BadRequestException(
+        "Ownership transfer must be confirmed before settlement",
+      );
+    }
     const prisma = this.prismaClient();
     if (!prisma) {
       throw new BadRequestException(
@@ -336,6 +390,7 @@ export class OrderbookService {
         }),
         tx.ticket.findUnique({
           where: { id: input.ticketId },
+          include: { ticketType: true },
         }),
       ]);
       if (
@@ -346,8 +401,11 @@ export class OrderbookService {
         sellOrder.status !== "MATCHED" ||
         ticket.status !== "TRANSFER_PENDING"
       ) {
-        return null;
+        throw new ConflictException(
+          "Confirmed ownership transfer requires settlement reconciliation",
+        );
       }
+      this.assertResaleSettlementIntegrity(buyOrder, sellOrder, ticket);
 
       const [ticketUpdate, buyUpdate, sellUpdate] = await Promise.all([
         tx.ticket.updateMany({
@@ -391,7 +449,12 @@ export class OrderbookService {
           settlementStatus: "SETTLED",
         },
       });
-      await this.enqueuePaymentCaptureForTrade(tx, input.buyOrderId, trade.id);
+      await this.enqueuePaymentCaptureForTrade(
+        tx,
+        input.buyOrderId,
+        trade.id,
+        ticket.id,
+      );
       await tx.auditLog.create({
         data: {
           actorId: buyOrder.userId,
@@ -404,6 +467,7 @@ export class OrderbookService {
             ownershipAdapter: input.ownership.adapter,
             ownershipRef: input.ownership.ownershipRef,
             transactionHash: input.ownership.transactionHash,
+            contractRoute: input.ownership.contractRoute,
           },
         },
       });
@@ -426,6 +490,228 @@ export class OrderbookService {
     return settledTrade;
   }
 
+  async failOwnershipTransfer(input: FailOwnershipTransferInput) {
+    const prisma = this.prismaClient();
+    if (!prisma) {
+      throw new BadRequestException(
+        "Ownership settlement failure handling requires Prisma persistence",
+      );
+    }
+    return prisma.$transaction(async (tx) => {
+      const [buyOrder, ticket] = await Promise.all([
+        tx.order.findUnique({ where: { id: input.buyOrderId } }),
+        tx.ticket.findUnique({ where: { id: input.ticketId } }),
+      ]);
+      await tx.order.updateMany({
+        where: {
+          id: { in: [input.buyOrderId, input.sellOrderId] },
+          status: "MATCHED",
+        },
+        data: { status: "REJECTED", remainingQuantity: 0 },
+      });
+      if (ticket) {
+        await tx.ticket.updateMany({
+          where: { id: ticket.id, status: "TRANSFER_PENDING" },
+          data: {
+            status: ticket.transferCount > 0 ? "TRANSFERRED" : "ACTIVE",
+          },
+        });
+      }
+      if (buyOrder) {
+        await tx.auditLog.create({
+          data: {
+            actorId: buyOrder.userId,
+            action: "TRADE_SETTLEMENT_FAILED",
+            entityType: "order",
+            entityId: input.buyOrderId,
+            metadataJson: {
+              sellOrderId: input.sellOrderId,
+              ticketId: input.ticketId,
+              message: input.reason,
+            },
+          },
+        });
+      }
+      await this.enqueuePaymentCompensationForFailedSettlement(
+        tx,
+        input.buyOrderId,
+        "ownership_transfer_failed",
+      );
+      return { failed: true };
+    });
+  }
+
+  async finalizePrimaryOwnershipIssue(
+    ticketId: string,
+  ): Promise<PaymentAuthorizedSettlementResult | null> {
+    const prisma = this.prismaClient();
+    if (!prisma) {
+      throw new BadRequestException(
+        "Primary ownership finalization requires Prisma persistence",
+      );
+    }
+
+    const finalized = await prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({ where: { id: ticketId } });
+      if (!ticket) {
+        throw new BadRequestException("Primary ticket is not available");
+      }
+      const order = await tx.order.findFirst({
+        where: {
+          ticketId,
+          side: "BUY",
+          fulfillmentMode: { in: ["ANY", "PRIMARY_ONLY"] },
+        },
+      });
+      if (!order) {
+        return null;
+      }
+      if (order.status === "SETTLED") {
+        if (ticket.status !== "ACTIVE" || !ticket.tokenId) {
+          throw new ConflictException(
+            "Settled primary order is missing confirmed ownership",
+          );
+        }
+        return this.primarySettlementResult(order.id, ticket.id, true);
+      }
+      if (order.status === "REJECTED" || order.status === "CANCELLED") {
+        return null;
+      }
+      if (
+        order.status !== "MATCHED" ||
+        ticket.status !== "ACTIVE" ||
+        !ticket.tokenId
+      ) {
+        throw new ConflictException(
+          "Primary ownership must be confirmed before settlement",
+        );
+      }
+      if (
+        ticket.ownerId !== order.userId ||
+        ticket.eventId !== order.eventId ||
+        ticket.ticketTypeId !== order.ticketTypeId
+      ) {
+        throw new ConflictException(
+          "Primary ticket does not match its authorized order",
+        );
+      }
+
+      const eventStatus = await lockMarketplaceEvent(tx, order.eventId);
+      if (eventStatus !== "PUBLISHED") {
+        await this.failPrimaryOwnershipIssueInTransaction(
+          tx,
+          order,
+          ticket,
+          "primary_event_closed_after_ownership_confirmation",
+        );
+        return null;
+      }
+
+      const paymentReady = await this.enqueuePaymentCaptureForPrimaryTicket(
+        tx,
+        order.id,
+        ticket.id,
+      );
+      if (!paymentReady) {
+        await this.failPrimaryOwnershipIssueInTransaction(
+          tx,
+          order,
+          ticket,
+          "primary_payment_authorization_missing",
+        );
+        return null;
+      }
+
+      const claim = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          status: "MATCHED",
+          side: "BUY",
+          ticketId,
+        },
+        data: { status: "SETTLED", remainingQuantity: 0 },
+      });
+      if (claim.count !== 1) {
+        throw new ConflictException(
+          "Primary ownership finalization lost its matched order claim",
+        );
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId: order.userId,
+          action: "ORDER_PRIMARY_TICKET_ISSUED",
+          entityType: "order",
+          entityId: order.id,
+          metadataJson: {
+            ticketId: ticket.id,
+            tokenId: ticket.tokenId,
+            eventId: order.eventId,
+            ticketTypeId: order.ticketTypeId,
+            price: order.price,
+          },
+        },
+      });
+      return this.primarySettlementResult(order.id, ticket.id, true);
+    });
+
+    if (finalized) {
+      const order = await prisma.order.findUnique({
+        where: { id: finalized.orderId },
+      });
+      if (order) {
+        await this.publishOrderbookUpdate({
+          eventId: order.eventId,
+          ticketTypeId: order.ticketTypeId,
+          reason: "primary_ticket_issued",
+          orderId: order.id,
+        });
+      }
+    }
+    return finalized;
+  }
+
+  async failPrimaryOwnershipIssue(ticketId: string, error?: unknown) {
+    const prisma = this.prismaClient();
+    if (!prisma) {
+      throw new BadRequestException(
+        "Primary ownership failure handling requires Prisma persistence",
+      );
+    }
+    const reason = this.primaryOwnershipFailureReason(error);
+    return prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({ where: { id: ticketId } });
+      if (!ticket) {
+        return null;
+      }
+      const order = await tx.order.findFirst({
+        where: {
+          ticketId,
+          side: "BUY",
+          fulfillmentMode: { in: ["ANY", "PRIMARY_ONLY"] },
+        },
+      });
+      if (!order) {
+        return null;
+      }
+      if (order.status === "SETTLED") {
+        throw new ConflictException(
+          "A settled primary order cannot be failed as unconfirmed",
+        );
+      }
+      if (order.status === "REJECTED" && ticket.status === "CANCELLED") {
+        return { failed: true };
+      }
+      const failed = await this.failPrimaryOwnershipIssueInTransaction(
+        tx,
+        order,
+        ticket,
+        "primary_ticket_issue_failed",
+        reason,
+      );
+      return failed ? { failed: true } : null;
+    });
+  }
+
   private async tryMemoryMatch(
     orderId: string,
     options: { skipPaymentAuthorizationGate?: boolean } = {},
@@ -434,6 +720,9 @@ export class OrderbookService {
     if (!incoming || incoming.status !== "OPEN") {
       return null;
     }
+    assertMarketplaceEventPublished(
+      this.store.getEvent(incoming.eventId).status,
+    );
     if (
       this.requiresPaymentAuthorization() &&
       !options.skipPaymentAuthorizationGate
@@ -532,12 +821,16 @@ export class OrderbookService {
       seatHash: `primary-order:${order.id}`,
     });
 
-    order.status = "SETTLED";
-    order.remainingQuantity = 0;
+    const ownershipConfirmed =
+      ticket.status === "ACTIVE" && Boolean(ticket.tokenId);
+    order.status = ownershipConfirmed ? "SETTLED" : "MATCHED";
+    order.remainingQuantity = ownershipConfirmed ? 0 : order.remainingQuantity;
     order.ticketId = ticket.id;
     this.audit.record(
       order.userId,
-      "ORDER_PRIMARY_TICKET_ISSUED",
+      ownershipConfirmed
+        ? "ORDER_PRIMARY_TICKET_ISSUED"
+        : "ORDER_PRIMARY_TICKET_PENDING",
       "order",
       order.id,
       {
@@ -550,7 +843,9 @@ export class OrderbookService {
     await this.publishOrderbookUpdate({
       eventId: order.eventId,
       ticketTypeId: order.ticketTypeId,
-      reason: "primary_ticket_issued",
+      reason: ownershipConfirmed
+        ? "primary_ticket_issued"
+        : "primary_ticket_pending",
       orderId: order.id,
     });
 
@@ -559,8 +854,8 @@ export class OrderbookService {
       ticketId: ticket.id,
       tradeId: null,
       fulfillmentType: "PRIMARY",
-      matched: false,
-      issued: true,
+      matched: !ownershipConfirmed,
+      issued: ownershipConfirmed,
     };
   }
 
@@ -572,6 +867,10 @@ export class OrderbookService {
     if (!buyOrder || !sellOrder || !sellOrder.ticketId) {
       throw new BadRequestException("Cannot settle invalid order pair");
     }
+    this.assertSynchronousOwnershipSettlementAllowed();
+    assertMarketplaceEventPublished(
+      this.store.getEvent(buyOrder.eventId).status,
+    );
     const ticket = this.store.getTicket(sellOrder.ticketId);
     const seller = this.store.users.find((user) => user.id === ticket.ownerId);
     const buyer = this.store.users.find((user) => user.id === buyOrder.userId);
@@ -580,6 +879,14 @@ export class OrderbookService {
         "Cannot settle ownership transfer without both users",
       );
     }
+    const sellerWallet = requireVerifiedWalletBinding(
+      seller,
+      "Ticket seller wallet",
+    );
+    const buyerWallet = requireVerifiedWalletBinding(
+      buyer,
+      "Ticket buyer wallet",
+    );
 
     buyOrder.status = "MATCHED";
     sellOrder.status = "MATCHED";
@@ -594,9 +901,14 @@ export class OrderbookService {
       ticketId: ticket.id,
       tokenId: ticket.tokenId,
       fromOwnerId: seller.id,
-      fromWalletAddress: seller.walletAddress,
+      fromWalletAddress: sellerWallet.walletAddress,
+      fromWalletBindingVersion: sellerWallet.walletBindingVersion,
+      fromWalletBindingFingerprint: sellerWallet.walletBindingFingerprint,
       toOwnerId: buyer.id,
-      toWalletAddress: buyer.walletAddress,
+      toWalletAddress: buyerWallet.walletAddress,
+      toWalletBindingVersion: buyerWallet.walletBindingVersion,
+      toWalletBindingFingerprint: buyerWallet.walletBindingFingerprint,
+      contractRoute: this.ticketContractRoute(ticket),
     });
     ticket.ownerId = buyOrder.userId;
     ticket.transferCount += 1;
@@ -624,6 +936,7 @@ export class OrderbookService {
       ownershipAdapter: ownership.adapter,
       ownershipRef: ownership.ownershipRef,
       transactionHash: ownership.transactionHash,
+      contractRoute: ownership.contractRoute,
     });
     await this.publishOrderbookUpdate({
       eventId: buyOrder.eventId,
@@ -676,7 +989,21 @@ export class OrderbookService {
     eventId: string,
     ticketTypeId: string,
   ) {
-    const [orders, trades, ticketType] = await Promise.all([
+    const ticketType = await prisma.ticketType.findFirst({
+      where: {
+        id: ticketTypeId,
+        eventId,
+        event: {
+          status: "PUBLISHED",
+        },
+      },
+    });
+    if (!ticketType) {
+      throw new BadRequestException(
+        "Event or ticket category is not available",
+      );
+    }
+    const [orders, trades] = await Promise.all([
       prisma.order.findMany({
         where: {
           eventId,
@@ -697,17 +1024,7 @@ export class OrderbookService {
         },
         take: 120,
       }),
-      prisma.ticketType.findUnique({
-        where: {
-          id: ticketTypeId,
-        },
-      }),
     ]);
-    if (!ticketType || ticketType.eventId !== eventId) {
-      throw new BadRequestException(
-        "Event or ticket category is not available",
-      );
-    }
     const bids = this.aggregateLevels(
       orders.filter(
         (order) =>
@@ -758,6 +1075,7 @@ export class OrderbookService {
         "Ticket category is not available for checkout",
       );
     }
+    const fulfillmentMode = this.fulfillmentModeFor(input);
     const existingOrder = await this.findIdempotentPrismaOrder(prisma, input);
     if (existingOrder) {
       const mappedOrder = this.mapPrismaOrder(existingOrder);
@@ -767,11 +1085,14 @@ export class OrderbookService {
         trade: await this.findPrismaTradeForOrder(prisma, existingOrder.id),
       };
     }
+    assertMarketplaceEventPublished(
+      event.status,
+      this.marketplaceUnavailableMessage(input.side, fulfillmentMode),
+    );
 
     if (input.price > (ticketType.resaleCap ?? Number.MAX_SAFE_INTEGER)) {
       throw new BadRequestException("Order price exceeds organizer resale cap");
     }
-    const fulfillmentMode = this.fulfillmentModeFor(input);
     if (
       input.side === "BUY" &&
       fulfillmentMode === "PRIMARY_ONLY" &&
@@ -789,38 +1110,7 @@ export class OrderbookService {
       const ticket = await prisma.ticket.findUnique({
         where: { id: input.ticketId },
       });
-      if (!ticket) {
-        throw new BadRequestException("Ticket is not available for resale");
-      }
-      if (ticket.ownerId !== input.userId) {
-        throw new BadRequestException(
-          "Only the ticket owner can place a sell order",
-        );
-      }
-      if (
-        !ticketType.transferable ||
-        ticket.transferCount >= ticketType.maxTransferCount
-      ) {
-        throw new BadRequestException("Ticket transfer policy blocks resale");
-      }
-      if (ticket.status !== "ACTIVE" && ticket.status !== "TRANSFERRED") {
-        throw new BadRequestException(
-          `Ticket status ${ticket.status} cannot be listed`,
-        );
-      }
-      await prisma.ticket.update({
-        where: { id: ticket.id },
-        data: { status: "LISTED_FOR_RESALE" },
-      });
-      await this.audit.record(
-        input.userId,
-        "TICKET_LISTED_FOR_RESALE",
-        "ticket",
-        ticket.id,
-        {
-          orderPrice: input.price,
-        },
-      );
+      this.assertSellOrderTicket(ticket, ticketType, input);
     }
 
     const orderId = `ord_${randomUUID()}`;
@@ -838,39 +1128,95 @@ export class OrderbookService {
       status: "OPEN" as const,
       idempotencyKey: this.normalizeIdempotencyKey(input.idempotencyKey),
     };
+    const primaryOnlyBuy =
+      input.side === "BUY" && fulfillmentMode === "PRIMARY_ONLY";
     let order;
     try {
-      order =
-        input.side === "BUY" && fulfillmentMode === "PRIMARY_ONLY"
-          ? await prisma.$transaction(async (tx) => {
-              await this.requireOnsaleInventory().lockPrimaryOrderCreation(
-                tx,
-                input.ticketTypeId,
-              );
-              const created = await tx.order.create({ data: orderData });
-              await this.requireOnsaleInventory().reservePrimaryInventory(tx, {
-                orderId: created.id,
-                eventId: created.eventId,
-                ticketTypeId: created.ticketTypeId,
-                userId: created.userId,
-                quantity: created.quantity,
+      order = primaryOnlyBuy
+        ? await prisma.$transaction(async (tx) => {
+            await this.requireOnsaleInventory().lockPrimaryOrderCreation(
+              tx,
+              input.ticketTypeId,
+            );
+            const eventStatus = await lockMarketplaceEvent(tx, input.eventId);
+            assertMarketplaceEventPublished(
+              eventStatus,
+              "Event is not available for checkout",
+            );
+            const created = await tx.order.create({ data: orderData });
+            await this.requireOnsaleInventory().reservePrimaryInventory(tx, {
+              orderId: created.id,
+              eventId: created.eventId,
+              ticketTypeId: created.ticketTypeId,
+              userId: created.userId,
+              quantity: created.quantity,
+            });
+            await tx.auditLog.create({
+              data: {
+                actorId: input.userId,
+                action: "ORDER_CREATED",
+                entityType: "order",
+                entityId: created.id,
+                metadataJson: {
+                  side: input.side,
+                  price: input.price,
+                  fulfillmentMode,
+                },
+              },
+            });
+            return created;
+          })
+        : await prisma.$transaction(async (tx) => {
+            const eventStatus = await lockMarketplaceEvent(tx, input.eventId);
+            assertMarketplaceEventPublished(eventStatus);
+
+            if (input.side === "SELL") {
+              const ticket = await tx.ticket.findUnique({
+                where: { id: input.ticketId! },
               });
+              this.assertSellOrderTicket(ticket, ticketType, input);
+              const ticketClaim = await tx.ticket.updateMany({
+                where: {
+                  id: ticket.id,
+                  ownerId: input.userId,
+                  status: { in: ["ACTIVE", "TRANSFERRED"] },
+                },
+                data: { status: "LISTED_FOR_RESALE" },
+              });
+              if (ticketClaim.count !== 1) {
+                throw new ConflictException(
+                  "Ticket is no longer available for resale",
+                );
+              }
               await tx.auditLog.create({
                 data: {
                   actorId: input.userId,
-                  action: "ORDER_CREATED",
-                  entityType: "order",
-                  entityId: created.id,
+                  action: "TICKET_LISTED_FOR_RESALE",
+                  entityType: "ticket",
+                  entityId: ticket.id,
                   metadataJson: {
-                    side: input.side,
-                    price: input.price,
-                    fulfillmentMode,
+                    orderPrice: input.price,
                   },
                 },
               });
-              return created;
-            })
-          : await prisma.order.create({ data: orderData });
+            }
+
+            const created = await tx.order.create({ data: orderData });
+            await tx.auditLog.create({
+              data: {
+                actorId: input.userId,
+                action: "ORDER_CREATED",
+                entityType: "order",
+                entityId: created.id,
+                metadataJson: {
+                  side: input.side,
+                  price: input.price,
+                  fulfillmentMode,
+                },
+              },
+            });
+            return created;
+          });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -895,20 +1241,6 @@ export class OrderbookService {
       }
       throw error;
     }
-    if (!(input.side === "BUY" && fulfillmentMode === "PRIMARY_ONLY")) {
-      await this.audit.record(
-        input.userId,
-        "ORDER_CREATED",
-        "order",
-        order.id,
-        {
-          side: input.side,
-          price: input.price,
-          fulfillmentMode,
-        },
-      );
-    }
-
     const trade = await this.tryPrismaMatch(prisma, order.id);
     if (!trade) {
       await this.publishOrderbookUpdate({
@@ -945,12 +1277,22 @@ export class OrderbookService {
         );
       }
 
-      const cancelled = await tx.order.update({
-        where: { id: order.id },
+      const claim = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          userId: input.userId,
+          status: "OPEN",
+        },
         data: {
           status: "CANCELLED",
           remainingQuantity: 0,
         },
+      });
+      if (claim.count !== 1) {
+        throw new ConflictException("Order is no longer open and cancellable");
+      }
+      const cancelled = await tx.order.findUniqueOrThrow({
+        where: { id: order.id },
       });
 
       if (order.side === "BUY" && order.fulfillmentMode === "PRIMARY_ONLY") {
@@ -971,8 +1313,8 @@ export class OrderbookService {
           where: { id: order.ticketId },
         });
         if (ticket.status === "LISTED_FOR_RESALE") {
-          await tx.ticket.update({
-            where: { id: ticket.id },
+          await tx.ticket.updateMany({
+            where: { id: ticket.id, status: "LISTED_FOR_RESALE" },
             data: {
               status: ticket.transferCount > 0 ? "TRANSFERRED" : "ACTIVE",
             },
@@ -1072,6 +1414,7 @@ export class OrderbookService {
     prisma: PrismaService,
     orderId: string,
   ): Promise<PaymentAuthorizedSettlementResult | null> {
+    this.assertAsyncOwnershipSettlementConfigured();
     const trade = await this.tryPrismaMatch(prisma, orderId);
     if (trade) {
       return {
@@ -1097,6 +1440,17 @@ export class OrderbookService {
         matched: false,
         issued: true,
       };
+    }
+    if (order.status === "MATCHED" && order.ticketId) {
+      const pendingTicket = await prisma.ticket.findUnique({
+        where: { id: order.ticketId },
+      });
+      if (pendingTicket?.status === "ACTIVE" && pendingTicket.tokenId) {
+        return this.finalizePrimaryOwnershipIssue(pendingTicket.id);
+      }
+      return pendingTicket
+        ? this.primarySettlementResult(order.id, pendingTicket.id, false)
+        : null;
     }
     if (order.status !== "OPEN") {
       return null;
@@ -1134,6 +1488,13 @@ export class OrderbookService {
           issued: true,
         };
       }
+      if (settled?.status === "MATCHED" && settled.ticketId) {
+        return this.primarySettlementResult(
+          settled.id,
+          settled.ticketId,
+          false,
+        );
+      }
       return null;
     }
 
@@ -1150,6 +1511,7 @@ export class OrderbookService {
         ownerId: order.userId,
         seatHash: `primary-order:${order.id}`,
         inventoryHoldId: inventoryHold.id,
+        orderId: order.id,
       });
     } catch (error) {
       await this.rejectPrimarySettlementAfterFailure(
@@ -1161,61 +1523,40 @@ export class OrderbookService {
       throw error;
     }
 
-    try {
-      await prisma.$transaction(async (tx) => {
-        const settled = await tx.order.updateMany({
-          where: {
-            id: order.id,
-            status: "MATCHED",
-            side: "BUY",
-            ticketId: null,
-          },
-          data: {
-            status: "SETTLED",
-            remainingQuantity: 0,
-            ticketId: ticket.id,
-          },
-        });
-        if (settled.count !== 1) {
-          throw new BadRequestException(
-            "Primary ticket settlement lost its matched order claim",
-          );
-        }
-        await this.enqueuePaymentCaptureForPrimaryTicket(
-          tx,
-          order.id,
-          ticket.id,
-        );
-        await tx.auditLog.create({
-          data: {
-            actorId: order.userId,
-            action: "ORDER_PRIMARY_TICKET_ISSUED",
-            entityType: "order",
-            entityId: order.id,
-            metadataJson: {
-              ticketId: ticket.id,
-              eventId: order.eventId,
-              ticketTypeId: order.ticketTypeId,
-              price: order.price,
-            },
-          },
-        });
-      });
-    } catch (error) {
-      await this.rejectPrimarySettlementAfterFailure(
-        prisma,
-        order.id,
-        order.userId,
-        error,
-        ticket.id,
+    const [linkedOrder, persistedTicket] = await Promise.all([
+      prisma.order.findUnique({ where: { id: order.id } }),
+      prisma.ticket.findUnique({ where: { id: ticket.id } }),
+    ]);
+    if (!linkedOrder || linkedOrder.ticketId !== ticket.id) {
+      throw new ConflictException(
+        "Primary ticket is not linked to its matched order",
       );
-      throw error;
+    }
+    if (linkedOrder.status === "SETTLED") {
+      return this.primarySettlementResult(linkedOrder.id, ticket.id, true);
+    }
+    if (
+      linkedOrder.status === "REJECTED" ||
+      linkedOrder.status === "CANCELLED"
+    ) {
+      return null;
+    }
+    if (linkedOrder.status !== "MATCHED") {
+      throw new ConflictException(
+        "Primary ticket is not attached to a matched order",
+      );
+    }
+    if (persistedTicket?.status === "ACTIVE" && persistedTicket.tokenId) {
+      return this.finalizePrimaryOwnershipIssue(persistedTicket.id);
+    }
+    if (!persistedTicket || persistedTicket.status !== "CREATED") {
+      return null;
     }
 
     await this.publishOrderbookUpdate({
       eventId: order.eventId,
       ticketTypeId: order.ticketTypeId,
-      reason: "primary_ticket_issued",
+      reason: "primary_ticket_pending",
       orderId: order.id,
     });
 
@@ -1224,8 +1565,8 @@ export class OrderbookService {
       ticketId: ticket.id,
       tradeId: null,
       fulfillmentType: "PRIMARY",
-      matched: false,
-      issued: true,
+      matched: true,
+      issued: false,
     };
   }
 
@@ -1235,6 +1576,7 @@ export class OrderbookService {
     sellOrderId: string,
     price: number,
   ) {
+    this.assertAsyncOwnershipSettlementConfigured();
     const existingTrade = await prisma.trade.findUnique({
       where: { buyOrderId },
     });
@@ -1254,6 +1596,8 @@ export class OrderbookService {
         if (!buyOrder || !sellOrder || !sellOrder.ticketId) {
           throw new BadRequestException("Cannot settle invalid order pair");
         }
+        const eventStatus = await lockMarketplaceEvent(tx, buyOrder.eventId);
+        assertMarketplaceEventPublished(eventStatus);
         if (!this.allowsResaleFulfillment(buyOrder.fulfillmentMode)) {
           throw new BadRequestException(
             "Primary-only orders cannot match resale listings",
@@ -1273,11 +1617,26 @@ export class OrderbookService {
           where: { id: sellOrder.ticketId },
           include: {
             owner: true,
+            ticketType: true,
           },
         });
         const buyer = await tx.user.findUniqueOrThrow({
           where: { id: buyOrder.userId },
         });
+        this.assertResaleSettlementIntegrity(buyOrder, sellOrder, ticket);
+        const sellerWallet = requireVerifiedWalletBinding(
+          ticket.owner,
+          "Ticket seller wallet",
+        );
+        const buyerWallet = requireVerifiedWalletBinding(
+          buyer,
+          "Ticket buyer wallet",
+        );
+        if (price !== sellOrder.price) {
+          throw new BadRequestException(
+            "Matched resale price does not match the sell order",
+          );
+        }
 
         const [buyClaim, sellClaim, ticketClaim] = await Promise.all([
           tx.order.updateMany({
@@ -1333,9 +1692,14 @@ export class OrderbookService {
             ticketId: ticket.id,
             tokenId: ticket.tokenId,
             fromOwnerId: ticket.ownerId,
-            fromWalletAddress: ticket.owner.walletAddress,
+            fromWalletAddress: sellerWallet.walletAddress,
+            fromWalletBindingVersion: sellerWallet.walletBindingVersion,
+            fromWalletBindingFingerprint: sellerWallet.walletBindingFingerprint,
             toOwnerId: buyOrder.userId,
-            toWalletAddress: buyer.walletAddress,
+            toWalletAddress: buyerWallet.walletAddress,
+            toWalletBindingVersion: buyerWallet.walletBindingVersion,
+            toWalletBindingFingerprint: buyerWallet.walletBindingFingerprint,
+            contractRoute: this.ticketContractRoute(ticket),
             buyOrderId: buyOrder.id,
             sellOrderId: sellOrder.id,
           });
@@ -1345,6 +1709,8 @@ export class OrderbookService {
           sellOrder,
           ticket,
           buyer,
+          sellerWallet,
+          buyerWallet,
           sideEffectKey,
         };
       });
@@ -1365,6 +1731,7 @@ export class OrderbookService {
     if (this.usesAsyncOwnershipSettlement()) {
       return null;
     }
+    this.assertSynchronousOwnershipSettlementAllowed();
 
     let ownership;
     try {
@@ -1372,9 +1739,16 @@ export class OrderbookService {
         ticketId: claimed.ticket.id,
         tokenId: claimed.ticket.tokenId,
         fromOwnerId: claimed.ticket.ownerId,
-        fromWalletAddress: claimed.ticket.owner.walletAddress,
+        fromWalletAddress: claimed.sellerWallet.walletAddress,
+        fromWalletBindingVersion: claimed.sellerWallet.walletBindingVersion,
+        fromWalletBindingFingerprint:
+          claimed.sellerWallet.walletBindingFingerprint,
         toOwnerId: claimed.buyOrder.userId,
-        toWalletAddress: claimed.buyer.walletAddress,
+        toWalletAddress: claimed.buyerWallet.walletAddress,
+        toWalletBindingVersion: claimed.buyerWallet.walletBindingVersion,
+        toWalletBindingFingerprint:
+          claimed.buyerWallet.walletBindingFingerprint,
+        contractRoute: this.ticketContractRoute(claimed.ticket),
       });
       await this.settlementSideEffects.markOwnershipTransferCompleted(
         claimed.sideEffectKey,
@@ -1386,49 +1760,12 @@ export class OrderbookService {
         claimed.sideEffectKey,
         error,
       );
-      await prisma.$transaction(async (tx) => {
-        await tx.order.updateMany({
-          where: {
-            id: {
-              in: [buyOrderId, sellOrderId],
-            },
-            status: "MATCHED",
-          },
-          data: {
-            status: "REJECTED",
-            remainingQuantity: 0,
-          },
-        });
-        await tx.ticket.updateMany({
-          where: {
-            id: claimed.ticket.id,
-            status: "TRANSFER_PENDING",
-          },
-          data: {
-            status: claimed.ticket.transferCount > 0 ? "TRANSFERRED" : "ACTIVE",
-          },
-        });
-        await tx.auditLog.create({
-          data: {
-            actorId: claimed.buyOrder.userId,
-            action: "TRADE_SETTLEMENT_FAILED",
-            entityType: "order",
-            entityId: buyOrderId,
-            metadataJson: {
-              sellOrderId,
-              ticketId: claimed.ticket.id,
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Ownership transfer failed",
-            },
-          },
-        });
-        await this.enqueuePaymentCompensationForFailedSettlement(
-          tx,
-          buyOrderId,
-          "ownership_transfer_failed",
-        );
+      await this.failOwnershipTransfer({
+        buyOrderId,
+        sellOrderId,
+        ticketId: claimed.ticket.id,
+        reason:
+          error instanceof Error ? error.message : "Ownership transfer failed",
       });
       throw error;
     }
@@ -1438,9 +1775,11 @@ export class OrderbookService {
       sellOrderId,
       ticketId: claimed.ticket.id,
       ownership: {
+        status: ownership.status,
         adapter: ownership.adapter,
         ownershipRef: ownership.ownershipRef,
         transactionHash: ownership.transactionHash,
+        contractRoute: ownership.contractRoute,
       },
     });
   }
@@ -1449,6 +1788,7 @@ export class OrderbookService {
     prisma: Prisma.TransactionClient,
     buyOrderId: string,
     tradeId: string,
+    ticketId: string,
   ) {
     const payment = await prisma.payment.findFirst({
       where: {
@@ -1466,6 +1806,7 @@ export class OrderbookService {
       paymentId: payment.id,
       buyOrderId,
       tradeId,
+      ticketId,
     });
   }
 
@@ -1477,14 +1818,17 @@ export class OrderbookService {
     const payment = await prisma.payment.findFirst({
       where: {
         orderId: buyOrderId,
-        captureStatus: "AUTHORIZED",
+        captureStatus: { in: ["AUTHORIZED", "CAPTURED"] },
       },
       orderBy: {
         createdAt: "desc",
       },
     });
     if (!payment) {
-      return;
+      return false;
+    }
+    if (payment.captureStatus === "CAPTURED") {
+      return true;
     }
     await this.settlementSideEffects.enqueuePaymentCaptureForPrimaryTicket(
       prisma,
@@ -1494,6 +1838,7 @@ export class OrderbookService {
         ticketId,
       },
     );
+    return true;
   }
 
   private async rejectPrimarySettlementAfterFailure(
@@ -1519,7 +1864,7 @@ export class OrderbookService {
         await tx.ticket.updateMany({
           where: {
             id: issuedTicketId,
-            status: "ACTIVE",
+            status: { in: ["CREATED", "ACTIVE"] },
           },
           data: {
             status: "CANCELLED",
@@ -1638,6 +1983,85 @@ export class OrderbookService {
     });
   }
 
+  private async failPrimaryOwnershipIssueInTransaction(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string;
+      userId: string;
+      status: string;
+    },
+    ticket: { id: string; status: string },
+    compensationReason: string,
+    failureMessage = compensationReason,
+  ) {
+    const orderClaim = await tx.order.updateMany({
+      where: {
+        id: order.id,
+        status: "MATCHED",
+        side: "BUY",
+        ticketId: ticket.id,
+      },
+      data: { status: "REJECTED", remainingQuantity: 0 },
+    });
+    if (orderClaim.count !== 1) {
+      return false;
+    }
+    await tx.ticket.updateMany({
+      where: {
+        id: ticket.id,
+        status: { in: ["CREATED", "ACTIVE"] },
+      },
+      data: { status: "CANCELLED" },
+    });
+    await this.requireOnsaleInventory().releaseOrderHold(
+      tx,
+      order.id,
+      compensationReason,
+      true,
+    );
+    await tx.auditLog.create({
+      data: {
+        actorId: order.userId,
+        action: "PRIMARY_TICKET_ISSUE_FAILED",
+        entityType: "order",
+        entityId: order.id,
+        metadataJson: {
+          ticketId: ticket.id,
+          message: failureMessage,
+        },
+      },
+    });
+    await this.enqueuePaymentCompensationForFailedSettlement(
+      tx,
+      order.id,
+      compensationReason,
+    );
+    return true;
+  }
+
+  private primaryOwnershipFailureReason(error: unknown) {
+    return error instanceof Error
+      ? error.message
+      : typeof error === "string" && error.trim()
+        ? error.trim()
+        : "Primary ticket ownership issuance failed";
+  }
+
+  private primarySettlementResult(
+    orderId: string,
+    ticketId: string,
+    issued: boolean,
+  ): PaymentAuthorizedSettlementResult {
+    return {
+      orderId,
+      ticketId,
+      tradeId: null,
+      fulfillmentType: "PRIMARY",
+      matched: !issued,
+      issued,
+    };
+  }
+
   private mapPrismaOrder(order: {
     id: string;
     userId: string;
@@ -1705,6 +2129,39 @@ export class OrderbookService {
     );
   }
 
+  private assertAsyncOwnershipSettlementConfigured() {
+    if (
+      requiresDurableOwnershipDispatch(this.ownershipDispatchConfig()) &&
+      !this.usesAsyncOwnershipSettlement()
+    ) {
+      throw new ServiceUnavailableException(
+        "Provider-backed settlement requires FANPASS_ASYNC_OWNERSHIP_SETTLEMENT=true",
+      );
+    }
+  }
+
+  private assertSynchronousOwnershipSettlementAllowed() {
+    if (requiresDurableOwnershipDispatch(this.ownershipDispatchConfig())) {
+      throw new ServiceUnavailableException(
+        "Synchronous provider-backed ownership settlement is disabled; use the durable async worker",
+      );
+    }
+  }
+
+  private ownershipDispatchConfig() {
+    return {
+      NODE_ENV: this.config?.get<string>("NODE_ENV") ?? process.env.NODE_ENV,
+      FANPASS_ENV:
+        this.config?.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+      FANPASS_DATA_SOURCE:
+        this.config?.get<string>("FANPASS_DATA_SOURCE") ??
+        process.env.FANPASS_DATA_SOURCE,
+      OWNERSHIP_ADAPTER:
+        this.config?.get<string>("OWNERSHIP_ADAPTER") ??
+        process.env.OWNERSHIP_ADAPTER,
+    };
+  }
+
   private authorizedPaymentWhere() {
     return {
       captureStatus: {
@@ -1748,6 +2205,137 @@ export class OrderbookService {
 
   private allowsResaleFulfillment(fulfillmentMode: string | null | undefined) {
     return fulfillmentMode !== "PRIMARY_ONLY";
+  }
+
+  private marketplaceUnavailableMessage(
+    side: CreateOrderInput["side"],
+    fulfillmentMode: OrderFulfillmentMode,
+  ) {
+    return side === "BUY" && this.allowsPrimaryFulfillment(fulfillmentMode)
+      ? "Event is not available for checkout"
+      : "Event is not available for marketplace operations";
+  }
+
+  private assertSellOrderTicket(
+    ticket: {
+      id: string;
+      eventId: string;
+      ticketTypeId: string;
+      ownerId: string;
+      status: string;
+      transferCount: number;
+    } | null,
+    ticketType: {
+      transferable: boolean;
+      maxTransferCount: number;
+    },
+    input: CreateOrderInput,
+  ): asserts ticket is {
+    id: string;
+    eventId: string;
+    ticketTypeId: string;
+    ownerId: string;
+    status: string;
+    transferCount: number;
+  } {
+    if (!ticket) {
+      throw new BadRequestException("Ticket is not available for resale");
+    }
+    if (
+      ticket.eventId !== input.eventId ||
+      ticket.ticketTypeId !== input.ticketTypeId
+    ) {
+      throw new BadRequestException("Ticket is not available for this market");
+    }
+    if (ticket.ownerId !== input.userId) {
+      throw new BadRequestException(
+        "Only the ticket owner can place a sell order",
+      );
+    }
+    if (
+      !ticketType.transferable ||
+      ticket.transferCount >= ticketType.maxTransferCount
+    ) {
+      throw new BadRequestException("Ticket transfer policy blocks resale");
+    }
+    if (ticket.status !== "ACTIVE" && ticket.status !== "TRANSFERRED") {
+      throw new BadRequestException(
+        `Ticket status ${ticket.status} cannot be listed`,
+      );
+    }
+  }
+
+  private assertResaleSettlementIntegrity(
+    buyOrder: {
+      side: string;
+      eventId: string;
+      ticketTypeId: string;
+    },
+    sellOrder: {
+      side: string;
+      userId: string;
+      eventId: string;
+      ticketTypeId: string;
+      ticketId: string | null;
+      price: number;
+    },
+    ticket: {
+      id: string;
+      eventId: string;
+      ticketTypeId: string;
+      ownerId: string;
+      transferCount: number;
+      ticketType: {
+        eventId: string;
+        transferable: boolean;
+        resaleCap: number | null;
+        maxTransferCount: number;
+      };
+    },
+  ) {
+    if (
+      buyOrder.side !== "BUY" ||
+      sellOrder.side !== "SELL" ||
+      sellOrder.ticketId !== ticket.id ||
+      sellOrder.userId !== ticket.ownerId ||
+      buyOrder.eventId !== sellOrder.eventId ||
+      buyOrder.ticketTypeId !== sellOrder.ticketTypeId ||
+      sellOrder.eventId !== ticket.eventId ||
+      sellOrder.ticketTypeId !== ticket.ticketTypeId ||
+      ticket.ticketType.eventId !== ticket.eventId
+    ) {
+      throw new BadRequestException(
+        "Resale order and ticket market do not match",
+      );
+    }
+    if (
+      !ticket.ticketType.transferable ||
+      ticket.transferCount >= ticket.ticketType.maxTransferCount ||
+      sellOrder.price > (ticket.ticketType.resaleCap ?? Number.MAX_SAFE_INTEGER)
+    ) {
+      throw new BadRequestException(
+        "Ticket resale policy no longer allows this settlement",
+      );
+    }
+  }
+
+  private ticketContractRoute(ticket: {
+    ownershipContractAddress?: string | null;
+    ownershipChainId?: string | null;
+    ownershipContractVersion?: string | null;
+  }): OwnershipContractRoute | null {
+    if (
+      !ticket.ownershipContractAddress ||
+      !ticket.ownershipChainId ||
+      ticket.ownershipContractVersion !== "fanpass-ticket-v1"
+    ) {
+      return null;
+    }
+    return {
+      contractAddress: ticket.ownershipContractAddress,
+      chainId: ticket.ownershipChainId,
+      contractVersion: "fanpass-ticket-v1",
+    };
   }
 
   private findIdempotentMemoryOrder(input: CreateOrderInput) {
@@ -1828,7 +2416,8 @@ export class OrderbookService {
       | "order_cancelled"
       | "order_rejected"
       | "trade_settled"
-      | "primary_ticket_issued";
+      | "primary_ticket_issued"
+      | "primary_ticket_pending";
     orderId?: string;
     tradeId?: string;
   }) {

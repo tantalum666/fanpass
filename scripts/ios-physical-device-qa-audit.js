@@ -1,11 +1,16 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_IOS_PHYSICAL_QA_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_IOS_PHYSICAL_QA_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const docPath = "docs/IOS_PHYSICAL_DEVICE_QA.md";
 const tasksPath = "docs/DEVELOPMENT_TASKS.md";
@@ -14,7 +19,6 @@ const roadmapPath = "docs/BETA_ROADMAP.md";
 const iosPlanPath = "docs/IOS_DISTRIBUTION_PLAN.md";
 const providerPath = "docs/PROVIDER_COST_FEASIBILITY.md";
 const packagePath = "package.json";
-const verifierPath = "scripts/beta-foundation-verify.sh";
 
 const doc = readRequired(docPath);
 const tasks = readRequired(tasksPath);
@@ -23,7 +27,6 @@ const roadmap = readRequired(roadmapPath);
 const iosPlan = readRequired(iosPlanPath);
 const provider = readRequired(providerPath);
 const packageJson = readRequired(packagePath);
-const verifier = readRequired(verifierPath);
 
 const requiredDocMarkers = [
   "# FanPass iOS Physical-Device QA Checklist",
@@ -113,7 +116,7 @@ if (!iosPlan.includes(requiredIosPlan)) {
 }
 
 const qaMarkers = [
-  "Keep `npm run security:ios-physical-device-qa:self-test` and `npm run security:ios-physical-device-qa` in `npm run beta:foundation:verify`",
+  "Keep `npm run security:ios-physical-device-qa:self-test` and `npm run security:ios-physical-device-qa` in `node scripts/beta-foundation-verify.js`",
   "The iOS physical-device QA checklist must keep real-iPhone scope, signed build scope, HTTPS staging/beta API scope, FanPass/FanPass Ops role separation, no-debug-fallback requirements, no-secret/no-real-data constraints, and saved-evidence handoffs explicit.",
 ];
 for (const marker of qaMarkers) {
@@ -123,7 +126,7 @@ for (const marker of qaMarkers) {
 }
 
 const roadmapMarker =
-  "The iOS physical-device QA checklist audit must keep passing inside `npm run beta:foundation:verify`";
+  "The iOS physical-device QA checklist audit must keep passing inside `node scripts/beta-foundation-verify.js`";
 if (!roadmap.includes(roadmapMarker)) {
   errors.push(
     `${roadmapPath} must include iOS physical-device QA audit release gate`,
@@ -160,17 +163,14 @@ if (
   );
 }
 
-const verifierMarkers = [
-  "iOS physical-device QA checklist audit self-test",
-  "npm run security:ios-physical-device-qa:self-test",
-  "iOS physical-device QA checklist audit",
-  "npm run security:ios-physical-device-qa",
-];
-for (const marker of verifierMarkers) {
-  if (!verifier.includes(marker)) {
-    errors.push(`${verifierPath} must include marker: ${marker}`);
-  }
-}
+assertOrderedNpmScripts(
+  betaGateSteps,
+  [
+    "security:ios-physical-device-qa:self-test",
+    "security:ios-physical-device-qa",
+  ],
+  errors,
+);
 
 if (errors.length > 0) {
   console.error(errors.map((error) => `- ${error}`).join("\n"));

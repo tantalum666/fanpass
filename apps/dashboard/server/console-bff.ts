@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
-import { readFile } from "node:fs/promises";
-import { createReadStream, existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { open, readFile, type FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -50,12 +50,7 @@ interface PrivySessionRequestBody {
 }
 
 type PrivySessionFailureReason =
-  | "failed"
-  | "handoff"
-  | "forbidden"
-  | "rate"
-  | "service"
-  | "session";
+  "failed" | "handoff" | "forbidden" | "rate" | "service" | "session";
 
 class RequestBodyError extends Error {
   constructor(
@@ -68,37 +63,26 @@ class RequestBodyError extends Error {
 }
 
 class UpstreamApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
+  constructor(readonly status: number) {
+    super("Upstream API request failed");
     this.name = "UpstreamApiError";
   }
 }
 
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+const INTERNAL_ERROR_MESSAGE =
+  "FanPass Console request could not be completed.";
+const UPSTREAM_ERROR_MESSAGE =
+  "FanPass Console service is temporarily unavailable.";
 
 createServer(async (request, response) => {
+  const requestId = randomUUID();
+  response.setHeader("X-Request-Id", requestId);
   try {
     applySecurityHeaders(response);
     await routeRequest(request, response);
   } catch (error) {
-    if (
-      error instanceof RequestBodyError ||
-      error instanceof UpstreamApiError
-    ) {
-      return sendJson(response, error.status, {
-        ok: false,
-        message: error.message,
-      });
-    }
-    if (error instanceof ConsoleAuthRequiredError) {
-      return sendJson(response, 401, { ok: false, message: error.message });
-    }
-    const message =
-      error instanceof Error ? error.message : "FanPass Console request failed";
-    sendJson(response, 500, { ok: false, message });
+    handleRequestError(response, requestId, error);
   }
 }).listen(port, () => {
   console.log(
@@ -326,27 +310,27 @@ async function handleCreateGateAssignment(
 
   try {
     const accessToken = await consoleAccessToken(cookieSource(request));
-    const upstream = await fetch(`${API_BASE_URL}/alpha/gate-assignments`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    const upstream = await fetchUpstream(
+      `${API_BASE_URL}/alpha/gate-assignments`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventId,
+          gate,
+          staffName,
+          staffEmail,
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        eventId,
-        gate,
-        staffName,
-        staffEmail,
-      }),
-      cache: "no-store",
-    });
-    const payload = (await upstream.json().catch(() => null)) as unknown;
+    );
     if (!upstream.ok) {
-      return sendJson(response, upstream.status, {
-        ok: false,
-        message: responseMessage(payload, "Gate staff assignment failed"),
-      });
+      throw new UpstreamApiError(upstream.status);
     }
+    const payload = (await upstream.json().catch(() => null)) as unknown;
     sendJson(response, 200, {
       ok: true,
       assignment: redactConsoleGateAssignmentResponse(payload),
@@ -432,7 +416,7 @@ async function handleRotateInvite(
 
   try {
     const accessToken = await consoleAccessToken(cookieSource(request));
-    const upstream = await fetch(
+    const upstream = await fetchUpstream(
       `${API_BASE_URL}/alpha/gate-assignments/${encodeURIComponent(
         normalizedAssignmentId,
       )}/invites`,
@@ -444,13 +428,10 @@ async function handleRotateInvite(
         cache: "no-store",
       },
     );
-    const payload = (await upstream.json().catch(() => null)) as unknown;
     if (!upstream.ok) {
-      return sendJson(response, upstream.status, {
-        ok: false,
-        message: responseMessage(payload, "Staff invite rotation failed"),
-      });
+      throw new UpstreamApiError(upstream.status);
     }
+    const payload = (await upstream.json().catch(() => null)) as unknown;
     sendJson(response, 200, {
       ok: true,
       assignment: redactConsoleGateAssignmentResponse(payload),
@@ -587,9 +568,7 @@ async function handlePrivySessionPost(
     );
   }
   const session = (await upstream.json().catch(() => null)) as
-    | PrivySessionResponse
-    | { message?: string }
-    | null;
+    PrivySessionResponse | { message?: string } | null;
 
   if (!upstream.ok || !session || !("role" in session)) {
     if (topLevelHandoff && upstream.status === 401) {
@@ -608,14 +587,14 @@ async function handlePrivySessionPost(
       failureReason,
       recoveryMode,
     });
+    const publicError = upstreamPublicError(upstream.status || 502);
     return sendPrivySessionFailure(
       response,
       topLevelHandoff,
       upstream.status || 401,
-      session && "message" in session && session.message
-        ? session.message
-        : "Privy session sync failed",
+      publicError.message,
       failureReason,
+      publicError.code,
     );
   }
 
@@ -668,11 +647,12 @@ function sendPrivySessionFailure(
   status: number,
   message: string,
   reason: PrivySessionFailureReason = "failed",
+  code = "CONSOLE_SESSION_FAILED",
 ) {
   if (topLevelHandoff) {
     return sendRedirect(response, 303, "/?auth=" + reason);
   }
-  return sendJson(response, status, { ok: false, message });
+  return sendJson(response, status, { ok: false, code, message });
 }
 
 function privySessionFailureReason(status: number): PrivySessionFailureReason {
@@ -797,20 +777,16 @@ function assertMutationOrigin(request: Request, response: ServerResponse) {
 
 async function apiGet(pathname: string, request: IncomingMessage) {
   const accessToken = await consoleAccessToken(cookieSource(request));
-  const upstream = await fetch(`${API_BASE_URL}${pathname}`, {
+  const upstream = await fetchUpstream(`${API_BASE_URL}${pathname}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
     cache: "no-store",
   });
-  const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new UpstreamApiError(
-      responseMessage(payload, `API request failed: ${upstream.status}`),
-      upstream.status,
-    );
+    throw new UpstreamApiError(upstream.status);
   }
-  return payload;
+  return upstream.json().catch(() => null);
 }
 
 async function apiPost(
@@ -819,7 +795,7 @@ async function apiPost(
   request: IncomingMessage,
 ) {
   const accessToken = await consoleAccessToken(cookieSource(request));
-  const upstream = await fetch(`${API_BASE_URL}${pathname}`, {
+  const upstream = await fetchUpstream(`${API_BASE_URL}${pathname}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -828,14 +804,18 @@ async function apiPost(
     body: JSON.stringify(body),
     cache: "no-store",
   });
-  const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    throw new UpstreamApiError(
-      responseMessage(payload, `API request failed: ${upstream.status}`),
-      upstream.status,
-    );
+    throw new UpstreamApiError(upstream.status);
   }
-  return payload;
+  return upstream.json().catch(() => null);
+}
+
+async function fetchUpstream(input: string, init: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new UpstreamApiError(503);
+  }
 }
 
 function requestToFetchRequest(request: IncomingMessage) {
@@ -928,19 +908,33 @@ async function readRequestBody(request: IncomingMessage) {
 }
 
 async function serveStatic(pathname: string, response: ServerResponse) {
+  const indexPath = path.join(publicDir, "index.html");
   const requestedPath =
-    pathname === "/"
-      ? path.join(publicDir, "index.html")
-      : path.join(publicDir, pathname);
+    pathname === "/" ? indexPath : path.join(publicDir, pathname);
   const normalizedPath = path.normalize(requestedPath);
-  const safePath = normalizedPath.startsWith(publicDir)
-    ? normalizedPath
-    : path.join(publicDir, "index.html");
-  const filePath = existsSync(safePath)
-    ? safePath
-    : path.join(publicDir, "index.html");
+  const isInsidePublicDir =
+    normalizedPath === publicDir ||
+    normalizedPath.startsWith(`${publicDir}${path.sep}`);
+  if (!isInsidePublicDir) {
+    return sendJson(response, 404, { ok: false, message: "Not found" });
+  }
 
-  if (!existsSync(filePath)) {
+  const requestedFile = await openRegularFile(normalizedPath);
+  if (requestedFile.kind === "file") {
+    return streamStaticFile(requestedFile.handle, normalizedPath, response);
+  }
+  if (requestedFile.kind === "not-file") {
+    return sendJson(response, 404, { ok: false, message: "Not found" });
+  }
+
+  const isAssetRequest =
+    pathname.startsWith("/assets/") || path.extname(normalizedPath) !== "";
+  if (isAssetRequest) {
+    return sendJson(response, 404, { ok: false, message: "Not found" });
+  }
+
+  const indexFile = await openRegularFile(indexPath);
+  if (indexFile.kind !== "file") {
     return sendJson(response, 503, {
       ok: false,
       message:
@@ -948,14 +942,179 @@ async function serveStatic(pathname: string, response: ServerResponse) {
     });
   }
 
+  return streamStaticFile(indexFile.handle, indexPath, response);
+}
+
+async function openRegularFile(
+  filePath: string,
+): Promise<
+  | { kind: "file"; handle: FileHandle }
+  | { kind: "missing" }
+  | { kind: "not-file" }
+> {
+  let handle: FileHandle;
+  try {
+    handle = await open(filePath, "r");
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      ((error as NodeJS.ErrnoException).code === "ENOENT" ||
+        (error as NodeJS.ErrnoException).code === "ENOTDIR")
+    ) {
+      return { kind: "missing" };
+    }
+    throw error;
+  }
+
+  try {
+    const metadata = await handle.stat();
+    if (!metadata.isFile()) {
+      await handle.close();
+      return { kind: "not-file" };
+    }
+    return { kind: "file", handle };
+  } catch (error) {
+    await handle.close().catch(() => undefined);
+    throw error;
+  }
+}
+
+function streamStaticFile(
+  handle: FileHandle,
+  filePath: string,
+  response: ServerResponse,
+) {
+  const stream = handle.createReadStream({ autoClose: true });
+  stream.once("error", () => {
+    if (!response.headersSent) {
+      sendJson(response, 500, {
+        ok: false,
+        message: "FanPass Console asset could not be loaded",
+      });
+      return;
+    }
+    response.destroy();
+  });
+
   response.setHeader("Content-Type", contentType(filePath));
-  createReadStream(filePath).pipe(response);
+  stream.pipe(response);
 }
 
 function sendJson(response: ServerResponse, status: number, payload: unknown) {
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(JSON.stringify(payload));
+}
+
+function handleRequestError(
+  response: ServerResponse,
+  requestId: string,
+  error: unknown,
+) {
+  const publicError = requestPublicError(error);
+  console.error(
+    JSON.stringify({
+      requestId,
+      errorClass: requestErrorClass(error),
+      status: publicError.status,
+    }),
+  );
+  if (response.headersSent) {
+    response.destroy();
+    return;
+  }
+  sendJson(response, publicError.status, {
+    ok: false,
+    code: publicError.code,
+    message: publicError.message,
+  });
+}
+
+function requestPublicError(error: unknown) {
+  if (error instanceof RequestBodyError) {
+    return {
+      status: error.status,
+      code: "CONSOLE_REQUEST_INVALID",
+      message: error.message,
+    };
+  }
+  if (error instanceof UpstreamApiError) {
+    return { status: error.status, ...upstreamPublicError(error.status) };
+  }
+  if (error instanceof ConsoleAuthRequiredError) {
+    return {
+      status: 401,
+      code: "CONSOLE_AUTH_REQUIRED",
+      message: "Sign in to FanPass Console to continue.",
+    };
+  }
+  return {
+    status: 500,
+    code: "CONSOLE_INTERNAL_ERROR",
+    message: INTERNAL_ERROR_MESSAGE,
+  };
+}
+
+function upstreamPublicError(status: number) {
+  switch (status) {
+    case 400:
+    case 422:
+      return {
+        code: "CONSOLE_UPSTREAM_REQUEST_INVALID",
+        message: "The Console request could not be processed.",
+      };
+    case 401:
+      return {
+        code: "CONSOLE_UPSTREAM_AUTH_REQUIRED",
+        message: "The Console session is no longer valid.",
+      };
+    case 403:
+      return {
+        code: "CONSOLE_UPSTREAM_ACCESS_DENIED",
+        message: "You do not have permission to perform this Console action.",
+      };
+    case 404:
+      return {
+        code: "CONSOLE_UPSTREAM_NOT_FOUND",
+        message: "The requested Console resource was not found.",
+      };
+    case 409:
+      return {
+        code: "CONSOLE_UPSTREAM_CONFLICT",
+        message: "The Console request conflicts with the current state.",
+      };
+    case 429:
+      return {
+        code: "CONSOLE_UPSTREAM_RATE_LIMITED",
+        message: "Too many Console requests. Please try again later.",
+      };
+    default:
+      if (status >= 500 && status <= 599) {
+        return {
+          code: "CONSOLE_UPSTREAM_ERROR",
+          message: UPSTREAM_ERROR_MESSAGE,
+        };
+      }
+      return {
+        code: "CONSOLE_UPSTREAM_REJECTED",
+        message: "The Console request was rejected.",
+      };
+  }
+}
+
+function requestErrorClass(error: unknown) {
+  if (error instanceof RequestBodyError) {
+    return "RequestBodyError";
+  }
+  if (error instanceof UpstreamApiError) {
+    return "UpstreamApiError";
+  }
+  if (error instanceof ConsoleAuthRequiredError) {
+    return "ConsoleAuthRequiredError";
+  }
+  return error instanceof Error ? "Error" : "UnknownThrownValue";
 }
 
 function sendRedirect(response: ServerResponse, status: 303, location: string) {
@@ -1010,12 +1169,6 @@ function isProductionLikeConsole() {
     fanpassEnv === "production" ||
     fanpassEnv === "staging"
   );
-}
-
-function responseMessage(payload: unknown, fallback: string) {
-  return payload && typeof payload === "object" && "message" in payload
-    ? String((payload as { message?: unknown }).message)
-    : fallback;
 }
 
 function stringField(value: unknown) {

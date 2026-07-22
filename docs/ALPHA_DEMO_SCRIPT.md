@@ -20,7 +20,8 @@ Use local seeded/demo data only.
 
 ```bash
 npm install
-npm run beta:foundation:verify
+# Local diagnostic only; use the complete env-i command in README.md for release evidence.
+node scripts/beta-foundation-verify.js
 ```
 
 For a live local demo with persistent Prisma state, start the local Beta foundation stack:
@@ -172,10 +173,11 @@ Not proven for public or real-user Beta:
 - Physical QR/NFC device validation.
 - Chain custody evidence.
 
-Final verification command:
+Final local diagnostic command (the release-evidence command is the complete
+`/usr/bin/env -i` entry in `README.md`):
 
 ```bash
-npm run beta:foundation:verify
+node scripts/beta-foundation-verify.js
 ```
 
 ## Recording Checklist
@@ -184,7 +186,7 @@ Owner decision on 2026-06-04: a human-reviewed walkthrough recording is no longe
 
 Record only after the local stack is clean and verification passes:
 
-- Run `npm run beta:foundation:verify`.
+- Run `node scripts/beta-foundation-verify.js` only as a local diagnostic, or use the complete `README.md` env-i command when the result will be treated as release evidence.
 - Start with `npm run beta:local:start`.
 - Run `npm run beta:local:verify`.
 - Record the seven scenes in order.

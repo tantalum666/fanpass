@@ -2,9 +2,13 @@ services:
   - type: web
     name: fanpass-api-staging
     runtime: node
-    plan: free
+    # The guarded Staging cutover requires paid-only Maintenance Mode.
+    # Applying this Blueprint changes billing; obtain owner approval first.
+    plan: starter
     region: oregon
-    buildCommand: npm ci --include=dev --audit=false && npm audit --omit=dev --audit-level=high && npm run prisma:deploy -w apps/api && npm run build -w apps/api
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 60
+    buildCommand: npm ci --include=dev --audit=false && npm audit --omit=dev --audit-level=high && npm run build -w apps/api && npm run prisma:deploy -w apps/api
     startCommand: npm run start -w apps/api
     healthCheckPath: /health
     envVars:
@@ -24,8 +28,18 @@ services:
         value: "true"
       - key: FANPASS_REQUIRE_PAYMENT_AUTHORIZATION
         value: "true"
+      - key: FANPASS_STRIPE_CAPTURE_TIMEOUT_MS
+        value: "10000"
+      - key: FANPASS_STRIPE_CAPTURE_TX_TIMEOUT_MS
+        value: "20000"
       - key: FANPASS_ASYNC_OWNERSHIP_SETTLEMENT
         value: "true"
+      - key: FANPASS_SIDE_EFFECT_WORKER_ENABLED
+        # The scheduler stays fail-safe off during the maintenance-gated RC rollout.
+        # A single probe is run manually after the database revision fence passes.
+        value: "false"
+      - key: SIDE_EFFECT_WORKER_LIMIT
+        value: "1"
       - key: OWNERSHIP_ADAPTER
         value: privy
       - key: FANPASS_ALLOW_PRIVATE_KEY_TESTNET_WRITES
@@ -33,6 +47,12 @@ services:
       - key: FANPASS_CHAIN_PROOF_SYNC_OUTBOX
         value: "true"
       - key: FANPASS_TICKET_CONTRACT_ADDRESS
+        sync: false
+      - key: FANPASS_LEGACY_OWNERSHIP_ADAPTER
+        sync: false
+      - key: FANPASS_LEGACY_TICKET_CONTRACT_ADDRESS
+        sync: false
+      - key: FANPASS_LEGACY_TICKET_CHAIN_ID
         sync: false
       - key: TESTNET_RPC_URL
         sync: false
@@ -46,14 +66,36 @@ services:
         sync: false
       - key: FANPASS_PRIVY_SPONSOR_CHAIN_CAIP2
         value: eip155:11155111
+      - key: FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS
+        value: "45000"
       - key: FANPASS_WALLET_RPC_URL
         sync: false
       - key: FANPASS_WALLET_CHAIN_ID
         value: "11155111"
       - key: FANPASS_USDC_CONTRACT_ADDRESS
-        value: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+        value: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       - key: FANPASS_TRUST_PROXY_HOPS
         value: "1"
+      - key: FANPASS_ORDERBOOK_ADMISSION_SECRET
+        generateValue: true
+      - key: FANPASS_ORDERBOOK_MAX_IDENTITIES
+        value: "4096"
+      - key: FANPASS_ORDERBOOK_IDENTITY_TTL_MS
+        value: "60000"
+      - key: FANPASS_ORDERBOOK_IPV6_PREFIX_BITS
+        value: "64"
+      - key: FANPASS_ORDERBOOK_SUBSCRIPTIONS_PER_10_SECONDS
+        value: "16"
+      - key: FANPASS_ORDERBOOK_CONNECTIONS_PER_MINUTE
+        value: "60"
+      - key: FANPASS_ORDERBOOK_MAX_IN_FLIGHT_SNAPSHOTS_PER_ACTOR
+        value: "2"
+      - key: FANPASS_ORDERBOOK_GLOBAL_IN_FLIGHT_SNAPSHOTS
+        value: "32"
+      - key: FANPASS_ORDERBOOK_MAX_CONNECTIONS_PER_ACTOR
+        value: "32"
+      - key: FANPASS_ORDERBOOK_GLOBAL_CONNECTIONS
+        value: "512"
       - key: SESSION_TTL_SECONDS
         value: "28800"
       - key: QR_TTL_SECONDS
@@ -82,6 +124,8 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: FANPASS_STAGING_DATABASE_IDENTITY_SHA256
+        sync: false
       - key: QR_SIGNING_SECRET
         generateValue: true
       - key: SESSION_SIGNING_SECRET
@@ -101,7 +145,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci --include=dev && npm run build -w apps/dashboard
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --include=dev --audit=false && npm audit --omit=dev --audit-level=high && npm run build -w apps/dashboard
     startCommand: npm run start -w apps/dashboard
     healthCheckPath: /
     envVars:
@@ -121,15 +166,14 @@ services:
         value: https://fanpass-console-auth-staging.onrender.com
       - key: VITE_CONSOLE_AUTH_BASE_URL
         value: https://fanpass-console-auth-staging.onrender.com
-      - key: FANPASS_CONSOLE_ACCESS_TOKEN
-        sync: false
   - type: web
     name: fanpass-console-auth-staging
     runtime: node
     plan: free
     region: oregon
     rootDir: apps/console-auth
-    buildCommand: npm_config_include=dev npm ci && npm run build
+    autoDeployTrigger: "off"
+    buildCommand: npm_config_include=dev npm ci --audit=false && npm audit --omit=dev --audit-level=high && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:

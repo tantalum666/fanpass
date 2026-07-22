@@ -214,12 +214,14 @@ class LocalOutbox {
     };
   }
 
-  async completeJob(id: string, result: Record<string, unknown>) {
+  async completeJob(job: LocalJob, result: Record<string, unknown>) {
+    const id = job.id;
     this.completed.set(id, result);
-    return null;
+    return { ...job, status: "COMPLETED" };
   }
 
-  async retryOrDeadJob(id: string, error: unknown) {
+  async retryOrDeadJob(job: LocalJob, error: unknown) {
+    const id = job.id;
     throw new Error(
       `Dev-only outbox smoke job ${id} failed: ${
         error instanceof Error ? error.message : String(error)

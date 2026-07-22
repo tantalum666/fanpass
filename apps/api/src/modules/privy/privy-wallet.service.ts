@@ -1,4 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
 import { CipherSuite, DhkemP256HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { ConfigService } from "@nestjs/config";
@@ -24,6 +28,81 @@ export interface PrivyTransactionStatus {
   userOperationHash: string | null;
 }
 
+export type PrivyTransactionDisposition =
+  | { kind: "PENDING"; status: "submitted" | "pending" | "broadcasted" }
+  | {
+      kind: "SUCCESS";
+      status: "confirmed" | "finalized";
+      transactionHash: string;
+    }
+  | {
+      kind: "DEFINITIVE_FAILURE";
+      status: "failed" | "execution_reverted";
+      reason: string;
+    }
+  | {
+      kind: "AMBIGUOUS";
+      status: string | null;
+      reason: string;
+    };
+
+/**
+ * Classifies the durable Privy transaction states FanPass is prepared to act
+ * on. Unknown or internally inconsistent terminal states fail closed instead
+ * of being treated as indefinitely pending.
+ */
+export function classifyPrivyTransactionStatus(
+  transaction: Pick<PrivyTransactionStatus, "hash" | "rawStatus">,
+): PrivyTransactionDisposition {
+  const status = transaction.rawStatus?.trim().toLowerCase() || null;
+  const transactionHash = normalizePrivyTransactionHash(transaction.hash);
+  if (
+    status === "submitted" ||
+    status === "pending" ||
+    status === "broadcasted"
+  ) {
+    return { kind: "PENDING", status };
+  }
+  if (status === "confirmed" || status === "finalized") {
+    return transactionHash
+      ? { kind: "SUCCESS", status, transactionHash }
+      : {
+          kind: "AMBIGUOUS",
+          status,
+          reason: `privy_${status}_without_transaction_hash`,
+        };
+  }
+  if (status === "failed" || status === "execution_reverted") {
+    return {
+      kind: "DEFINITIVE_FAILURE",
+      status,
+      reason: `privy_${status}`,
+    };
+  }
+  if (status === "provider_error" || status === "replaced") {
+    return {
+      kind: "AMBIGUOUS",
+      status,
+      reason: `privy_${status}`,
+    };
+  }
+  return {
+    kind: "AMBIGUOUS",
+    status,
+    reason: status ? `privy_unknown_status_${status}` : "privy_status_missing",
+  };
+}
+
+function normalizePrivyTransactionHash(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return /^0x[0-9a-f]{64}$/.test(normalized) ? normalized : null;
+}
+
+export interface VerifiedPrivyWallet {
+  walletId: string;
+  walletAddress: string;
+}
+
 interface HpkeRecipient {
   publicKeySpki: Uint8Array;
   decryptPayload: (
@@ -35,22 +114,98 @@ interface HpkeRecipient {
 @Injectable()
 export class PrivyWalletService {
   private hpkeRecipient: Promise<HpkeRecipient> | null = null;
-  private readonly userAuthorizationKeyCache = new Map<
-    string,
-    { authorizationKey: string; expiresAt: number }
-  >();
 
   constructor(private readonly config: ConfigService) {}
+
+  async resolveUserEmbeddedEthereumWallet(input: {
+    privyUserId: string;
+    walletId?: string;
+    walletAddress?: string;
+  }): Promise<VerifiedPrivyWallet> {
+    const requestedWalletId = input.walletId?.trim() || null;
+    const requestedWalletAddress = this.normalizeEthereumAddress(
+      input.walletAddress,
+    );
+    if (!requestedWalletId && !requestedWalletAddress) {
+      throw new UnauthorizedException(
+        "A Privy wallet identifier or address is required",
+      );
+    }
+
+    const userUrl = `${this.apiBaseUrl()}/v1/users/${encodeURIComponent(
+      input.privyUserId,
+    )}`;
+    let response: Response;
+    try {
+      response = await fetch(userUrl, {
+        method: "GET",
+        headers: this.baseHeaders(),
+        signal: AbortSignal.timeout(
+          this.configInteger(
+            "PRIVY_USER_LOOKUP_TIMEOUT_MS",
+            5_000,
+            1_000,
+            15_000,
+          ),
+        ),
+      });
+    } catch {
+      throw new ServiceUnavailableException(
+        "Privy wallet ownership verification is unavailable",
+      );
+    }
+
+    const body = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new UnauthorizedException(
+          "Privy user could not be verified for this wallet",
+        );
+      }
+      throw new ServiceUnavailableException(
+        "Privy wallet ownership verification is unavailable",
+      );
+    }
+    if (this.readString(body?.id) !== input.privyUserId) {
+      throw new UnauthorizedException(
+        "Privy user could not be verified for this wallet",
+      );
+    }
+
+    const linkedAccounts = Array.isArray(body?.linked_accounts)
+      ? body.linked_accounts
+      : [];
+    const wallet = linkedAccounts
+      .map((account) => this.readEmbeddedEthereumWallet(account))
+      .find(
+        (candidate): candidate is VerifiedPrivyWallet =>
+          Boolean(candidate) &&
+          (!requestedWalletId || candidate?.walletId === requestedWalletId) &&
+          (!requestedWalletAddress ||
+            candidate?.walletAddress === requestedWalletAddress),
+      );
+    if (!wallet) {
+      throw new UnauthorizedException(
+        "Wallet is not linked to the authenticated Privy user",
+      );
+    }
+    return wallet;
+  }
 
   async sendSponsoredEthereumTransaction(input: {
     walletId: string;
     caip2: string;
+    idempotencyKey: string;
     transaction: PrivyEthereumTransaction;
     userJwt?: string | null;
     userAuthorizationSignature?: string | null;
     requestExpiry?: number | null;
   }): Promise<PrivySponsoredTransactionReceipt> {
     const url = this.walletRpcUrl(input.walletId);
+    const idempotencyKey = this.requiredIdempotencyKey(input.idempotencyKey);
     const requestBody = {
       caip2: input.caip2,
       chain_type: "ethereum",
@@ -73,13 +228,15 @@ export class PrivyWalletService {
         userJwt: input.userJwt,
         userAuthorizationSignature: input.userAuthorizationSignature,
         requestExpiry: input.requestExpiry,
+        idempotencyKey,
       }),
       body: JSON.stringify(requestBody),
     });
 
-    const responseBody = (await response.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
+    const responseBody = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
     if (!response.ok) {
       const message =
         this.readString(responseBody?.error) ??
@@ -88,24 +245,7 @@ export class PrivyWalletService {
       throw new Error(message);
     }
 
-    return {
-      hash: this.readHash(responseBody),
-      providerId:
-        this.readString(responseBody?.id) ??
-        this.readString(responseBody?.transactionId) ??
-        this.readString(responseBody?.transaction_id) ??
-        this.readString(this.readPath(responseBody, ["data", "id"])) ??
-        this.readString(this.readPath(responseBody, ["data", "transactionId"])) ??
-        this.readString(this.readPath(responseBody, ["data", "transaction_id"])),
-      rawStatus:
-        this.readString(responseBody?.status) ??
-        this.readString(this.readPath(responseBody, ["data", "status"])),
-      userOperationHash:
-        this.readString(responseBody?.userOperationHash) ??
-        this.readString(responseBody?.user_operation_hash) ??
-        this.readString(this.readPath(responseBody, ["data", "userOperationHash"])) ??
-        this.readString(this.readPath(responseBody, ["data", "user_operation_hash"])),
-    };
+    return this.readTransactionStatus(responseBody);
   }
 
   async getTransactionStatus(
@@ -115,9 +255,10 @@ export class PrivyWalletService {
       method: "GET",
       headers: await this.headers(),
     });
-    const body = (await response.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
+    const body = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
     if (!response.ok) {
       const message =
         this.readString(body?.error) ??
@@ -143,7 +284,10 @@ export class PrivyWalletService {
     };
     do {
       latest = await this.getTransactionStatus(input.transactionId);
-      if (latest.hash || this.isTerminalFailedStatus(latest.rawStatus)) {
+      if (
+        latest.rawStatus !== null &&
+        classifyPrivyTransactionStatus(latest).kind !== "PENDING"
+      ) {
         return latest;
       }
       await new Promise((resolve) =>
@@ -163,16 +307,15 @@ export class PrivyWalletService {
     )}`;
   }
 
-  private async headers(
-    signedRequest?: {
-      method: "POST" | "PUT" | "PATCH" | "DELETE";
-      url: string;
-      body: unknown;
-      userJwt?: string | null;
-      userAuthorizationSignature?: string | null;
-      requestExpiry?: number | null;
-    },
-  ) {
+  private async headers(signedRequest?: {
+    method: "POST" | "PUT" | "PATCH" | "DELETE";
+    url: string;
+    body: unknown;
+    userJwt?: string | null;
+    userAuthorizationSignature?: string | null;
+    requestExpiry?: number | null;
+    idempotencyKey?: string | null;
+  }) {
     const headers = this.baseHeaders();
     const appId = this.requiredConfig("PRIVY_APP_ID");
     if (signedRequest) {
@@ -192,6 +335,9 @@ export class PrivyWalletService {
         headers["privy-authorization-signature"] =
           authorizationSignatures.join(",");
         headers["privy-request-expiry"] = String(requestExpiry);
+      }
+      if (signedRequest.idempotencyKey) {
+        headers["privy-idempotency-key"] = signedRequest.idempotencyKey;
       }
     }
     return headers;
@@ -215,6 +361,7 @@ export class PrivyWalletService {
     requestExpiry: number;
     userJwt?: string | null;
     userAuthorizationSignature?: string | null;
+    idempotencyKey?: string | null;
   }) {
     const staticSignature = this.nonEmptyConfig(
       "PRIVY_WALLET_AUTHORIZATION_SIGNATURE",
@@ -228,6 +375,13 @@ export class PrivyWalletService {
       ...this.authorizationPrivateKeys(),
       ...(userAuthorizationKey ? [userAuthorizationKey] : []),
     ];
+    const privyHeaders: Record<string, string> = {
+      "privy-app-id": input.appId,
+      "privy-request-expiry": String(input.requestExpiry),
+    };
+    if (input.idempotencyKey) {
+      privyHeaders["privy-idempotency-key"] = input.idempotencyKey;
+    }
     const generated = privateKeys.map((authorizationPrivateKey) =>
       this.generateAuthorizationSignature({
         authorizationPrivateKey,
@@ -236,10 +390,7 @@ export class PrivyWalletService {
           method: input.method,
           url: input.url,
           body: input.body,
-          headers: {
-            "privy-app-id": input.appId,
-            "privy-request-expiry": String(input.requestExpiry),
-          },
+          headers: privyHeaders,
         },
       }),
     );
@@ -257,19 +408,8 @@ export class PrivyWalletService {
     if (!normalizedJwt) {
       return null;
     }
-
-    const cached = this.userAuthorizationKeyCache.get(normalizedJwt);
-    if (cached && cached.expiresAt > Date.now() + 5_000) {
-      return cached.authorizationKey;
-    }
-    this.userAuthorizationKeyCache.delete(normalizedJwt);
-
-    const { authorizationKey, expiresAt } =
+    const { authorizationKey } =
       await this.exchangeJwtForAuthorizationKey(normalizedJwt);
-    this.userAuthorizationKeyCache.set(normalizedJwt, {
-      authorizationKey,
-      expiresAt,
-    });
     return authorizationKey;
   }
 
@@ -282,14 +422,18 @@ export class PrivyWalletService {
         "base64",
       ),
     };
-    const response = await fetch(`${this.apiBaseUrl()}/v1/wallets/authenticate`, {
-      method: "POST",
-      headers: this.baseHeaders(),
-      body: JSON.stringify(requestBody),
-    });
-    const responseBody = (await response.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
+    const response = await fetch(
+      `${this.apiBaseUrl()}/v1/wallets/authenticate`,
+      {
+        method: "POST",
+        headers: this.baseHeaders(),
+        body: JSON.stringify(requestBody),
+      },
+    );
+    const responseBody = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
     if (!response.ok) {
       const message =
         this.readString(responseBody?.error) ??
@@ -304,7 +448,8 @@ export class PrivyWalletService {
       responseBody?.authorization_key,
     );
     if (rawAuthorizationKey) {
-      const authorizationKey = this.normalizePkcs8PrivateKey(rawAuthorizationKey);
+      const authorizationKey =
+        this.normalizePkcs8PrivateKey(rawAuthorizationKey);
       if (!authorizationKey) {
         throw new Error("Privy wallet JWT exchange returned an empty key");
       }
@@ -317,17 +462,27 @@ export class PrivyWalletService {
     const encrypted = this.readPath(responseBody, [
       "encrypted_authorization_key",
     ]);
-    if (!encrypted || typeof encrypted !== "object" || Array.isArray(encrypted)) {
-      throw new Error("Privy wallet JWT exchange did not return an authorization key");
+    if (
+      !encrypted ||
+      typeof encrypted !== "object" ||
+      Array.isArray(encrypted)
+    ) {
+      throw new Error(
+        "Privy wallet JWT exchange did not return an authorization key",
+      );
     }
     const encryptedRecord = encrypted as Record<string, unknown>;
     if (encryptedRecord.encryption_type !== "HPKE") {
-      throw new Error("Privy wallet JWT exchange returned an unsupported key type");
+      throw new Error(
+        "Privy wallet JWT exchange returned an unsupported key type",
+      );
     }
     const encapsulatedKey = this.readString(encryptedRecord.encapsulated_key);
     const ciphertext = this.readString(encryptedRecord.ciphertext);
     if (!encapsulatedKey || !ciphertext) {
-      throw new Error("Privy wallet JWT exchange returned an invalid encrypted key");
+      throw new Error(
+        "Privy wallet JWT exchange returned an invalid encrypted key",
+      );
     }
 
     const decrypted = await hpkeRecipient.decryptPayload(
@@ -338,7 +493,9 @@ export class PrivyWalletService {
       new TextDecoder().decode(decrypted),
     );
     if (!authorizationKey) {
-      throw new Error("Privy wallet JWT exchange returned an empty encrypted key");
+      throw new Error(
+        "Privy wallet JWT exchange returned an empty encrypted key",
+      );
     }
     return {
       authorizationKey,
@@ -488,6 +645,17 @@ export class PrivyWalletService {
     return value ? value : null;
   }
 
+  private requiredIdempotencyKey(value: string) {
+    const normalized = value?.trim();
+    if (!normalized) {
+      throw new Error("Privy idempotency key is required");
+    }
+    if (normalized.length > 256) {
+      throw new Error("Privy idempotency key exceeds 256 characters");
+    }
+    return normalized;
+  }
+
   private configInteger(
     key: string,
     fallback: number,
@@ -540,6 +708,39 @@ export class PrivyWalletService {
     return typeof value === "string" && value.trim() ? value.trim() : null;
   }
 
+  private readEmbeddedEthereumWallet(
+    value: unknown,
+  ): VerifiedPrivyWallet | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return null;
+    }
+    const account = value as Record<string, unknown>;
+    const chainType =
+      this.readString(account.chain_type) ?? this.readString(account.chainType);
+    const walletClientType =
+      this.readString(account.wallet_client_type) ??
+      this.readString(account.walletClientType);
+    const walletId = this.readString(account.id);
+    const walletAddress = this.normalizeEthereumAddress(
+      this.readString(account.address) ?? undefined,
+    );
+    if (
+      account.type !== "wallet" ||
+      chainType !== "ethereum" ||
+      walletClientType !== "privy" ||
+      !walletId ||
+      !walletAddress
+    ) {
+      return null;
+    }
+    return { walletId, walletAddress };
+  }
+
+  private normalizeEthereumAddress(value: string | undefined) {
+    const normalized = value?.trim().toLowerCase() ?? "";
+    return /^0x[0-9a-f]{40}$/.test(normalized) ? normalized : null;
+  }
+
   private readNumber(value: unknown) {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
@@ -563,19 +764,18 @@ export class PrivyWalletService {
       providerId:
         this.readString(body?.id) ??
         this.readString(body?.transactionId) ??
-        this.readString(body?.transaction_id),
-      rawStatus: this.readString(body?.status),
+        this.readString(body?.transaction_id) ??
+        this.readString(this.readPath(body, ["data", "id"])) ??
+        this.readString(this.readPath(body, ["data", "transactionId"])) ??
+        this.readString(this.readPath(body, ["data", "transaction_id"])),
+      rawStatus:
+        this.readString(body?.status) ??
+        this.readString(this.readPath(body, ["data", "status"])),
       userOperationHash:
         this.readString(body?.userOperationHash) ??
-        this.readString(body?.user_operation_hash),
+        this.readString(body?.user_operation_hash) ??
+        this.readString(this.readPath(body, ["data", "userOperationHash"])) ??
+        this.readString(this.readPath(body, ["data", "user_operation_hash"])),
     };
-  }
-
-  private isTerminalFailedStatus(status: string | null) {
-    return (
-      status === "failed" ||
-      status === "execution_reverted" ||
-      status === "provider_error"
-    );
   }
 }

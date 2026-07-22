@@ -69,10 +69,15 @@ final class FanPassBackendContext {
         try await privyAuthProvider.sendUSDCTransfer(quote: quote)
     }
 
-    func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization {
+    func sponsoredPaymentAuthorization(
+        quote: FanPassCryptoQuote,
+        walletId: String,
+        idempotencyKey: String
+    ) async throws -> FanPassPrivySponsoredAuthorization {
         try await privyAuthProvider.sponsoredPaymentAuthorization(
             quote: quote,
-            walletId: walletId
+            walletId: walletId,
+            idempotencyKey: idempotencyKey
         )
     }
 

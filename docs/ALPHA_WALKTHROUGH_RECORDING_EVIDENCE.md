@@ -24,7 +24,7 @@ The saved JSON must prove:
 - `recording.supportingCaptureBundle` under `outputs/alpha-walkthrough/`.
 - `recording.supportingCaptureOnly: true`, so capture bundles cannot be substituted for the actual recording artifact.
 - All seven scenes from `docs/ALPHA_WALKTHROUGH_EVIDENCE.md` in order.
-- The verification commands `npm run alpha:demo-script:audit`, `npm run alpha:walkthrough:evidence:audit`, `npm run beta:foundation:verify`, `npm run beta:local:start`, `npm run beta:local:verify`, `npm run beta:local:stop`, and `npm run security:evidence-redaction`.
+- The verification commands `npm run alpha:demo-script:audit`, `npm run alpha:walkthrough:evidence:audit`, `npm run alpha:walkthrough:capture`, `npm run beta:local:start`, `npm run beta:local:verify`, `npm run beta:local:stop`, and `npm run security:evidence-redaction`. The capture command must retain its reviewed-launcher digest check and pre-Node `/usr/bin/env -i` boundary; a bare runner or launcher command is not release evidence.
 - Visual review proof that FanPass has no staff controls, FanPass Ops owns scanner flow, FanPass Console owns organizer/admin controls, local-only scope is disclosed, public/real-user Beta readiness is not claimed, and remaining blockers are named.
 - Redaction proof for provider secrets, Stripe secrets and publishable keys, Privy secrets, bearer tokens, private keys, deployment credentials, personal data, wallet addresses, QR payloads, and production credentials.
 
@@ -70,7 +70,19 @@ Future saved evidence must include the current Alpha walkthrough recording polic
         "sha256": "<current-sha256>"
       },
       {
-        "file": "scripts/beta-foundation-verify.sh",
+        "file": "scripts/beta-foundation-launcher.js",
+        "sha256": "<current-sha256>"
+      },
+      {
+        "file": "scripts/beta-foundation-launcher-self-test.js",
+        "sha256": "<current-sha256>"
+      },
+      {
+        "file": "scripts/lib/beta-foundation-bootstrap.js",
+        "sha256": "<current-sha256>"
+      },
+      {
+        "file": "scripts/beta-foundation-verify.js",
         "sha256": "<current-sha256>"
       }
     ]
@@ -78,7 +90,7 @@ Future saved evidence must include the current Alpha walkthrough recording polic
 }
 ```
 
-The snapshot must be regenerated after the demo script, walkthrough evidence contract, capture command, recording evidence validator, recording evidence self-test, or Beta foundation verifier changes.
+The snapshot must be regenerated after the demo script, walkthrough evidence contract, capture command, recording evidence validator/self-test, launcher/self-test, bootstrap, or Beta foundation runner changes.
 
 ## Forbidden evidence
 

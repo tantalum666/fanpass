@@ -1,16 +1,25 @@
-import "reflect-metadata";
-import { NestFactory } from "@nestjs/core";
-import { AppModule } from "../app.module";
 import { SideEffectHealthService } from "../modules/side-effects/side-effect-health.service";
+import { PostgresSideEffectHealthStore } from "./postgres-side-effect-health.store";
+import { assertLocalSideEffectHealthRuntime } from "./side-effect-health-runtime";
 
-async function main() {
-  process.env.FANPASS_ENABLE_PRISMA_CONNECT ??= "true";
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ["error", "warn", "log"],
-  });
+const environmentConfig = {
+  get<T = string>(key: string): T | undefined {
+    return process.env[key] as T | undefined;
+  },
+  keys() {
+    return Object.keys(process.env);
+  },
+};
+
+export async function runLocalSideEffectHealthCheck() {
+  assertLocalSideEffectHealthRuntime(environmentConfig);
+  const store = await PostgresSideEffectHealthStore.connect(
+    process.env.DATABASE_URL ?? "",
+  );
   try {
-    const health = app.get(SideEffectHealthService);
+    const health = new SideEffectHealthService(store, environmentConfig);
     const result = await health.check();
+    assertLocalSideEffectHealthRuntime(environmentConfig);
     const output = JSON.stringify(result, null, 2);
     if (!result.ok) {
       console.error(output);
@@ -19,11 +28,13 @@ async function main() {
     }
     console.log(output);
   } finally {
-    await app.close();
+    await store.close();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  runLocalSideEffectHealthCheck().catch(() => {
+    console.error("Local side-effect health check failed");
+    process.exitCode = 1;
+  });
+}

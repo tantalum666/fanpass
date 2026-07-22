@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      - "codex/security-rc-*"
+  workflow_dispatch:
 
 jobs:
   beta-foundation:
@@ -28,33 +30,36 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://fanpass:fanpass@localhost:5432/fanpass
+      DATABASE_URL: postgresql://fanpass:fanpass@127.0.0.1:5432/fanpass
       FANPASS_DATA_SOURCE: prisma
       FANPASS_SKIP_DOCKER_POSTGRES: "true"
       FANPASS_STRICT_NODE_RUNTIME: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install isolated Console Auth dependencies
-        run: npm --prefix apps/console-auth ci --include=dev
-
-      - name: Apply Prisma schema
-        run: npm run prisma:push -w apps/api
-
-      - name: Verify on-sale concurrency invariants
-        env:
-          FANPASS_RUN_DATABASE_TESTS: "true"
-        run: npm run test -w apps/api -- --runTestsByPath test/onsales-prisma-concurrency.spec.ts
-
       - name: Verify Beta foundation
-        run: npm run beta:foundation:verify
+        shell: /bin/sh -e {0}
+        run: |
+          node_bin="$(command -v node)"
+          node_real="$(/usr/bin/readlink -f "$node_bin")"
+          case "$node_real" in
+            "$RUNNER_TOOL_CACHE"/node/22.*/*/bin/node) ;;
+            *) printf "%s\n" "Refusing Node outside the GitHub Actions Node 22 tool cache" >&2; exit 1 ;;
+          esac
+          node_dir=${node_real%/*}
+          exec /usr/bin/env -i \
+            HOME="$RUNNER_TEMP" \
+            TMPDIR="$RUNNER_TEMP" \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            PATH="$node_dir:/usr/bin:/bin:/usr/sbin:/sbin" \
+            CI=true \
+            GITHUB_ACTIONS=true \
+            DATABASE_URL=postgresql://fanpass:fanpass@127.0.0.1:5432/fanpass \
+            "$node_real" -e 'const crypto=require("node:crypto"),fs=require("node:fs"),Module=require("node:module"),path=require("node:path");try{const relative=process.argv[1],expected=process.argv[2],requestedRoot=process.argv[3],root=fs.realpathSync(requestedRoot),cwd=fs.realpathSync(process.cwd());if(root!==cwd)throw new Error("Canonical workspace does not match the current directory");const file=path.join(root,relative),real=fs.realpathSync(file);if(real!==file)throw new Error("Launcher path contains a symlink or escapes the canonical workspace");const descriptor=fs.openSync(file,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));let source;try{const stat=fs.fstatSync(descriptor);if(!stat.isFile())throw new Error("Launcher must be a regular file");source=fs.readFileSync(descriptor)}finally{fs.closeSync(descriptor)}const actual=crypto.createHash("sha256").update(source).digest("hex");if(actual!==expected)throw new Error("Launcher digest does not match the reviewed bytes");const loaded=new Module(file);loaded.filename=file;loaded.paths=Module._nodeModulePaths(path.dirname(file));loaded._compile(source.toString("utf8"),file);if(typeof loaded.exports.main!=="function")throw new Error("Launcher must export main");loaded.exports.main()}catch(error){console.error(`Beta foundation bootstrap failed: ${error instanceof Error?error.message:"unknown error"}`);process.exit(1)}' scripts/beta-foundation-launcher.js 377af7200bfffe357620315caf2c158d13a81de0ee3f2bad0e767731f8b4e47f "$GITHUB_WORKSPACE"

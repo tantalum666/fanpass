@@ -44,10 +44,49 @@ describe("SideEffectWorkerSchedulerService", () => {
     jest.advanceTimersByTime(1000);
     await Promise.resolve();
     await Promise.resolve();
-    scheduler.onApplicationShutdown();
+    await scheduler.onApplicationShutdown();
 
     expect(worker.workOnce).toHaveBeenCalledTimes(2);
     expect(worker.workOnce).toHaveBeenCalledWith(3);
+  });
+
+  it("waits for an active tick during application shutdown", async () => {
+    let finishTick: (() => void) | undefined;
+    const tickFinished = new Promise<void>((resolve) => {
+      finishTick = resolve;
+    });
+    const worker = {
+      workOnce: jest.fn(async () => {
+        await tickFinished;
+        return {
+          recovered: 0,
+          processed: 1,
+          completed: 1,
+          retried: 0,
+          dead: 0,
+        };
+      }),
+    };
+    const scheduler = new SideEffectWorkerSchedulerService(
+      config({
+        FANPASS_SIDE_EFFECT_WORKER_ENABLED: "true",
+      }) as unknown as ConfigService,
+      worker as never,
+    );
+
+    scheduler.onModuleInit();
+    let shutdownFinished = false;
+    const shutdown = scheduler.onApplicationShutdown().then(() => {
+      shutdownFinished = true;
+    });
+    await Promise.resolve();
+
+    expect(shutdownFinished).toBe(false);
+    finishTick?.();
+    await shutdown;
+
+    expect(shutdownFinished).toBe(true);
+    expect(worker.workOnce).toHaveBeenCalledTimes(1);
   });
 });
 

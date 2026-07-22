@@ -46,51 +46,51 @@ Required JSON shape:
     "files": [
       {
         "file": "apps/ios/FanPass/project.yml",
-        "sha256": "2ee6e5994765a13f8fc2bcaab1b93b18b58ca2e9309e03fa6a4d9dd8e042b408"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Tickets/TicketWalletView.swift",
-        "sha256": "b1da1b111222d3a688e776fb4756d2daf8d4d5996927cea2cbf82d1d693c5344"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Models/FanPassModels.swift",
-        "sha256": "6bc67049865974e8cf9456c8fa4bd4348931782d678c42009a03e2062145e789"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
-        "sha256": "238117d66529ec7c3bc9ec62cc47ff7d7b4de9110ee980b9e6c7b3ef646b9bb1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
-        "sha256": "8fbdc5c99c066bfdf4e6b609e1a5ca8286643bc9d46610fb3c3060383eee20db"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift",
-        "sha256": "4ba431e831e6ec44440836b23b817c4a4a966af0e3a715441baa7027a77f8703"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
-        "sha256": "3d7b407bca3a7f70e6e2c323a39d5ff9b7ff7e1421c245f60ef1af944eeaf319"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/verification/verification.controller.ts",
-        "sha256": "f9d972f1aadbba97edab511dfe0b3f53fd271c4977a12c18b4949e145011fbb1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/verification/verification.service.ts",
-        "sha256": "0667ea136a339018dec12be1d01ca281db4bca33769f565e2a14240d772a3ad4"
+        "sha256": "<current sha256>"
       },
       {
         "file": "docs/PROTOTYPE_SHORTCUT_REGISTER.md",
-        "sha256": "bfbdaed6984d28e814af88c1346717c81b5f235b3f75fd53c901c0a28365f8e2"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/prototype-shortcut-audit.js",
-        "sha256": "03b2f836f9ebe261447adf5089672cb4f7f4b10e00d6177c42757861955d1526"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/ios-distribution-boundary-audit.js",
-        "sha256": "c827ebd9accc12802bd42e3556061a06a814e8229b395c38c4b99b425abc905d"
+        "sha256": "<current sha256>"
       }
     ]
   },

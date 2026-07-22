@@ -2,10 +2,13 @@
   "name": "@fanpass/contracts",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "hardhat compile",
-    "deploy:local": "hardhat run scripts/deploy-local.ts",
+    "deploy:local": "hardhat run scripts/deploy-local.ts --network hardhat",
     "deploy:sepolia-dev": "hardhat run scripts/deploy-sepolia-dev.ts --network sepoliaDev",
+    "deploy:sepolia-staging": "FANPASS_HARDHAT_STAGING_MIGRATION=true hardhat compile --force && FANPASS_HARDHAT_STAGING_MIGRATION=true hardhat run --no-compile scripts/deploy-sepolia-staging.ts --network sepoliaStaging",
+    "preflight:sepolia-staging": "FANPASS_HARDHAT_READ_ONLY_PREFLIGHT=true hardhat compile --force && FANPASS_HARDHAT_READ_ONLY_PREFLIGHT=true hardhat run --no-compile scripts/preflight-sepolia-staging.ts --network hardhat",
     "test": "hardhat test",
     "typecheck": "hardhat compile"
   },
@@ -13,8 +16,15 @@
     "@openzeppelin/contracts": "^5.3.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
-    "hardhat": "^2.24.0",
-    "typescript": "^5.8.3"
+    "@nomicfoundation/hardhat-ethers": "^4.0.15",
+    "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.11",
+    "@nomicfoundation/hardhat-mocha": "^3.0.21",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "chai": "^6.2.2",
+    "ethers": "^6.17.0",
+    "hardhat": "^3.10.0",
+    "mocha": "^11.7.6",
+    "typescript": "^7.0.2"
   }
 }

@@ -1,5 +1,7 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre from "hardhat";
+
+const { ethers } = await hre.network.create();
 
 describe("FanPassTicket", () => {
   const ticketIdHash = ethers.id("ticket:demo:001");
@@ -7,7 +9,7 @@ describe("FanPassTicket", () => {
   const policyHash = ethers.id("policy:transferable:cap-1500:max-1");
   const metadataHash = ethers.id("metadata:demo-ticket");
 
-  it("mints, transfers within policy, and redeems", async () => {
+  it("blocks holder transfers, syncs a settlement transfer, and redeems", async () => {
     const [owner, fan, buyer] = await ethers.getSigners();
     const Ticket = await ethers.getContractFactory("FanPassTicket");
     const ticket = await Ticket.deploy(owner.address);
@@ -15,17 +17,55 @@ describe("FanPassTicket", () => {
     await ticket.mintTicket(fan.address, 1001, true, 1500, 1, "ipfs://ticket");
     expect(await ticket.ownerOf(1)).to.equal(fan.address);
 
-    await ticket.connect(fan).transferFrom(fan.address, buyer.address, 1);
+    await expect(
+      (ticket.connect(fan) as any).transferFrom(fan.address, buyer.address, 1),
+    ).to.be.revertedWith("Use FanPass settlement");
+    expect(await ticket.ownerOf(1)).to.equal(fan.address);
+    expect(await ticket.transferCounts(1)).to.equal(0);
+
+    await ticket.syncTicketTransfer(fan.address, buyer.address, 1);
     expect(await ticket.ownerOf(1)).to.equal(buyer.address);
+    expect(await ticket.transferCounts(1)).to.equal(1);
 
     await expect(
-      ticket.connect(buyer).transferFrom(buyer.address, fan.address, 1),
+      ticket.syncTicketTransfer(buyer.address, fan.address, 1),
     ).to.be.revertedWith("Transfer count exceeded");
 
     await ticket.redeem(1);
     await expect(
-      ticket.connect(buyer).transferFrom(buyer.address, fan.address, 1),
+      ticket.syncTicketTransfer(buyer.address, fan.address, 1),
     ).to.be.revertedWith("Ticket is not transferable");
+  });
+
+  it("blocks approved operators and both safe-transfer entry points", async () => {
+    const [owner, fan, buyer, operator] = await ethers.getSigners();
+    const Ticket = await ethers.getContractFactory("FanPassTicket");
+    const ticket = await Ticket.deploy(owner.address);
+
+    await ticket.mintTicket(fan.address, 1001, true, 1500, 2, "ipfs://ticket");
+    await (ticket.connect(fan) as any).approve(operator.address, 1);
+
+    await expect(
+      (ticket.connect(operator) as any).transferFrom(
+        fan.address,
+        buyer.address,
+        1,
+      ),
+    ).to.be.revertedWith("Use FanPass settlement");
+    await expect(
+      (ticket.connect(fan) as any)["safeTransferFrom(address,address,uint256)"](
+        fan.address,
+        buyer.address,
+        1,
+      ),
+    ).to.be.revertedWith("Use FanPass settlement");
+    await expect(
+      (ticket.connect(operator) as any)[
+        "safeTransferFrom(address,address,uint256,bytes)"
+      ](fan.address, buyer.address, 1, "0x"),
+    ).to.be.revertedWith("Use FanPass settlement");
+    expect(await ticket.ownerOf(1)).to.equal(fan.address);
+    expect(await ticket.transferCounts(1)).to.equal(0);
   });
 
   it("stores safe proof hashes without requiring personal data on-chain", async () => {
@@ -67,16 +107,77 @@ describe("FanPassTicket", () => {
     expect((await ticket.proofs(1)).metadataHash).to.equal(updatedMetadataHash);
 
     await expect(
-      ticket
-        .connect(fan)
-        .updateProof(
-          1,
-          ticketIdHash,
-          ticketTypeHash,
-          policyHash,
-          updatedMetadataHash,
-        ),
+      (ticket.connect(fan) as any).updateProof(
+        1,
+        ticketIdHash,
+        ticketTypeHash,
+        policyHash,
+        updatedMetadataHash,
+      ),
     ).to.be.revertedWithCustomError(ticket, "OwnableUnauthorizedAccount");
+  });
+
+  it("allows only one token for each logical ticket id hash", async () => {
+    const [owner, fan, buyer] = await ethers.getSigners();
+    const Ticket = await ethers.getContractFactory("FanPassTicket");
+    const ticket = await Ticket.deploy(owner.address);
+
+    await ticket.mintTicketWithProof(
+      fan.address,
+      1001,
+      ticketIdHash,
+      ticketTypeHash,
+      policyHash,
+      metadataHash,
+      true,
+      1500,
+      2,
+      "ipfs://ticket-proof",
+    );
+
+    expect(await ticket.tokenIdByTicketIdHash(ticketIdHash)).to.equal(1);
+    await expect(
+      ticket.mintTicketWithProof(
+        buyer.address,
+        1001,
+        ticketIdHash,
+        ticketTypeHash,
+        policyHash,
+        metadataHash,
+        true,
+        1500,
+        2,
+        "ipfs://ticket-proof-retry",
+      ),
+    ).to.be.revertedWith("Ticket already minted");
+    expect(await ticket.ownerOf(1)).to.equal(fan.address);
+  });
+
+  it("does not let proof updates remap a logical ticket hash", async () => {
+    const [owner, fan] = await ethers.getSigners();
+    const Ticket = await ethers.getContractFactory("FanPassTicket");
+    const ticket = await Ticket.deploy(owner.address);
+    const secondTicketIdHash = ethers.id("ticket:demo:002");
+
+    await ticket.mintTicket(fan.address, 1001, true, 1500, 2, "ipfs://legacy");
+    await ticket.updateProof(
+      1,
+      ticketIdHash,
+      ticketTypeHash,
+      policyHash,
+      metadataHash,
+    );
+    expect(await ticket.tokenIdByTicketIdHash(ticketIdHash)).to.equal(1);
+
+    await expect(
+      ticket.updateProof(
+        1,
+        secondTicketIdHash,
+        ticketTypeHash,
+        policyHash,
+        metadataHash,
+      ),
+    ).to.be.revertedWith("Ticket id hash is immutable");
   });
 
   it("blocks non-transferable, cancelled, refunded, and redeemed tickets from transfer", async () => {
@@ -93,19 +194,19 @@ describe("FanPassTicket", () => {
       "ipfs://non-transferable",
     );
     await expect(
-      ticket.connect(fan).transferFrom(fan.address, buyer.address, 1),
+      ticket.syncTicketTransfer(fan.address, buyer.address, 1),
     ).to.be.revertedWith("Ticket is non-transferable");
 
     await ticket.mintTicket(fan.address, 1001, true, 0, 1, "ipfs://cancelled");
     await ticket.cancel(2);
     await expect(
-      ticket.connect(fan).transferFrom(fan.address, buyer.address, 2),
+      ticket.syncTicketTransfer(fan.address, buyer.address, 2),
     ).to.be.revertedWith("Ticket is not transferable");
 
     await ticket.mintTicket(fan.address, 1001, true, 0, 1, "ipfs://refunded");
     await ticket.refund(3);
     await expect(
-      ticket.connect(fan).transferFrom(fan.address, buyer.address, 3),
+      ticket.syncTicketTransfer(fan.address, buyer.address, 3),
     ).to.be.revertedWith("Ticket is not transferable");
 
     await ticket.mintTicket(fan.address, 1001, true, 0, 1, "ipfs://redeemed");
@@ -152,9 +253,11 @@ describe("FanPassTicket", () => {
     ).to.be.revertedWith("Transfer count exceeded");
 
     await expect(
-      ticket
-        .connect(outsider)
-        .syncTicketTransfer(buyer.address, outsider.address, 1),
+      (ticket.connect(outsider) as any).syncTicketTransfer(
+        buyer.address,
+        outsider.address,
+        1,
+      ),
     ).to.be.revertedWithCustomError(ticket, "OwnableUnauthorizedAccount");
   });
 });
@@ -187,7 +290,7 @@ describe("FanPassSoulbound", () => {
     expect((await badge.proofs(1)).subjectHash).to.equal(subjectHash);
 
     await expect(
-      badge.connect(fan).transferFrom(fan.address, buyer.address, 1),
+      (badge.connect(fan) as any).transferFrom(fan.address, buyer.address, 1),
     ).to.be.revertedWith("Soulbound token cannot be transferred");
 
     await badge.revoke(1);

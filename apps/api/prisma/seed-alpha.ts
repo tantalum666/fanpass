@@ -13,6 +13,7 @@ async function reset() {
     prisma.staffInvite.deleteMany(),
     prisma.inventoryHold.deleteMany(),
     prisma.trade.deleteMany(),
+    prisma.sponsoredCryptoSubmission.deleteMany(),
     prisma.payment.deleteMany(),
     prisma.order.deleteMany(),
     prisma.queueEntry.deleteMany(),
@@ -31,6 +32,23 @@ async function reset() {
     prisma.organizer.deleteMany(),
     prisma.user.deleteMany(),
   ]);
+
+  await prisma.sideEffectDispatchControl.upsert({
+    where: { id: "global" },
+    create: {
+      id: "global",
+      paused: true,
+      revision: 1n,
+      remainingClaims: null,
+      probeJobId: null,
+    },
+    update: {
+      paused: true,
+      revision: { increment: 1 },
+      remainingClaims: null,
+      probeJobId: null,
+    },
+  });
 }
 
 async function seed() {

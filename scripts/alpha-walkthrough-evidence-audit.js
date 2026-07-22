@@ -1,19 +1,22 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_ALPHA_WALKTHROUGH_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_ALPHA_WALKTHROUGH_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const evidencePath = "docs/ALPHA_WALKTHROUGH_EVIDENCE.md";
 const tasksPath = "docs/DEVELOPMENT_TASKS.md";
-const verifierPath = "scripts/beta-foundation-verify.sh";
 
 const evidence = readRequired(evidencePath);
 const tasks = readRequired(tasksPath);
-const verifier = readRequired(verifierPath);
 
 const requiredEvidenceMarkers = [
   "# FanPass Alpha Walkthrough Evidence",
@@ -29,7 +32,8 @@ const requiredEvidenceMarkers = [
   "Scene 7 - Security Boundary Close",
   "Recording artifact path",
   "Verification evidence",
-  "npm run beta:foundation:verify",
+  "scripts/beta-foundation-launcher.js",
+  "reviewed launcher digest",
   "npm run beta:local:start",
   "npm run beta:local:verify",
   "npm run beta:local:stop",
@@ -96,19 +100,15 @@ if (!tasks.includes(ownerSkippedRecordingTask)) {
   );
 }
 
-const verifierMarkers = [
-  "Alpha walkthrough evidence audit self-test",
-  "npm run alpha:walkthrough:evidence:audit:self-test",
-  "Alpha walkthrough evidence audit",
-  "npm run alpha:walkthrough:evidence:audit",
-  "Alpha walkthrough capture self-test",
-  "npm run alpha:walkthrough:capture:self-test",
-];
-for (const marker of verifierMarkers) {
-  if (!verifier.includes(marker)) {
-    errors.push(`${verifierPath} must include marker: ${marker}`);
-  }
-}
+assertOrderedNpmScripts(
+  betaGateSteps,
+  [
+    "alpha:walkthrough:evidence:audit:self-test",
+    "alpha:walkthrough:evidence:audit",
+    "alpha:walkthrough:capture:self-test",
+  ],
+  errors,
+);
 
 if (errors.length > 0) {
   console.error(errors.map((error) => `- ${error}`).join("\n"));

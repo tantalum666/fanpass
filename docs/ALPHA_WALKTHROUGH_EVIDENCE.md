@@ -40,13 +40,13 @@ The closing scene must clearly state that the walkthrough proves only the local 
 The recording manifest must show these commands were run for the local walkthrough window:
 
 ```bash
-npm run beta:foundation:verify
+# Use the complete /usr/bin/env -i plus absolute Node 22 command from README.md.
 npm run beta:local:start
 npm run beta:local:verify
 npm run beta:local:stop
 ```
 
-`npm run beta:foundation:verify` remains the foundation regression gate. `npm run beta:local:verify` proves the local Prisma/API/Console/worker stack completes authorization, async ownership finalization, payment capture, and admin-only side-effect health without real Stripe or chain credentials.
+The complete `README.md` command invokes `scripts/beta-foundation-launcher.js` as the release-evidence foundation gate because it checks the reviewed launcher digest and removes Node preload variables before Node starts; the launcher then validates the exact runner and local PostgreSQL target guard plus all four package-script maps. The AST manifest parser remains a review/self-test tool and cannot choose the production execution list. A bare `node scripts/beta-foundation-verify.js` run is diagnostic-only. `npm run beta:local:verify` proves the local Prisma/API/Console/worker stack completes authorization, async ownership finalization, payment capture, and admin-only side-effect health without real Stripe or chain credentials.
 
 For a repeatable local artifact bundle, run:
 

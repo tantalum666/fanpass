@@ -20,6 +20,20 @@ Start Postgres:
 brew services start postgresql@16
 ```
 
+## Reviewed Schema Deployment Order
+
+Do not run a Staging mutation command until all of the following are true: the paid API service is in Maintenance Mode and public `503` is proven; the pre-fence API and worker have drained; a PostgreSQL custom-format backup passes `pg_restore --list` (preferably including a disposable restore); `FANPASS_SIDE_EFFECT_WORKER_ENABLED=false` and limit `1` are active on the sole old revision; and the approved Staging database identity digest has been recorded without exposing it. A local or CI disposable database follows its own explicitly reviewed bootstrap path.
+
+Only after that stop gate is satisfied, the guarded Staging command is:
+
+```bash
+npm run prisma:deploy -w apps/api
+```
+
+The command first runs a schema-independent, read-only identity check against the same `DATABASE_URL`; only a matching database name, user, and canonical target digest may enter the mutation chain. It then installs the default-paused database dispatch control, runs the uniqueness precheck and guarded Prisma schema update, and applies wallet-binding provenance, durable sponsored-crypto constraints, ticket-route enforcement, legacy route backfill, route validation, and the atomic public catalog sync. The route backfill requires the reviewed legacy adapter/address/chain settings and fails closed on ambiguous provenance. Do not reorder these steps, bypass the identity gate, add `--accept-data-loss`, or mark legacy wallet bindings as verified without authoritative Privy proof.
+
+After migration, run the full read-only gate in `docs/STAGING_DB_RELEASE_PREFLIGHT.md`. Exit `0` proves only that the captured snapshot is drained and dispatch remains paused; it never authorizes worker enablement. Confirm the cloud service used the reviewed command instead of trusting a CLI update response. Production must eventually replace guarded schema push with immutable reviewed migrations; this is the current controlled Staging bridge, not the final migration architecture.
+
 ## Reset And Seed Alpha DB
 
 ```bash
@@ -92,7 +106,7 @@ Local builds can keep using demo/email sessions for simulator and prototype spee
 
 `RATE_LIMIT_AUTH_PER_MINUTE` does not also count the dedicated Privy sync and staff-invite routes. Console Privy sync is limited per non-plaintext access-token fingerprint by `RATE_LIMIT_PRIVY_PER_MINUTE`, with `RATE_LIMIT_PRIVY_ORIGIN_PER_MINUTE` retained as a higher network flood ceiling. Do not collapse these back into one low IP-only bucket: deployed Console traffic reaches the API through a shared service egress IP, so doing so rate-limits unrelated organizers as one caller.
 
-FanPass Console local builds can still fetch a local organizer demo token. Production-like Console builds do not fall back to demo auth. They require `FANPASS_CONSOLE_ACCESS_TOKEN` until the Privy Console login flow is implemented; otherwise the page renders a locked state and does not request operational data.
+FanPass Console local builds can still fetch a local organizer demo token. Production-like Console builds do not fall back to demo auth and never accept a process-wide Console bearer as a substitute for the current user. They require a Privy-backed Console session in the secure HttpOnly cookie; otherwise the page renders a locked state and does not request operational data.
 
 Console organizer sessions are event-scoped. An organizer can only read operations data and add ticket types for events owned by their linked `Organizer` profile. Admin sessions keep the global operations view.
 
@@ -249,7 +263,16 @@ Default local mode:
 OWNERSHIP_ADAPTER=mock
 ```
 
-Mock mode is the default when `OWNERSHIP_ADAPTER` is unset. It returns confirmed local ownership receipts with `mock_*` transaction hashes, so local demo, tests, and Prisma verification do not depend on a network.
+Mock mode is allowed only when it is explicitly selected outside production-like runtimes. An unset or unknown adapter now fails closed; staging and production must never fall back to confirmed mock receipts.
+
+Staging uses the Privy-sponsored adapter with durable proof-sync:
+
+```bash
+OWNERSHIP_ADAPTER=privy
+FANPASS_CHAIN_PROOF_SYNC_OUTBOX=true
+```
+
+It also requires the HTTPS RPC URL, deployed contract address, Privy app secret, sponsor wallet ID/address, and chain CAIP-2 identifier. Missing or malformed values stop the API at startup.
 
 Testnet mode is available behind explicit configuration:
 
@@ -264,9 +287,36 @@ Use only non-production funded testnet keys here; never commit, log, or paste a 
 
 Testnet mode uses the `FanPassTicket` contract ABI for:
 
-- `mintTicket(...)` during ticket issuance;
-- `transferFrom(...)` during resale settlement;
+- `mintTicketWithProof(...)` during ticket issuance;
+- owner-only `syncTicketTransfer(...)` during resale settlement;
 - `redeem(...)` during accepted gate redemption.
+
+Direct ERC-721 holder transfers are intentionally disabled so on-chain ownership cannot bypass FanPass settlement, resale policy, or payment state.
+
+## Security Remediation Staging Verification
+
+Deploy the schema, reviewed `FanPassTicket` contract/address, API, Console, and Console Auth from one recorded source revision. Do not ask the owner to test until health checks and the following positive/negative paths pass against deployed HTTPS:
+
+Staging rollout is two-phase. Freeze one RC revision; verify Render service Auto-Deploy is Off and overlapping deploys use Wait; keep the worker disabled; prove a restorable backup. Separately prove that these services are not Blueprint-managed or that the Blueprint's Auto Sync is No before pushing or merging `render.yaml` to its linked branch. Service Auto-Deploy Off does not suppress Blueprint sync: a linked-branch Blueprint change can still apply the `starter` plan and redeploy affected resources. Owner approval is necessary but is not permission to use Blueprint sync for the first plan change. Upgrade **only** the existing API instance type through Render service Settings or the service API, preserving the exact old live SHA, build command, environment, schema, and Console/Auth plans; verify the plan-change deploy has no other drift. Do not sync the Blueprint, merge the RC to its linked branch, update build/environment configuration, or create a paid preview at this stage. Only after the paid instance is live may you enable Maintenance Mode, prove the public origin consistently returns `503`, wait for old API requests to drain, and confirm the provider/outbox census is clean. Blueprint/build configuration remains frozen until that traffic boundary is proven. While maintenance remains enabled, save `FANPASS_SIDE_EFFECT_WORKER_ENABLED=false` and `SIDE_EFFECT_WORKER_LIMIT=1`, deploy the exact currently live SHA once to apply those values, then wait until Render reports only that worker-disabled instance and the old instance has passed the documented 60-second handoff plus shutdown-delay window. A normal Render zero-downtime deploy is insufficient because the pre-fence API remains publicly reachable during its build and its direct Stripe/Privy paths do not know the new revision gate. Install the paused database dispatch fence only inside that maintenance window. Phase A then deploys the route-aware RC while retaining the old global contract and completes enforcement, backfill, validation, and the identity-bound read-only database preflight. Restore public traffic only after the route-aware revision is the sole API instance and health/preflight evidence passes. Only then may the reviewed Sepolia contract be deployed. Phase B deploys the same RC with the new global contract. Dispatch may then be enabled for exactly one bound probe with `--probe-limit 1`; it auto-pauses and requires another preflight after settlement. Do not enable unlimited dispatch until every provider, route, outbox, and runtime check below passes. Render Free has no Maintenance Mode, and suspended services cannot safely deploy an exact target SHA before resume under a documented atomic contract; do not substitute free-tier idle spin-down or suspend/resume for this gate.
+
+Once the new contract has its first mint, never roll back to an API revision that lacks immutable per-ticket contract routing. Use a route-aware rollback or keep dispatch paused and forward-fix.
+
+1. Restore an existing verified Privy wallet without changing its tuple; concurrent identical syncs are idempotent, while conflicting wallet or staff links return a stable conflict and never replace custody.
+2. Confirm a DRAFT event is absent from public reads and rejects order placement, on-sale allocation, resale settlement, sponsored send, and delayed Stripe capture. Confirm the equivalent PUBLISHED flow still works.
+3. Run the read-only `docs/STAGING_ORDERBOOK_RECONNECT_HARNESS.md` workflow against 16 real public rooms. Disconnect/reconnect budgets must persist, duplicate subscriptions must not consume capacity, the 17th attempt must be rejected in the same window, unsubscribe-during-load must not rejoin, and reconnect snapshots must not regress behind an observed revision.
+4. In Stripe test mode, prove capture occurs only after the exact tokenized ticket/trade facts exist. Close the event before the worker capture and prove the authorization is cancelled or refunded without provider capture.
+5. In Privy/Sepolia staging, prove pending, confirmed, definitive failure, and ambiguous sponsored-USDC outcomes. Only `crypto_confirmed` plus `CAPTURED` is success; ambiguous/provider-accepted submissions must never be resent automatically.
+6. Inject an ownership-worker stop immediately before and immediately after the durable submission fence. Before-fence definitive failures may compensate; after-fence crashes or ambiguous sends must stop in reconciliation and must not rebroadcast or auto-compensate.
+
+Monitor and alert on `AMBIGUOUS`, `COMPENSATION_REQUIRED`, ownership `DEAD`, stale leases, capture timeouts, wallet-binding conflicts, and WebSocket admission rejections. Preserve correlation IDs and redacted provider identifiers; never save access tokens, authorization signatures, private keys, raw session cookies, or database URLs as evidence.
+
+Current in-memory WebSocket admission and revision state is safe only for one API process. Before horizontal scaling, move admission leases, room revision state, and fan-out to Redis/Valkey plus shared pub/sub and repeat the reconnect/load tests across instances.
+
+## High-Demand Queue Release Gate
+
+Production-like queue joins fail closed until the native client and API complete Apple App Attest registration, one-time challenge, assertion, replay, counter, and app-identity validation. The existing client installation ID is retained only as an explicitly untrusted local risk signal; it is not described or logged as an attested installation binding. Direct non-queue sales retain database inventory locking, per-account limits, payment-identity limits, and authorization checks.
+
+Do not enable a major public waiting room by signing a client UUID or DeviceCheck token locally. A release-ready queue must use a server-verified platform assertion and physical TestFlight/App Store device evidence.
 
 The API remains the source of product state, user identity, risk decisions, and audit logs. The adapter receipt is written into audit metadata as `ownershipAdapter`, `ownershipRef`, and `transactionHash`.
 

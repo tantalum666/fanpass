@@ -35,27 +35,27 @@ Required JSON shape:
     "files": [
       {
         "file": "apps/api/src/main.ts",
-        "sha256": "955e81fae5436f0301a23e32d69e3c60c9741d1ca277736e43ffb7037b6efe5a"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/auth/auth.controller.ts",
-        "sha256": "86f999aa9e25dc08d00579bce64758b07175f825b14e05a27bbf7b96ff157a26"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/auth/auth.service.ts",
-        "sha256": "d25d2ddb7383d27acfe13b0ec78018fd1dd44e5c3cf4e62e70df5ce5d94956c7"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/alpha/alpha.controller.ts",
-        "sha256": "79e13f9aef0ac0ca55f3a07a292fee56bc3c3df76361aa8a153a45b2c7109645"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/alpha/alpha-persistence.service.ts",
-        "sha256": "73edcecf269c59a95ab3aae24e65aa56555bc2cc4a610252d8774c7b00a619c7"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/verification/verification.service.ts",
-        "sha256": "0667ea136a339018dec12be1d01ca281db4bca33769f565e2a14240d772a3ad4"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/dashboard/server/console-bff.ts",
@@ -67,19 +67,19 @@ Required JSON shape:
       },
       {
         "file": "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
-        "sha256": "238117d66529ec7c3bc9ec62cc47ff7d7b4de9110ee980b9e6c7b3ef646b9bb1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
-        "sha256": "3d7b407bca3a7f70e6e2c323a39d5ff9b7ff7e1421c245f60ef1af944eeaf319"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/staff-invite-policy-audit.js",
-        "sha256": "83ba19d5f86c1242182cdfe5ff25e47d0be993eab45625a51a62634834532be9"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "150945ff985e1f8cd3a149df0a28a8aa2847c2c634e35813f9ed8b66a13da226"
+        "sha256": "<current sha256>"
       }
     ]
   },

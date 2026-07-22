@@ -32,7 +32,7 @@ Prices are USD list-price snapshots reviewed on 2026-07-17, before tax, domains,
 
 Current structural constraints:
 
-- `render.yaml` runs all three services on Free compute in Oregon.
+- The live API, Console, and Console Auth services currently remain on Free compute in Oregon. The desired `render.yaml` Blueprint sets only the API to Starter, pending explicit owner approval for the paid change; Console and Console Auth remain Free.
 - Staging still runs schema synchronization during build, but the 2026-07-17 deploy path first takes a database advisory lock, rejects duplicate-sensitive changes instead of accepting data loss, and atomically syncs public catalog/Fan Access data before the build can pass. Production must use reviewed migrations and `prisma migrate deploy`, not schema push during an application build.
 - API rate limits are process-local and are not authoritative across multiple instances.
 - Socket.IO has no shared adapter, so broadcasts are single-instance.

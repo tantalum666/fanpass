@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Optional,
@@ -11,6 +12,7 @@ import { DemoStore } from "../../common/demo-store";
 import { TicketRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
+import { requireVerifiedWalletBinding } from "../../common/wallet-binding";
 import { AuditService } from "../audit/audit.service";
 import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
 import { TicketOwnershipSideEffectsService } from "../side-effects/ticket-ownership-side-effects.service";
@@ -21,6 +23,7 @@ export interface IssueTicketInput {
   ownerId: string;
   seatHash?: string;
   inventoryHoldId?: string;
+  orderId?: string;
 }
 
 export interface TicketProofHistoryItem {
@@ -83,6 +86,9 @@ export interface TicketChainProofResponse {
 interface TicketChainLookupInput {
   id: string;
   tokenId: string | null;
+  ownershipContractAddress: string | null;
+  ownershipChainId: string | null;
+  ownershipContractVersion: string | null;
   eventId: string;
   ticketTypeId: string;
   transferable: boolean;
@@ -256,6 +262,9 @@ export class TicketsService {
       return this.buildChainProof({
         id: ticket.id,
         tokenId: ticket.tokenId,
+        ownershipContractAddress: ticket.ownershipContractAddress,
+        ownershipChainId: ticket.ownershipChainId,
+        ownershipContractVersion: ticket.ownershipContractVersion,
         eventId: ticket.eventId,
         ticketTypeId: ticket.ticketTypeId,
         transferable: ticket.ticketType.transferable,
@@ -285,6 +294,9 @@ export class TicketsService {
     return this.buildChainProof({
       id: ticket.id,
       tokenId: ticket.tokenId,
+      ownershipContractAddress: ticket.ownershipContractAddress ?? null,
+      ownershipChainId: ticket.ownershipChainId ?? null,
+      ownershipContractVersion: ticket.ownershipContractVersion ?? null,
       eventId: ticket.eventId,
       ticketTypeId: ticket.ticketTypeId,
       transferable: ticketType.transferable,
@@ -344,6 +356,10 @@ export class TicketsService {
     if (!owner) {
       throw new BadRequestException(`Owner ${input.ownerId} not found`);
     }
+    const ownerWallet = requireVerifiedWalletBinding(
+      owner,
+      "Ticket owner wallet",
+    );
     const ticketId = `tkt_${randomUUID()}`;
     const ownership = await this.ticketOwnership.issueTicket({
       localTicketId: ticketId,
@@ -351,20 +367,30 @@ export class TicketsService {
       eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
-      ownerWalletAddress: owner.walletAddress,
+      ownerWalletAddress: ownerWallet.walletAddress,
+      ownerWalletBindingVersion: ownerWallet.walletBindingVersion,
+      ownerWalletBindingFingerprint: ownerWallet.walletBindingFingerprint,
       transferable: ticketType.transferable,
       resaleCap: ticketType.resaleCap,
       maxTransferCount: ticketType.maxTransferCount,
       metadataUri: null,
     });
+    if (ownership.status === "FAILED") {
+      throw new BadRequestException("Ticket ownership issuance failed");
+    }
     const ticket: TicketRecord = {
       id: ticketId,
-      tokenId: ownership.tokenId,
+      tokenId: ownership.status === "CONFIRMED" ? ownership.tokenId : null,
+      ownershipContractAddress:
+        ownership.contractRoute?.contractAddress ?? null,
+      ownershipChainId: ownership.contractRoute?.chainId ?? null,
+      ownershipContractVersion:
+        ownership.contractRoute?.contractVersion ?? null,
       eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
       seatHash: input.seatHash ?? null,
-      status: "ACTIVE",
+      status: ownership.status === "CONFIRMED" ? "ACTIVE" : "CREATED",
       transferCount: 0,
       metadataUri: null,
     };
@@ -375,6 +401,7 @@ export class TicketsService {
       ownershipAdapter: ownership.adapter,
       ownershipRef: ownership.ownershipRef,
       transactionHash: ownership.transactionHash,
+      contractRoute: ownership.contractRoute,
     });
     return ticket;
   }
@@ -522,20 +549,23 @@ export class TicketsService {
   ): Promise<TicketChainProofResponse> {
     const checkedAt = new Date().toISOString();
     const latestOwnership = this.latestOwnershipProof(input.auditLogs);
-    const tokenId =
-      input.tokenId ??
-      this.tokenIdFromOwnershipRef(latestOwnership?.ownershipRef ?? null);
-    const contractAddress =
-      this.contractFromOwnershipRef(latestOwnership?.ownershipRef ?? null) ??
-      this.configAddress("FANPASS_TICKET_CONTRACT_ADDRESS");
+    const tokenId = input.tokenId;
+    const contractAddress = this.normalizeAddress(
+      input.ownershipContractAddress,
+    );
     const rpcUrl = this.firstConfigValue([
       "TESTNET_RPC_URL",
       "FANPASS_SEPOLIA_RPC_URL",
       "FANPASS_WALLET_RPC_URL",
     ]);
     const chainId =
-      this.firstConfigValue(["TESTNET_CHAIN_ID", "FANPASS_WALLET_CHAIN_ID"]) ??
-      (rpcUrl ? "11155111" : null);
+      input.ownershipChainId && /^[1-9][0-9]*$/.test(input.ownershipChainId)
+        ? input.ownershipChainId
+        : null;
+    const configuredRpcChainId = this.firstConfigValue([
+      "TESTNET_CHAIN_ID",
+      "FANPASS_WALLET_CHAIN_ID",
+    ]);
     const contractExplorerUrl =
       contractAddress && chainId === "11155111"
         ? `https://sepolia.etherscan.io/address/${contractAddress}`
@@ -549,12 +579,26 @@ export class TicketsService {
       checkedAt,
     );
 
-    if (!rpcUrl || !contractAddress) {
+    if (
+      !rpcUrl ||
+      !contractAddress ||
+      !chainId ||
+      input.ownershipContractVersion !== "fanpass-ticket-v1"
+    ) {
       return {
         ...base,
         status: "not_configured",
         message:
-          "FanPass API does not have enough Sepolia configuration to query this ticket on-chain.",
+          "This ticket does not have a complete immutable ownership route, so FanPass will not guess a contract from current runtime configuration.",
+      };
+    }
+
+    if (configuredRpcChainId && configuredRpcChainId !== chainId) {
+      return {
+        ...base,
+        status: "not_configured",
+        message:
+          "FanPass API does not have an RPC configured for this ticket's recorded ownership chain.",
       };
     }
 
@@ -1000,20 +1044,6 @@ export class TicketsService {
     return `0x${createHash("sha256").update(value).digest("hex")}`;
   }
 
-  private tokenIdFromOwnershipRef(value: string | null) {
-    const tokenId = value?.split(":").at(-1);
-    return tokenId && /^\d+$/.test(tokenId) ? tokenId : null;
-  }
-
-  private contractFromOwnershipRef(value: string | null) {
-    const contract = value?.split(":")[0];
-    return this.normalizeAddress(contract);
-  }
-
-  private configAddress(key: string) {
-    return this.normalizeAddress(this.configValue(key));
-  }
-
   private firstConfigValue(keys: string[]) {
     for (const key of keys) {
       const value = this.configValue(key);
@@ -1185,6 +1215,10 @@ export class TicketsService {
     const owner = await prisma.user.findUniqueOrThrow({
       where: { id: input.ownerId },
     });
+    const ownerWallet = requireVerifiedWalletBinding(
+      owner,
+      "Ticket owner wallet",
+    );
     const administrativeHold = !input.inventoryHoldId;
     const inventoryHold = input.inventoryHoldId
       ? await prisma.inventoryHold.findUnique({
@@ -1199,7 +1233,8 @@ export class TicketsService {
       !inventoryHold ||
       inventoryHold.eventId !== input.eventId ||
       inventoryHold.ticketTypeId !== input.ticketTypeId ||
-      inventoryHold.userId !== input.ownerId
+      inventoryHold.userId !== input.ownerId ||
+      (input.orderId !== undefined && inventoryHold.orderId !== input.orderId)
     ) {
       throw new BadRequestException(
         "Inventory hold does not match this ticket issuance",
@@ -1213,7 +1248,9 @@ export class TicketsService {
       eventId: input.eventId,
       ticketTypeId: input.ticketTypeId,
       ownerId: input.ownerId,
-      ownerWalletAddress: owner.walletAddress,
+      ownerWalletAddress: ownerWallet.walletAddress,
+      ownerWalletBindingVersion: ownerWallet.walletBindingVersion,
+      ownerWalletBindingFingerprint: ownerWallet.walletBindingFingerprint,
       transferable: ticketType.transferable,
       resaleCap: ticketType.resaleCap,
       maxTransferCount: ticketType.maxTransferCount,
@@ -1230,15 +1267,24 @@ export class TicketsService {
               ownershipInput,
               { writer: tx },
             );
+            if (ownership.status === "FAILED") {
+              throw new BadRequestException("Ticket ownership issuance failed");
+            }
             const issued = await tx.ticket.create({
               data: {
                 id: ticketId,
-                tokenId: ownership.tokenId,
+                tokenId:
+                  ownership.status === "CONFIRMED" ? ownership.tokenId : null,
+                ownershipContractAddress:
+                  ownership.contractRoute?.contractAddress ?? null,
+                ownershipChainId: ownership.contractRoute?.chainId ?? null,
+                ownershipContractVersion:
+                  ownership.contractRoute?.contractVersion ?? null,
                 eventId: input.eventId,
                 ticketTypeId: input.ticketTypeId,
                 ownerId: input.ownerId,
                 seatHash: input.seatHash ?? null,
-                status: "ACTIVE",
+                status: ownership.status === "CONFIRMED" ? "ACTIVE" : "CREATED",
                 transferCount: 0,
                 metadataUri: null,
               },
@@ -1247,6 +1293,7 @@ export class TicketsService {
               holdId: inventoryHold.id,
               ticketId: issued.id,
             });
+            await this.linkPrimaryOrderToTicket(tx, input, issued.id);
             await tx.auditLog.create({
               data: {
                 actorId: input.ownerId,
@@ -1259,6 +1306,7 @@ export class TicketsService {
                   ownershipAdapter: ownership.adapter,
                   ownershipRef: ownership.ownershipRef,
                   transactionHash: ownership.transactionHash,
+                  contractRoute: ownership.contractRoute,
                 },
               },
             });
@@ -1271,17 +1319,26 @@ export class TicketsService {
       const ownership = await this.ticketOwnership.issueTicket({
         ...ownershipInput,
       });
+      if (ownership.status === "FAILED") {
+        throw new BadRequestException("Ticket ownership issuance failed");
+      }
       providerOwnershipCreated = true;
       const ticket = await prisma.$transaction(async (tx) => {
         const issued = await tx.ticket.create({
           data: {
             id: ticketId,
-            tokenId: ownership.tokenId,
+            tokenId:
+              ownership.status === "CONFIRMED" ? ownership.tokenId : null,
+            ownershipContractAddress:
+              ownership.contractRoute?.contractAddress ?? null,
+            ownershipChainId: ownership.contractRoute?.chainId ?? null,
+            ownershipContractVersion:
+              ownership.contractRoute?.contractVersion ?? null,
             eventId: input.eventId,
             ticketTypeId: input.ticketTypeId,
             ownerId: input.ownerId,
             seatHash: input.seatHash ?? null,
-            status: "ACTIVE",
+            status: ownership.status === "CONFIRMED" ? "ACTIVE" : "CREATED",
             transferCount: 0,
             metadataUri: null,
           },
@@ -1290,6 +1347,7 @@ export class TicketsService {
           holdId: inventoryHold.id,
           ticketId: issued.id,
         });
+        await this.linkPrimaryOrderToTicket(tx, input, issued.id);
         await tx.auditLog.create({
           data: {
             actorId: input.ownerId,
@@ -1302,6 +1360,7 @@ export class TicketsService {
               ownershipAdapter: ownership.adapter,
               ownershipRef: ownership.ownershipRef,
               transactionHash: ownership.transactionHash,
+              contractRoute: ownership.contractRoute,
             },
           },
         });
@@ -1322,9 +1381,52 @@ export class TicketsService {
     }
   }
 
+  private async linkPrimaryOrderToTicket(
+    tx: Prisma.TransactionClient,
+    input: IssueTicketInput,
+    ticketId: string,
+  ) {
+    if (!input.orderId) {
+      return;
+    }
+    const linked = await tx.order.updateMany({
+      where: {
+        id: input.orderId,
+        userId: input.ownerId,
+        eventId: input.eventId,
+        ticketTypeId: input.ticketTypeId,
+        side: "BUY",
+        status: "MATCHED",
+        ticketId: null,
+      },
+      data: { ticketId },
+    });
+    if (linked.count !== 1) {
+      throw new ConflictException(
+        "Primary ticket could not attach to its matched order",
+      );
+    }
+    await tx.auditLog.create({
+      data: {
+        actorId: input.ownerId,
+        action: "ORDER_PRIMARY_TICKET_LINKED",
+        entityType: "order",
+        entityId: input.orderId,
+        metadataJson: {
+          ticketId,
+          eventId: input.eventId,
+          ticketTypeId: input.ticketTypeId,
+        },
+      },
+    });
+  }
+
   private mapPrismaTicket(ticket: {
     id: string;
     tokenId: string | null;
+    ownershipContractAddress: string | null;
+    ownershipChainId: string | null;
+    ownershipContractVersion: string | null;
     eventId: string;
     ticketTypeId: string;
     ownerId: string;
@@ -1336,6 +1438,9 @@ export class TicketsService {
     return {
       id: ticket.id,
       tokenId: ticket.tokenId,
+      ownershipContractAddress: ticket.ownershipContractAddress,
+      ownershipChainId: ticket.ownershipChainId,
+      ownershipContractVersion: ticket.ownershipContractVersion,
       eventId: ticket.eventId,
       ticketTypeId: ticket.ticketTypeId,
       ownerId: ticket.ownerId,
@@ -1349,6 +1454,9 @@ export class TicketsService {
   private mapExpandedPrismaTicket(ticket: {
     id: string;
     tokenId: string | null;
+    ownershipContractAddress: string | null;
+    ownershipChainId: string | null;
+    ownershipContractVersion: string | null;
     eventId: string;
     ticketTypeId: string;
     ownerId: string;

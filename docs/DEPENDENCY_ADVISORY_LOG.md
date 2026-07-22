@@ -1,5 +1,30 @@
 # FanPass Dependency Advisory Log
 
+## 2026-07-18 - Hardhat 3 tooling migration closed the root-workspace audit
+
+Commands:
+
+```bash
+scripts/with-node-22.sh npm update
+scripts/with-node-22.sh npm audit --audit-level=low
+scripts/with-node-22.sh npm audit --omit=dev --audit-level=low
+scripts/with-node-22.sh npm test -w @fanpass/contracts
+scripts/with-node-22.sh npm run deploy:local -w @fanpass/contracts
+```
+
+Result:
+
+- The root-workspace full dev/tooling audit now reports `0 advisories`, including `0 high` and `0 critical`; the root production-only audit also reports zero. The independently installed `apps/console-auth` runtime is outside the root npm workspaces and is not included in either zero count.
+- The Hardhat/contract-toolchain moved from Hardhat 2 plus the broad `hardhat-toolbox` dependency surface to Hardhat 3 with only the Ethers, Ethers Chai matcher, and Mocha plugins that FanPass uses.
+- Root overrides pin patched transitive releases for the upstream ranges that had not yet moved to their patched dependency versions. This includes Hardhat's `adm-zip` edge and Mocha's `diff` and `serialize-javascript` edges; the overrides were retained only after install-tree validation, clean audits, compile, contract tests, and deployment-script verification.
+- All 9 contract tests passed after the dedicated migration with contract tests, including the direct-transfer settlement boundary tests. The local deployment path completed successfully under Node 22.
+- The previous contained high packages (`lodash`, `serialize-javascript`, `tmp`, and `undici`) are no longer present as high findings. No dependency risk acceptance is used for this closeout.
+
+Decision:
+
+- Keep both root production and root full audits at zero in the release gate. Audit `apps/console-auth` separately: its current isolated production audit has 10 moderate Privy/x402/wagmi/`uuid` transitive records with no validated reachable v3/v5/v6 buffer sink, so it is accepted only for controlled Staging and not as Production GA zero-vulnerability evidence. Any future root or isolated advisory drift reopens the dependency review instead of silently falling back to the earlier tooling containment exception.
+- Do not remove the Node 22 authoritative runtime wrapper or run `npm audit fix --force`; use an explicit migration plus regression evidence when the next major toolchain update is needed.
+
 ## 2026-07-14 - Isolated Console Auth Next exit completed
 
 Commands:

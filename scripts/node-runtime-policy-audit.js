@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_NODE_RUNTIME_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_NODE_RUNTIME_AUDIT_ROOT)
@@ -9,6 +13,7 @@ const strictRuntime = process.env.FANPASS_STRICT_NODE_RUNTIME === "true";
 
 const requiredNodeRange = ">=22 <23";
 const requiredVersionPin = "22";
+const gateErrors = [];
 
 function read(file) {
   return fs.readFileSync(path.join(rootDir, file), "utf8");
@@ -80,24 +85,13 @@ assert(
   `package-lock root engines.node must be ${requiredNodeRange}`,
 );
 
-const betaVerifierLines = read("scripts/beta-foundation-verify.sh")
-  .split(/\r?\n/)
-  .map((line) => line.trim());
-const selfTestIndex = betaVerifierLines.findIndex((line) =>
-  line.endsWith("npm run security:node-runtime-policy:self-test"),
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, gateErrors);
+assertOrderedNpmScripts(
+  betaGateSteps,
+  ["security:node-runtime-policy:self-test", "security:node-runtime-policy"],
+  gateErrors,
 );
-const auditIndex = betaVerifierLines.findIndex((line) =>
-  line.endsWith("npm run security:node-runtime-policy"),
-);
-assert(
-  selfTestIndex >= 0,
-  "Beta verifier missing node runtime policy self-test",
-);
-assert(auditIndex >= 0, "Beta verifier missing node runtime policy audit");
-assert(
-  selfTestIndex < auditIndex,
-  "Beta verifier must run node runtime policy self-test before the real audit",
-);
+assert(gateErrors.length === 0, gateErrors.join("; "));
 
 const helper = read("scripts/with-node-22.sh");
 for (const marker of [

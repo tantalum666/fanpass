@@ -1,9 +1,10 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AppController } from "./app.controller";
 import { DemoStore } from "./common/demo-store";
 import { FanPassAuthGuard } from "./common/fanpass-auth.guard";
 import { PrismaService } from "./common/prisma.service";
+import { TrustedClientIdentity } from "./common/trusted-client-identity";
 import { AlphaController } from "./modules/alpha/alpha.controller";
 import { AlphaPersistenceService } from "./modules/alpha/alpha-persistence.service";
 import { AuditService } from "./modules/audit/audit.service";
@@ -15,13 +16,19 @@ import { OrderbookGateway } from "./modules/orders/orderbook.gateway";
 import { OrderbookRealtimeService } from "./modules/orders/orderbook-realtime.service";
 import { OrdersController } from "./modules/orders/orders.controller";
 import { OrderbookService } from "./modules/orders/orderbook.service";
+import { OrderbookAdmissionService } from "./modules/orders/orderbook-admission.service";
 import { OwnershipService } from "./modules/ownership/ownership.service";
 import { PaymentsController } from "./modules/payments/payments.controller";
 import { PaymentsService } from "./modules/payments/payments.service";
 import { SideEffectOutboxService } from "./modules/side-effects/side-effect-outbox.service";
 import { SideEffectWorkerSchedulerService } from "./modules/side-effects/side-effect-worker-scheduler.service";
 import { SideEffectWorkerService } from "./modules/side-effects/side-effect-worker.service";
-import { SideEffectHealthService } from "./modules/side-effects/side-effect-health.service";
+import {
+  SideEffectHealthService,
+  SideEffectHealthStore,
+  SIDE_EFFECT_HEALTH_CONFIG,
+} from "./modules/side-effects/side-effect-health.service";
+import { PrismaSideEffectHealthStore } from "./modules/side-effects/prisma-side-effect-health.store";
 import { SettlementSideEffectsService } from "./modules/side-effects/settlement-side-effects.service";
 import { TicketOwnershipSideEffectsService } from "./modules/side-effects/ticket-ownership-side-effects.service";
 import { FanAccessController } from "./modules/fan-access/fan-access.controller";
@@ -65,6 +72,7 @@ import { validateEnvironment } from "./config/security-config";
       useFactory: () => new DemoStore({ includeMarketDepth: true }),
     },
     PrismaService,
+    TrustedClientIdentity,
     AlphaPersistenceService,
     AuditService,
     AuthService,
@@ -76,11 +84,21 @@ import { validateEnvironment } from "./config/security-config";
     SideEffectOutboxService,
     SideEffectWorkerService,
     SideEffectWorkerSchedulerService,
+    PrismaSideEffectHealthStore,
+    {
+      provide: SideEffectHealthStore,
+      useExisting: PrismaSideEffectHealthStore,
+    },
+    {
+      provide: SIDE_EFFECT_HEALTH_CONFIG,
+      useExisting: ConfigService,
+    },
     SideEffectHealthService,
     SettlementSideEffectsService,
     TicketOwnershipSideEffectsService,
     TicketsService,
     OrderbookGateway,
+    OrderbookAdmissionService,
     OrderbookRealtimeService,
     OrderbookService,
     FanAccessService,

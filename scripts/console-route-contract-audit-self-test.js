@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateStepsFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -63,26 +66,25 @@ const cases = [
       ),
   },
   {
-    label: "rejects session bridge without HttpOnly cookie handling",
+    label: "rejects handoff integration without observed HttpOnly cookie proof",
     expected: "fail",
     mutate: (fixtureRoot) =>
-      writeFixtureFile(
+      replaceFixtureFile(
         fixtureRoot,
-        "apps/dashboard/lib/console-auth.ts",
-        consoleAuthHelper().replaceAll('"HttpOnly"', '"CookieOnly"'),
+        "scripts/console-session-handoff-integration-test.js",
+        '    assertCookieAttribute(handoffCookie, "HttpOnly");\n',
+        "",
       ),
   },
   {
-    label: "rejects handoff state comparison without timing-safe equality",
+    label: "rejects handoff integration without a rejected-session outcome",
     expected: "fail",
     mutate: (fixtureRoot) =>
-      writeFixtureFile(
+      replaceAllFixtureFile(
         fixtureRoot,
-        "apps/dashboard/lib/console-auth.ts",
-        consoleAuthHelper().replace(
-          "timingSafeEqual(leftBuffer, rightBuffer)",
-          "leftBuffer.equals(rightBuffer)",
-        ),
+        "scripts/console-session-handoff-integration-test.js",
+        "!hasSessionCookie(",
+        "hasSessionCookie(",
       ),
   },
   {
@@ -205,6 +207,69 @@ const cases = [
           "handleDeactivateGateAssignment(request, response, deactivateMatch[1])",
           "undefined",
         ),
+      ),
+  },
+  {
+    label: "rejects helper with ambient process-wide Console access token",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/lib/console-auth.ts",
+        consoleAuthHelper({ includeConfiguredAccessToken: true }),
+      ),
+  },
+  {
+    label: "rejects a BFF handler with an ambient Console access token",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/console-bff.ts",
+        consoleBff().replace(
+          "const accessToken = await consoleAccessToken(cookieSource(request));",
+          "const accessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN;",
+        ),
+      ),
+  },
+  {
+    label: "rejects ambient Console access tokens in a sibling server helper",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/dashboard/server/ambient-token.ts",
+        "export const token = process.env.FANPASS_CONSOLE_ACCESS_TOKEN;\n",
+      ),
+  },
+  {
+    label: "rejects missing process-level handoff integration command",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "package.json",
+        JSON.stringify({ scripts: {} }, null, 2),
+      ),
+  },
+  {
+    label: "rejects Console handoff gate before the Console build",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "scripts/beta-foundation-verify.js",
+        consoleGateFixture({ reversed: true }),
+      ),
+  },
+  {
+    label: "rejects a comment-only Console handoff gate decoy",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "scripts/beta-foundation-verify.js",
+        `${renderBetaFoundationGateStepsFixture([consoleBuildGate()])}// npmStep("Console session handoff integration", "run", "security:console-session-handoff:integration");\n`,
       ),
   },
   {
@@ -365,6 +430,33 @@ console.log(
 function writePassingFixture(fixtureRoot) {
   writeFixtureFile(
     fixtureRoot,
+    "package.json",
+    JSON.stringify(
+      {
+        scripts: {
+          "security:console-session-handoff:integration":
+            "node scripts/console-session-handoff-integration-test.js",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "scripts/beta-foundation-verify.js",
+    consoleGateFixture(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "scripts/console-session-handoff-integration-test.js",
+    fs.readFileSync(
+      path.join(rootDir, "scripts/console-session-handoff-integration-test.js"),
+      "utf8",
+    ),
+  );
+  writeFixtureFile(
+    fixtureRoot,
     "apps/dashboard/server/console-bff.ts",
     consoleBff(),
   );
@@ -388,6 +480,30 @@ function writePassingFixture(fixtureRoot) {
     "apps/dashboard/package.json",
     JSON.stringify({ dependencies: { react: "19.1.0" } }, null, 2),
   );
+}
+
+function consoleGateFixture(options = {}) {
+  const steps = [consoleBuildGate(), consoleHandoffGate()];
+  if (options.reversed) {
+    steps.reverse();
+  }
+  return renderBetaFoundationGateStepsFixture(steps);
+}
+
+function consoleBuildGate() {
+  return {
+    label: "Console production build",
+    kind: "npm",
+    args: ["run", "build", "-w", "apps/dashboard"],
+  };
+}
+
+function consoleHandoffGate() {
+  return {
+    label: "Console session handoff integration",
+    kind: "npm",
+    args: ["run", "security:console-session-handoff:integration"],
+  };
 }
 
 function consoleLoginComponent() {
@@ -619,6 +735,19 @@ function consoleAuthHelper(options = {}) {
   const publicTokenEnv = options.includePublicTokenEnv
     ? "\nconst leaked = process.env.NEXT_PUBLIC_CONSOLE_ACCESS_TOKEN;\n"
     : "";
+  const configuredToken = options.includeConfiguredAccessToken
+    ? [
+        "const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;",
+        "",
+      ].join("\n")
+    : "";
+  const configuredTokenBranch = options.includeConfiguredAccessToken
+    ? [
+        "  if (configuredAccessToken) {",
+        "    return configuredAccessToken;",
+        "  }",
+      ].join("\n") + "\n"
+    : "";
   const productionBlock = [
     "  if (isProductionLikeConsole()) {",
     "    throw new ConsoleAuthRequiredError()",
@@ -641,17 +770,14 @@ const CONSOLE_HANDOFF_COOKIE = "fanpass_console_handoff";
 const CONSOLE_HANDOFF_HOST_COOKIE = "__Host-fanpass_console_handoff";
 const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
 export type ConsoleAuthRecoveryMode = "refresh" | "reauth";
-const configuredAccessToken = process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
+${configuredToken}
 ${publicTokenEnv}
 export class ConsoleAuthRequiredError extends Error {}
 export class ConsoleMutationOriginError extends Error {}
 export class ConsoleSessionHandoffError extends Error {}
 
 export async function consoleAccessToken(source) {
-  if (configuredAccessToken) {
-    return configuredAccessToken;
-  }
-  const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader);
+${configuredTokenBranch}  const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader);
   if (cookieAccessToken) {
     return cookieAccessToken;
   }
@@ -802,4 +928,27 @@ function writeFixtureFile(fixtureRoot, relativePath, contents) {
   const absolutePath = path.join(fixtureRoot, relativePath);
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
   fs.writeFileSync(absolutePath, contents);
+}
+
+function replaceFixtureFile(fixtureRoot, relativePath, expected, replacement) {
+  const absolutePath = path.join(fixtureRoot, relativePath);
+  const contents = fs.readFileSync(absolutePath, "utf8");
+  if (!contents.includes(expected)) {
+    throw new Error(`${relativePath} fixture mutation target was not found`);
+  }
+  fs.writeFileSync(absolutePath, contents.replace(expected, replacement));
+}
+
+function replaceAllFixtureFile(
+  fixtureRoot,
+  relativePath,
+  expected,
+  replacement,
+) {
+  const absolutePath = path.join(fixtureRoot, relativePath);
+  const contents = fs.readFileSync(absolutePath, "utf8");
+  if (!contents.includes(expected)) {
+    throw new Error(`${relativePath} fixture mutation target was not found`);
+  }
+  fs.writeFileSync(absolutePath, contents.replaceAll(expected, replacement));
 }

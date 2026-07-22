@@ -1,5 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_PAYMENT_RESPONSE_REDACTION_ROOT
   ? path.resolve(process.env.FANPASS_PAYMENT_RESPONSE_REDACTION_ROOT)
@@ -8,7 +12,7 @@ const rootDir = process.env.FANPASS_PAYMENT_RESPONSE_REDACTION_ROOT
 const errors = [];
 
 const packageJson = readJson("package.json");
-const betaVerifier = readProjectFile("scripts/beta-foundation-verify.sh");
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 const paymentsService = readProjectFile(
   "apps/api/src/modules/payments/payments.service.ts",
 );
@@ -56,25 +60,61 @@ function validatePackageAndCompositeGate() {
     if (!scripts[script]) {
       errors.push(`package.json must define ${script}`);
     }
-    assertVerifierStep(script);
   }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:payment-response-redaction:self-test",
+      "security:payment-response-redaction",
+    ],
+    errors,
+  );
 }
 
 function validatePaymentsServiceRedaction() {
+  const createPaymentIntent = extractClassMethod("createPaymentIntent");
   const mapPaymentCalls = countMatches(paymentsService, "this.mapPayment(");
-  if (mapPaymentCalls !== 2) {
+  const checkoutMapPaymentCalls = countMatches(
+    createPaymentIntent,
+    "this.mapPayment(",
+  );
+  const nonCheckoutMapPaymentCalls = mapPaymentCalls - checkoutMapPaymentCalls;
+
+  if (mapPaymentCalls !== 1) {
     errors.push(
-      `PaymentsService must keep this.mapPayment(...) limited to createPaymentIntent idempotent and fresh checkout responses; found ${mapPaymentCalls} calls.`,
+      `PaymentsService must keep exactly one payer-only this.mapPayment(...) call; found ${mapPaymentCalls} calls.`,
     );
   }
-  if (!paymentsService.includes("return this.mapPayment(repaired);")) {
+  if (checkoutMapPaymentCalls !== 1) {
     errors.push(
-      "createPaymentIntent repaired idempotent retry must keep returning the payer-only payment mapper.",
+      `createPaymentIntent must keep exactly one payer-only this.mapPayment(...) call; found ${checkoutMapPaymentCalls} calls.`,
     );
   }
-  if (!paymentsService.includes("return this.mapPayment(updated);")) {
+  if (nonCheckoutMapPaymentCalls !== 0) {
     errors.push(
-      "createPaymentIntent fresh provider result must keep returning the payer-only payment mapper.",
+      `Only createPaymentIntent may call the payer-only mapPayment mapper; found ${nonCheckoutMapPaymentCalls} call(s) elsewhere.`,
+    );
+  }
+  for (const marker of [
+    "let updated: Payment;",
+    "updated = await this.ensureProviderPaymentIntent(",
+    "paymentResult.existing",
+    '"PAYMENT_INTENT_REPAIRED"',
+    '"PAYMENT_INTENT_CREATED"',
+  ]) {
+    if (!createPaymentIntent.includes(marker)) {
+      errors.push(
+        `createPaymentIntent must keep fresh and repaired provider results on the unified updated response path: ${marker}`,
+      );
+    }
+  }
+  if (
+    !/return\s+this\.mapPayment\(updated\);\s*}\s*$/.test(
+      createPaymentIntent.trim(),
+    )
+  ) {
+    errors.push(
+      "createPaymentIntent must end with the single payer-only return this.mapPayment(updated) response path.",
     );
   }
   if (!paymentsService.includes("payment: this.mapRedactedPayment(payment)")) {
@@ -88,7 +128,7 @@ function validatePaymentsServiceRedaction() {
     );
   }
 
-  const mapPayment = extractMethodBody("mapPayment");
+  const mapPayment = extractClassMethod("mapPayment");
   for (const marker of [
     "clientSecret: payment.clientSecret",
     "idempotencyKey: payment.idempotencyKey",
@@ -100,7 +140,7 @@ function validatePaymentsServiceRedaction() {
     }
   }
 
-  const redactedPayment = extractMethodBody("mapRedactedPayment");
+  const redactedPayment = extractClassMethod("mapRedactedPayment");
   for (const forbidden of [
     "clientSecret",
     "stripePaymentIntentId",
@@ -114,7 +154,7 @@ function validatePaymentsServiceRedaction() {
     }
   }
 
-  const paymentJobPayload = extractMethodBody("paymentJobPayload");
+  const paymentJobPayload = extractClassMethod("paymentJobPayload");
   for (const forbidden of ["clientSecret", "idempotencyKey"]) {
     if (paymentJobPayload.includes(forbidden)) {
       errors.push(
@@ -176,7 +216,7 @@ function validateDocs() {
       "QA checklist",
       qaChecklist,
       [
-        "Keep `npm run security:payment-response-redaction:self-test` and `npm run security:payment-response-redaction` in `npm run beta:foundation:verify`",
+        "Keep `npm run security:payment-response-redaction:self-test` and `npm run security:payment-response-redaction` in `node scripts/beta-foundation-verify.js`",
         "Payment status visible to organizer Console views must redact Stripe client secrets and user PII by default.",
       ],
     ],
@@ -184,7 +224,7 @@ function validateDocs() {
       "Beta roadmap",
       betaRoadmap,
       [
-        "The payment response redaction audit must keep passing inside `npm run beta:foundation:verify`",
+        "The payment response redaction audit must keep passing inside `node scripts/beta-foundation-verify.js`",
       ],
     ],
   ]) {
@@ -198,22 +238,23 @@ function validateDocs() {
   }
 }
 
-function assertVerifierStep(script) {
-  const pattern = new RegExp(`npm\\s+run\\s+${escapeRegExp(script)}(?=\\s|$)`);
-  if (!pattern.test(betaVerifier)) {
-    errors.push(`beta foundation verifier must run npm run ${script}`);
-  }
-}
-
-function extractMethodBody(methodName) {
-  const marker = `private ${methodName}`;
-  const start = paymentsService.indexOf(marker);
-  if (start === -1) {
-    errors.push(`PaymentsService must define ${marker}`);
+function extractClassMethod(methodName) {
+  const declaration = new RegExp(
+    `^  (?:(?:public|protected|private)\\s+)?(?:async\\s+)?${escapeRegExp(methodName)}\\s*\\(`,
+    "m",
+  );
+  const match = declaration.exec(paymentsService);
+  if (!match) {
+    errors.push(`PaymentsService must define method ${methodName}`);
     return "";
   }
-  const next = paymentsService.indexOf("\n  private ", start + marker.length);
-  return paymentsService.slice(start, next === -1 ? undefined : next);
+
+  const start = match.index;
+  const nextMethod =
+    /\n  (?:(?:public|protected|private)\s+)?(?:async\s+)?[A-Za-z_$][\w$]*\s*\(/g;
+  nextMethod.lastIndex = start + match[0].length;
+  const next = nextMethod.exec(paymentsService);
+  return paymentsService.slice(start, next ? next.index : undefined);
 }
 
 function countMatches(contents, needle) {

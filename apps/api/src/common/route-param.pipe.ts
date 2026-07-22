@@ -3,10 +3,14 @@ import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 const fanPassIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{1,95}$/;
 const gateCodePattern = /^[A-Za-z0-9][A-Za-z0-9 _-]{0,23}$/;
 
+export function isFanPassId(value: unknown): value is string {
+  return typeof value === "string" && fanPassIdPattern.test(value);
+}
+
 @Injectable()
 export class FanPassIdParamPipe implements PipeTransform<string, string> {
   transform(value: string) {
-    if (typeof value !== "string" || !fanPassIdPattern.test(value)) {
+    if (!isFanPassId(value)) {
       throw new BadRequestException("Route id parameter is invalid");
     }
     return value;

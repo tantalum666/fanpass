@@ -323,13 +323,21 @@ final class CheckoutViewModel {
         )
     }
 
-    func applyCryptoConfirmation(_ response: FanPassCryptoConfirmationResponse) {
-        if response.payment.captureStatus == "CAPTURED" {
+    @discardableResult
+    func applyCryptoConfirmation(_ response: FanPassCryptoConfirmationResponse) -> Bool {
+        if response.compensationRequired == true || !response.ok {
+            paymentState = .failed
+            errorMessage = "Your USDC transfer needs review. No ticket was issued while FanPass reconciles the payment."
+            return false
+        }
+        if response.isTicketSettlementConfirmed {
             paymentState = .authorized
             errorMessage = "USDC transfer confirmed. Ticket assignment is syncing."
+            return true
         } else {
             paymentState = .authorizing
             errorMessage = "USDC transfer submitted. Waiting for chain confirmation."
+            return false
         }
     }
 

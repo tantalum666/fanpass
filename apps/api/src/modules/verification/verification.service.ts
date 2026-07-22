@@ -8,7 +8,11 @@ import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@prisma/client";
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { DemoStore } from "../../common/demo-store";
-import { CheckinRecord, TicketRecord } from "../../common/domain";
+import {
+  CheckinRecord,
+  OwnershipContractRoute,
+  TicketRecord,
+} from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
 import {
@@ -122,6 +126,7 @@ export class VerificationService {
     gate: string,
     session?: FanPassSession,
   ) {
+    gate = this.normalizeGate(gate);
     const prisma = this.prismaClient();
     if (prisma) {
       return this.redeemPrismaPayload(
@@ -203,10 +208,16 @@ export class VerificationService {
     ticket.status = "REDEEMED";
     this.consumedNonces.add(payload.nonce);
     this.consumeMemoryCredential(payload.credentialId);
-    const checkin = this.recordCheckin(payload, scannerUserId, gate, "ACCEPTED");
+    const checkin = this.recordCheckin(
+      payload,
+      scannerUserId,
+      gate,
+      "ACCEPTED",
+    );
     this.dispatchOwnershipRedeem({
       ticketId: ticket.id,
       tokenId: ticket.tokenId,
+      contractRoute: this.ticketContractRoute(ticket),
     });
     this.audit.record(scannerUserId, "TICKET_REDEEMED", "ticket", ticket.id, {
       gate,
@@ -255,6 +266,7 @@ export class VerificationService {
     gate: string,
     session?: FanPassSession,
   ) {
+    gate = this.normalizeGate(gate);
     const prisma = this.prismaClient();
     if (prisma) {
       await this.assertPrismaGateAccess(prisma, eventId, gate, session);
@@ -290,10 +302,37 @@ export class VerificationService {
     return this.buildCheckinSummary(eventId, gate, checkins);
   }
 
-  async recentCheckins(_session?: FanPassSession) {
+  async recentCheckins(session: FanPassSession) {
     const prisma = this.prismaClient();
     if (prisma) {
+      let where: Prisma.CheckinWhereInput | undefined;
+      if (session.role === "GATE_STAFF") {
+        const assignments = await prisma.gateAssignment.findMany({
+          where: {
+            staffUserId: session.userId,
+            active: true,
+          },
+          select: {
+            eventId: true,
+            gate: true,
+          },
+        });
+        if (assignments.length === 0) {
+          return { items: [] };
+        }
+        where = {
+          OR: assignments.map((assignment) => ({
+            gate: this.normalizeGate(assignment.gate),
+            ticket: {
+              eventId: assignment.eventId,
+            },
+          })),
+        };
+      } else if (session.role !== "ADMIN") {
+        throw new ForbiddenException("Gate access is not assigned");
+      }
       const checkins = await prisma.checkin.findMany({
+        where,
         orderBy: {
           checkedInAt: "desc",
         },
@@ -328,10 +367,32 @@ export class VerificationService {
     const ticketsById = new Map(
       this.store.tickets.map((ticket) => [ticket.id, ticket]),
     );
+    let assignedGates: Set<string> | undefined;
+    if (session.role === "GATE_STAFF") {
+      assignedGates = new Set(
+        this.store.gateAssignments
+          .filter(
+            (assignment) =>
+              assignment.staffUserId === session.userId && assignment.active,
+          )
+          .map(
+            (assignment) =>
+              `${assignment.eventId}:${this.normalizeGate(assignment.gate)}`,
+          ),
+      );
+    } else if (session.role !== "ADMIN") {
+      throw new ForbiddenException("Gate access is not assigned");
+    }
     return {
       items: this.store.checkins.slice(0, 25).flatMap((checkin) => {
         const ticket = ticketsById.get(checkin.ticketId);
-        if (!ticket) {
+        if (
+          !ticket ||
+          (assignedGates &&
+            !assignedGates.has(
+              `${ticket.eventId}:${this.normalizeGate(checkin.gate)}`,
+            ))
+        ) {
           return [];
         }
         return [
@@ -660,6 +721,7 @@ export class VerificationService {
     const redeemTicket = {
       ticketId: ticket.id,
       tokenId: ticket.tokenId,
+      contractRoute: this.ticketContractRoute(ticket),
     };
 
     const result = await this.acceptPrismaRedemption(
@@ -714,7 +776,11 @@ export class VerificationService {
     ticket: TicketRecord,
     scannerUserId: string,
     gate: string,
-    redeemTicket: { ticketId: string; tokenId: string | null },
+    redeemTicket: {
+      ticketId: string;
+      tokenId: string | null;
+      contractRoute: OwnershipContractRoute | null;
+    },
   ) {
     try {
       return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -819,6 +885,7 @@ export class VerificationService {
   private dispatchOwnershipRedeem(input: {
     ticketId: string;
     tokenId: string | null;
+    contractRoute: OwnershipContractRoute | null;
   }) {
     void this.ticketOwnership.redeemTicket(input).catch((error: unknown) => {
       const message =
@@ -1124,6 +1191,9 @@ export class VerificationService {
   private mapPrismaTicket(ticket: {
     id: string;
     tokenId: string | null;
+    ownershipContractAddress: string | null;
+    ownershipChainId: string | null;
+    ownershipContractVersion: string | null;
     eventId: string;
     ticketTypeId: string;
     ownerId: string;
@@ -1135,6 +1205,9 @@ export class VerificationService {
     return {
       id: ticket.id,
       tokenId: ticket.tokenId,
+      ownershipContractAddress: ticket.ownershipContractAddress,
+      ownershipChainId: ticket.ownershipChainId,
+      ownershipContractVersion: ticket.ownershipContractVersion,
       eventId: ticket.eventId,
       ticketTypeId: ticket.ticketTypeId,
       ownerId: ticket.ownerId,
@@ -1142,6 +1215,26 @@ export class VerificationService {
       status: ticket.status,
       transferCount: ticket.transferCount,
       metadataUri: ticket.metadataUri,
+    };
+  }
+
+  private ticketContractRoute(
+    ticket: TicketRecord,
+  ): OwnershipContractRoute | null {
+    const contractAddress = ticket.ownershipContractAddress;
+    const chainId = ticket.ownershipChainId;
+    const contractVersion = ticket.ownershipContractVersion;
+    if (
+      !contractAddress ||
+      !chainId ||
+      contractVersion !== "fanpass-ticket-v1"
+    ) {
+      return null;
+    }
+    return {
+      contractAddress,
+      chainId,
+      contractVersion: "fanpass-ticket-v1" as const,
     };
   }
 
@@ -1164,15 +1257,28 @@ export class VerificationService {
 
   private assertMemoryGateAssignment(
     eventId: string,
-    _gate: string,
+    gate: string,
     session: FanPassSession | undefined,
   ) {
-    if (
-      !session ||
-      session.role === "ADMIN" ||
-      session.role === "GATE_STAFF"
-    ) {
+    if (!session) {
+      throw new ForbiddenException("Gate access is not assigned");
+    }
+    if (session.role === "ADMIN") {
       return;
+    }
+    if (session.role === "GATE_STAFF") {
+      const normalizedGate = this.normalizeGate(gate);
+      const assignment = this.store.gateAssignments.find(
+        (candidate) =>
+          candidate.eventId === eventId &&
+          this.normalizeGate(candidate.gate) === normalizedGate &&
+          candidate.staffUserId === session.userId &&
+          candidate.active,
+      );
+      if (assignment) {
+        return;
+      }
+      throw new ForbiddenException("Gate access is not assigned");
     }
     if (session.role === "ORGANIZER") {
       const organizer = this.store.organizers.find(
@@ -1193,15 +1299,28 @@ export class VerificationService {
   private async assertPrismaGateAccess(
     prisma: PrismaService,
     eventId: string,
-    _gate: string,
+    gate: string,
     session: FanPassSession | undefined,
   ) {
-    if (
-      !session ||
-      session.role === "ADMIN" ||
-      session.role === "GATE_STAFF"
-    ) {
+    if (!session) {
+      throw new ForbiddenException("Gate access is not assigned");
+    }
+    if (session.role === "ADMIN") {
       return;
+    }
+    if (session.role === "GATE_STAFF") {
+      const assignment = await prisma.gateAssignment.findFirst({
+        where: {
+          eventId,
+          gate: this.normalizeGate(gate),
+          staffUserId: session.userId,
+          active: true,
+        },
+      });
+      if (assignment) {
+        return;
+      }
+      throw new ForbiddenException("Gate access is not assigned");
     }
     if (session.role === "ORGANIZER") {
       const organizerEvent = await prisma.event.findFirst({
@@ -1218,6 +1337,14 @@ export class VerificationService {
       throw new ForbiddenException("Organizer is not assigned to this event");
     }
     throw new ForbiddenException("Gate access is not assigned");
+  }
+
+  private normalizeGate(gate: string) {
+    const normalized = gate.trim().toUpperCase();
+    if (!normalized || normalized.length > 24) {
+      throw new BadRequestException("Gate is required");
+    }
+    return normalized;
   }
 
   private prismaClient() {

@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -83,11 +86,12 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        betaFoundationVerifier().replace(
-          "npm run alpha:walkthrough:evidence:audit",
-          "npm run alpha:walkthrough:evidence:check",
-        ),
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture([
+          "alpha:walkthrough:evidence:audit:self-test",
+          "alpha:walkthrough:evidence:check",
+          "alpha:walkthrough:capture:self-test",
+        ]),
       ),
   },
 ];
@@ -164,7 +168,7 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
+    "scripts/beta-foundation-verify.js",
     betaFoundationVerifier(),
   );
 }
@@ -198,8 +202,9 @@ function alphaWalkthroughEvidence() {
     "",
     "## Verification evidence",
     "",
+    "The capture checks the reviewed launcher digest before starting scripts/beta-foundation-launcher.js.",
+    "",
     "```bash",
-    "npm run beta:foundation:verify",
     "npm run beta:local:start",
     "npm run beta:local:verify",
     "npm run beta:local:stop",
@@ -236,13 +241,11 @@ function developmentTasks() {
 }
 
 function betaFoundationVerifier() {
-  return [
-    "#!/usr/bin/env bash",
-    'run_step "Alpha walkthrough evidence audit self-test" npm run alpha:walkthrough:evidence:audit:self-test',
-    'run_step "Alpha walkthrough evidence audit" npm run alpha:walkthrough:evidence:audit',
-    'run_step "Alpha walkthrough capture self-test" npm run alpha:walkthrough:capture:self-test',
-    "",
-  ].join("\n");
+  return renderBetaFoundationGateFixture([
+    "alpha:walkthrough:evidence:audit:self-test",
+    "alpha:walkthrough:evidence:audit",
+    "alpha:walkthrough:capture:self-test",
+  ]);
 }
 
 function writeFixtureFile(fixtureRoot, relativePath, contents) {

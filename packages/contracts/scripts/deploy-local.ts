@@ -1,6 +1,21 @@
-import { ethers, network } from "hardhat";
+import hre from "hardhat";
+
+import {
+  assertLocalDeploymentNetwork,
+  assertLocalDeploymentNetworkName,
+} from "./deployment-policy.js";
 
 async function main() {
+  const connection = await hre.network.create();
+  assertLocalDeploymentNetworkName(connection.networkName);
+
+  const { ethers } = connection;
+  const chain = await ethers.provider.getNetwork();
+  assertLocalDeploymentNetwork({
+    networkName: connection.networkName,
+    chainId: chain.chainId,
+  });
+
   const [deployer, demoFan] = await ethers.getSigners();
 
   const Ticket = await ethers.getContractFactory("FanPassTicket");
@@ -54,7 +69,7 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
-        network: network.name,
+        network: connection.networkName,
         deployer: shortenAddress(deployer.address),
         contracts: {
           fanPassTicket: shortenAddress(await ticket.getAddress()),

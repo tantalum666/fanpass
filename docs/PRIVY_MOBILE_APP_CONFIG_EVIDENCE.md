@@ -80,55 +80,55 @@ Evidence must not include:
     "files": [
       {
         "file": "apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift",
-        "sha256": "6789beded5c02e32f353f0caf8cb6c85b60ea56e7c0d488f3ccb0854bb26f416"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Shared/FanPassEnvironment.swift",
-        "sha256": "ea67e6213ca8b4495139f1e28d9da70bce29c38fe5b2adb7e6863c186697dd3e"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/App/AppState.swift",
-        "sha256": "4bd0ea7b6caf9b05dd2d265706f94d62c777f0bdc1d64ac9e7949afa82602879"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
-        "sha256": "238117d66529ec7c3bc9ec62cc47ff7d7b4de9110ee980b9e6c7b3ef646b9bb1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Auth/AuthView.swift",
-        "sha256": "5d3e6ef784a6639d3f7f594956b2373b8407249e9de9e97a3d51e37cfe0d8d13"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
-        "sha256": "3d7b407bca3a7f70e6e2c323a39d5ff9b7ff7e1421c245f60ef1af944eeaf319"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/project.yml",
-        "sha256": "2ee6e5994765a13f8fc2bcaab1b93b18b58ca2e9309e03fa6a4d9dd8e042b408"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Generated/Info.plist",
-        "sha256": "a070208031e9c7286c5e886538661078e04b9b127dee8b3714ae3df403d137c9"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPassOps/Generated/Info.plist",
-        "sha256": "56800069b1ec8daefd0654cea205a951971db620d73938c08ba2241b4b68a861"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/Config/Local.xcconfig",
-        "sha256": "aa3fbc30e54f0d5769504a5e60c1ae876c86359393e120e277295ed84d7808c8"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/Config/Staging.xcconfig",
-        "sha256": "a15b4e6a1d202074576661276d7a141de56b8cfb0b379eb3f44d29dd9e0e9efb"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/Config/Beta.xcconfig",
-        "sha256": "58f2c9165a38902a6b561512d5108c29a2eaec260d4025194e890b3d7211e251"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/Config/Production.xcconfig",
-        "sha256": "d72a3f4de2487955352265b7a5b7c7d7997345b604441d83cf4d986ca04e8ed8"
+        "sha256": "<current sha256>"
       }
     ]
   },

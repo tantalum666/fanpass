@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(rootDir, "scripts/nfc-ndef-fixture-audit.js");
@@ -111,10 +114,10 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "#!/usr/bin/env bash\necho missing nfc fixture audit\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture(["security:api-contracts"]),
       ),
-    messages: ["NFC NDEF fixture format audit"],
+    messages: ["must run npm script security:nfc-ndef-fixture"],
   },
 ];
 
@@ -176,13 +179,11 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "package.json", packageJson());
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "NFC NDEF fixture format audit self-test",
-      "npm run security:nfc-ndef-fixture:self-test",
-      "NFC NDEF fixture format audit",
-      "npm run security:nfc-ndef-fixture",
-    ].join("\n"),
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:nfc-ndef-fixture:self-test",
+      "security:nfc-ndef-fixture",
+    ]),
   );
   writeFixtureFile(fixtureRoot, "docs/NFC_NDEF_TAG_FIXTURE.md", fixtureDoc());
   writeFixtureFile(fixtureRoot, "docs/DEVELOPMENT_TASKS.md", tasksDoc());
@@ -247,13 +248,13 @@ function tasksDoc() {
 
 function qaDoc() {
   return [
-    "Keep `npm run security:nfc-ndef-fixture:self-test` and `npm run security:nfc-ndef-fixture` in `npm run beta:foundation:verify`.",
+    "Keep `npm run security:nfc-ndef-fixture:self-test` and `npm run security:nfc-ndef-fixture` in `node scripts/beta-foundation-verify.js`.",
     "NFC fixture documentation must keep FanPass Ops scope, QR-equivalent backend authority, supported NDEF Text/URI records, no-token/no-nonce/no-raw-payload constraints, debug-only paste fallback, and physical-device evidence requirements explicit.",
   ].join("\n");
 }
 
 function roadmapDoc() {
-  return "The NFC NDEF fixture format audit must keep passing inside `npm run beta:foundation:verify`.\n";
+  return "The NFC NDEF fixture format audit must keep passing inside `node scripts/beta-foundation-verify.js`.\n";
 }
 
 function iosPlanDoc() {

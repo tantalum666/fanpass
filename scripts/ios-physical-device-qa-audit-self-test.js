@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -131,10 +134,10 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "#!/usr/bin/env bash\necho missing physical qa audit\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture(["security:api-contracts"]),
       ),
-    messages: ["iOS physical-device QA checklist audit"],
+    messages: ["must run npm script security:ios-physical-device-qa"],
   },
 ];
 
@@ -196,13 +199,11 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "package.json", packageJson());
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "iOS physical-device QA checklist audit self-test",
-      "npm run security:ios-physical-device-qa:self-test",
-      "iOS physical-device QA checklist audit",
-      "npm run security:ios-physical-device-qa",
-    ].join("\n"),
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:ios-physical-device-qa:self-test",
+      "security:ios-physical-device-qa",
+    ]),
   );
   writeFixtureFile(fixtureRoot, "docs/IOS_PHYSICAL_DEVICE_QA.md", fixtureDoc());
   writeFixtureFile(fixtureRoot, "docs/DEVELOPMENT_TASKS.md", tasksDoc());
@@ -282,13 +283,13 @@ function tasksDoc() {
 
 function qaDoc() {
   return [
-    "Keep `npm run security:ios-physical-device-qa:self-test` and `npm run security:ios-physical-device-qa` in `npm run beta:foundation:verify`.",
+    "Keep `npm run security:ios-physical-device-qa:self-test` and `npm run security:ios-physical-device-qa` in `node scripts/beta-foundation-verify.js`.",
     "The iOS physical-device QA checklist must keep real-iPhone scope, signed build scope, HTTPS staging/beta API scope, FanPass/FanPass Ops role separation, no-debug-fallback requirements, no-secret/no-real-data constraints, and saved-evidence handoffs explicit.",
   ].join("\n");
 }
 
 function roadmapDoc() {
-  return "The iOS physical-device QA checklist audit must keep passing inside `npm run beta:foundation:verify`.\n";
+  return "The iOS physical-device QA checklist audit must keep passing inside `node scripts/beta-foundation-verify.js`.\n";
 }
 
 function iosPlanDoc() {

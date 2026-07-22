@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
   IsArray,
   IsBoolean,
@@ -199,12 +191,7 @@ export class FanAccessController {
     @Param("userId", FanPassIdParamPipe) userId: string,
     @CurrentSession() session: FanPassSession,
   ) {
-    if (session.role === "FAN" && session.userId !== userId) {
-      throw new ForbiddenException(
-        "Fans can only view their own fan access score",
-      );
-    }
-    return this.fanAccess.getScore(eventId, userId);
+    return this.fanAccess.getScore(eventId, userId, session);
   }
 
   @Post("/events/:eventId/campaign")

@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+const { moduleReferences, parseTypeScript } = require("./lib/typescript-audit");
+const { validateOwnershipBoundary } = require("./lib/ownership-boundary-audit");
 
 const rootDir = process.env.FANPASS_PROVIDER_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_PROVIDER_AUDIT_ROOT)
@@ -20,12 +22,14 @@ const sourceRoots = [
 const allowedProviderMatches = [
   {
     label: "Stripe Node SDK",
+    modules: ["stripe"],
     pattern:
       /\bimport\s+Stripe\s+from\s+["']stripe["']|require\(["']stripe["']\)/,
     allowedFiles: ["apps/api/src/modules/payments/payments.service.ts"],
   },
   {
     label: "ethers runtime",
+    modules: ["ethers"],
     pattern:
       /\bfrom\s+["']ethers["']|\brequire\(["']ethers["']\)|\bimport\(["']ethers["']\)/,
     allowedFiles: ["apps/api/src/modules/ownership/ownership.service.ts"],
@@ -42,6 +46,7 @@ const allowedProviderMatches = [
   },
   {
     label: "Privy React SDK",
+    modules: ["@privy-io/react-auth"],
     pattern:
       /\bfrom\s+["']@privy-io\/react-auth["']|\brequire\(["']@privy-io\/react-auth["']\)|\bimport\(["']@privy-io\/react-auth["']\)/,
     allowedFiles: ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
@@ -67,6 +72,7 @@ const allowedProviderMatches = [
   },
   {
     label: "Socket.IO server",
+    modules: ["socket.io"],
     pattern: /\bfrom\s+["']socket\.io["']|\brequire\(["']socket\.io["']\)/,
     allowedFiles: [
       "apps/api/src/common/fanpass-socket-io.adapter.ts",
@@ -76,6 +82,7 @@ const allowedProviderMatches = [
   },
   {
     label: "Socket.IO browser client",
+    modules: ["socket.io-client"],
     pattern:
       /\bfrom\s+["']socket\.io-client["']|\brequire\(["']socket\.io-client["']\)|\bimport\(["']socket\.io-client["']\)/,
     allowedFiles: ["apps/dashboard/src/OrderbookLivePanel.tsx"],
@@ -99,6 +106,7 @@ const allowedProviderMatches = [
 const blockedProviderMatches = [
   {
     label: "Privy React SDK",
+    modules: ["@privy-io/react-auth"],
     pattern:
       /\bfrom\s+["']@privy-io\/react-auth["']|\brequire\(["']@privy-io\/react-auth["']\)|\bimport\(["']@privy-io\/react-auth["']\)/,
     allowedFiles: ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
@@ -109,6 +117,7 @@ const blockedProviderMatches = [
 
 const projectYmlPath = "apps/ios/FanPass/project.yml";
 const errors = [];
+const typescriptModuleCache = new Map();
 const sourceFiles = sourceRoots.flatMap((sourceRoot) =>
   listSourceFiles(path.join(rootDir, sourceRoot)),
 );
@@ -179,7 +188,7 @@ for (const rule of allowedProviderMatches) {
   for (const absoluteFile of sourceFiles) {
     const relativeFile = normalizePath(path.relative(rootDir, absoluteFile));
     const contents = fs.readFileSync(absoluteFile, "utf8");
-    if (!rule.pattern.test(contents)) {
+    if (!matchesProviderRule(relativeFile, contents, rule)) {
       continue;
     }
     if (!rule.allowedFiles.includes(relativeFile)) {
@@ -196,7 +205,7 @@ for (const rule of blockedProviderMatches) {
   for (const absoluteFile of sourceFiles) {
     const relativeFile = normalizePath(path.relative(rootDir, absoluteFile));
     const contents = fs.readFileSync(absoluteFile, "utf8");
-    if (rule.pattern.test(contents)) {
+    if (matchesProviderRule(relativeFile, contents, rule)) {
       if (rule.allowedFiles?.includes(relativeFile)) {
         continue;
       }
@@ -215,10 +224,18 @@ validatePrivyReactSdkIsolationWorkspace();
 for (const rule of lifecycleBoundaryRules) {
   const absoluteFile = path.join(rootDir, rule.file);
   const contents = fs.readFileSync(absoluteFile, "utf8");
+  let sourceFile;
+  try {
+    sourceFile = parseTypeScript(rule.file, contents);
+  } catch (error) {
+    errors.push(error.message);
+    continue;
+  }
+  const imports = new Set(
+    moduleReferences(sourceFile).map((reference) => reference.module),
+  );
   for (const forbiddenImport of rule.forbiddenImports) {
-    const escaped = forbiddenImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`from\\s+["']${escaped}["']`);
-    if (pattern.test(contents)) {
+    if (imports.has(forbiddenImport)) {
       errors.push(
         `${rule.label} must not import ${forbiddenImport}; route provider side effects through ${rule.replacement}`,
       );
@@ -298,6 +315,28 @@ function validateBlockedProviderDependencyManifests() {
       }
     }
   }
+}
+
+function matchesProviderRule(relativeFile, contents, rule) {
+  if (!rule.modules || !/\.(?:[cm]?js|tsx?)$/i.test(relativeFile)) {
+    return rule.pattern.test(contents);
+  }
+  let cached = typescriptModuleCache.get(relativeFile);
+  if (!cached) {
+    try {
+      const sourceFile = parseTypeScript(relativeFile, contents);
+      cached = {
+        modules: new Set(
+          moduleReferences(sourceFile).map((reference) => reference.module),
+        ),
+      };
+    } catch (error) {
+      cached = { error: error.message, modules: new Set() };
+      errors.push(error.message);
+    }
+    typescriptModuleCache.set(relativeFile, cached);
+  }
+  return rule.modules.some((moduleName) => cached.modules.has(moduleName));
 }
 
 function validateProviderDependencyPlacement() {
@@ -549,36 +588,15 @@ function validatePrivyAuthBoundary() {
 }
 
 function validateTestnetOwnershipProductionGuard() {
-  const securityConfig = readProjectFile(
-    "apps/api/src/config/security-config.ts",
-  );
-  const ownership = readProjectFile(
-    "apps/api/src/modules/ownership/ownership.service.ts",
-  );
-
-  for (const marker of [
-    "validateOwnershipConfiguration(config, errors)",
-    'stringValue(config.OWNERSHIP_ADAPTER) !== "testnet"',
-    "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments",
-  ]) {
-    if (!securityConfig.includes(marker)) {
-      errors.push(
-        `security-config must keep production-like testnet ownership guard marker: ${marker}`,
-      );
-    }
-  }
-
-  for (const marker of [
-    "isProductionLikeEnvironment",
-    'this.config.get<string>("OWNERSHIP_ADAPTER") !== "testnet"',
-    "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments",
-  ]) {
-    if (!ownership.includes(marker)) {
-      errors.push(
-        `OwnershipService must keep runtime testnet ownership guard marker: ${marker}`,
-      );
-    }
-  }
+  const securityConfigFile = "apps/api/src/config/security-config.ts";
+  const ownershipFile = "apps/api/src/modules/ownership/ownership.service.ts";
+  const result = validateOwnershipBoundary({
+    ownershipFile,
+    ownershipContents: readProjectFile(ownershipFile),
+    securityConfigFile,
+    securityConfigContents: readProjectFile(securityConfigFile),
+  });
+  errors.push(...result.errors);
 }
 
 function validateOwnershipAsyncSagaBoundary() {

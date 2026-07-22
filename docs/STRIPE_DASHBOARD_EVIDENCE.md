@@ -10,7 +10,7 @@ Run the validator on saved evidence:
 npm run security:stripe-dashboard:evidence -- outputs/stripe-dashboard/<evidence-file>.json
 ```
 
-The fixture-backed validator self-test is included in `npm run beta:foundation:verify`:
+The fixture-backed validator self-test is included in `node scripts/beta-foundation-verify.js`:
 
 ```bash
 npm run security:stripe-dashboard:evidence:self-test

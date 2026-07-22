@@ -1,5 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_PRIVY_WEBHOOK_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_PRIVY_WEBHOOK_AUDIT_ROOT)
@@ -15,6 +19,7 @@ const sourceRoots = [
 ];
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 const sourceFiles = sourceRoots.flatMap((sourceRoot) =>
   listSourceFiles(path.join(rootDir, sourceRoot)),
 );
@@ -79,7 +84,9 @@ function validateAccessTokenSyncBoundaries() {
   const authService = readProjectFile(
     "apps/api/src/modules/auth/auth.service.ts",
   );
-  const consoleSession = readProjectFile("apps/dashboard/server/console-bff.ts");
+  const consoleSession = readProjectFile(
+    "apps/dashboard/server/console-bff.ts",
+  );
   const apiClient = readProjectFile(
     "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
   );
@@ -135,9 +142,14 @@ function validatePackageAndCompositeGate() {
     }
   }
 
-  const verifier = readProjectFile("scripts/beta-foundation-verify.sh");
-  assertVerifierStep(verifier, "security:privy-webhooks:optional:self-test");
-  assertVerifierStep(verifier, "security:privy-webhooks:optional");
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:privy-webhooks:optional:self-test",
+      "security:privy-webhooks:optional",
+    ],
+    errors,
+  );
 }
 
 function validateDocs() {
@@ -185,13 +197,6 @@ function validateDocs() {
         errors.push(`${fileLabel} must keep marker: ${marker}`);
       }
     }
-  }
-}
-
-function assertVerifierStep(verifier, script) {
-  const pattern = new RegExp(`npm\\s+run\\s+${escapeRegExp(script)}(?=\\s|$)`);
-  if (!pattern.test(verifier)) {
-    errors.push(`beta foundation verifier must run npm run ${script}`);
   }
 }
 

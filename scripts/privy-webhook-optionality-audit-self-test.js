@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -57,8 +60,10 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "npm run security:privy-webhooks:optional:self-test\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture([
+          "security:privy-webhooks:optional:self-test",
+        ]),
       ),
   },
 ];
@@ -126,11 +131,11 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "package.json", JSON.stringify(packageJson()));
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "npm run security:privy-webhooks:optional:self-test",
-      "npm run security:privy-webhooks:optional",
-    ].join("\n"),
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:privy-webhooks:optional:self-test",
+      "security:privy-webhooks:optional",
+    ]),
   );
   writeFixtureFile(
     fixtureRoot,

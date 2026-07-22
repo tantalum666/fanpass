@@ -1,5 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_SETTLEMENT_RETRY_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_SETTLEMENT_RETRY_AUDIT_ROOT)
@@ -8,7 +12,7 @@ const rootDir = process.env.FANPASS_SETTLEMENT_RETRY_AUDIT_ROOT
 const errors = [];
 
 const packageJson = readJson("package.json");
-const betaVerifier = readProjectFile("scripts/beta-foundation-verify.sh");
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 const outbox = readProjectFile(
   "apps/api/src/modules/side-effects/side-effect-outbox.service.ts",
 );
@@ -81,8 +85,15 @@ function validatePackageAndCompositeGate() {
     if (!scripts[script]) {
       errors.push(`package.json must define ${script}`);
     }
-    assertVerifierStep(script);
   }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:settlement-retry-idempotency:self-test",
+      "security:settlement-retry-idempotency",
+    ],
+    errors,
+  );
 }
 
 function validateOutboxRetryIdempotency() {
@@ -254,21 +265,10 @@ function validateCoverageAndDocs() {
   }
 }
 
-function assertVerifierStep(script) {
-  const pattern = new RegExp(`npm\\s+run\\s+${escapeRegExp(script)}(?=\\s|$)`);
-  if (!pattern.test(betaVerifier)) {
-    errors.push(`beta foundation verifier must run npm run ${script}`);
-  }
-}
-
 function readJson(relativePath) {
   return JSON.parse(readProjectFile(relativePath));
 }
 
 function readProjectFile(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

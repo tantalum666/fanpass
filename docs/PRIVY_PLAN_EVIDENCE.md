@@ -16,7 +16,7 @@ npm run privy:evidence:draft -- plan --out outputs/privy-plan/<draft-file>.json
 
 The draft intentionally uses `ok: false` and `dashboardReviewed: false`; do not flip those fields until the actual Privy dashboard was reviewed and the completed file passes the validator.
 
-The fixture-backed validator self-test is included in `npm run beta:foundation:verify`:
+The fixture-backed validator self-test is included in `node scripts/beta-foundation-verify.js`:
 
 ```bash
 npm run security:privy-plan:evidence:self-test

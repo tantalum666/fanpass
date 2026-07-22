@@ -14,7 +14,7 @@ export class SideEffectWorkerSchedulerService
 {
   private readonly logger = new Logger(SideEffectWorkerSchedulerService.name);
   private timer: ReturnType<typeof setInterval> | undefined;
-  private running = false;
+  private activeTick: Promise<void> | undefined;
 
   constructor(
     private readonly config: ConfigService,
@@ -22,30 +22,42 @@ export class SideEffectWorkerSchedulerService
   ) {}
 
   onModuleInit() {
-    if (this.config.get<string>("FANPASS_SIDE_EFFECT_WORKER_ENABLED") !== "true") {
+    if (
+      this.config.get<string>("FANPASS_SIDE_EFFECT_WORKER_ENABLED") !== "true"
+    ) {
       return;
     }
     const intervalMs = this.intervalMs();
     this.timer = setInterval(() => {
-      void this.tick();
+      this.startTick();
     }, intervalMs);
     this.timer.unref?.();
-    void this.tick();
+    this.startTick();
     this.logger.log(`Side-effect worker scheduler enabled (${intervalMs}ms)`);
   }
 
-  onApplicationShutdown() {
+  async onApplicationShutdown() {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = undefined;
     }
+    await this.activeTick;
   }
 
-  private async tick() {
-    if (this.running) {
+  private startTick() {
+    if (this.activeTick) {
       return;
     }
-    this.running = true;
+    const tick = this.runTick();
+    this.activeTick = tick;
+    void tick.finally(() => {
+      if (this.activeTick === tick) {
+        this.activeTick = undefined;
+      }
+    });
+  }
+
+  private async runTick() {
     try {
       const result = await this.worker.workOnce(this.limit());
       if (result.processed > 0 || result.recovered > 0) {
@@ -58,8 +70,6 @@ export class SideEffectWorkerSchedulerService
         "Side-effect worker scheduler tick failed",
         error instanceof Error ? error.stack : undefined,
       );
-    } finally {
-      this.running = false;
     }
   }
 

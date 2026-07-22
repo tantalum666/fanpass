@@ -2,9 +2,15 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
-const auditScript = path.join(rootDir, "scripts/prototype-reset-policy-audit.js");
+const auditScript = path.join(
+  rootDir,
+  "scripts/prototype-reset-policy-audit.js",
+);
 
 const cases = [
   {
@@ -19,7 +25,9 @@ const cases = [
       writeFixtureFile(
         fixtureRoot,
         "apps/api/src/app.controller.ts",
-        appController({ decorators: ['@Post("/prototype/reset")', "@PublicRoute()"] }),
+        appController({
+          decorators: ['@Post("/prototype/reset")', "@PublicRoute()"],
+        }),
       ),
   },
   {
@@ -30,7 +38,10 @@ const cases = [
         fixtureRoot,
         "apps/api/src/app.controller.ts",
         appController({
-          decorators: ['@Post("/prototype/reset")', '@Roles("ORGANIZER", "ADMIN")'],
+          decorators: [
+            '@Post("/prototype/reset")',
+            '@Roles("ORGANIZER", "ADMIN")',
+          ],
         }),
       ),
   },
@@ -86,8 +97,8 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "#!/usr/bin/env bash\nnpm run security:prototype-shortcuts\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture(["security:prototype-shortcuts"]),
       ),
   },
 ];
@@ -152,7 +163,11 @@ console.log(
 );
 
 function writePassingFixture(fixtureRoot) {
-  writeFixtureFile(fixtureRoot, "apps/api/src/app.controller.ts", appController());
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/api/src/app.controller.ts",
+    appController(),
+  );
   writeFixtureFile(
     fixtureRoot,
     "apps/api/test/route-security.spec.ts",
@@ -181,28 +196,32 @@ function writePassingFixture(fixtureRoot) {
       "",
     ].join("\n"),
   );
-  writeFixtureFile(fixtureRoot, "scripts/prototype-start.sh", prototypeResetScript());
-  writeFixtureFile(fixtureRoot, "scripts/prototype-verify.sh", prototypeResetScript());
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "#!/usr/bin/env bash",
-      "npm run security:prototype-reset-policy:self-test",
-      "npm run security:prototype-reset-policy",
-      "",
-    ].join("\n"),
+    "scripts/prototype-start.sh",
+    prototypeResetScript(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "scripts/prototype-verify.sh",
+    prototypeResetScript(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:prototype-reset-policy:self-test",
+      "security:prototype-reset-policy",
+    ]),
   );
 }
 
 function appController(options = {}) {
-  const decorators =
-    options.decorators ??
-    [
-      '@Post("/prototype/reset")',
-      "@UseGuards(FanPassAuthGuard)",
-      '@Roles("ORGANIZER", "ADMIN")',
-    ];
+  const decorators = options.decorators ?? [
+    '@Post("/prototype/reset")',
+    "@UseGuards(FanPassAuthGuard)",
+    '@Roles("ORGANIZER", "ADMIN")',
+  ];
   return [
     'import { Controller, Post, UseGuards } from "@nestjs/common";',
     'import { PublicRoute, Roles } from "./common/auth.decorators";',
@@ -222,11 +241,11 @@ function appController(options = {}) {
 function prototypeResetScript() {
   return [
     "const session = await fetch(`${baseUrl}/auth/demo-session`, {",
-    "  method: \"POST\",",
-    "  body: JSON.stringify({ userId: \"usr_organizer_demo\" })",
+    '  method: "POST",',
+    '  body: JSON.stringify({ userId: "usr_organizer_demo" })',
     "});",
     "await fetch(`${baseUrl}/prototype/reset`, {",
-    "  method: \"POST\",",
+    '  method: "POST",',
     "  headers: { Authorization: `Bearer ${accessToken}` }",
     "});",
     "",

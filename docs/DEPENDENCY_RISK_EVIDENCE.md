@@ -27,27 +27,27 @@ Required JSON shape for the current unresolved Next/PostCSS advisory state:
     "files": [
       {
         "file": "package.json",
-        "sha256": "e54de3073519981b7b648b1b03ad5e5fdcb81f5ffcded2aa61b69bb6cdcc53a6"
+        "sha256": "<current sha256>"
       },
       {
         "file": "package-lock.json",
-        "sha256": "11162ede648d0e117bb20e1172797e972f84cb6646e629d447b5711a428f8fc7"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/package.json",
-        "sha256": "4a2bc4fd604453dac944783f98d5e907663d3c90f381d0793cf454f0e02a36b2"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/dashboard/package.json",
-        "sha256": "63adf381290668936fac3d989e0755e56742348a01485d9cb59fbdac831bb2cc"
+        "sha256": "<current sha256>"
       },
       {
         "file": "packages/contracts/package.json",
-        "sha256": "f890b7af3e5475cfe25cb3f1a8e3eb21c5578f1c8040c7ac808ab9cb975f4b36"
+        "sha256": "<current sha256>"
       },
       {
         "file": "packages/shared/package.json",
-        "sha256": "b0b0f2fe193fa2b3860d4640ca6894d0e8b97c190a76a0332e9b0f0a84f6501c"
+        "sha256": "<current sha256>"
       }
     ]
   },

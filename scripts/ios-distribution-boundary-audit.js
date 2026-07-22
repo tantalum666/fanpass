@@ -1,15 +1,19 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_IOS_DISTRIBUTION_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_IOS_DISTRIBUTION_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const files = {
   packageJson: "package.json",
-  betaVerifier: "scripts/beta-foundation-verify.sh",
   projectYml: "apps/ios/FanPass/project.yml",
   fanPassInfo: "apps/ios/FanPass/FanPass/Generated/Info.plist",
   fanPassOpsInfo: "apps/ios/FanPass/FanPassOps/Generated/Info.plist",
@@ -96,15 +100,14 @@ function validatePackageScripts() {
 }
 
 function validateCompositeVerifier() {
-  const verifier = read(files.betaVerifier);
-  for (const marker of [
-    "security:ios-distribution-boundaries:self-test",
-    "security:ios-distribution-boundaries",
-  ]) {
-    if (!verifier.includes(marker)) {
-      errors.push(`beta foundation verifier must run ${marker}`);
-    }
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:ios-distribution-boundaries:self-test",
+      "security:ios-distribution-boundaries",
+    ],
+    errors,
+  );
 }
 
 function validateXcodeTargets() {
@@ -282,9 +285,7 @@ function validateInfoPlistsAndEntitlements() {
     }
   }
   if (
-    opsEntitlements.includes(
-      "com.apple.developer.nfc.readersession.formats",
-    ) ||
+    opsEntitlements.includes("com.apple.developer.nfc.readersession.formats") ||
     opsEntitlements.includes("<string>NDEF</string>")
   ) {
     errors.push(
@@ -298,8 +299,7 @@ function validateConfigFiles() {
     {
       label: "Local",
       file: files.localConfig,
-      requiredDefaultOrigin:
-        "https:/$()/fanpass-api-staging.onrender.com",
+      requiredDefaultOrigin: "https:/$()/fanpass-api-staging.onrender.com",
     },
     {
       label: "Staging",

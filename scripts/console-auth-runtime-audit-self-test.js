@@ -17,7 +17,7 @@ const fixtureFiles = [
   "render.yaml",
   "docs/PRIVY_CONSOLE_REACT_SDK_ISOLATION.md",
   "package.json",
-  "scripts/beta-foundation-verify.sh",
+  "scripts/beta-foundation-verify.js",
 ];
 
 const cases = [
@@ -68,7 +68,7 @@ const cases = [
         'name="handoffState" value=""',
       ),
     pass: false,
-    marker: "must include name=\"handoffState\" value={handoffState}",
+    marker: 'must include name="handoffState" value={handoffState}',
   },
   {
     label: "rejects a session handoff without bounded recovery state",
@@ -80,7 +80,7 @@ const cases = [
         'name="recovery" value=""',
       ),
     pass: false,
-    marker: "must include name=\"recovery\" value={recoveryMode}",
+    marker: 'must include name="recovery" value={recoveryMode}',
   },
   {
     label: "rejects direct Auth loads that cannot restart secure handoff",
@@ -101,7 +101,7 @@ const cases = [
         fixtureRoot,
         "apps/console-auth/server/security.ts",
         "`form-action 'self'${consoleFormAction}`",
-        '"form-action \'self\'"',
+        "\"form-action 'self'\"",
       ),
     pass: false,
     marker: "must include `form-action 'self'${consoleFormAction}`",

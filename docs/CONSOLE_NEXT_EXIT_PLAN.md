@@ -67,7 +67,7 @@ Completed target:
 - Keep client components free of direct provider secrets, bearer-token storage, `localStorage`, `sessionStorage`, and `document.cookie`.
 - Do not add user-controlled CSS input, CSS serialization, rich style editors, markdown-to-style features, or HTML style injection unless the security review explicitly approves it.
 - Prefer plain React components and typed helper modules over framework-specific server rendering patterns.
-- Re-run `npm run security:dependency-advisories` and `npm run beta:foundation:verify` before every external-testing decision.
+- Re-run `npm run security:dependency-advisories` and the complete `/usr/bin/env -i` plus absolute Node 22 release-gate command in `README.md` before every external-testing decision; bare Node is diagnostic-only and not release evidence.
 
 ## Migration sequence
 
@@ -75,5 +75,5 @@ Completed target:
 2. Extract API client helpers and redaction mappers into framework-neutral modules. Complete.
 3. Add replacement BFF endpoints for Console session, gate assignment creation, invite rotation, operations, event creation, ticket type creation, and assignment deactivation. Complete.
 4. Port UI entry points to Vite React with the same API contracts. Complete.
-5. Run `npm audit --omit=dev --audit-level=low` and `npm run beta:foundation:verify` under Node 22. Production audit is clean; keep the full verifier green.
+5. Run `npm audit --omit=dev --audit-level=low` and the complete `/usr/bin/env -i` plus absolute Node 22 release-gate command in `README.md`. Production audit is clean; keep the full verifier green.
 6. Remove `next` from the primary production dependency path. Complete for `apps/dashboard`.

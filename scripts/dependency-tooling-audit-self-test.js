@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(rootDir, "scripts/dependency-tooling-audit.js");
@@ -82,8 +85,10 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "npm run security:dependency-risk:evidence:self-test\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture([
+          "security:dependency-risk:evidence:self-test",
+        ]),
       ),
   },
   {
@@ -189,13 +194,12 @@ function writePassingFixture(fixtureRoot) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "npm run security:dependency-risk:evidence:self-test",
-      "npm run security:dependency-tooling:self-test",
-      "npm run security:dependency-tooling",
-      "",
-    ].join("\n"),
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:dependency-risk:evidence:self-test",
+      "security:dependency-tooling:self-test",
+      "security:dependency-tooling",
+    ]),
   );
   writeFixtureFile(
     fixtureRoot,

@@ -1,5 +1,12 @@
 import { ConfigService } from "@nestjs/config";
 import { TicketOwnershipSideEffectsService } from "../src/modules/side-effects/ticket-ownership-side-effects.service";
+import { SettlementSideEffectsService } from "../src/modules/side-effects/settlement-side-effects.service";
+
+const contractRoute = {
+  contractAddress: "0x0000000000000000000000000000000000001000",
+  chainId: "11155111",
+  contractVersion: "fanpass-ticket-v1" as const,
+};
 
 describe("TicketOwnershipSideEffectsService", () => {
   const issueInput = {
@@ -9,6 +16,8 @@ describe("TicketOwnershipSideEffectsService", () => {
     ticketTypeId: "tt_cat2_demo",
     ownerId: "usr_fan_demo",
     ownerWalletAddress: null,
+    ownerWalletBindingVersion: 3,
+    ownerWalletBindingFingerprint: "a".repeat(64),
     transferable: true,
     resaleCap: 1200,
     maxTransferCount: 2,
@@ -25,6 +34,7 @@ describe("TicketOwnershipSideEffectsService", () => {
         transactionHash: "mock_tx",
       })),
       adapterName: jest.fn(() => "mock"),
+      routeForNewTicket: jest.fn(() => null),
     };
     const service = new TicketOwnershipSideEffectsService(ownership as never);
 
@@ -42,6 +52,7 @@ describe("TicketOwnershipSideEffectsService", () => {
     const ownership = {
       issueTicket: jest.fn(),
       adapterName: jest.fn(() => "mock"),
+      routeForNewTicket: jest.fn(() => contractRoute),
     };
     const service = new TicketOwnershipSideEffectsService(
       ownership as never,
@@ -65,8 +76,12 @@ describe("TicketOwnershipSideEffectsService", () => {
       aggregateType: "ticket",
       aggregateId: "tkt_demo_new",
       payload: expect.objectContaining({
+        ownershipAdapter: "mock",
         localTicketId: "tkt_demo_new",
         ticketTypeId: "tt_cat2_demo",
+        contractRoute,
+        ownerWalletBindingVersion: 3,
+        ownerWalletBindingFingerprint: "a".repeat(64),
       }),
     });
   });
@@ -109,10 +124,122 @@ describe("TicketOwnershipSideEffectsService", () => {
   });
 });
 
+describe("SettlementSideEffectsService wallet snapshots", () => {
+  it("persists both verified binding versions and fingerprints in the transfer job", async () => {
+    const outbox = new FakeOutbox();
+    const service = new SettlementSideEffectsService(
+      { adapterName: jest.fn(() => "privy") } as never,
+      outbox as never,
+    );
+
+    await service.enqueueOwnershipTransfer({} as never, {
+      ticketId: "tkt_demo_001",
+      tokenId: "1",
+      fromOwnerId: "usr_seller",
+      fromWalletAddress: "0x0000000000000000000000000000000000003001",
+      fromWalletBindingVersion: 2,
+      fromWalletBindingFingerprint: "b".repeat(64),
+      toOwnerId: "usr_buyer",
+      toWalletAddress: "0x0000000000000000000000000000000000003002",
+      toWalletBindingVersion: 4,
+      toWalletBindingFingerprint: "c".repeat(64),
+      contractRoute,
+      buyOrderId: "ord_buy",
+      sellOrderId: "ord_sell",
+    });
+
+    expect(outbox.enqueued[0]).toMatchObject({
+      type: "OWNERSHIP_TRANSFER",
+      payload: expect.objectContaining({
+        ownershipAdapter: "privy",
+        fromWalletBindingVersion: 2,
+        fromWalletBindingFingerprint: "b".repeat(64),
+        toWalletBindingVersion: 4,
+        toWalletBindingFingerprint: "c".repeat(64),
+        contractRoute,
+      }),
+    });
+  });
+
+  it.each([
+    ["AUTHORIZED", "PAYMENT_CANCEL_AUTHORIZATION"],
+    ["CAPTURED", "PAYMENT_REFUND"],
+  ])(
+    "enqueues the correct %s payment compensation",
+    async (captureStatus, expectedType) => {
+      const outbox = new FakeOutbox();
+      const service = new SettlementSideEffectsService(
+        {} as never,
+        outbox as never,
+      );
+
+      await service.enqueuePaymentCompensation({} as never, {
+        paymentId: "pay_primary",
+        buyOrderId: "ord_primary",
+        captureStatus,
+        reason: "primary_ticket_issue_failed",
+      });
+
+      expect(outbox.enqueued[0]).toMatchObject({
+        type: expectedType,
+        aggregateId: "pay_primary",
+        payload: expect.objectContaining({
+          orderId: "ord_primary",
+          reason: "primary_ticket_issue_failed",
+        }),
+      });
+    },
+  );
+
+  it("keeps the fulfilled ticket identity in both capture job variants", async () => {
+    const outbox = new FakeOutbox();
+    const service = new SettlementSideEffectsService(
+      {} as never,
+      outbox as never,
+    );
+
+    await service.enqueuePaymentCaptureForTrade({} as never, {
+      paymentId: "pay_resale",
+      buyOrderId: "ord_buy",
+      tradeId: "trd_resale",
+      ticketId: "tkt_resale",
+    });
+    await service.enqueuePaymentCaptureForPrimaryTicket({} as never, {
+      paymentId: "pay_primary",
+      buyOrderId: "ord_primary",
+      ticketId: "tkt_primary",
+    });
+
+    expect(outbox.enqueued).toEqual([
+      expect.objectContaining({
+        type: "PAYMENT_CAPTURE",
+        payload: expect.objectContaining({
+          paymentId: "pay_resale",
+          tradeId: "trd_resale",
+          ticketId: "tkt_resale",
+        }),
+      }),
+      expect.objectContaining({
+        type: "PAYMENT_CAPTURE",
+        payload: expect.objectContaining({
+          paymentId: "pay_primary",
+          tradeId: null,
+          ticketId: "tkt_primary",
+        }),
+      }),
+    ]);
+  });
+});
+
 class FakeOutbox {
   enqueued: unknown[] = [];
 
   async enqueueStandalone(input: unknown) {
+    this.enqueued.push(input);
+    return input;
+  }
+
+  async enqueue(_writer: unknown, input: unknown) {
     this.enqueued.push(input);
     return input;
   }

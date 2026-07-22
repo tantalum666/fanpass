@@ -67,11 +67,40 @@ npm run beta:local:verify
 npm run beta:local:stop
 ```
 
-Run the full foundation gate:
+Run the authoritative foundation gate directly with Node 22. On this macOS
+workspace:
 
 ```bash
-scripts/with-node-22.sh npm run beta:foundation:verify
+/usr/bin/env -i \
+  HOME=/tmp \
+  TMPDIR=/tmp \
+  PATH=/opt/homebrew/opt/node@22/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+  DATABASE_URL=postgresql://fanpass:fanpass@127.0.0.1:5432/fanpass \
+  /opt/homebrew/opt/node@22/bin/node -e 'const crypto=require("node:crypto"),fs=require("node:fs"),Module=require("node:module"),path=require("node:path");try{const relative=process.argv[1],expected=process.argv[2],requestedRoot=process.argv[3],root=fs.realpathSync(requestedRoot),cwd=fs.realpathSync(process.cwd());if(root!==cwd)throw new Error("Canonical workspace does not match the current directory");const file=path.join(root,relative),real=fs.realpathSync(file);if(real!==file)throw new Error("Launcher path contains a symlink or escapes the canonical workspace");const descriptor=fs.openSync(file,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));let source;try{const stat=fs.fstatSync(descriptor);if(!stat.isFile())throw new Error("Launcher must be a regular file");source=fs.readFileSync(descriptor)}finally{fs.closeSync(descriptor)}const actual=crypto.createHash("sha256").update(source).digest("hex");if(actual!==expected)throw new Error("Launcher digest does not match the reviewed bytes");const loaded=new Module(file);loaded.filename=file;loaded.paths=Module._nodeModulePaths(path.dirname(file));loaded._compile(source.toString("utf8"),file);if(typeof loaded.exports.main!=="function")throw new Error("Launcher must export main");loaded.exports.main()}catch(error){console.error(`Beta foundation bootstrap failed: ${error instanceof Error?error.message:"unknown error"}`);process.exit(1)}' scripts/beta-foundation-launcher.js 377af7200bfffe357620315caf2c158d13a81de0ee3f2bad0e767731f8b4e47f "$(/bin/pwd -P)"
 ```
+
+The external `/usr/bin/env -i` boundary is part of the authoritative command:
+it removes `NODE_OPTIONS`, `NODE_PATH`, npm preload configuration, and other
+caller state before Node can evaluate any project code. The reviewed launcher
+digest anchors the local release gate, and the same clean Node process compiles
+the exact launcher bytes it hashes. The launcher injects the exact reviewed
+runner and PostgreSQL target-guard bytes, validates the dependency inputs and
+all four execution-script maps, and rechecks them around every gate. npm is
+limited to deterministic installs with lifecycle scripts disabled; audited
+JavaScript, shell, and tool entrypoints run directly without npm's mutable
+`.bin` PATH. The AST parser remains a regression/review tool and does not
+control the production execution list. Direct runner execution, npm aliases,
+and the removed shell wrapper are diagnostic-only and are not release-evidence
+entry points.
+Hosted CI resolves the Node installed by `actions/setup-node`, verifies its
+real path is inside the GitHub Actions Node 22 tool cache, and then applies the
+same launcher-digest and allowlisted-environment boundary. Repository-side
+self-checks do not replace external change control: a release candidate still
+requires review of the immutable commit plus protected-branch/CODEOWNERS policy
+and a matching hosted-CI attestation before deployment. Pushes to the reviewed
+`codex/security-rc-*` branch pattern run this workflow against the exact RC head;
+the resulting run is evidence only after the GitHub API validator binds it to
+the same clean commit.
 
 ## iOS
 

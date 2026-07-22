@@ -34,6 +34,16 @@ const cases = [
       ),
   },
   {
+    label: "ignores provider import text that exists only in comments",
+    expected: "pass",
+    mutate: (fixtureRoot) =>
+      appendFixtureFile(
+        fixtureRoot,
+        "apps/api/src/modules/orders/orderbook.service.ts",
+        '\n// import { OwnershipService } from "../ownership/ownership.service";\n',
+      ),
+  },
+  {
     label: "rejects FanPassOps linking Stripe",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -193,6 +203,32 @@ const cases = [
         fixtureRoot,
         "apps/api/src/config/security-config.ts",
         securityConfig({ includeTestnetGuard: false }),
+      ),
+  },
+  {
+    label: "rejects production ownership guards preserved only in comments",
+    expected: "fail",
+    mutate: (fixtureRoot) => {
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/api/src/modules/ownership/ownership.service.ts",
+        markerOnlyOwnershipService(),
+      );
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/api/src/config/security-config.ts",
+        markerOnlySecurityConfig(),
+      );
+    },
+  },
+  {
+    label: "rejects inverted production ownership guard",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/api/src/modules/ownership/ownership.service.ts",
+        ownershipService({ invertTestnetGuard: true }),
       ),
   },
   {
@@ -565,16 +601,36 @@ export class PaymentsService {
 `;
 }
 
-function ownershipService() {
+function ownershipService(options = {}) {
+  const testnetCondition = options.invertTestnetGuard
+    ? "!this.productionLike() && this.privateKeyTestnetWritesAllowed()"
+    : "this.productionLike() && !this.privateKeyTestnetWritesAllowed()";
   return `
+import { isProductionLikeEnvironment } from "../../../config/security-config";
+
 export class OwnershipService {
   async load() {
     await import("ethers");
   }
 
-  validateRuntime() {
-    return isProductionLikeEnvironment && this.config.get<string>("OWNERSHIP_ADAPTER") !== "testnet" && "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments";
+  private adapter() {
+    const adapter = this.config.get("OWNERSHIP_ADAPTER");
+    if (adapter === "privy") return new PrivySponsoredOwnershipAdapter();
+    if (adapter === "mock") {
+      if (this.productionLike()) {
+        throw new Error("OWNERSHIP_ADAPTER=mock is forbidden in production-like environments");
+      }
+      return new MockOwnershipAdapter();
+    }
+    if (adapter !== "testnet") throw new Error("OWNERSHIP_ADAPTER must be explicitly configured");
+    if (${testnetCondition}) {
+      throw new Error("OWNERSHIP_ADAPTER=testnet is blocked in production-like environments");
+    }
+    return new TestnetOwnershipAdapter();
   }
+
+  private productionLike() { return isProductionLikeEnvironment(); }
+  private privateKeyTestnetWritesAllowed() { return allowsPrivateKeyTestnetWrites(); }
 }
 `;
 }
@@ -687,14 +743,55 @@ function securityConfig(options = {}) {
     options.includeTestnetGuard === false
       ? ""
       : `
-  validateOwnershipConfiguration(config, errors);
-  stringValue(config.OWNERSHIP_ADAPTER) !== "testnet";
-  errors.push("OWNERSHIP_ADAPTER=testnet is blocked in production-like environments");`;
+  if (productionLike) {
+    validateOwnershipConfiguration(config, errors);
+  }`;
   return `
-export function validate(config, errors) {
+export function validateEnvironment(config, errors) {
+  const productionLike = isProductionLikeEnvironment(config);
   ${testnetGuard}
   return "FANPASS_SIDE_EFFECT_LOCK_TIMEOUT_SECONDS";
 }
+
+function validateOwnershipConfiguration(config, errors) {
+  const adapter = rawStringValue(config.OWNERSHIP_ADAPTER);
+  if (adapter === "mock") {
+    errors.push("OWNERSHIP_ADAPTER=mock is forbidden in production-like environments");
+    return;
+  }
+  if (adapter === "privy") return;
+  if (!allowsPrivateKeyTestnetWrites(config)) {
+    errors.push("OWNERSHIP_ADAPTER=testnet is blocked in production-like environments");
+    return;
+  }
+}
+`;
+}
+
+function markerOnlyOwnershipService() {
+  return `
+export class OwnershipService {
+  async load() { await import("ethers"); }
+  adapterName() { return "mock"; }
+}
+/*
+if (adapter === "privy") return new PrivySponsoredOwnershipAdapter();
+if (adapter === "mock") { if (this.productionLike()) throw new Error("OWNERSHIP_ADAPTER=mock is forbidden in production-like environments"); }
+if (adapter !== "testnet") throw new Error("invalid");
+if (this.productionLike() && !this.privateKeyTestnetWritesAllowed()) throw new Error("OWNERSHIP_ADAPTER=testnet is blocked in production-like environments");
+*/
+`;
+}
+
+function markerOnlySecurityConfig() {
+  return `
+export function validateEnvironment(config, errors) { return config; }
+function validateOwnershipConfiguration(config, errors) { return; }
+/*
+if (productionLike) validateOwnershipConfiguration(config, errors);
+if (adapter === "mock") errors.push("OWNERSHIP_ADAPTER=mock is forbidden in production-like environments");
+if (!allowsPrivateKeyTestnetWrites(config)) errors.push("OWNERSHIP_ADAPTER=testnet is blocked in production-like environments");
+*/
 `;
 }
 

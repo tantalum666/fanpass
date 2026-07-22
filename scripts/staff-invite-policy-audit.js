@@ -1,15 +1,19 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_STAFF_INVITE_POLICY_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_STAFF_INVITE_POLICY_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const files = {
   packageJson: "package.json",
-  betaVerifier: "scripts/beta-foundation-verify.sh",
   authService: "apps/api/src/modules/auth/auth.service.ts",
   authController: "apps/api/src/modules/auth/auth.controller.ts",
   alphaPersistence: "apps/api/src/modules/alpha/alpha-persistence.service.ts",
@@ -80,15 +84,11 @@ function validatePackageScripts() {
 }
 
 function validateCompositeVerifier() {
-  const verifier = read(files.betaVerifier);
-  for (const marker of [
-    "security:staff-invite-policy:self-test",
-    "security:staff-invite-policy",
-  ]) {
-    if (!verifier.includes(marker)) {
-      errors.push(`beta foundation verifier must run ${marker}`);
-    }
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    ["security:staff-invite-policy:self-test", "security:staff-invite-policy"],
+    errors,
+  );
 }
 
 function validateAcceptStaffInviteBoundary() {

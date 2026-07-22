@@ -1,5 +1,11 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  expressionPath,
+  parseTypeScript,
+  ts,
+  unwrapExpression,
+} = require("./lib/typescript-audit");
 
 const rootDir = process.env.FANPASS_ENGINEERING_GATES_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_ENGINEERING_GATES_AUDIT_ROOT)
@@ -7,8 +13,84 @@ const rootDir = process.env.FANPASS_ENGINEERING_GATES_AUDIT_ROOT
 
 const errors = [];
 
+const forbiddenLocalHealthPackageScripts = [
+  "side-effects:health:self-test",
+  "side-effects:health:postgres:self-test",
+  "side-effects:health:postgres",
+  "side-effects:health:local",
+  "side-effects:health:local:self-test",
+];
+
+const requiredCompositeVerifierSteps = [
+  {
+    label: "Root deterministic dependency install",
+    kind: "npm",
+    args: ["ci", "--include=dev"],
+  },
+  {
+    label: "Console Auth deterministic dependency install",
+    kind: "npm",
+    args: ["--prefix", "apps/console-auth", "ci", "--include=dev"],
+  },
+  {
+    label: "Beta foundation launcher self-test",
+    kind: "node",
+    args: ["scripts/beta-foundation-launcher-self-test.js"],
+  },
+  {
+    label: "Beta foundation runner self-test",
+    kind: "node",
+    args: ["scripts/beta-foundation-verify-self-test.js"],
+  },
+  {
+    label: "Provider boundary audit self-test",
+    kind: "npm",
+    args: ["run", "security:provider-boundaries:self-test"],
+  },
+  {
+    label: "Provider and lifecycle boundary audit",
+    kind: "npm",
+    args: ["run", "security:provider-boundaries"],
+  },
+  {
+    label: "Engineering quality gate audit self-test",
+    kind: "npm",
+    args: ["run", "security:engineering-gates:self-test"],
+  },
+  {
+    label: "Engineering quality gate audit",
+    kind: "npm",
+    args: ["run", "security:engineering-gates"],
+  },
+  {
+    label: "PostgreSQL side-effect health integration wrapper self-test",
+    kind: "node",
+    args: ["scripts/side-effects-health-postgres-self-test.js"],
+  },
+  {
+    label: "Side-effect outbox health self-test",
+    kind: "node",
+    args: ["scripts/side-effects-health-unit.js"],
+  },
+  {
+    label: "PostgreSQL side-effect health store integration",
+    kind: "node",
+    args: ["scripts/side-effects-health-postgres.js"],
+  },
+  {
+    label: "Hermetic local side-effect health profile self-test",
+    kind: "node",
+    args: ["scripts/side-effects-health-local-self-test.js"],
+  },
+  {
+    label: "Side-effect outbox local health check",
+    kind: "node",
+    args: ["scripts/side-effects-health-local.js"],
+  },
+];
+
 const packageJson = readJson("package.json");
-const betaVerifier = readProjectFile("scripts/beta-foundation-verify.sh");
+const betaVerifier = readProjectFile("scripts/beta-foundation-verify.js");
 const providerAudit = readProjectFile("scripts/provider-boundary-audit.js");
 const qaChecklist = readProjectFile("docs/QA_CHECKLIST.md");
 const providerFeasibility = readProjectFile(
@@ -71,15 +153,170 @@ function validatePackageScripts() {
       errors.push(`package.json must define ${script}`);
     }
   }
+
+  for (const script of forbiddenLocalHealthPackageScripts) {
+    if (scripts[script]) {
+      errors.push(
+        `package.json must not expose ${script}; run the fixed Node 22 entry through the authoritative composite verifier`,
+      );
+    }
+  }
 }
 
 function validateCompositeVerifier() {
-  assertOrderedVerifierSteps([
-    "security:provider-boundaries:self-test",
-    "security:provider-boundaries",
-    "security:engineering-gates:self-test",
-    "security:engineering-gates",
-  ]);
+  const verifierSteps = parseVerifierSteps(betaVerifier);
+  if (!verifierSteps) {
+    return;
+  }
+  validateHardenedEnvironment(betaVerifier);
+  const labels = verifierSteps.map((step) => step.label);
+  if (new Set(labels).size !== labels.length) {
+    errors.push("beta foundation verifier step labels must be unique");
+  }
+  for (const step of verifierSteps) {
+    if (!["npm", "node"].includes(step.kind)) {
+      errors.push(
+        `beta foundation verifier has unsupported step kind: ${step.kind}`,
+      );
+    }
+    if (step.args.some((arg) => /(?:\|\||&&|;|`|\$\()/.test(arg))) {
+      errors.push(
+        `beta foundation verifier step ${step.label} contains shell syntax`,
+      );
+    }
+  }
+  assertOrderedVerifierSteps(verifierSteps);
+  for (const marker of [
+    "shell: false",
+    '"--script-shell=/bin/sh"',
+    'process.versions.node.split(".")[0] !== "22"',
+  ]) {
+    if (!betaVerifier.includes(marker)) {
+      errors.push(
+        `beta foundation verifier is missing hardening marker: ${marker}`,
+      );
+    }
+  }
+}
+
+function validateHardenedEnvironment(source) {
+  let sourceFile;
+  try {
+    sourceFile = parseTypeScript("scripts/beta-foundation-verify.js", source);
+  } catch (error) {
+    errors.push(error.message);
+    return;
+  }
+  const functionNode = sourceFile.statements.find(
+    (statement) =>
+      ts.isFunctionDeclaration(statement) &&
+      statement.name?.text === "buildHardenedEnvironment",
+  );
+  if (!functionNode?.body) {
+    errors.push(
+      "beta foundation verifier must define buildHardenedEnvironment",
+    );
+    return;
+  }
+
+  const expectedKeys = [
+    "CI",
+    "DATABASE_URL",
+    "FANPASS_DATA_SOURCE",
+    "FANPASS_GATE_HARDENED",
+    "FANPASS_SKIP_DOCKER_POSTGRES",
+    "FANPASS_STRICT_NODE_RUNTIME",
+    "GITHUB_ACTIONS",
+    "HOME",
+    "NPM_CONFIG_SCRIPT_SHELL",
+    "PATH",
+    "RUNNER_TEMP",
+    "TMPDIR",
+    "npm_config_script_shell",
+  ].sort();
+  const observedKeys = [];
+  let invalidEnvironmentShape = false;
+
+  visitNode(functionNode.body, (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === "env"
+    ) {
+      const initializer = unwrapExpression(node.initializer);
+      if (!initializer || !ts.isObjectLiteralExpression(initializer)) {
+        invalidEnvironmentShape = true;
+        return;
+      }
+      for (const property of initializer.properties) {
+        if (!ts.isPropertyAssignment(property)) {
+          invalidEnvironmentShape = true;
+          continue;
+        }
+        const key = staticPropertyName(property.name);
+        if (!key) {
+          invalidEnvironmentShape = true;
+          continue;
+        }
+        observedKeys.push(key);
+      }
+    }
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+    ) {
+      const left = unwrapExpression(node.left);
+      if (
+        ts.isPropertyAccessExpression(left) &&
+        ts.isIdentifier(left.expression) &&
+        left.expression.text === "env"
+      ) {
+        observedKeys.push(left.name.text);
+      } else if (
+        ts.isElementAccessExpression(left) &&
+        ts.isIdentifier(left.expression) &&
+        left.expression.text === "env"
+      ) {
+        invalidEnvironmentShape = true;
+      }
+    }
+  });
+
+  const uniqueKeys = [...new Set(observedKeys)].sort();
+  if (
+    invalidEnvironmentShape ||
+    JSON.stringify(uniqueKeys) !== JSON.stringify(expectedKeys)
+  ) {
+    errors.push(
+      `beta foundation verifier hardened environment must expose exactly: ${expectedKeys.join(", ")}`,
+    );
+  }
+
+  for (const marker of [
+    'isAllowedLocalPostgresTarget(databaseUrl, "fanpass")',
+    'FANPASS_DATA_SOURCE: "prisma"',
+    'FANPASS_SKIP_DOCKER_POSTGRES: "true"',
+    'FANPASS_STRICT_NODE_RUNTIME: "true"',
+    'fs.mkdtempSync("/tmp/fanpass-beta-gate-")',
+    "fs.chmodSync(isolationRoot, 0o700)",
+  ]) {
+    if (!source.includes(marker)) {
+      errors.push(
+        `beta foundation verifier is missing fixed environment marker: ${marker}`,
+      );
+    }
+  }
+}
+
+function visitNode(node, callback) {
+  callback(node);
+  ts.forEachChild(node, (child) => visitNode(child, callback));
+}
+
+function staticPropertyName(node) {
+  return ts.isIdentifier(node) || ts.isStringLiteralLike(node)
+    ? node.text
+    : null;
 }
 
 function validateProviderSurfaceBoundaries() {
@@ -232,27 +469,109 @@ function validateDocs() {
   }
 }
 
-function assertOrderedVerifierSteps(steps) {
+function assertOrderedVerifierSteps(verifierSteps) {
   let previousIndex = -1;
-  for (const step of steps) {
-    const pattern = new RegExp(`npm\\s+run\\s+${escapeRegExp(step)}(?=\\s|$)`);
-    const match = pattern.exec(betaVerifier);
-    const index = match?.index ?? -1;
-    if (index === -1) {
-      errors.push(`beta foundation verifier must run npm run ${step}`);
+  for (const expected of requiredCompositeVerifierSteps) {
+    const indexes = verifierSteps.flatMap((step, index) =>
+      step.label === expected.label ? [index] : [],
+    );
+    if (indexes.length !== 1) {
+      errors.push(
+        `beta foundation verifier must contain exactly one step: ${expected.label}`,
+      );
       continue;
+    }
+    const [index] = indexes;
+    const actual = verifierSteps[index];
+    if (
+      actual.kind !== expected.kind ||
+      JSON.stringify(actual.args) !== JSON.stringify(expected.args)
+    ) {
+      errors.push(
+        `beta foundation verifier step ${expected.label} must use ${expected.kind} ${expected.args.join(" ")}`,
+      );
     }
     if (index <= previousIndex) {
       errors.push(
-        `beta foundation verifier must run npm run ${step} after the previous engineering gate step`,
+        `beta foundation verifier must run ${expected.label} after the previous engineering gate step`,
+      );
+    }
+    if (
+      expected.label === "Beta foundation launcher self-test" &&
+      index !== 2
+    ) {
+      errors.push(
+        "beta foundation launcher self-test must immediately follow the two deterministic install steps",
       );
     }
     previousIndex = index;
   }
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function parseVerifierSteps(source) {
+  let sourceFile;
+  try {
+    sourceFile = parseTypeScript("scripts/beta-foundation-verify.js", source);
+  } catch (error) {
+    errors.push(error.message);
+    return null;
+  }
+  let initializer = null;
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) {
+      continue;
+    }
+    for (const declaration of statement.declarationList.declarations) {
+      if (
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === "gateSteps"
+      ) {
+        initializer = unwrapExpression(declaration.initializer);
+      }
+    }
+  }
+  if (
+    !initializer ||
+    !ts.isCallExpression(initializer) ||
+    expressionPath(initializer.expression) !== "Object.freeze" ||
+    initializer.arguments.length !== 1 ||
+    !ts.isArrayLiteralExpression(unwrapExpression(initializer.arguments[0]))
+  ) {
+    errors.push(
+      "beta foundation verifier must define gateSteps as one Object.freeze array",
+    );
+    return null;
+  }
+
+  const helperKinds = new Map([
+    ["npmStep", "npm"],
+    ["nodeStep", "node"],
+    ["shStep", "sh"],
+  ]);
+  const steps = [];
+  for (const element of unwrapExpression(initializer.arguments[0]).elements) {
+    const call = unwrapExpression(element);
+    if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression)) {
+      errors.push(
+        "beta foundation verifier gateSteps may contain only typed helper calls",
+      );
+      return null;
+    }
+    const kind = helperKinds.get(call.expression.text);
+    const values = call.arguments.map((argument) =>
+      ts.isStringLiteralLike(unwrapExpression(argument))
+        ? unwrapExpression(argument).text
+        : null,
+    );
+    if (!kind || values.length < 2 || values.some((value) => value === null)) {
+      errors.push(
+        "beta foundation verifier steps require one allowed helper and literal label/argv values",
+      );
+      return null;
+    }
+    steps.push({ label: values[0], kind, args: values.slice(1) });
+  }
+  return steps;
 }
 
 function readJson(relativePath) {

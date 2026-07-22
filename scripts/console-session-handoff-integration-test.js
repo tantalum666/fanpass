@@ -9,6 +9,10 @@ const dashboardEntry = path.join(
 );
 const fixtureAccessToken = "fixture-console-access-token";
 const rateLimitedAccessToken = "fixture-rate-limited-access-token";
+const upstreamFailureAccessToken = "fixture-upstream-failure-access-token";
+const upstreamDeniedAccessToken = "fixture-upstream-denied-access-token";
+const upstreamFailureSentinel = "SENTINEL_UPSTREAM_SECRET_DO_NOT_EXPOSE";
+const upstreamDeniedSentinel = "SENTINEL_UPSTREAM_4XX_DO_NOT_EXPOSE";
 
 main().catch((error) => {
   console.error(
@@ -52,6 +56,147 @@ async function main() {
   });
 
   try {
+    const directoryResponse = await fetchWithRetry(
+      `${consoleOrigin}/assets`,
+      undefined,
+      child,
+    );
+    assertEqual(
+      directoryResponse.status,
+      404,
+      "static directory request status",
+    );
+    assert(
+      child.exitCode === null,
+      "static directory request must not terminate the Console BFF",
+    );
+
+    const upstreamFailureResponse = await fetch(
+      `${consoleOrigin}/api/console/operations`,
+      {
+        headers: {
+          Cookie: `fanpass_console_access_token=${upstreamFailureAccessToken}`,
+        },
+      },
+    );
+    assertEqual(upstreamFailureResponse.status, 500, "upstream failure status");
+    const upstreamFailureBody = await upstreamFailureResponse.json();
+    assertEqual(
+      upstreamFailureBody.code,
+      "CONSOLE_UPSTREAM_ERROR",
+      "upstream failure public code",
+    );
+    assertEqual(
+      upstreamFailureBody.message,
+      "FanPass Console service is temporarily unavailable.",
+      "upstream failure public message",
+    );
+    assert(
+      !JSON.stringify(upstreamFailureBody).includes(upstreamFailureSentinel),
+      "upstream failure body must not expose the upstream sentinel",
+    );
+    const upstreamFailureRequestId = requiredHeader(
+      upstreamFailureResponse,
+      "x-request-id",
+    );
+    await waitForOutput(child, () =>
+      childOutput.includes(upstreamFailureRequestId),
+    );
+    assertSafeErrorDiagnostic(childOutput, {
+      requestId: upstreamFailureRequestId,
+      errorClass: "UpstreamApiError",
+      status: 500,
+    });
+
+    const upstreamDeniedResponse = await fetch(
+      `${consoleOrigin}/api/console/operations`,
+      {
+        headers: {
+          Cookie: `fanpass_console_access_token=${upstreamDeniedAccessToken}`,
+        },
+      },
+    );
+    assertEqual(upstreamDeniedResponse.status, 403, "upstream denial status");
+    const upstreamDeniedBody = await upstreamDeniedResponse.json();
+    assertEqual(
+      upstreamDeniedBody.code,
+      "CONSOLE_UPSTREAM_ACCESS_DENIED",
+      "upstream denial public code",
+    );
+    assertEqual(
+      upstreamDeniedBody.message,
+      "You do not have permission to perform this Console action.",
+      "upstream denial public message",
+    );
+    assert(
+      !JSON.stringify(upstreamDeniedBody).includes(upstreamDeniedSentinel),
+      "upstream denial body must not blindly forward the upstream message",
+    );
+    const upstreamDeniedRequestId = requiredHeader(
+      upstreamDeniedResponse,
+      "x-request-id",
+    );
+    await waitForOutput(child, () =>
+      childOutput.includes(upstreamDeniedRequestId),
+    );
+    assertSafeErrorDiagnostic(childOutput, {
+      requestId: upstreamDeniedRequestId,
+      errorClass: "UpstreamApiError",
+      status: 403,
+    });
+
+    const malformedRouteResponse = await fetch(
+      `${consoleOrigin}/api/console/events/%E0%A4%A/ticket-types`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: authOrigin,
+        },
+        body: "{}",
+      },
+    );
+    assertEqual(malformedRouteResponse.status, 500, "malformed route status");
+    const malformedRouteBody = await malformedRouteResponse.json();
+    assertEqual(
+      malformedRouteBody.code,
+      "CONSOLE_INTERNAL_ERROR",
+      "malformed route public code",
+    );
+    assertEqual(
+      malformedRouteBody.message,
+      "FanPass Console request could not be completed.",
+      "malformed route public message",
+    );
+    assert(
+      !JSON.stringify(malformedRouteBody).includes("URI malformed"),
+      "malformed route response must not expose the exception message",
+    );
+    const malformedRouteRequestId = requiredHeader(
+      malformedRouteResponse,
+      "x-request-id",
+    );
+    await waitForOutput(child, () =>
+      childOutput.includes(malformedRouteRequestId),
+    );
+    assertSafeErrorDiagnostic(childOutput, {
+      requestId: malformedRouteRequestId,
+      errorClass: "Error",
+      status: 500,
+    });
+    assert(
+      !childOutput.includes(upstreamFailureSentinel),
+      "Console diagnostics must not log upstream response secrets",
+    );
+    assert(
+      !childOutput.includes(upstreamDeniedSentinel),
+      "Console diagnostics must not log upstream 4xx messages",
+    );
+    assert(
+      !childOutput.includes("URI malformed"),
+      "Console diagnostics must not log exception messages",
+    );
+
     const startResponse = await fetchWithRetry(
       `${consoleOrigin}/api/console/privy-handoff`,
       { redirect: "manual" },
@@ -260,6 +405,9 @@ async function main() {
           checks: [
             "short-lived host-only HttpOnly handoff cookie",
             "cryptographically random handoff state",
+            "upstream 5xx response and diagnostics are secret-safe",
+            "upstream 4xx uses an explicit public error mapping",
+            "unknown exceptions return stable public errors",
             "missing state rejected without session",
             "invalid JSON origin rejected",
             "expired token gets one refresh then explicit re-authentication",
@@ -360,6 +508,29 @@ function recoveryHandoff(response, authOrigin, expectedMode) {
 
 async function startMockApi() {
   const server = createServer((request, response) => {
+    if (
+      request.method === "GET" &&
+      request.url === "/alpha/operations" &&
+      request.headers.authorization === `Bearer ${upstreamDeniedAccessToken}`
+    ) {
+      response.writeHead(403, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ message: upstreamDeniedSentinel }));
+      return;
+    }
+    if (
+      request.method === "GET" &&
+      request.url === "/alpha/operations" &&
+      request.headers.authorization === `Bearer ${upstreamFailureAccessToken}`
+    ) {
+      response.writeHead(500, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          message: upstreamFailureSentinel,
+          internalToken: "upstream-private-token",
+        }),
+      );
+      return;
+    }
     if (
       request.method === "POST" &&
       request.url === "/auth/privy/sync" &&
@@ -470,6 +641,35 @@ function assertCookieAttribute(cookie, expected) {
 
 function assertEqual(actual, expected, label) {
   assert(actual === expected, `${label} must equal ${expected}`);
+}
+
+function assertSafeErrorDiagnostic(output, expected) {
+  const diagnostic = output
+    .split(/\r?\n/)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .find((entry) => entry?.requestId === expected.requestId);
+  assert(Boolean(diagnostic), "Console must log the request error diagnostic");
+  assertEqual(
+    diagnostic.errorClass,
+    expected.errorClass,
+    "request error diagnostic class",
+  );
+  assertEqual(
+    diagnostic.status,
+    expected.status,
+    "request error diagnostic status",
+  );
+  assertEqual(
+    Object.keys(diagnostic).sort().join(","),
+    "errorClass,requestId,status",
+    "request error diagnostic fields",
+  );
 }
 
 function assert(condition, message) {

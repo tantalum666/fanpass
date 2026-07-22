@@ -16,6 +16,7 @@ interface PaymentCaptureJobInput {
   paymentId: string;
   buyOrderId: string;
   tradeId: string;
+  ticketId: string;
 }
 
 interface PrimaryPaymentCaptureJobInput {
@@ -56,12 +57,18 @@ export class SettlementSideEffectsService {
       aggregateType: "trade",
       aggregateId: `${input.buyOrderId}:${input.sellOrderId}`,
       payload: {
+        ownershipAdapter: this.ownership.adapterName(),
         ticketId: input.ticketId,
         tokenId: input.tokenId,
         fromOwnerId: input.fromOwnerId,
         fromWalletAddress: input.fromWalletAddress,
+        fromWalletBindingVersion: input.fromWalletBindingVersion,
+        fromWalletBindingFingerprint: input.fromWalletBindingFingerprint,
         toOwnerId: input.toOwnerId,
         toWalletAddress: input.toWalletAddress,
+        toWalletBindingVersion: input.toWalletBindingVersion,
+        toWalletBindingFingerprint: input.toWalletBindingFingerprint,
+        contractRoute: input.contractRoute ?? null,
         buyOrderId: input.buyOrderId,
         sellOrderId: input.sellOrderId,
       },
@@ -103,6 +110,7 @@ export class SettlementSideEffectsService {
         paymentId: input.paymentId,
         orderId: input.buyOrderId,
         tradeId: input.tradeId,
+        ticketId: input.ticketId,
       },
     });
   }

@@ -707,17 +707,28 @@ private struct CryptoPaymentSheet: View {
         }
         do {
             state = .sending
+            let idempotencyKey = "ios-v4-crypto-sponsored-\(checkoutAttemptId)"
             let authorization = try await backend.sponsoredPaymentAuthorization(
                 quote: quoteResponse.quote,
-                walletId: walletId
+                walletId: walletId,
+                idempotencyKey: idempotencyKey
             )
             let confirmation = try await backend.apiClient.sendSponsoredCryptoPayment(
                 paymentId: quoteResponse.payment.id,
-                idempotencyKey: "ios-v4-crypto-sponsored-\(checkoutAttemptId)",
+                idempotencyKey: idempotencyKey,
                 authorization: authorization
             )
             state = .confirming(confirmation.transactionHash ?? "")
-            viewModel.applyCryptoConfirmation(confirmation)
+            let settlementConfirmed = viewModel.applyCryptoConfirmation(confirmation)
+            guard settlementConfirmed else {
+                if confirmation.compensationRequired == true || !confirmation.ok {
+                    state = .failed(
+                        viewModel.errorMessage ??
+                            "Your USDC transfer needs review. No ticket was issued."
+                    )
+                }
+                return
+            }
             state = .confirmed(confirmation.transactionHash ?? "")
             onConfirmed()
             dismiss()

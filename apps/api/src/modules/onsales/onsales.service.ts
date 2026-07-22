@@ -9,6 +9,7 @@ import { ConfigService } from "@nestjs/config";
 import { Onsale, Prisma } from "@prisma/client";
 import { createHash, createHmac, randomUUID } from "crypto";
 import { PrismaService } from "../../common/prisma.service";
+import { isProductionLikeEnvironment } from "../../config/security-config";
 import {
   EventInventorySnapshot,
   OnsaleInventoryService,
@@ -35,8 +36,8 @@ export class OnsalesService {
 
   private async buildPublicSnapshot(eventId: string, progressQueue: boolean) {
     this.assertPrismaDataSource();
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, status: "PUBLISHED" },
       select: {
         id: true,
         title: true,
@@ -90,6 +91,7 @@ export class OnsalesService {
 
   async joinQueue(eventId: string, userId: string, clientInstanceId: string) {
     this.assertPrismaDataSource();
+    this.assertProductionQueueAttestationAvailable();
     this.assertClientInstanceId(clientInstanceId);
     const clientInstanceHash = this.identityHash(clientInstanceId);
     const now = new Date();
@@ -97,6 +99,14 @@ export class OnsalesService {
     let entryId: string;
     try {
       entryId = await this.prisma.$transaction(async (tx) => {
+        await this.lockEvent(tx, eventId);
+        const event = await tx.event.findFirst({
+          where: { id: eventId, status: "PUBLISHED" },
+          select: { id: true },
+        });
+        if (!event) {
+          throw new ConflictException("Event is not available");
+        }
         const initialOnsale = await tx.onsale.findUnique({
           where: { eventId },
         });
@@ -243,6 +253,13 @@ export class OnsalesService {
     progressQueue = true,
   ) {
     this.assertPrismaDataSource();
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    if (!event) {
+      throw new ConflictException("Event is not available");
+    }
     const onsale = await this.prisma.onsale.findUnique({
       where: { eventId },
     });
@@ -344,6 +361,13 @@ export class OnsalesService {
     onsale: Onsale,
     now: Date,
   ) {
+    const event = await tx.event.findFirst({
+      where: { id: onsale.eventId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    if (!event) {
+      return;
+    }
     const expiredHolds = await tx.inventoryHold.findMany({
       where: {
         onsaleId: onsale.id,
@@ -785,6 +809,18 @@ export class OnsalesService {
     }
   }
 
+  private async lockEvent(tx: Prisma.TransactionClient, eventId: string) {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "events"
+      WHERE "id" = ${eventId}
+      FOR UPDATE
+    `;
+    if (rows.length !== 1) {
+      throw new ConflictException("Event is not available");
+    }
+  }
+
   private async recordQueueJoin(
     tx: Prisma.TransactionClient,
     entryId: string,
@@ -801,7 +837,8 @@ export class OnsalesService {
         metadataJson: {
           eventId,
           accountBound: true,
-          clientInstanceBound: true,
+          clientInstanceBound: false,
+          clientInstanceSignal: "UNATTESTED_LOCAL_ONLY",
         },
       },
     });
@@ -844,6 +881,20 @@ export class OnsalesService {
     if (dataSource !== "prisma") {
       throw new ServiceUnavailableException(
         "On-sale transparency requires the Prisma data source",
+      );
+    }
+  }
+
+  private assertProductionQueueAttestationAvailable() {
+    if (
+      isProductionLikeEnvironment({
+        NODE_ENV: this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV,
+        FANPASS_ENV:
+          this.config.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+      })
+    ) {
+      throw new ServiceUnavailableException(
+        "High-demand queue access is unavailable until device attestation is enabled",
       );
     }
   }

@@ -3,6 +3,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(rootDir, "scripts/node-runtime-policy-audit.js");
@@ -50,9 +53,12 @@ function buildFixture(overrides = {}) {
     ),
   );
   write(
-    "scripts/beta-foundation-verify.sh",
+    "scripts/beta-foundation-verify.js",
     overrides.verifier ??
-      "npm run security:node-runtime-policy:self-test\nnpm run security:node-runtime-policy\n",
+      renderBetaFoundationGateFixture([
+        "security:node-runtime-policy:self-test",
+        "security:node-runtime-policy",
+      ]),
   );
   write(
     "scripts/with-node-22.sh",
@@ -130,7 +136,9 @@ const cases = [
   runCase("rejects loose package engine range", "fail", { engine: ">=22" }),
   runCase("rejects package-lock engine drift", "fail", { lockEngine: ">=22" }),
   runCase("rejects missing composite verifier wiring", "fail", {
-    verifier: "npm run security:dependency-advisories\n",
+    verifier: renderBetaFoundationGateFixture([
+      "security:dependency-advisories",
+    ]),
   }),
   runCase("rejects missing Node 22 helper markers", "fail", {
     helper: "echo missing helper\n",

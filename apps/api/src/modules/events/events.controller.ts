@@ -12,9 +12,14 @@ import {
   Min,
   MinLength,
 } from "class-validator";
-import { PublicRoute, Roles } from "../../common/auth.decorators";
+import {
+  CurrentSession,
+  PublicRoute,
+  Roles,
+} from "../../common/auth.decorators";
 import { FanPassAuthGuard } from "../../common/fanpass-auth.guard";
 import { FanPassIdParamPipe } from "../../common/route-param.pipe";
+import { FanPassSession } from "../../common/session";
 import { EventsService } from "./events.service";
 
 class CreateEventDto {
@@ -98,8 +103,11 @@ export class EventsController {
   @Post()
   @UseGuards(FanPassAuthGuard)
   @Roles("ORGANIZER", "ADMIN")
-  createEvent(@Body() body: CreateEventDto) {
-    return this.events.createEvent(body);
+  createEvent(
+    @Body() body: CreateEventDto,
+    @CurrentSession() session: FanPassSession,
+  ) {
+    return this.events.createEvent(body, session);
   }
 
   @Post(":eventId/ticket-types")
@@ -108,7 +116,8 @@ export class EventsController {
   createTicketType(
     @Param("eventId", FanPassIdParamPipe) eventId: string,
     @Body() body: CreateTicketTypeDto,
+    @CurrentSession() session: FanPassSession,
   ) {
-    return this.events.createTicketType(eventId, body);
+    return this.events.createTicketType(eventId, body, session);
   }
 }

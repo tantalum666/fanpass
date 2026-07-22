@@ -18,7 +18,10 @@ const recordingPolicySnapshotFiles = [
   "scripts/alpha-walkthrough-capture.sh",
   "scripts/alpha-walkthrough-recording-evidence-audit.js",
   "scripts/alpha-walkthrough-recording-evidence-audit-self-test.js",
-  "scripts/beta-foundation-verify.sh",
+  "scripts/beta-foundation-launcher.js",
+  "scripts/beta-foundation-launcher-self-test.js",
+  "scripts/lib/beta-foundation-bootstrap.js",
+  "scripts/beta-foundation-verify.js",
 ];
 const recordingPolicySnapshot = recordingPolicySnapshotFiles.map((file) => ({
   file,
@@ -97,7 +100,7 @@ try {
       withProgressText(
         createEvidence({
           verification: {
-            commands: ["npm run beta:foundation:verify"],
+            commands: ["npm run alpha:walkthrough:capture"],
             allCommandsPassed: false,
             noRealProviderCredentials: false,
           },
@@ -243,7 +246,7 @@ function createEvidence(overrides = {}) {
         commands: [
           "npm run alpha:demo-script:audit",
           "npm run alpha:walkthrough:evidence:audit",
-          "npm run beta:foundation:verify",
+          "npm run alpha:walkthrough:capture",
           "npm run beta:local:start",
           "npm run beta:local:verify",
           "npm run beta:local:stop",

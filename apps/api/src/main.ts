@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import { AppModule } from "./app.module";
 import { FanPassSocketIoAdapter } from "./common/fanpass-socket-io.adapter";
 import { PrismaService } from "./common/prisma.service";
+import { OrderbookAdmissionService } from "./modules/orders/orderbook-admission.service";
 import {
   isProductionLikeEnvironment,
   readIntegerConfig,
@@ -19,6 +20,7 @@ import {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   const productionLike = isProductionLikeEnvironment();
   const config = app.get(ConfigService);
   app
@@ -159,7 +161,21 @@ async function bootstrap() {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-  app.useWebSocketAdapter(new FanPassSocketIoAdapter(app, corsOrigins));
+  const orderbookAdmission = app.get(OrderbookAdmissionService);
+  app.useWebSocketAdapter(
+    new FanPassSocketIoAdapter(
+      app,
+      corsOrigins,
+      (request) => {
+        orderbookAdmission.consumeConnectionAttempt(request);
+      },
+      (request) => {
+        return orderbookAdmission.acquireConnection(
+          orderbookAdmission.actorKey(request),
+        );
+      },
+    ),
+  );
   app.enableCors({
     origin(
       origin: string | undefined,

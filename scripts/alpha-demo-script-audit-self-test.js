@@ -43,7 +43,7 @@ const cases = [
         fixtureRoot,
         "docs/ALPHA_DEMO_SCRIPT.md",
         alphaDemoScript().replace(
-          "npm run beta:foundation:verify",
+          "node scripts/beta-foundation-verify.js",
           "npm run verify",
         ),
       ),
@@ -176,7 +176,7 @@ function alphaDemoScript() {
     "## Preflight",
     "",
     "```bash",
-    "npm run beta:foundation:verify",
+    "node scripts/beta-foundation-verify.js",
     "npm run beta:local:start",
     "npm run beta:local:verify",
     "npm run beta:local:stop",

@@ -84,13 +84,13 @@ The saved JSON evidence must include:
 
 The current implementation snapshot files and SHA-256 hashes are:
 
-- `apps/api/src/main.ts`: `b7c255ff3a3c3df382ac3599e5e0e75d65460235f2a4a619611ab0add049fd24`
-- `apps/api/src/config/security-config.ts`: `b513290927f3f53263b8e16a8dd845379c6da1ffb4fd9f35bb453ac39b3ae718`
-- `apps/api/.env.staging.example`: `42490d531c7df401d60237382cf5216174aeb5ae3335218f6b6f905836de26cf`
-- `apps/api/src/common/fanpass-socket-io.adapter.ts`: `148f80303b5dac2b8310c58a952c42a1a5d70f03c1f76a459a46b4cd7f71a246`
+- `apps/api/src/main.ts`: `1ecf58b9fbb0e87338b19b5418300e5f24d60b9a229ee111834ceb4da70a1068`
+- `apps/api/src/config/security-config.ts`: `2c47d6f5a36da5fb1dd1ec1d58f4148a3a36351a87daa01a6f5e851c53171980`
+- `apps/api/.env.staging.example`: `42c50bfc9504f5398f21a749f76cbbdddb9e2877726d37fe5efa0eb57cf006c0`
+- `apps/api/src/common/fanpass-socket-io.adapter.ts`: `0e06e35dd6da2c663b57f2ffaac9118a7b118109135f9029426a4a1588336d67`
 - `apps/api/src/modules/alpha/alpha.controller.ts`: `79e13f9aef0ac0ca55f3a07a292fee56bc3c3df76361aa8a153a45b2c7109645`
 - `apps/api/src/modules/side-effects/side-effect-health.service.ts`: `0804138b2db924583c48869ad998a70b38dfdb077d3e0ac00c33d56235a20dfe`
-- `apps/dashboard/server/console-bff.ts`: `5bb789302bc61be7f48ea4b23c18539e7e79b83bbde9b74c0bdd26c3484acd70`
+- `apps/dashboard/server/console-bff.ts`: `ce609977c01dd0997bea354d70118fdd7cf764a57c72722ad15e88d4a7113464`
 - `scripts/security-runtime-staging-check.sh`: `fc02f4f68c56d58f11a5b4b84fbb6f4bd371f443ccfbfd92643ca13e4fbf05b3`
 - `scripts/staging-runtime-evidence-audit.js`: `cf68b3b97b4cc99c247fefd11ce50de4634279969163fd0ee5c90b72b46e17f9`
 - `scripts/security-runtime-staging-local-dry-run.sh`: `a77c4900a9ec90e56a38c498d70b60dd36447af4d085dd6573651ec089be238e`
@@ -114,20 +114,22 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 
 ## Deployment Order
 
-1. Provision managed Postgres for staging. The current Neon project is `fanpass-staging`; do not commit or print its connection string.
-2. Configure API environment from `apps/api/.env.staging.example`.
-3. Run the fail-closed Staging schema/catalog deploy only after confirming the database is not production. Duplicate Fan Access submissions stop the deploy for reviewed remediation; `--accept-data-loss` is not used in the hosted path.
-4. Deploy API and verify `/health`. Current API origin: `https://fanpass-api-staging.onrender.com`.
-5. Configure Console environment from `apps/dashboard/.env.staging.example` or the `fanpass-console-staging` service in `render.yaml`.
-6. Deploy Console and verify unauthenticated locked/sign-in state.
-7. Run `npm run security:runtime:staging` with real HTTPS URLs.
-8. Save the JSON command output under `outputs/staging-runtime/`, validate it with `npm run security:runtime:staging:evidence -- <file>`, and summarize the result in `docs/ALPHA_SECURITY_REVIEW.md` before treating staging checks as closed.
+1. Freeze and push one reviewed RC SHA to a non-linked review branch. Confirm API, Console, and Auth service Auto-Deploy are Off, overlapping deploys use `Wait`, and either no Blueprint manages them or Blueprint Auto Sync is No. Do not merge or push `render.yaml` to a Blueprint-linked branch, create a paid preview, or deploy from an uncommitted tree before owner approval.
+2. Obtain owner approval, then change **only** the existing API service instance type to `starter` through Render service Settings or the service API. Do not use Blueprint sync for this first plan change, and do not change source revision, build command, environment, schema, or Console/Auth plans. Verify the plan-change deploy remains on the exact old live SHA and all other service configuration is unchanged; stop on any drift. Only after the paid instance is live may you enable API Maintenance Mode and prove the public origin consistently returns `503`. Blueprint/build configuration remains frozen until that `503` and request drain are proven.
+3. On the exact old live API SHA, apply `FANPASS_SIDE_EFFECT_WORKER_ENABLED=false` and `SIDE_EFFECT_WORKER_LIMIT=1`. Wait until it is the sole instance and the old process has passed the documented handoff/shutdown window.
+4. Export the Staging PostgreSQL custom-format backup, verify it with `pg_restore --list`, preferably restore it to a disposable database, and record the redacted outbox/provider census. Stop on any active or ambiguous provider operation.
+5. Configure API environment from `apps/api/.env.staging.example`, including the reviewed legacy ownership route and the precomputed Staging database identity digest. The identity-only gate must pass before any mutation; never print the URL or digest.
+6. Phase A: keep the old global ticket contract, run the guarded deployment chain, deploy the route-aware RC SHA with worker disabled, and require the full read-only preflight plus `/health` before public traffic can resume. Duplicate submissions, unknown jobs, incomplete routes, or an unpaused database stop the release; `--accept-data-loss` is forbidden.
+7. Deploy the protected Sepolia contract only after Phase A is the sole API revision. Verify chain ID, owner, bytecode, ABI, and protected artifact before the first mint.
+8. Phase B: deploy the same RC SHA with the new global contract while per-ticket routes preserve existing tickets. Enable exactly one bound probe at limit `1`; the database automatically pauses again after the claim. Never roll back past the route-aware boundary after the first mint.
+9. Configure and deploy Console/Auth from their reviewed templates, then verify unauthenticated sign-in, Privy cookie handoff, DRAFT 404, orderbook reconnect/admission, Stripe test mode, and ownership issue/transfer/redeem over real HTTPS.
+10. Save and validate the runtime evidence, then run one `Changes` security validation against the completed baseline. Do not start another Deep Scan for this release.
 
 ## Current Open Items
 
-- Neon staging database exists and has the current Prisma schema plus local demo seed data.
+- Neon staging database exists with the schema and catalog used by the current old live revision. The security RC's dispatch-fence, wallet-provenance, sponsored-payment, and per-ticket-routing schema changes have not been installed; apply them only through the maintenance-gated, identity-bound Phase A release chain.
 - Render API service `fanpass-api-staging` is live at `https://fanpass-api-staging.onrender.com` from `main`. Deploy `dep-d9ckdqsvikkc73d29km0` for commit `8f845a19e32bd072b4e6b4df6e61ce11a7548214` is live; the guarded schema step and atomic public catalog/Fan Access upsert passed, `/health` returned 200, `/events` returned 11/11 `PUBLISHED`, a former DRAFT detail returned 404, and the deployed runtime security check passed on 2026-07-17.
-- The live service-level API build command still uses `npm run prisma:push -w apps/api`; that script is now a safe wrapper around the guarded schema/catalog deploy, so the current Staging release is protected. The service setting nevertheless differs from the desired explicit audit/migration command in `render.yaml`, and a CLI update did not change its readback value. Reconcile this drift through a verified Render dashboard/Blueprint update before Production.
+- The live service-level API build command still uses `npm run prisma:push -w apps/api` and differs from the desired explicit audit/build/migration order in `render.yaml`. The old live revision completed its historical guarded deploy, but this is not a safe first-cutover mechanism for the new dispatch fence: Render would mutate the database while the pre-fence API remains publicly reachable and able to call Stripe/Privy directly. Reconcile the drift only inside a verified maintenance window after traffic drain and backup; do not treat the earlier CLI success response as applied configuration.
 - Historical Vercel Console project `fanpass-dashboard` is live at `https://fanpass-dashboard.vercel.app`, but that evidence belongs to the old Next runtime.
 - Current Vite/Node Console service `fanpass-console-staging` is live at `https://fanpass-console-staging.onrender.com` from `main`. Deploy `dep-d99l8ics728c73ddl6c0` for the same commit is live and the root returned HTTP 200 on 2026-07-12.
 - Cookie-backed Console mutations in staging currently allow the Render Console origin `https://fanpass-console-staging.onrender.com` through `FANPASS_CONSOLE_ORIGINS`; the old dashboard origin itself should not be assumed to be an allowed mutation origin.
@@ -135,7 +137,7 @@ The dry-run starts a staging-like API on port `4200` and a staging-like Console 
 - Render `FANPASS_CORS_ORIGINS` is updated to include `https://fanpass-console-staging.onrender.com` for the current Vite/Node Console, and the API was redeployed after the change.
 - `npm run security:runtime:staging` and `npm run security:runtime:staging:evidence` passed against the real Render/Vercel HTTPS URLs with a real staging Privy admin bearer copied from the FanPass Ops simulator. The saved evidence proves the positive admin side-effect outbox health check without storing the bearer token.
 - Stripe dashboard test-mode webhook setup, native iOS PaymentSheet authorization, capture, cancellation, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against the Render staging API. The saved evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passed `npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`.
-- Render side-effect worker scheduler is enabled in staging through Render environment settings: `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, and `SIDE_EFFECT_WORKER_LIMIT=10`. Render logs reviewed on 2026-06-03 showed the scheduler enabled at 15000 ms and a prior worker run with `processed=1 completed=1 retried=0 dead=0 recovered=0`. This log proof does not replace the final admin outbox-health API or Neon SQL proof for the latest Stripe operation sequence.
+- The historical Render side-effect worker scheduler settings were `FANPASS_SIDE_EFFECT_WORKER_ENABLED=true`, `FANPASS_SIDE_EFFECT_WORKER_INTERVAL_MS=15000`, and `SIDE_EFFECT_WORKER_LIMIT=10`; logs reviewed on 2026-06-03 showed one prior completed run. Those values must be changed to the reviewed RC posture (`FANPASS_SIDE_EFFECT_WORKER_ENABLED=false`, limit `1`) while public traffic is blocked and before the first fence migration. Historical log proof does not authorize dispatch or replace the final census/preflight.
 - Render one-off jobs cannot currently be used as the free-plan outbox-health fallback; the Render API rejected a one-off `side-effects:health` job on 2026-06-03 because free-tier plans are not supported for jobs.
 - FanPass Console React SDK login is integrated through the isolated Auth runtime. Staging browser-SDK login hands the token to the exact Console bridge through a top-level POST so the Console host sets its HttpOnly session cookie as a first-party response; production still requires the separate verified-domain Privy HttpOnly-cookie configuration and evidence.
 - TestFlight/App Store distribution is not planned yet.

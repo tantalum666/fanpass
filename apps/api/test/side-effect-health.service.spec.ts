@@ -2,7 +2,7 @@ import { SideEffectHealthService } from "../src/modules/side-effects/side-effect
 
 describe("SideEffectHealthService", () => {
   it("reports healthy outbox status without exposing payloads", async () => {
-    const prisma = new FakePrisma([
+    const store = new FakeHealthStore([
       fakeJob({
         id: "sfx_completed",
         status: "COMPLETED",
@@ -11,7 +11,7 @@ describe("SideEffectHealthService", () => {
         },
       }),
     ]);
-    const service = new SideEffectHealthService(prisma as never);
+    const service = new SideEffectHealthService(store);
 
     const result = await service.check();
 
@@ -23,7 +23,7 @@ describe("SideEffectHealthService", () => {
 
   it("flags stale and terminal outbox jobs without returning payloads", async () => {
     const now = Date.now();
-    const prisma = new FakePrisma([
+    const store = new FakeHealthStore([
       fakeJob({
         id: "sfx_stale_processing",
         type: "OWNERSHIP_TRANSFER",
@@ -47,7 +47,8 @@ describe("SideEffectHealthService", () => {
         type: "PAYMENT_CANCEL_AUTHORIZATION",
         status: "RETRYING",
         availableAt: new Date(now - 25 * 60 * 1000),
-        lastError: "Temporary provider failure",
+        lastError:
+          "Provider URL https://provider.example/private?token=must-not-appear",
         payloadJson: {
           token: "hidden-retrying-payload",
         },
@@ -73,7 +74,7 @@ describe("SideEffectHealthService", () => {
         },
       }),
     ]);
-    const service = new SideEffectHealthService(prisma as never);
+    const service = new SideEffectHealthService(store);
 
     const result = await service.check();
 
@@ -101,62 +102,81 @@ describe("SideEffectHealthService", () => {
           reason: "stale_runnable_job",
           id: "sfx_stale_retrying",
           type: "PAYMENT_CANCEL_AUTHORIZATION",
-          lastError: "Temporary provider failure",
+          hasRecordedError: true,
         }),
         expect.objectContaining({
           reason: "terminal_or_failed_job",
           id: "sfx_failed",
           type: "PAYMENT_RECONCILE",
-          lastError: "Provider returned inconsistent state",
+          hasRecordedError: true,
         }),
         expect.objectContaining({
           reason: "terminal_or_failed_job",
           id: "sfx_dead",
           type: "PAYMENT_REFUND",
-          lastError: "Provider timeout",
+          hasRecordedError: true,
         }),
       ]),
     );
     expect(JSON.stringify(result)).not.toContain("hidden-");
+    expect(JSON.stringify(result)).not.toContain("must-not-appear");
+    expect(JSON.stringify(result)).not.toContain("provider.example");
   });
 });
 
-class FakePrisma {
-  sideEffectOutbox = {
-    groupBy: async () => {
-      const counts = new Map<string, number>();
-      for (const job of this.jobs) {
-        counts.set(job.status, (counts.get(job.status) ?? 0) + 1);
-      }
-      return [...counts].map(([status, count]) => ({
-        status,
-        _count: {
-          _all: count,
-        },
-      }));
-    },
-    findMany: async ({ where }: { where: Record<string, unknown> }) => {
-      return this.jobs.filter((job) => matchesWhere(job, where));
-    },
-  };
-
+class FakeHealthStore {
   constructor(private readonly jobs: Array<Record<string, any>>) {}
-}
 
-function matchesWhere(job: Record<string, any>, where: Record<string, any>) {
-  if (where.status === "PROCESSING" && job.status !== "PROCESSING") {
-    return false;
+  async countByStatus() {
+    const counts = new Map<string, number>();
+    for (const job of this.jobs) {
+      counts.set(job.status, (counts.get(job.status) ?? 0) + 1);
+    }
+    return [...counts].map(([status, count]) => ({ status, count }));
   }
-  if (where.status?.in && !where.status.in.includes(job.status)) {
-    return false;
+
+  async listStaleProcessing(staleBefore: Date, limit: number) {
+    return this.jobs
+      .filter(
+        (job) =>
+          job.status === "PROCESSING" &&
+          job.lockedAt &&
+          job.lockedAt <= staleBefore,
+      )
+      .slice(0, limit)
+      .map((job) => this.toRecord(job, job.lockedAt));
   }
-  if (where.lockedAt?.lte) {
-    return job.lockedAt && job.lockedAt <= where.lockedAt.lte;
+
+  async listStaleRunnable(staleBefore: Date, limit: number) {
+    return this.jobs
+      .filter(
+        (job) =>
+          ["PENDING", "RETRYING"].includes(job.status) &&
+          job.availableAt <= staleBefore,
+      )
+      .slice(0, limit)
+      .map((job) => this.toRecord(job, job.availableAt));
   }
-  if (where.availableAt?.lte) {
-    return job.availableAt && job.availableAt <= where.availableAt.lte;
+
+  async listRecentFailures(limit: number) {
+    return this.jobs
+      .filter((job) => ["FAILED", "DEAD"].includes(job.status))
+      .slice(0, limit)
+      .map((job) => this.toRecord(job, job.updatedAt));
   }
-  return true;
+
+  private toRecord(job: Record<string, any>, referenceAt: Date) {
+    return {
+      id: job.id,
+      type: job.type,
+      status: job.status,
+      aggregateType: job.aggregateType,
+      aggregateId: job.aggregateId,
+      attempts: job.attempts,
+      referenceAt,
+      hasRecordedError: Boolean(job.lastError),
+    };
+  }
 }
 
 function fakeJob(overrides: Record<string, unknown>) {

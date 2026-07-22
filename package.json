@@ -10,6 +10,21 @@
     "packages/contracts",
     "packages/shared"
   ],
+  "overrides": {
+    "@babel/core": "7.29.7",
+    "esbuild": "0.28.1",
+    "fast-uri@>=3 <4": "3.1.4",
+    "fsevents": "2.3.3",
+    "js-yaml@<4": "3.15.0",
+    "js-yaml@>=4 <5": "4.3.0",
+    "hardhat": {
+      "adm-zip": "0.6.0"
+    },
+    "mocha": {
+      "diff": "8.0.4",
+      "serialize-javascript": "7.0.7"
+    }
+  },
   "scripts": {
     "dev": "npm run dev -w apps/api",
     "dev:api": "npm run dev -w apps/api",
@@ -25,7 +40,6 @@
     "beta:local:stop": "bash scripts/beta-local-stop.sh",
     "beta:local:verify": "bash scripts/beta-local-verify.sh",
     "beta:local:verify:self-test": "bash scripts/beta-local-verify-self-test.sh",
-    "beta:foundation:verify": "bash scripts/beta-foundation-verify.sh",
     "tooling:node22": "bash scripts/with-node-22.sh",
     "tooling:node22:verify": "bash scripts/with-node-22.sh npm run security:node-runtime-policy",
     "alpha:demo-script:audit": "node scripts/alpha-demo-script-audit.js",
@@ -38,7 +52,6 @@
     "alpha:walkthrough:capture:self-test": "bash scripts/alpha-walkthrough-capture-self-test.sh",
     "side-effects:verify:self-test": "bash scripts/side-effects-worker-verify-self-test.sh",
     "side-effects:verify": "bash scripts/side-effects-worker-verify.sh",
-    "side-effects:health:self-test": "npm run test -w apps/api -- --runTestsByPath test/side-effect-health.service.spec.ts",
     "side-effects:health": "npm run side-effects:health -w @fanpass/api",
     "console:verify:local": "node scripts/console-visual-check.js",
     "security:audit:prod": "npm audit --omit=dev --audit-level=low",
@@ -128,11 +141,18 @@
     "security:runtime:staging:dry-run": "bash scripts/security-runtime-staging-local-dry-run.sh",
     "security:runtime:staging:evidence": "node scripts/staging-runtime-evidence-audit.js",
     "security:runtime:staging:evidence:self-test": "node scripts/staging-runtime-evidence-audit-self-test.js",
+    "security:render-rc-config": "node scripts/render-rc-config-audit.js",
+    "security:render-rc-config:self-test": "node scripts/render-rc-config-audit-self-test.js",
+    "staging:db:preflight": "node scripts/staging-db-release-preflight.js",
+    "staging:db:preflight:self-test": "node scripts/staging-db-release-preflight-self-test.js",
+    "security:orderbook:staging": "node scripts/staging-orderbook-reconnect-check.js",
+    "security:orderbook:staging:self-test": "node scripts/staging-orderbook-reconnect-check-self-test.js",
     "security:headers-policy": "node scripts/security-header-policy-audit.js",
     "security:headers-policy:self-test": "node scripts/security-header-policy-audit-self-test.js",
     "security:settlement-retry-idempotency": "node scripts/settlement-retry-idempotency-audit.js",
     "security:settlement-retry-idempotency:self-test": "node scripts/settlement-retry-idempotency-audit-self-test.js",
     "alpha:db:reset": "bash scripts/alpha-db-reset.sh",
+    "alpha:db:reset:self-test": "node scripts/alpha-db-reset-self-test.js",
     "alpha:verify:prisma": "bash scripts/alpha-prisma-verify.sh",
     "alpha:verify:ios-boundaries": "bash scripts/ios-role-boundary-smoke.sh",
     "build": "npm run build --workspaces --if-present",
@@ -145,6 +165,7 @@
     "@hpke/chacha20poly1305": "^1.8.0",
     "@hpke/core": "^1.9.0",
     "@playwright/test": "^1.60.0",
+    "js-yaml": "4.3.0",
     "prettier": "^3.5.3"
   },
   "engines": {

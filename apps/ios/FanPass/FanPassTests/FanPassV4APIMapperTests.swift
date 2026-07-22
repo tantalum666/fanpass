@@ -49,6 +49,27 @@ final class FanPassV4APIMapperTests: XCTestCase {
         XCTAssertTrue(try FanPassV4APIMapper.event(makeEvent(fanAccessAvailable: true)).fanAccessAvailable)
     }
 
+    func testCryptoCompensationNeverQualifiesAsTicketSettlement() throws {
+        let response = try decodeCryptoConfirmation(
+            status: "crypto_compensation_required",
+            ok: false,
+            compensationRequired: true
+        )
+
+        XCTAssertFalse(response.isTicketSettlementConfirmed)
+        XCTAssertEqual(response.compensationReason, "event_not_published")
+    }
+
+    func testOnlyConfirmedCryptoPaymentQualifiesAsTicketSettlement() throws {
+        let response = try decodeCryptoConfirmation(
+            status: "crypto_confirmed",
+            ok: true,
+            compensationRequired: false
+        )
+
+        XCTAssertTrue(response.isTicketSettlementConfirmed)
+    }
+
     private func makeEvent(
         startTime: String = "2026-10-12T12:00:00.000Z",
         fanAccessAvailable: Bool? = false
@@ -95,5 +116,38 @@ final class FanPassV4APIMapperTests: XCTestCase {
             second: 0,
             nanosecond: nanosecond
         ))
+    }
+
+    private func decodeCryptoConfirmation(
+        status: String,
+        ok: Bool,
+        compensationRequired: Bool
+    ) throws -> FanPassCryptoConfirmationResponse {
+        let json = """
+        {
+          "ok": \(ok),
+          "payment": {
+            "id": "pay_crypto_test",
+            "orderId": "ord_crypto_test",
+            "stripePaymentIntentId": "crypto:0xabc",
+            "clientSecret": null,
+            "amount": 1000,
+            "currency": "usdc",
+            "status": "\(status)",
+            "captureStatus": "CAPTURED",
+            "idempotencyKey": "ios-v4-crypto-test",
+            "createdAt": "2026-07-20T00:00:00.000Z",
+            "updatedAt": "2026-07-20T00:00:00.000Z"
+          },
+          "transactionHash": "0xabc",
+          "alreadyConfirmed": false,
+          "compensationRequired": \(compensationRequired),
+          "compensationReason": "event_not_published"
+        }
+        """
+        return try JSONDecoder().decode(
+            FanPassCryptoConfirmationResponse.self,
+            from: try XCTUnwrap(json.data(using: .utf8))
+        )
     }
 }

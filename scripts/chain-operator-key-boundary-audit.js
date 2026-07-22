@@ -1,14 +1,29 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  callPath,
+  descendants,
+  expressionPath,
+  findClass,
+  moduleReferences,
+  parseTypeScript,
+  ts,
+  unwrapExpression,
+} = require("./lib/typescript-audit");
+const { validateOwnershipBoundary } = require("./lib/ownership-boundary-audit");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_CHAIN_OPERATOR_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_CHAIN_OPERATOR_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 auditOwnershipService();
-auditProductionRuntimeGuard();
 auditLocalRuntimeDefaults();
 auditPrivateKeyMaterial();
 auditCompositeVerifier();
@@ -36,65 +51,157 @@ console.log(
 );
 
 function auditOwnershipService() {
-  const contents = readFile(
-    "apps/api/src/modules/ownership/ownership.service.ts",
-  );
+  const relativePath = "apps/api/src/modules/ownership/ownership.service.ts";
+  const contents = readFile(relativePath);
+  const securityConfigPath = "apps/api/src/config/security-config.ts";
+  const boundary = validateOwnershipBoundary({
+    ownershipFile: relativePath,
+    ownershipContents: contents,
+    securityConfigFile: securityConfigPath,
+    securityConfigContents: readFile(securityConfigPath),
+  });
+  errors.push(...boundary.errors);
 
-  requireMarkers(
-    "apps/api/src/modules/ownership/ownership.service.ts",
-    contents,
-    [
-      "isProductionLikeEnvironment",
-      'this.config.get<string>("OWNERSHIP_ADAPTER") !== "testnet"',
-      "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments",
-      'this.requiredConfig("TESTNET_OPERATOR_PRIVATE_KEY")',
-      'await import("ethers")',
-      "new Wallet(privateKey, provider)",
-    ],
+  let sourceFile;
+  try {
+    sourceFile = parseTypeScript(relativePath, contents);
+  } catch (error) {
+    errors.push(error.message);
+    return;
+  }
+  const ethersReferences = moduleReferences(sourceFile).filter(
+    (reference) => reference.module === "ethers",
   );
-
-  if (/\bimport\s+[^;\n]*\s+from\s+["']ethers["']/.test(contents)) {
+  if (
+    ethersReferences.some((reference) => reference.kind !== "dynamic-import")
+  ) {
     errors.push(
       "OwnershipService must dynamically import ethers only inside the testnet adapter path.",
     );
   }
+  if (ethersReferences.length === 0) {
+    errors.push(
+      "OwnershipService testnet adapter must load ethers through an executable dynamic import.",
+    );
+  }
 
-  for (const pattern of [
-    /console\.(log|info|warn|error)\([^)]*privateKey/i,
-    /logger\.(log|debug|verbose|warn|error)\([^)]*privateKey/i,
-    /transactionHash:\s*privateKey/,
-    /ownershipRef:\s*privateKey/,
-  ]) {
-    if (pattern.test(contents)) {
-      errors.push(
-        "OwnershipService must not log, return, or persist the operator private key.",
+  const testnetAdapter = findClass(sourceFile, "TestnetOwnershipAdapter");
+  const testnetEthersImports = testnetAdapter
+    ? descendants(
+        testnetAdapter,
+        (node) =>
+          ts.isCallExpression(node) &&
+          node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+          node.arguments.length === 1 &&
+          ts.isStringLiteralLike(unwrapExpression(node.arguments[0])) &&
+          unwrapExpression(node.arguments[0]).text === "ethers",
+      )
+    : [];
+  if (!testnetAdapter || testnetEthersImports.length === 0) {
+    errors.push(
+      `${relativePath} must keep the executable ethers import inside TestnetOwnershipAdapter.`,
+    );
+  }
+  const requiredPrivateKeyCalls = descendants(
+    testnetAdapter ?? sourceFile,
+    (node) =>
+      ts.isCallExpression(node) &&
+      callPath(node) === "this.requiredConfig" &&
+      node.arguments.some(
+        (argument) =>
+          ts.isStringLiteralLike(unwrapExpression(argument)) &&
+          unwrapExpression(argument).text === "TESTNET_OPERATOR_PRIVATE_KEY",
+      ),
+  );
+  const walletConstructors = descendants(
+    testnetAdapter ?? sourceFile,
+    (node) =>
+      ts.isNewExpression(node) &&
+      expressionPath(node.expression) === "Wallet" &&
+      expressionPath(unwrapExpression(node.arguments?.[0])) === "privateKey",
+  );
+  if (requiredPrivateKeyCalls.length === 0 || walletConstructors.length === 0) {
+    errors.push(
+      `${relativePath} must obtain TESTNET_OPERATOR_PRIVATE_KEY inside the testnet adapter and pass it directly to the Wallet signer constructor.`,
+    );
+  }
+
+  const privateKeyLeaks = descendants(sourceFile, (node) => {
+    if (ts.isCallExpression(node)) {
+      const target = callPath(node) ?? "";
+      if (
+        !/^(console|logger)\.(log|info|debug|verbose|warn|error)$/.test(target)
+      ) {
+        return false;
+      }
+      return node.arguments.some((argument) =>
+        descendants(argument, (child) => expressionPath(child) === "privateKey")
+          .concat(expressionPath(argument) === "privateKey" ? [argument] : [])
+          .some(Boolean),
       );
-      break;
     }
+    if (!ts.isPropertyAssignment(node)) {
+      return false;
+    }
+    const name =
+      node.name &&
+      (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name))
+        ? node.name.text
+        : "";
+    return (
+      (name === "transactionHash" || name === "ownershipRef") &&
+      expressionPath(unwrapExpression(node.initializer)) === "privateKey"
+    );
+  });
+  if (privateKeyLeaks.length > 0) {
+    errors.push(
+      "OwnershipService must not log, return, or persist the operator private key.",
+    );
   }
 }
 
-function auditProductionRuntimeGuard() {
-  const contents = readFile("apps/api/src/config/security-config.ts");
-
-  requireMarkers("apps/api/src/config/security-config.ts", contents, [
-    "validateOwnershipConfiguration(config, errors)",
-    'stringValue(config.OWNERSHIP_ADAPTER) !== "testnet"',
-    "OWNERSHIP_ADAPTER=testnet is blocked in production-like environments",
-  ]);
-}
-
 function auditLocalRuntimeDefaults() {
-  requireMarkers(
+  const localAssignments = parseActiveAssignments(
     "scripts/beta-local-start.sh",
     readFile("scripts/beta-local-start.sh"),
-    ["OWNERSHIP_ADAPTER=mock", "FANPASS_ASYNC_OWNERSHIP_SETTLEMENT=true"],
+  );
+  requireOnlyAssignments(
+    "scripts/beta-local-start.sh",
+    localAssignments,
+    "OWNERSHIP_ADAPTER",
+    "mock",
+  );
+  requireOnlyAssignments(
+    "scripts/beta-local-start.sh",
+    localAssignments,
+    "FANPASS_ASYNC_OWNERSHIP_SETTLEMENT",
+    "true",
   );
 
-  const stagingEnv = readOptionalFile("apps/api/.env.staging.example");
-  if (stagingEnv && !/OWNERSHIP_ADAPTER=mock/.test(stagingEnv)) {
+  const stagingPath = "apps/api/.env.staging.example";
+  const stagingEnv = readOptionalFile(stagingPath);
+  if (!stagingEnv) {
     errors.push(
-      "apps/api/.env.staging.example must keep OWNERSHIP_ADAPTER=mock until a vault/KMS or delegated signer is configured.",
+      `${stagingPath} is required for the staging ownership contract.`,
+    );
+    return;
+  }
+  const stagingAssignments = parseActiveAssignments(stagingPath, stagingEnv);
+  const validAdapter = requireSingleAssignment(
+    stagingPath,
+    stagingAssignments,
+    "OWNERSHIP_ADAPTER",
+    "privy",
+  );
+  const validOutbox = requireSingleAssignment(
+    stagingPath,
+    stagingAssignments,
+    "FANPASS_CHAIN_PROOF_SYNC_OUTBOX",
+    "true",
+  );
+  if (!validAdapter || !validOutbox) {
+    errors.push(
+      "apps/api/.env.staging.example must use the fail-closed Privy adapter with durable outbox proof sync.",
     );
   }
 }
@@ -155,20 +262,11 @@ function auditPrivateKeyMaterial() {
 }
 
 function auditCompositeVerifier() {
-  const contents = readFile("scripts/beta-foundation-verify.sh");
-  const selfTest = "security:chain-operator-key:self-test";
-  const audit = "security:chain-operator-key";
-  if (!contents.includes(selfTest) || !contents.includes(audit)) {
-    errors.push(
-      "scripts/beta-foundation-verify.sh must run chain operator key self-test and audit.",
-    );
-    return;
-  }
-  if (contents.indexOf(selfTest) > contents.indexOf(audit)) {
-    errors.push(
-      "scripts/beta-foundation-verify.sh must run chain operator key self-test before the real audit.",
-    );
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    ["security:chain-operator-key:self-test", "security:chain-operator-key"],
+    errors,
+  );
 }
 
 function auditDocs() {
@@ -210,6 +308,64 @@ function readOptionalFile(relativePath) {
     return "";
   }
   return fs.readFileSync(absolutePath, "utf8");
+}
+
+function parseActiveAssignments(relativePath, contents) {
+  const assignments = new Map();
+  for (const [index, rawLine] of contents.split(/\r?\n/).entries()) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const match = line.match(
+      /^(?:export\s+)?([A-Z][A-Z0-9_]*)=(?:["']?)([^\s\\#"']+)(?:["']?)(?:\s*\\)?$/,
+    );
+    if (!match) {
+      continue;
+    }
+    const values = assignments.get(match[1]) ?? [];
+    values.push({ line: index + 1, value: match[2] });
+    assignments.set(match[1], values);
+  }
+  return assignments;
+}
+
+function requireSingleAssignment(
+  relativePath,
+  assignments,
+  key,
+  expectedValue,
+) {
+  const values = assignments.get(key) ?? [];
+  if (values.length !== 1 || values[0].value !== expectedValue) {
+    const actual =
+      values.length === 0
+        ? "missing"
+        : values.map((entry) => `${entry.value}@${entry.line}`).join(", ");
+    errors.push(
+      `${relativePath} must contain exactly one active ${key}=${expectedValue} assignment; found ${actual}.`,
+    );
+    return false;
+  }
+  return true;
+}
+
+function requireOnlyAssignments(relativePath, assignments, key, expectedValue) {
+  const values = assignments.get(key) ?? [];
+  if (
+    values.length === 0 ||
+    values.some((entry) => entry.value !== expectedValue)
+  ) {
+    const actual =
+      values.length === 0
+        ? "missing"
+        : values.map((entry) => `${entry.value}@${entry.line}`).join(", ");
+    errors.push(
+      `${relativePath} must set every active ${key} assignment to ${expectedValue}; found ${actual}.`,
+    );
+    return false;
+  }
+  return true;
 }
 
 function listFiles(directory) {

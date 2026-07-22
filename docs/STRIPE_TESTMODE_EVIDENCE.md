@@ -10,7 +10,7 @@ Run the validator on saved evidence:
 npm run security:stripe-testmode:evidence -- outputs/stripe-testmode/<evidence-file>.json
 ```
 
-The fixture-backed validator self-test is included in `npm run beta:foundation:verify`:
+The fixture-backed validator self-test is included in `node scripts/beta-foundation-verify.js`:
 
 ```bash
 npm run security:stripe-testmode:evidence:self-test
@@ -41,39 +41,39 @@ The saved JSON may be embedded in command output, but it must include one JSON o
     "files": [
       {
         "file": "apps/api/src/modules/payments/payments.controller.ts",
-        "sha256": "0329d5db190f67072eb6f11c9b4fa74bd01f103ab9801a02b83c1ebaecdf3df1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/payments/payments.service.ts",
-        "sha256": "39b56d44abfdda2403b2e5a1389bcb3ee406c11eca7409a56d4309100540b10c"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/settlement-side-effects.service.ts",
-        "sha256": "7e0ff131e13ad5fdf9f93a16f0d0b70cba08966c38bd371eefa3a1797bd9487f"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/side-effect-worker.service.ts",
-        "sha256": "f65b7d34d36e4c89cac98116e4f5ad36a846586bb067253244377b1778d7a53e"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/App/FanPassApp.swift",
-        "sha256": "b69e1094c4e10f01115c0a1a8b59acd2e7391dc215842677e817eabcb35817ff"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
-        "sha256": "238117d66529ec7c3bc9ec62cc47ff7d7b4de9110ee980b9e6c7b3ef646b9bb1"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Shared/FanPassEnvironment.swift",
-        "sha256": "ea67e6213ca8b4495139f1e28d9da70bce29c38fe5b2adb7e6863c186697dd3e"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Events/EventListView.swift",
-        "sha256": "47c193ba7838d01a165ed4e360c352c20d307c413978bc683a6e795ce47ae92a"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/ios/FanPass/FanPass/Features/Payments/StripePaymentSheetPresenter.swift",
-        "sha256": "3d7e0058c2fd2176840567d28eef090b177d587e39d38ac6ebafdbb2ed394db7"
+        "sha256": "<current sha256>"
       }
     ]
   },

@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -25,6 +28,46 @@ const cases = [
         "apps/api/src/modules/payments/payments.service.ts",
         "payment: this.mapRedactedPayment(payment)",
         "payment: this.mapPayment(payment)",
+      );
+    },
+  },
+  {
+    label: "rejects payer-only mapper usage outside createPaymentIntent",
+    expected: "fail",
+    mutate: (fixtureRoot) => {
+      writeFixture(fixtureRoot);
+      replaceInFixture(
+        fixtureRoot,
+        "apps/api/src/modules/payments/payments.service.ts",
+        "  async requestPaymentOperation() {",
+        [
+          "  async exposePayment(payment) {",
+          "    return this.mapPayment(payment);",
+          "  }",
+          "",
+          "  async requestPaymentOperation() {",
+        ].join("\n"),
+      );
+    },
+  },
+  {
+    label: "rejects a non-unified checkout response tail",
+    expected: "fail",
+    mutate: (fixtureRoot) => {
+      writeFixture(fixtureRoot);
+      replaceInFixture(
+        fixtureRoot,
+        "apps/api/src/modules/payments/payments.service.ts",
+        "    return this.mapPayment(updated);\n  }\n\n  async requestPaymentOperation() {",
+        [
+          "    if (paymentResult.existing) {",
+          "      return this.mapPayment(updated);",
+          "    }",
+          "    return updated;",
+          "  }",
+          "",
+          "  async requestPaymentOperation() {",
+        ].join("\n"),
       );
     },
   },
@@ -155,13 +198,13 @@ function writeFixture(fixtureRoot, options = {}) {
   );
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
+    "scripts/beta-foundation-verify.js",
     includeVerifierStep
-      ? [
-          "npm run security:payment-response-redaction:self-test",
-          "npm run security:payment-response-redaction",
-        ].join("\n")
-      : "npm run security:api-privacy\n",
+      ? renderBetaFoundationGateFixture([
+          "security:payment-response-redaction:self-test",
+          "security:payment-response-redaction",
+        ])
+      : renderBetaFoundationGateFixture(["security:api-privacy"]),
   );
   writeFixtureFile(
     fixtureRoot,
@@ -188,13 +231,13 @@ function writeFixture(fixtureRoot, options = {}) {
     "docs/QA_CHECKLIST.md",
     [
       "Payment status visible to organizer Console views must redact Stripe client secrets and user PII by default.",
-      "Keep `npm run security:payment-response-redaction:self-test` and `npm run security:payment-response-redaction` in `npm run beta:foundation:verify`.",
+      "Keep `npm run security:payment-response-redaction:self-test` and `npm run security:payment-response-redaction` in `node scripts/beta-foundation-verify.js`.",
     ].join("\n"),
   );
   writeFixtureFile(
     fixtureRoot,
     "docs/BETA_ROADMAP.md",
-    "The payment response redaction audit must keep passing inside `npm run beta:foundation:verify`.",
+    "The payment response redaction audit must keep passing inside `node scripts/beta-foundation-verify.js`.",
   );
 }
 
@@ -203,11 +246,17 @@ function paymentsServiceFixture() {
 export class PaymentsService {
   async createPaymentIntent() {
     const existing = {};
-    if (existing) {
-      const repaired = existing;
-      return this.mapPayment(repaired);
-    }
-    const updated = {};
+    const paymentResult = {
+      payment: existing,
+      existing: Boolean(existing),
+    };
+    let updated: Payment;
+    updated = await this.ensureProviderPaymentIntent(
+      paymentResult.payment,
+      paymentResult.existing
+        ? "PAYMENT_INTENT_REPAIRED"
+        : "PAYMENT_INTENT_CREATED",
+    );
     return this.mapPayment(updated);
   }
 

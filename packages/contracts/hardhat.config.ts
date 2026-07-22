@@ -1,44 +1,67 @@
-import "@nomicfoundation/hardhat-toolbox";
+import hardhatEthers from "@nomicfoundation/hardhat-ethers";
+import hardhatEthersChaiMatchers from "@nomicfoundation/hardhat-ethers-chai-matchers";
+import hardhatMocha from "@nomicfoundation/hardhat-mocha";
 import fs from "fs";
-import type { HardhatUserConfig } from "hardhat/config";
+import { defineConfig } from "hardhat/config";
 import path from "path";
+import { fileURLToPath } from "url";
 
-loadLocalEnvFile(path.resolve(__dirname, "..", "..", ".env.local"));
-loadLocalEnvFile(path.resolve(__dirname, ".env.local"));
+import {
+  initializeHardhatEnvironment,
+  isHardhatProcessOnlyEnvironmentKey,
+  resolveSepoliaDevCredentials,
+  resolveSepoliaRpcUrl,
+} from "./scripts/deployment-policy.js";
 
-const sepoliaDevRpcUrl =
-  process.env.FANPASS_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.invalid";
-const sepoliaDevPrivateKey = normalizePrivateKey(
-  process.env.FANPASS_SEPOLIA_DEV_PRIVATE_KEY,
-);
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
-const config: HardhatUserConfig = {
+const environmentPolicy = initializeHardhatEnvironment({
+  environment: process.env,
+  localEnvFiles: [
+    path.resolve(configDir, "..", "..", ".env.local"),
+    path.resolve(configDir, ".env.local"),
+  ],
+  loadLocalEnvFile,
+});
+const protectedMode = environmentPolicy.mode !== "STANDARD";
+const sepoliaDevCredentials = protectedMode
+  ? null
+  : resolveSepoliaDevCredentials(process.env);
+const sepoliaRpcUrl = resolveSepoliaRpcUrl(process.env);
+
+export default defineConfig({
+  plugins: [hardhatEthers, hardhatEthersChaiMatchers, hardhatMocha],
   solidity: {
     version: "0.8.28",
     settings: {
       evmVersion: "cancun",
       optimizer: {
         enabled: true,
-        runs: 200
-      }
-    }
+        runs: 200,
+      },
+    },
   },
   networks: {
-    hardhat: {},
-    sepoliaDev: {
-      url: sepoliaDevRpcUrl,
-      chainId: 11155111,
-      accounts: sepoliaDevPrivateKey ? [sepoliaDevPrivateKey] : [],
+    hardhat: {
+      type: "edr-simulated",
+      chainType: "l1",
     },
-  }
-};
-
-function normalizePrivateKey(value?: string): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-  return value.startsWith("0x") ? value : `0x${value}`;
-}
+    sepoliaDev: {
+      type: "http",
+      chainType: "l1",
+      url: sepoliaDevCredentials?.rpcUrl ?? "https://rpc.sepolia.invalid",
+      chainId: 11155111,
+      accounts: sepoliaDevCredentials ? [sepoliaDevCredentials.privateKey] : [],
+    },
+    sepoliaStaging: {
+      type: "http",
+      chainType: "l1",
+      url: sepoliaRpcUrl ?? "https://rpc.sepolia.invalid",
+      chainId: 11155111,
+      accounts: [],
+    },
+  },
+});
 
 function loadLocalEnvFile(filePath: string): void {
   if (!fs.existsSync(filePath)) {
@@ -55,7 +78,10 @@ function loadLocalEnvFile(filePath: string): void {
       continue;
     }
     const [, key, rawValue] = match;
-    if (process.env[key] !== undefined) {
+    if (
+      process.env[key] !== undefined ||
+      isHardhatProcessOnlyEnvironmentKey(key)
+    ) {
       continue;
     }
     process.env[key] = unquoteEnvValue(rawValue.trim());
@@ -71,5 +97,3 @@ function unquoteEnvValue(value: string): string {
   }
   return value;
 }
-
-export default config;

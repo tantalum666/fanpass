@@ -75,6 +75,7 @@ export class FanAccessService {
         .findFirst({
           where: {
             eventId,
+            event: { status: "PUBLISHED" },
             status: "ACTIVE",
             startsAt: { lte: now },
             closesAt: { gt: now },
@@ -96,6 +97,13 @@ export class FanAccessService {
         );
     }
 
+    const event = this.store.events.find(
+      (candidate) =>
+        candidate.id === eventId && candidate.status === "PUBLISHED",
+    );
+    if (!event) {
+      return null;
+    }
     const campaign = this.store.fanCampaigns.find(
       (candidate) =>
         candidate.eventId === eventId &&
@@ -129,6 +137,8 @@ export class FanAccessService {
       (candidate) => candidate.id === task.campaignId,
     );
     if (
+      this.store.events.find((event) => event.id === task.eventId)?.status !==
+        "PUBLISHED" ||
       !campaign ||
       campaign.status !== "ACTIVE" ||
       !this.isCampaignOpen(campaign)
@@ -159,12 +169,14 @@ export class FanAccessService {
     return submission;
   }
 
-  async getScore(eventId: string, userId: string) {
+  async getScore(eventId: string, userId: string, session: FanPassSession) {
     const prisma = this.prismaClient();
     if (prisma) {
+      await this.assertPrismaFanScoreReader(prisma, eventId, userId, session);
       return this.getPrismaScore(prisma, eventId, userId);
     }
 
+    this.assertDemoFanScoreReader(eventId, userId, session);
     const campaign = this.store.fanCampaigns.find(
       (candidate) =>
         candidate.eventId === eventId &&
@@ -212,7 +224,16 @@ export class FanAccessService {
     this.assertCampaignInput(input);
     const prisma = this.prismaClient();
     if (prisma) {
-      await this.assertPrismaEventManager(prisma, eventId, session);
+      const event = await this.assertPrismaEventManager(
+        prisma,
+        eventId,
+        session,
+      );
+      if (input.status === "ACTIVE" && event.status !== "PUBLISHED") {
+        throw new BadRequestException(
+          "A Fan Access campaign can only activate for a published event",
+        );
+      }
       return prisma.$transaction(async (tx) => {
         const existing = await tx.fanCampaign.findFirst({
           where: { eventId, status: { not: "ARCHIVED" } },
@@ -307,7 +328,12 @@ export class FanAccessService {
       });
     }
 
-    this.assertDemoEventManager(eventId, session);
+    const event = this.assertDemoEventManager(eventId, session);
+    if (input.status === "ACTIVE" && event.status !== "PUBLISHED") {
+      throw new BadRequestException(
+        "A Fan Access campaign can only activate for a published event",
+      );
+    }
     const existing = this.store.fanCampaigns.find(
       (candidate) =>
         candidate.eventId === eventId && candidate.status !== "ARCHIVED",
@@ -386,11 +412,16 @@ export class FanAccessService {
       if (!submission) {
         throw new NotFoundException(`Submission ${submissionId} not found`);
       }
-      await this.assertPrismaEventManager(
+      const event = await this.assertPrismaEventManager(
         prisma,
         submission.task.eventId,
         session,
       );
+      if (event.status !== "PUBLISHED") {
+        throw new BadRequestException(
+          "Fan Access submissions cannot be reviewed before event publication",
+        );
+      }
       if (submission.status !== "PENDING") {
         if (submission.status === input.decision) {
           return this.mapPrismaSubmission(submission);
@@ -428,7 +459,12 @@ export class FanAccessService {
     if (!task) {
       throw new NotFoundException(`Task ${submission.taskId} not found`);
     }
-    this.assertDemoEventManager(task.eventId, session);
+    const event = this.assertDemoEventManager(task.eventId, session);
+    if (event.status !== "PUBLISHED") {
+      throw new BadRequestException(
+        "Fan Access submissions cannot be reviewed before event publication",
+      );
+    }
     if (submission.status !== "PENDING") {
       if (submission.status === input.decision) {
         return submission;
@@ -454,12 +490,13 @@ export class FanAccessService {
     const now = new Date();
     const task = await prisma.fanTask.findUnique({
       where: { id: taskId },
-      include: { campaign: true },
+      include: { campaign: true, event: { select: { status: true } } },
     });
     if (!task) {
       throw new NotFoundException(`Task ${taskId} not found`);
     }
     if (
+      task.event.status !== "PUBLISHED" ||
       !task.campaign ||
       task.campaign.status !== "ACTIVE" ||
       task.campaign.startsAt > now ||
@@ -733,7 +770,7 @@ export class FanAccessService {
     session: FanPassSession,
   ) {
     if (session.role === "ADMIN") {
-      return;
+      return prisma.event.findUniqueOrThrow({ where: { id: eventId } });
     }
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -748,17 +785,87 @@ export class FanAccessService {
     ) {
       throw new ForbiddenException("Event is outside this organizer workspace");
     }
+    return event;
   }
 
   private assertDemoEventManager(eventId: string, session: FanPassSession) {
-    if (session.role === "ADMIN") {
-      return;
-    }
     const event = this.store.events.find(
       (candidate) => candidate.id === eventId,
     );
     if (!event) {
       throw new NotFoundException(`Event ${eventId} not found`);
+    }
+    if (session.role === "ADMIN") {
+      return event;
+    }
+    const organizer = this.store.organizers.find(
+      (candidate) => candidate.id === event.organizerId,
+    );
+    if (session.role !== "ORGANIZER" || organizer?.userId !== session.userId) {
+      throw new ForbiddenException("Event is outside this organizer workspace");
+    }
+    return event;
+  }
+
+  private async assertPrismaFanScoreReader(
+    prisma: PrismaService,
+    eventId: string,
+    userId: string,
+    session: FanPassSession,
+  ) {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: { organizer: true },
+    });
+    if (!event) {
+      throw new NotFoundException(`Event ${eventId} not found`);
+    }
+    if (session.role === "ADMIN") {
+      return;
+    }
+    if (session.role === "FAN") {
+      if (session.userId !== userId) {
+        throw new ForbiddenException(
+          "Fans can only view their own fan access score",
+        );
+      }
+      if (event.status !== "PUBLISHED") {
+        throw new BadRequestException("Fan Access is not available");
+      }
+      return;
+    }
+    if (
+      session.role !== "ORGANIZER" ||
+      event.organizer.userId !== session.userId
+    ) {
+      throw new ForbiddenException("Event is outside this organizer workspace");
+    }
+  }
+
+  private assertDemoFanScoreReader(
+    eventId: string,
+    userId: string,
+    session: FanPassSession,
+  ) {
+    const event = this.store.events.find(
+      (candidate) => candidate.id === eventId,
+    );
+    if (!event) {
+      throw new NotFoundException(`Event ${eventId} not found`);
+    }
+    if (session.role === "ADMIN") {
+      return;
+    }
+    if (session.role === "FAN") {
+      if (session.userId !== userId) {
+        throw new ForbiddenException(
+          "Fans can only view their own fan access score",
+        );
+      }
+      if (event.status !== "PUBLISHED") {
+        throw new BadRequestException("Fan Access is not available");
+      }
+      return;
     }
     const organizer = this.store.organizers.find(
       (candidate) => candidate.id === event.organizerId,

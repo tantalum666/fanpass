@@ -39,51 +39,51 @@ Required JSON shape:
     "files": [
       {
         "file": "apps/api/src/modules/ownership/ownership.service.ts",
-        "sha256": "a0963f62ee9ab00e521a4e87deab85abf96f17e5cf0edd79464b7d76b390b23d"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/settlement-side-effects.service.ts",
-        "sha256": "7e0ff131e13ad5fdf9f93a16f0d0b70cba08966c38bd371eefa3a1797bd9487f"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/ticket-ownership-side-effects.service.ts",
-        "sha256": "5cf85b058a0ebf6e154ad597ee376e09684052bd4f4a425396ea9067a20291b4"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/side-effect-outbox.service.ts",
-        "sha256": "e88e4f0d6ef70d791d28b98dc23928263d5f60b7739363fe384298e56f1aec70"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/side-effect-worker.service.ts",
-        "sha256": "f65b7d34d36e4c89cac98116e4f5ad36a846586bb067253244377b1778d7a53e"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/modules/side-effects/side-effect-health.service.ts",
-        "sha256": "0804138b2db924583c48869ad998a70b38dfdb077d3e0ac00c33d56235a20dfe"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/src/config/security-config.ts",
-        "sha256": "a61e7eec663335936a94f64baf6b15c15722dd22bb6a02b3750a4ac6c954a3a2"
+        "sha256": "<current sha256>"
       },
       {
         "file": "apps/api/prisma/schema.prisma",
-        "sha256": "bc1844fd5439191118c752c015a89cd69799ec7b75a14432e8384cbcb9862704"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/chain-operator-key-boundary-audit.js",
-        "sha256": "4766d773c0546e88795213ee6b4c2373698704f9236bc32ab931d3aa58ee1955"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/provider-boundary-audit.js",
-        "sha256": "6eec3d873a45677f575ae79a3ee39ead0c8808abaa20e552de7a2750858d83ce"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/settlement-retry-idempotency-audit.js",
-        "sha256": "ade8b3114601b81c9865f5866214a648bb4655af6bda03729e768d4297549a76"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/side-effects-worker-verify.sh",
-        "sha256": "4d36d528ff902e2f57ae702af8a1afbc6e46f06ae9f53a2f41ba46df26ae9c37"
+        "sha256": "<current sha256>"
       }
     ]
   },

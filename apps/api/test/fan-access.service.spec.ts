@@ -8,6 +8,10 @@ describe("FanAccessService", () => {
   let store: DemoStore;
   let fanAccess: FanAccessService;
   let events: EventsService;
+  const fanSession = {
+    userId: demoSeedIds.fanId,
+    role: "FAN" as const,
+  };
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date("2026-07-20T00:00:00.000Z"));
@@ -67,7 +71,11 @@ describe("FanAccessService", () => {
       fanAccess.submitTask(taskId, { userId: demoSeedIds.fanId }),
     ).rejects.toThrow("This Fan Access task is not available");
     await expect(
-      fanAccess.getScore(demoSeedIds.arenaEventId, demoSeedIds.fanId),
+      fanAccess.getScore(
+        demoSeedIds.arenaEventId,
+        demoSeedIds.fanId,
+        fanSession,
+      ),
     ).resolves.toMatchObject({ campaignId: null, fanScore: 0 });
   });
 
@@ -81,7 +89,7 @@ describe("FanAccessService", () => {
       proof: "server-verified",
     });
     await expect(
-      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId),
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, fanSession),
     ).resolves.toMatchObject({
       fanScore: 35,
       qualificationPoints: 40,
@@ -95,7 +103,7 @@ describe("FanAccessService", () => {
     fan.riskScore = 1;
 
     await expect(
-      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId),
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, fanSession),
     ).resolves.toMatchObject({
       fanScore: 35,
       score: 35,
@@ -125,7 +133,7 @@ describe("FanAccessService", () => {
       fanAccess.submitTask(task.id, { userId: demoSeedIds.fanId }),
     ).resolves.toMatchObject({ status: "APPROVED" });
     await expect(
-      fanAccess.getScore(eventId, demoSeedIds.fanId),
+      fanAccess.getScore(eventId, demoSeedIds.fanId, fanSession),
     ).resolves.toMatchObject({
       fanScore: 65,
       entitlementStatus: "ELIGIBLE",
@@ -147,7 +155,7 @@ describe("FanAccessService", () => {
       ),
     ).resolves.toMatchObject({ status: "APPROVED" });
     await expect(
-      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId),
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, fanSession),
     ).resolves.toMatchObject({
       fanScore: 40,
       pointsToQualify: 0,
@@ -157,5 +165,55 @@ describe("FanAccessService", () => {
       action: "FAN_TASK_REVIEWED",
       entityId: submission.id,
     });
+  });
+
+  it("hides campaigns and rejects submissions while the event is unpublished", async () => {
+    const event = store.events.find(
+      (candidate) => candidate.id === demoSeedIds.arenaEventId,
+    )!;
+    const task = store.fanTasks.find(
+      (candidate) => candidate.eventId === demoSeedIds.arenaEventId,
+    )!;
+    event.status = "DRAFT";
+
+    expect(fanAccess.getCampaign(demoSeedIds.arenaEventId)).toBeNull();
+    await expect(
+      fanAccess.listTasks(demoSeedIds.arenaEventId),
+    ).resolves.toEqual([]);
+    await expect(
+      fanAccess.submitTask(task.id, { userId: demoSeedIds.fanId }),
+    ).rejects.toThrow("This Fan Access task is not available");
+  });
+
+  it("enforces fan self access and organizer event tenancy for scores", async () => {
+    await expect(
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, {
+        userId: demoSeedIds.buyerId,
+        role: "FAN",
+      }),
+    ).rejects.toThrow("Fans can only view their own fan access score");
+
+    await expect(
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, {
+        userId: demoSeedIds.organizerUserId,
+        role: "ORGANIZER",
+      }),
+    ).resolves.toMatchObject({ userId: demoSeedIds.fanId });
+
+    store.users.push({
+      id: "usr_other_organizer",
+      name: "Other Organizer",
+      email: "other-organizer@fanpass.test",
+      role: "ORGANIZER",
+      privyId: "did:privy:other-organizer",
+      walletAddress: null,
+      riskScore: 0,
+    });
+    await expect(
+      fanAccess.getScore(demoSeedIds.eventId, demoSeedIds.fanId, {
+        userId: "usr_other_organizer",
+        role: "ORGANIZER",
+      }),
+    ).rejects.toThrow("Event is outside this organizer workspace");
   });
 });

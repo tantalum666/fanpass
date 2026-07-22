@@ -64,7 +64,21 @@ scan_for_forbidden_markers() {
 
 run_step alpha-demo-script-audit npm run alpha:demo-script:audit
 run_step alpha-walkthrough-evidence-audit npm run alpha:walkthrough:evidence:audit
-run_step beta-foundation-verify npm run beta:foundation:verify
+# This optional capture is not release evidence by itself. The verifier still
+# uses the authoritative pre-Node environment boundary so a caller preload
+# cannot turn the captured gate into false-success evidence.
+REVIEWED_BETA_FOUNDATION_LAUNCHER_SHA256="377af7200bfffe357620315caf2c158d13a81de0ee3f2bad0e767731f8b4e47f"
+run_step beta-foundation-verify \
+  /usr/bin/env -i \
+  HOME=/tmp \
+  TMPDIR=/tmp \
+  PATH=/opt/homebrew/opt/node@22/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+  DATABASE_URL=postgresql://fanpass:fanpass@127.0.0.1:5432/fanpass \
+  /opt/homebrew/opt/node@22/bin/node \
+  -e 'const crypto=require("node:crypto"),fs=require("node:fs"),Module=require("node:module"),path=require("node:path");try{const relative=process.argv[1],expected=process.argv[2],requestedRoot=process.argv[3],root=fs.realpathSync(requestedRoot),cwd=fs.realpathSync(process.cwd());if(root!==cwd)throw new Error("Canonical workspace does not match the current directory");const file=path.join(root,relative),real=fs.realpathSync(file);if(real!==file)throw new Error("Launcher path contains a symlink or escapes the canonical workspace");const descriptor=fs.openSync(file,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));let source;try{const stat=fs.fstatSync(descriptor);if(!stat.isFile())throw new Error("Launcher must be a regular file");source=fs.readFileSync(descriptor)}finally{fs.closeSync(descriptor)}const actual=crypto.createHash("sha256").update(source).digest("hex");if(actual!==expected)throw new Error("Launcher digest does not match the reviewed bytes");const loaded=new Module(file);loaded.filename=file;loaded.paths=Module._nodeModulePaths(path.dirname(file));loaded._compile(source.toString("utf8"),file);if(typeof loaded.exports.main!=="function")throw new Error("Launcher must export main");loaded.exports.main()}catch(error){console.error(`Beta foundation bootstrap failed: ${error instanceof Error?error.message:"unknown error"}`);process.exit(1)}' \
+  scripts/beta-foundation-launcher.js \
+  "$REVIEWED_BETA_FOUNDATION_LAUNCHER_SHA256" \
+  "$ROOT_DIR"
 run_step beta-local-start npm run beta:local:start
 run_step beta-local-verify npm run beta:local:verify
 run_step console-visual-check env FANPASS_CONSOLE_SCREENSHOT="$CONSOLE_SCREENSHOT" npm run console:verify:local
@@ -92,7 +106,7 @@ Status: local evidence bundle captured; walkthrough recording is owner-skipped f
 
 - \`npm run alpha:demo-script:audit\` -> \`alpha-demo-script-audit.log\`
 - \`npm run alpha:walkthrough:evidence:audit\` -> \`alpha-walkthrough-evidence-audit.log\`
-- \`npm run beta:foundation:verify\` -> \`beta-foundation-verify.log\`
+- \`README.md authoritative env-i Node 22 gate\` -> \`beta-foundation-verify.log\`
 - \`npm run beta:local:start\` -> \`beta-local-start.log\`
 - \`npm run beta:local:verify\` -> \`beta-local-verify.log\`
 - \`npm run console:verify:local\` -> \`console-visual-check.log\`

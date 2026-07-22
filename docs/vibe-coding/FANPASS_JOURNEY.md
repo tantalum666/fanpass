@@ -424,3 +424,47 @@ Render CLI 还出现了另一种“假成功”：更新服务 build command 后
 仍在进行：这不是正式上线或全球商业落地。Home 的位置/推荐/通知仍有概念行为，Explore 卡片在窄屏的海报/状态层仍显杂乱，Market 在无 Ask 时仍把绿色 Buy 作为主按钮；生命周期自动化、TestFlight、实体设备、非休眠容量、全球化、内容权利和真实 Fan Access 双角色 E2E 仍属于 Gate B/C。
 
 可复制经验：部署完成必须同时回读远端 commit、云端 deploy commit、构建日志和业务正负向结果；`live`、Health 200、编译成功、CLI 退出 0 都只能证明其中一层。AI 看到相邻错误时应继续追到同一发布门的根因，但要把未完成的下一阶段明确留下，而不是无限把所有产品问题混成一次改动。
+
+## 20. 2026-07-18 至 2026-07-20：安全扫描为什么有很多轮，以及什么时候必须停下来修
+
+这次安全工作最容易造成误解的地方，是界面里同时出现了 Deep Scan、多个 discovery pass、候选项、验证项和 Changes 页面，看起来像是“审计永远做不完”。实际上它们解决的是不同问题：Deep Scan 的多个独立 pass 是为了减少同一类盲区；候选项要经过可达性和影响验证，不能直接当漏洞；修复后的 Changes scan 只检查本次改动有没有留下新缺口。全量发现阶段在 sealed baseline 完成后就应该停止，后面进入修复、回归和一次最终差异验证，不能因为页面多就不断重开全量扫描。
+
+本轮先从 39 个基线问题按共同根因修复，再用 repaired-working-tree Changes scan 收敛出三个仍成立的问题：旧钱包绑定缺少可信来源、WebSocket 重连能重置准入预算、DRAFT 活动还能从转售侧进入写入和支付。随后独立交叉审查没有继续扩大扫描范围，而是沿已经改动的资金与链上状态机找实现回归，发现了四个需要马上修的相邻问题：补偿态可能被客户端显示成成功、延迟 Stripe capture 没有在执行时重新检查活动、ownership job 进入 DEAD 后可能不补偿、Privy 明确失败可能被无限当成 pending。
+
+修复后的关键边界不是“多写几个 if”，而是把事实放进可恢复的状态机：钱包绑定有 `VERIFIED/UNVERIFIED` 来源、版本和指纹；活动发布状态在下单和最终结算都复核；Sponsored USDC 区分 pending、confirmed、definitive failure、ambiguous 和 compensation；Stripe 只在锁定后的订单、票、交易和活动事实全部成立时 capture；ownership provider 调用前先落一个不可回退的 submission fence，进程在 fence 之后崩溃就进入人工对账，不能自动重播或自动补偿。
+
+验证也分层记录。进入 RC 收口前的本地基线通过 API 30 个 suite/308 个测试、一次性 PostgreSQL 12/12 并发测试、iOS Debug 6/6、合约 13/13、API/Console 类型检查与生产构建、真实子进程 Console 会话交接、安全边界审计和生产依赖 0 漏洞。这里的“真实”只指真实 PostgreSQL 引擎和真实进程边界，不代表真实用户发布；当时的 dirty worktree 没有部署，Stripe/Privy/Sepolia 故障注入、TestFlight/实体设备、App Attest、链托管以及多实例 WebSocket 仍未关闭。
+
+这也回答了“审计完不用修吗”：要修，而且发现阶段有明确终点。FanPass 接下来不再开新的全量 Deep Scan，而是把这一批代码和 schema 部署到 Staging，跑真实 provider 与崩溃边界，再做一次 `Changes / Review changes` 验证。如果架构或信任边界没有明显变化，就不应该用重复全量审计替代上线验证。
+
+可复制模式：先冻结可复现基线，再把候选项收敛成验证后的工作清单；每个修复先写失败用例和安全不变量，再实现、跑同域回归、交给独立视角检查相邻状态，最后用真实数据库/进程/provider 分层补证。扫描轮数不是进度，关闭了多少可信边界、还剩哪些外部证据才是进度。项目仍在建设中，这一阶段既不是“已经成功”，也不是“失败复盘”。
+
+## 21. 2026-07-20：把安全修复变成可控的 Staging 发布候选
+
+扫描收口后，下一步没有直接把 dirty worktree 推上云。三个 Render 服务的 Auto-Deploy 被关闭，仓库也固定为 `autoDeployTrigger: off`，Workspace 的重叠部署策略回读为 `Wait`；这些设置变更没有触发部署，线上仍运行旧版本。
+
+数据库发布新增了默认暂停的 dispatch revision fence：旧进程不能继续领取任务，新 Worker 在领取任务和调用外部 Provider 前都要重新确认 revision；受控恢复只能绑定唯一一条可领取任务并自动暂停。票据同时保存不可变的合约地址、链和版本，旧数据通过 enforcement、backfill、validation 三步迁移。只读发布预检还必须绑定经过批准的 Staging 数据库身份，并把未知状态或未知类型的活动任务一律作为阻断项，避免在错误或不完整的数据库上得到“安全”结果。
+
+Staging 因此采用两阶段切换：Phase A 保持旧合约地址，先部署 route-aware RC；旧 Revision 退出后才部署新 Sepolia 合约，Phase B 用同一 RC 切换新地址。独立复核随后发现一个发布流程级 P1：数据库 fence 能阻止旧 Worker 领取任务，却不能让已经在线、还不认识 fence 的旧 API 自动拦住 Stripe/Privy 直连；Render 的普通零停机部署又会让旧实例在新版本 build 期间继续接收请求。因此第一次安装 fence 前必须先建立真实的公共流量维护边界、排空旧请求并核对 Provider/outbox census，等新 RC 成为唯一实例且 preflight 通过后才能恢复流量。Render Free 没有 Maintenance Mode，不能把自动休眠或未经证明的 suspend/resume 当成安全替代。
+
+整个过程 Worker 保持关闭，先验证备份和只读数据库 preflight，再允许一条受控 probe。新合约第一张票 mint 后，不能回滚到不支持 per-ticket routing 的旧 API。
+
+当前 RC 的 Node 22 基线为 API 32 个通过 suite/386 个通过测试，另有 13 个 PostgreSQL 测试只在明确的本地数据库门禁中开启；合约 30/30、Console Auth 16/16，API/Console/Web/合约类型检查与生产构建通过，根工作区生产依赖审计为零。iOS 证据是 Debug 6/6 和 Beta generic-device unsigned build 成功；它证明编译和环境配置，不是 TestFlight。Apple Team、签名身份和 Provisioning Profile 尚未提供。Staging 数据库尚未迁移、新合约尚未部署、没有发生链上写入，真实 Stripe/Privy/Sepolia 与故障边界证据仍待完成。独立的 Console Auth 仍有 Privy 间接依赖带来的 10 个 moderate 记录，当前没有验证到受影响的 uuid buffer 调用链，因此只接受进入受控 Staging，不能称为 Production GA 零漏洞。
+
+可复制经验：高风险发布不能把“关 Worker”只做成进程环境变量，也不能把合约地址切换和 API 兼容性押在一次部署里。把关闭开关下沉到数据库、把迁移拆成前后兼容的两阶段、绑定发布工具的目标环境，并明确不可逆边界，才能让小团队在缺少完整企业发布设施时仍然拥有可停止、可证明的发布过程。
+
+## 22. 2026-07-22：安全门禁本身也必须防伪
+
+RC 收口时没有因为 API、合约和依赖测试变绿就立即提交。独立复核反过来攻击了“证明这些结果的脚本”，发现两个会制造假安全感的 P1：Render 审计器用自制缩进解析，合法 YAML 可以放一个安全 decoy、再把真正的不安全服务写成另一种结构；Hosted CI 证据只校验提交者填写的 JSON 和本地文件哈希，任意仓库、任意 run id、任意 commit 和未来时间都能被伪造成成功。
+
+修复没有继续堆字符串判断。Render 门禁改用直接固定的 `js-yaml@4.3.0` 解析真实 AST，精确限制顶层资源、三个服务、执行字段和环境变量来源；55 个正负用例覆盖嵌套/flow decoy、重复键、额外服务、命令后缀、pre-deploy hook、repo/branch 和 secret 来源。Render self-test/audit 成为受审查组合 manifest 中不可省略、不可换序的一对命令；43 个 workflow 用例拒绝注释伪装、`exit 0`、dead branch、条件跳过、允许失败、改名、错序，以及 runner/guard/工具链路径替换。
+
+Hosted CI 证据则改成在线证明：验证器从 Git remote 得到唯一仓库，要求工作树干净并绑定当前 RC commit，再向 GitHub API 核对 run、job、workflow 内容、三个真实顶层 step（Checkout、Setup Node 22、Verify Beta foundation）、结论和时间。GitHub job API 不会把组合验证器内部的 97 个命令展开成独立 step，所以内部命令由成功的 Verify step、受证明的 workflow 原文和不可变 commit 共同绑定。工作流的 push filter 同时覆盖 `main` 和受控的 `codex/security-rc-*`，因此本次 RC 推送会在合并前直接产生精确 head SHA 的 run；`workflow_dispatch` 只作为该定义进入默认分支后的后续入口，因为 GitHub 不接收仅存在于 RC 分支上的手动触发定义。这样就不会把 PR merge SHA 或合并后的 main run 冒充预合并证明。29 个用例证明原伪造样本现在失败；网络、404、403 或权限不足都不会降级成“离线通过”。当前本机 GitHub 凭证没有私库 `Actions: read`，所以这里只能证明验证器会安全拒绝，不能提前宣称已有真实 hosted run。
+
+完整 Beta 门禁还暴露了一个与地区有关的真实代码问题：Prisma 把 JavaScript `Date` 作为带时区参数传入，而 PostgreSQL outbox 的 `locked_at` 是无时区列。在上海时区，两者表面时间相同但相差八小时，合法 worker claim 全被误判成旧 revision。查询现在明确把存储值解释为 UTC；本地多任务 saga 只在 revision CAS 成功后临时开启 dispatch，并在成功或异常路径都恢复 `paused=true`。这说明“面向全球”不只是 UI 语言和货币，后台锁、过期时间、审计时间也必须在非 UTC 主机上验证。
+
+修复 saga 后的第一次完整重跑又暴露了另一类门禁问题：Saga 已经成功，但紧随其后的只读 health CLI 会重新加载开发者本机的 staging/Privy 配置，于是同一套组合验证因环境污染被安全拒绝。第一版 `env -i` 加最小 Nest module 看似解决，独立复核却用真实 import graph 证明旧 `prisma-client-js` 会在构造 client 之前主动读取 `apps/api/.env`；`ignoreEnvFile` 根本来不及。最终没有通过预置空 secret 或导入后删除来“让它变绿”，而是让本地 gate 完全绕开 npm、Nest 和旧 Prisma，使用隔离 HOME、固定 direct `ts-node` 入口、字面量 loopback 数据库 guard，以及 `pg` 的 repeatable-read/read-only transaction。33 个 wrapper/import 攻击例和真实非 UTC PostgreSQL 异常数据证明环境不会进入探针、原始错误不会输出、写入会收到 `25006`。这个插曲说明门禁也需要被当成安全产品审计，fixture 绿不等于真实依赖图安全。
+
+最终 97 步组合门禁还发现四个夹具与生产合同漂移：tokenized demo ticket 没有不可变合约路由，合成 ownership job 没有保存同一路由，验证器引用了不存在的 worker 入口，PROCESSING health fixture 没有当前 dispatch revision。处理方式是修正种子、快照、真实入口和事务化测试前置条件，而不是放松数据库约束或 Worker fence；修复后本地 97 步门禁、API 32/386、合约 30/30、Render 55/55、Workflow 43/43 和 Hosted 验证器 29/29 全部通过。它仍只是本地候选证据：仓库没有 `CODEOWNERS`，分支保护查询返回 `403`，最终不可变 commit 的 Hosted attestation、Staging/provider/链上/实体设备证据仍待完成。
+
+可复制经验：任何 release gate 都是安全边界，也需要攻击性测试、成熟解析器、不可伪造的数据来源和 fail-closed 行为。自报 JSON、字符串 contains、命令退出码、截图或绿色 UI 都不能单独证明发布事实；证明必须绑定不可变 commit 和权威系统。与此同时，Local/Mock 可以用于夹具和回归，但必须清楚标注，不能替代真实 Staging、Hosted CI、Provider、TestFlight 或实体设备证据。

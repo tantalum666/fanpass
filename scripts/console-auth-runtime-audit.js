@@ -1,10 +1,15 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_CONSOLE_AUTH_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_CONSOLE_AUTH_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const files = {
   manifest: "apps/console-auth/package.json",
@@ -18,7 +23,6 @@ const files = {
   render: "render.yaml",
   releaseContract: "docs/PRIVY_CONSOLE_REACT_SDK_ISOLATION.md",
   rootManifest: "package.json",
-  betaVerifier: "scripts/beta-foundation-verify.sh",
 };
 
 for (const relativePath of Object.values(files)) {
@@ -102,7 +106,7 @@ function auditLogin() {
     "getAccessToken()",
     'privySessionMode === "browser-sdk"',
     "handoffForm",
-    'action={sessionBridgeUrl}',
+    "action={sessionBridgeUrl}",
     'name="accessToken"',
     'name="handoff" value="top-level"',
     'name="handoffState" value={handoffState}',
@@ -233,7 +237,6 @@ function auditDeploymentAndReleaseContract() {
   const render = read(files.render);
   const releaseContract = read(files.releaseContract);
   const rootManifest = JSON.parse(read(files.rootManifest));
-  const betaVerifier = read(files.betaVerifier);
 
   requireMarkers(files.render, render, [
     "name: fanpass-console-auth-staging",
@@ -261,14 +264,14 @@ function auditDeploymentAndReleaseContract() {
   ) {
     errors.push("root package scripts must expose Console Auth runtime audits");
   }
-  for (const command of [
-    "npm run security:console-auth-runtime:self-test",
-    "npm run security:console-auth-runtime",
-  ]) {
-    if (!betaVerifier.includes(command)) {
-      errors.push(`Beta foundation verifier must run ${command}`);
-    }
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:console-auth-runtime:self-test",
+      "security:console-auth-runtime",
+    ],
+    errors,
+  );
 }
 
 function requireMarkers(relativePath, contents, markers) {

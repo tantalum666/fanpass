@@ -204,19 +204,28 @@ export class OnsaleInventoryService {
 
     const now = new Date();
     await this.lockTicketType(tx, input.ticketTypeId);
+    await this.lockEvent(tx, input.eventId);
+    await this.lockOnsaleForEvent(tx, input.eventId);
     await this.expireActiveHolds(tx, { ticketTypeId: input.ticketTypeId }, now);
 
-    const [ticketType, onsale] = await Promise.all([
+    const [event, ticketType, onsale] = await Promise.all([
+      tx.event.findUnique({ where: { id: input.eventId } }),
       tx.ticketType.findUnique({ where: { id: input.ticketTypeId } }),
       tx.onsale.findUnique({ where: { eventId: input.eventId } }),
     ]);
+    if (!event || event.status !== "PUBLISHED") {
+      throw new ConflictException("Event is not available for checkout");
+    }
     if (!ticketType || ticketType.eventId !== input.eventId) {
       throw new BadRequestException("Ticket category is not available");
     }
+    if (!onsale) {
+      throw new ConflictException("Primary sale is not configured");
+    }
+    this.assertOnsaleOpen(onsale, now);
 
     let queueEntryId: string | null = null;
-    if (onsale?.queueEnabled) {
-      this.assertOnsaleOpen(onsale, now);
+    if (onsale.queueEnabled) {
       const queueEntry = await tx.queueEntry.findUnique({
         where: {
           onsaleId_userId: {
@@ -236,25 +245,26 @@ export class OnsaleInventoryService {
         );
       }
 
-      const purchasedOrReserved = await tx.inventoryHold.aggregate({
-        where: {
-          eventId: input.eventId,
-          userId: input.userId,
-          OR: [
-            { status: "ACTIVE", expiresAt: { gt: now } },
-            { status: "AUTHORIZED" },
-            { status: "CONVERTED" },
-          ],
-        },
-        _sum: { quantity: true },
-      });
-      if (
-        (purchasedOrReserved._sum.quantity ?? 0) + input.quantity >
-        onsale.purchaseLimitPerUser
-      ) {
-        throw new ConflictException("Event purchase limit reached");
-      }
       queueEntryId = queueEntry.id;
+    }
+
+    const purchasedOrReserved = await tx.inventoryHold.aggregate({
+      where: {
+        eventId: input.eventId,
+        userId: input.userId,
+        OR: [
+          { status: "ACTIVE", expiresAt: { gt: now } },
+          { status: "AUTHORIZED" },
+          { status: "CONVERTED" },
+        ],
+      },
+      _sum: { quantity: true },
+    });
+    if (
+      (purchasedOrReserved._sum.quantity ?? 0) + input.quantity >
+      onsale.purchaseLimitPerUser
+    ) {
+      throw new ConflictException("Event purchase limit reached");
     }
 
     await this.assertCapacity(
@@ -265,13 +275,13 @@ export class OnsaleInventoryService {
       now,
     );
 
-    const checkoutWindowSeconds = onsale?.checkoutWindowSeconds ?? 600;
+    const checkoutWindowSeconds = onsale.checkoutWindowSeconds;
     const requestedExpiry = new Date(
       now.getTime() + checkoutWindowSeconds * 1_000,
     );
-    const expiresAt = onsale
-      ? new Date(Math.min(requestedExpiry.getTime(), onsale.closesAt.getTime()))
-      : requestedExpiry;
+    const expiresAt = new Date(
+      Math.min(requestedExpiry.getTime(), onsale.closesAt.getTime()),
+    );
     if (expiresAt <= now) {
       throw new ConflictException("This sale is closed");
     }
@@ -279,7 +289,7 @@ export class OnsaleInventoryService {
     const hold = await tx.inventoryHold.create({
       data: {
         id: `hold_${randomUUID()}`,
-        onsaleId: onsale?.id ?? null,
+        onsaleId: onsale.id,
         eventId: input.eventId,
         ticketTypeId: input.ticketTypeId,
         userId: input.userId,
@@ -314,7 +324,7 @@ export class OnsaleInventoryService {
           orderId: input.orderId,
           quantity: input.quantity,
           expiresAt: expiresAt.toISOString(),
-          queueManaged: Boolean(onsale?.queueEnabled),
+          queueManaged: onsale.queueEnabled,
         },
       },
     });
@@ -369,6 +379,10 @@ export class OnsaleInventoryService {
     }
     const hold = await prisma.inventoryHold.findUnique({
       where: { orderId: order.id },
+      include: {
+        event: { select: { status: true } },
+        onsale: true,
+      },
     });
     const now = new Date();
     if (
@@ -376,7 +390,8 @@ export class OnsaleInventoryService {
       hold.status === "BLOCKED" ||
       hold.status === "RELEASED" ||
       hold.status === "EXPIRED" ||
-      (hold.status === "ACTIVE" && hold.expiresAt <= now)
+      (hold.status === "ACTIVE" && hold.expiresAt <= now) ||
+      !this.isPrimarySaleOpen(hold.event, hold.onsale, now)
     ) {
       throw new ConflictException(
         "Ticket hold expired or is unavailable; rejoin the sale queue",
@@ -405,7 +420,7 @@ export class OnsaleInventoryService {
   ): Promise<PaymentIdentityAuthorizationResult> {
     const initialHold = await tx.inventoryHold.findUnique({
       where: { orderId: input.orderId },
-      include: { onsale: true },
+      include: { event: true, onsale: true },
     });
     if (!initialHold) {
       const order = await tx.order.findUnique({
@@ -420,11 +435,23 @@ export class OnsaleInventoryService {
     }
 
     await this.lockTicketType(tx, initialHold.ticketTypeId);
+    await this.lockEvent(tx, initialHold.eventId);
+    await this.lockOnsaleForEvent(tx, initialHold.eventId);
     await this.lockInventoryHold(tx, initialHold.id);
     const hold = await tx.inventoryHold.findUniqueOrThrow({
       where: { id: initialHold.id },
-      include: { onsale: true },
+      include: { event: true, onsale: true },
     });
+
+    const now = new Date();
+    if (!this.isPrimarySaleOpen(hold.event, hold.onsale, now)) {
+      await this.expireHold(tx, hold.id, "sale_unavailable");
+      return {
+        hasPrimaryHold: true,
+        authorized: false,
+        reason: "inventory_unavailable",
+      };
+    }
 
     if (hold.status === "CONVERTED") {
       return {
@@ -444,7 +471,6 @@ export class OnsaleInventoryService {
       };
     }
 
-    const now = new Date();
     const canUseExistingHold = hold.status === "ACTIVE" && hold.expiresAt > now;
     const alreadyAuthorized = hold.status === "AUTHORIZED";
     if (
@@ -565,9 +591,16 @@ export class OnsaleInventoryService {
   async orderHoldForIssuance(prisma: PrismaReader, orderId: string) {
     const hold = await prisma.inventoryHold.findUnique({
       where: { orderId },
+      include: {
+        event: { select: { status: true } },
+        onsale: true,
+      },
     });
     if (!hold) {
       throw new ConflictException("Primary inventory hold is missing");
+    }
+    if (!this.isPrimarySaleOpen(hold.event, hold.onsale, new Date())) {
+      throw new ConflictException("Primary sale is no longer available");
     }
     return hold;
   }
@@ -586,12 +619,17 @@ export class OnsaleInventoryService {
       throw new ConflictException("Primary inventory hold is missing");
     }
     await this.lockTicketType(tx, initialHold.ticketTypeId);
+    await this.lockEvent(tx, initialHold.eventId);
+    await this.lockOnsaleForEvent(tx, initialHold.eventId);
     await this.lockInventoryHold(tx, initialHold.id);
     const hold = await tx.inventoryHold.findUniqueOrThrow({
       where: { id: initialHold.id },
-      include: { onsale: true },
+      include: { event: true, onsale: true },
     });
     const now = new Date();
+    if (!this.isPrimarySaleOpen(hold.event, hold.onsale, now)) {
+      throw new ConflictException("Primary sale is no longer available");
+    }
     if (
       hold.status !== "AUTHORIZED" &&
       !(hold.status === "ACTIVE" && hold.expiresAt > now)
@@ -872,6 +910,20 @@ export class OnsaleInventoryService {
     }
   }
 
+  private isPrimarySaleOpen(
+    event: { status: string },
+    onsale: { status: string; opensAt: Date; closesAt: Date } | null,
+    now: Date,
+  ) {
+    return (
+      event.status === "PUBLISHED" &&
+      Boolean(onsale) &&
+      onsale!.status === "OPEN" &&
+      now >= onsale!.opensAt &&
+      now < onsale!.closesAt
+    );
+  }
+
   private async lockTicketType(
     tx: Prisma.TransactionClient,
     ticketTypeId: string,
@@ -885,6 +937,30 @@ export class OnsaleInventoryService {
     if (rows.length !== 1) {
       throw new BadRequestException("Ticket category is not available");
     }
+  }
+
+  private async lockEvent(tx: Prisma.TransactionClient, eventId: string) {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "events"
+      WHERE "id" = ${eventId}
+      FOR UPDATE
+    `;
+    if (rows.length !== 1) {
+      throw new ConflictException("Event is not available for checkout");
+    }
+  }
+
+  private async lockOnsaleForEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+  ) {
+    await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "onsales"
+      WHERE "event_id" = ${eventId}
+      FOR UPDATE
+    `;
   }
 
   private async lockPaymentIdentity(

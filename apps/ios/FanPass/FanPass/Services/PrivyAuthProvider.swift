@@ -67,7 +67,11 @@ protocol PrivyAuthProviding: AnyObject {
     func loginWithOAuth(_ provider: PrivyOAuthLoginProvider) async throws -> PrivyLoginResult
     func currentLoginResult() async throws -> PrivyLoginResult?
     func sendUSDCTransfer(quote: FanPassCryptoQuote) async throws -> String
-    func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization
+    func sponsoredPaymentAuthorization(
+        quote: FanPassCryptoQuote,
+        walletId: String,
+        idempotencyKey: String
+    ) async throws -> FanPassPrivySponsoredAuthorization
     func signOut() async
 }
 
@@ -207,7 +211,11 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
         #endif
     }
 
-    func sponsoredPaymentAuthorization(quote: FanPassCryptoQuote, walletId: String) async throws -> FanPassPrivySponsoredAuthorization {
+    func sponsoredPaymentAuthorization(
+        quote: FanPassCryptoQuote,
+        walletId: String,
+        idempotencyKey: String
+    ) async throws -> FanPassPrivySponsoredAuthorization {
         #if canImport(PrivySDK)
         guard let configuration = FanPassEnvironment.privyConfiguration,
               let privy,
@@ -221,6 +229,10 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
             throw PrivyAuthProviderError.missingEmbeddedWallet
         }
 
+        let normalizedIdempotencyKey = idempotencyKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedIdempotencyKey.isEmpty, normalizedIdempotencyKey.count <= 128 else {
+            throw PrivyAuthProviderError.invalidTransferRequest
+        }
         let requestExpiry = Int64(Date().timeIntervalSince1970 * 1_000) + 60_000
         let body = PrivySponsoredEthereumRpcBody(
             caip2: "eip155:\(try chainId(from: quote.chainId))",
@@ -238,6 +250,7 @@ final class FanPassPrivyAuthProvider: PrivyAuthProviding {
             method: "POST",
             headers: [
                 "privy-app-id": configuration.appId,
+                "privy-idempotency-key": normalizedIdempotencyKey,
                 "privy-request-expiry": String(requestExpiry)
             ],
             body: body

@@ -1,6 +1,10 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_DEPENDENCY_TOOLING_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_DEPENDENCY_TOOLING_AUDIT_ROOT)
@@ -17,7 +21,7 @@ const toolingBoundaryPattern =
 const errors = [];
 
 const packageJson = readJson("package.json");
-const verifier = readProjectFile("scripts/beta-foundation-verify.sh");
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 const advisoryLog = readProjectFile("docs/DEPENDENCY_ADVISORY_LOG.md");
 const auditReport = process.env.FANPASS_DEPENDENCY_TOOLING_AUDIT_JSON
   ? readJsonFile(
@@ -71,11 +75,15 @@ function validateScriptWiring() {
     }
   }
 
-  assertOrderedVerifierSteps([
-    "security:dependency-risk:evidence:self-test",
-    "security:dependency-tooling:self-test",
-    "security:dependency-tooling",
-  ]);
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:dependency-risk:evidence:self-test",
+      "security:dependency-tooling:self-test",
+      "security:dependency-tooling",
+    ],
+    errors,
+  );
 }
 
 function validateDocs(report) {
@@ -161,25 +169,6 @@ function flattenViaNames(via = []) {
   });
 }
 
-function assertOrderedVerifierSteps(steps) {
-  let previousIndex = -1;
-  for (const step of steps) {
-    const pattern = new RegExp(`npm\\s+run\\s+${escapeRegExp(step)}(?=\\s|$)`);
-    const match = pattern.exec(verifier);
-    const index = match?.index ?? -1;
-    if (index === -1) {
-      errors.push(`beta foundation verifier must run npm run ${step}`);
-      continue;
-    }
-    if (index <= previousIndex) {
-      errors.push(
-        `beta foundation verifier must run npm run ${step} after the previous dependency tooling step`,
-      );
-    }
-    previousIndex = index;
-  }
-}
-
 function runNpm(args, options = {}) {
   const result = spawnSync("npm", args, {
     cwd: rootDir,
@@ -214,8 +203,4 @@ function parseJson(value, label) {
 
 function readJsonFile(filePath, label) {
   return parseJson(fs.readFileSync(path.resolve(filePath), "utf8"), label);
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

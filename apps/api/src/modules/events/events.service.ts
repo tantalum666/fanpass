@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import { randomUUID } from "crypto";
-import { demoSeedIds } from "../../common/demo-seed";
 import { DemoStore } from "../../common/demo-store";
 import { EventRecord } from "../../common/domain";
 import { PrismaService } from "../../common/prisma.service";
+import { FanPassSession } from "../../common/session";
 import { AuditService } from "../audit/audit.service";
 
 export interface CreateEventInput {
@@ -102,15 +107,15 @@ export class EventsService {
     return this.expandEvent(event.id);
   }
 
-  createEvent(input: CreateEventInput) {
+  async createEvent(input: CreateEventInput, session: FanPassSession) {
     const prisma = this.prismaClient();
     if (prisma) {
-      return this.createPrismaEvent(prisma, input);
+      return this.createPrismaEvent(prisma, input, session);
     }
 
     const venueId = `ven_${randomUUID()}`;
     const eventId = `evt_${randomUUID()}`;
-    const organizerId = demoSeedIds.organizerId;
+    const organizerId = this.memoryOrganizerIdForWrite(session);
 
     this.store.venues.push({
       id: venueId,
@@ -133,23 +138,27 @@ export class EventsService {
       posterUrl: null,
     };
     this.store.events.unshift(event);
-    this.audit.record(
-      demoSeedIds.organizerUserId,
-      "EVENT_CREATED",
-      "event",
-      eventId,
-      { title: input.title },
-    );
+    this.audit.record(session.userId, "EVENT_CREATED", "event", eventId, {
+      title: input.title,
+    });
     return event;
   }
 
-  createTicketType(eventId: string, input: CreateTicketTypeInput) {
+  async createTicketType(
+    eventId: string,
+    input: CreateTicketTypeInput,
+    session: FanPassSession,
+  ) {
     const prisma = this.prismaClient();
     if (prisma) {
-      return this.createPrismaTicketType(prisma, eventId, input);
+      return this.createPrismaTicketType(prisma, eventId, input, session);
     }
 
-    this.store.getEvent(eventId);
+    const event = this.store.getEvent(eventId);
+    const organizerId = this.memoryOrganizerIdForWrite(session);
+    if (session.role !== "ADMIN" && event.organizerId !== organizerId) {
+      throw new ForbiddenException("Event is outside this organizer scope");
+    }
     const ticketType = {
       id: `tt_${randomUUID()}`,
       eventId,
@@ -163,7 +172,7 @@ export class EventsService {
     };
     this.store.ticketTypes.push(ticketType);
     this.audit.record(
-      demoSeedIds.organizerUserId,
+      session.userId,
       "TICKET_TYPE_CREATED",
       "ticket_type",
       ticketType.id,
@@ -197,7 +206,9 @@ export class EventsService {
   private async createPrismaEvent(
     prisma: PrismaService,
     input: CreateEventInput,
+    session: FanPassSession,
   ) {
+    const organizerId = await this.prismaOrganizerIdForWrite(prisma, session);
     const venue = await prisma.venue.create({
       data: {
         id: `ven_${randomUUID()}`,
@@ -213,7 +224,7 @@ export class EventsService {
     const event = await prisma.event.create({
       data: {
         id: `evt_${randomUUID()}`,
-        organizerId: demoSeedIds.organizerId,
+        organizerId,
         title: input.title,
         venueId: venue.id,
         startTime: new Date(input.startTime),
@@ -228,7 +239,7 @@ export class EventsService {
     });
 
     await this.audit.record(
-      demoSeedIds.organizerUserId,
+      session.userId,
       "EVENT_CREATED",
       "event",
       event.id,
@@ -244,8 +255,18 @@ export class EventsService {
     prisma: PrismaService,
     eventId: string,
     input: CreateTicketTypeInput,
+    session: FanPassSession,
   ) {
-    await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+    const organizerId = await this.prismaOrganizerIdForWrite(prisma, session);
+    const event = await prisma.event.findFirst({
+      where: {
+        id: eventId,
+        ...(session.role === "ADMIN" ? {} : { organizerId }),
+      },
+    });
+    if (!event) {
+      throw new ForbiddenException("Event is outside this organizer scope");
+    }
     const ticketType = await prisma.ticketType.create({
       data: {
         id: `tt_${randomUUID()}`,
@@ -261,7 +282,7 @@ export class EventsService {
     });
 
     await this.audit.record(
-      demoSeedIds.organizerUserId,
+      session.userId,
       "TICKET_TYPE_CREATED",
       "ticket_type",
       ticketType.id,
@@ -300,6 +321,41 @@ export class EventsService {
       ticketTypes: event.ticketTypes,
       fanAccessAvailable: (event.fanCampaigns?.length ?? 0) > 0,
     };
+  }
+
+  private memoryOrganizerIdForWrite(session: FanPassSession) {
+    if (session.role === "ADMIN") {
+      const organizer = this.store.organizers[0];
+      if (!organizer) {
+        throw new ForbiddenException("No organizer profile exists");
+      }
+      return organizer.id;
+    }
+    const organizer = this.store.organizers.find(
+      (candidate) => candidate.userId === session.userId,
+    );
+    if (!organizer) {
+      throw new ForbiddenException("Organizer profile is not linked");
+    }
+    return organizer.id;
+  }
+
+  private async prismaOrganizerIdForWrite(
+    prisma: PrismaService,
+    session: FanPassSession,
+  ) {
+    const organizer = await prisma.organizer.findFirst({
+      where: session.role === "ADMIN" ? {} : { userId: session.userId },
+      orderBy: session.role === "ADMIN" ? { id: "asc" } : undefined,
+    });
+    if (!organizer) {
+      throw new ForbiddenException(
+        session.role === "ADMIN"
+          ? "No organizer profile exists"
+          : "Organizer profile is not linked",
+      );
+    }
+    return organizer.id;
   }
 
   private prismaClient() {

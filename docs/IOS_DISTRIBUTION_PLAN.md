@@ -153,8 +153,8 @@ Shared:
 
 - Replace placeholder staging, beta, and production API URLs in the checked-in xcconfig files once real HTTPS endpoints exist.
 - Keep `FanPassAPIBaseURL` wired through Info.plist/build settings instead of hardcoding API URLs in Swift views.
-- Keep `npm run security:ios-distribution-boundaries:self-test` and `npm run security:ios-distribution-boundaries` wired into `npm run beta:foundation:verify` while replacing placeholders with real HTTPS staging/beta/production endpoints.
-- Keep `npm run security:ios-staging-build:evidence:self-test` wired into `npm run beta:foundation:verify` before relying on saved real-device or TestFlight build evidence.
+- Keep `npm run security:ios-distribution-boundaries:self-test` and `npm run security:ios-distribution-boundaries` wired into `node scripts/beta-foundation-verify.js` while replacing placeholders with real HTTPS staging/beta/production endpoints.
+- Keep `npm run security:ios-staging-build:evidence:self-test` wired into `node scripts/beta-foundation-verify.js` before relying on saved real-device or TestFlight build evidence.
 - Completed physical-device QA checklist and audit for FanPass and FanPass Ops: `docs/IOS_PHYSICAL_DEVICE_QA.md` and `npm run security:ios-physical-device-qa`.
 - Completed NFC tag fixture format document and audit for supported NDEF payloads: `docs/NFC_NDEF_TAG_FIXTURE.md` and `npm run security:nfc-ndef-fixture`.
 - Completed placeholder Apple signing settings in `project.yml` without committing real team IDs, provisioning profile names, certificates, or private keys; `npm run security:ios-distribution-boundaries` now rejects those signing-material markers.

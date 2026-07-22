@@ -30,4 +30,20 @@ describe("createDemoSeed", () => {
       transferable: true,
     });
   });
+
+  it("gives every tokenized demo ticket a complete immutable contract route", () => {
+    const seed = createDemoSeed({ includeMarketDepth: true });
+    const tokenizedTickets = seed.tickets.filter(
+      (ticket) => ticket.tokenId !== null,
+    );
+
+    expect(tokenizedTickets).not.toHaveLength(0);
+    for (const ticket of tokenizedTickets) {
+      expect(ticket).toMatchObject({
+        ownershipContractAddress: "0x0000000000000000000000000000000000003137",
+        ownershipChainId: "31337",
+        ownershipContractVersion: "fanpass-ticket-v1",
+      });
+    }
+  });
 });

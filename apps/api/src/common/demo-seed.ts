@@ -1,5 +1,6 @@
 import {
   EventRecord,
+  FANPASS_TICKET_CONTRACT_VERSION,
   FanCampaignRecord,
   FanTaskRecord,
   GateAssignmentRecord,
@@ -11,6 +12,14 @@ import {
   UserRecord,
   VenueRecord,
 } from "./domain";
+
+// These records model tickets already issued on a disposable local chain.
+// The route is fixture-only and must never be used as a deployment address.
+const demoTicketOwnershipRoute = {
+  ownershipContractAddress: "0x0000000000000000000000000000000000003137",
+  ownershipChainId: "31337",
+  ownershipContractVersion: FANPASS_TICKET_CONTRACT_VERSION,
+} as const;
 
 export const demoSeedIds = {
   organizerUserId: "usr_organizer_demo",
@@ -67,6 +76,10 @@ export function createDemoSeed(
         role: "ORGANIZER",
         privyId: "did:privy:organizer-demo",
         walletAddress: "0x0000000000000000000000000000000000001001",
+        walletBindingStatus: "UNVERIFIED",
+        walletBindingVerifiedAt: null,
+        walletBindingVersion: 0,
+        walletBindingFingerprint: null,
         riskScore: 0,
       },
       {
@@ -76,6 +89,10 @@ export function createDemoSeed(
         role: "FAN",
         privyId: "did:privy:fan-demo",
         walletAddress: "0x0000000000000000000000000000000000002001",
+        walletBindingStatus: "UNVERIFIED",
+        walletBindingVerifiedAt: null,
+        walletBindingVersion: 0,
+        walletBindingFingerprint: null,
         riskScore: 0,
       },
       {
@@ -85,6 +102,10 @@ export function createDemoSeed(
         role: "FAN",
         privyId: "did:privy:buyer-demo",
         walletAddress: "0x0000000000000000000000000000000000002002",
+        walletBindingStatus: "UNVERIFIED",
+        walletBindingVerifiedAt: null,
+        walletBindingVersion: 0,
+        walletBindingFingerprint: null,
         riskScore: 0,
       },
       {
@@ -94,6 +115,10 @@ export function createDemoSeed(
         role: "GATE_STAFF",
         privyId: "did:privy:gate-demo",
         walletAddress: null,
+        walletBindingStatus: "UNVERIFIED",
+        walletBindingVerifiedAt: null,
+        walletBindingVersion: 0,
+        walletBindingFingerprint: null,
         riskScore: 0,
       },
     ],
@@ -149,6 +174,7 @@ export function createDemoSeed(
       {
         id: demoSeedIds.ticketId,
         tokenId: "1",
+        ...demoTicketOwnershipRoute,
         eventId: demoSeedIds.eventId,
         ticketTypeId: demoSeedIds.cat2TicketTypeId,
         ownerId: demoSeedIds.fanId,
@@ -162,6 +188,7 @@ export function createDemoSeed(
             {
               id: demoSeedIds.listedTicketId,
               tokenId: "2",
+              ...demoTicketOwnershipRoute,
               eventId: demoSeedIds.eventId,
               ticketTypeId: demoSeedIds.cat2TicketTypeId,
               ownerId: demoSeedIds.fanId,
@@ -173,6 +200,7 @@ export function createDemoSeed(
             {
               id: demoSeedIds.settledTicketId,
               tokenId: "3",
+              ...demoTicketOwnershipRoute,
               eventId: demoSeedIds.eventId,
               ticketTypeId: demoSeedIds.cat2TicketTypeId,
               ownerId: demoSeedIds.buyerId,

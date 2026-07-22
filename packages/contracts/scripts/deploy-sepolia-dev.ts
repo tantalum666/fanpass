@@ -1,21 +1,36 @@
 import fs from "fs";
+import { isAddress } from "ethers";
+import hre from "hardhat";
 import path from "path";
-import { ethers, network } from "hardhat";
+import { fileURLToPath } from "url";
 
-const SEPOLIA_CHAIN_ID = 11155111n;
+import {
+  assertSepoliaDeploymentNetwork,
+  assertSepoliaDeploymentNetworkName,
+  requireSepoliaDevCredentials,
+} from "./deployment-policy.js";
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
-  assertSepoliaDevGate();
+  requireSepoliaDevCredentials(process.env);
+
+  const connection = await hre.network.create();
+  assertSepoliaDeploymentNetworkName(connection.networkName);
+
+  const { ethers } = connection;
 
   const chain = await ethers.provider.getNetwork();
-  if (chain.chainId !== SEPOLIA_CHAIN_ID) {
-    throw new Error(
-      `Refusing dev deployment on chain ${chain.chainId}; expected Sepolia ${SEPOLIA_CHAIN_ID}`,
-    );
-  }
+  assertSepoliaDeploymentNetwork({
+    networkName: connection.networkName,
+    chainId: chain.chainId,
+  });
 
   const [deployer] = await ethers.getSigners();
-  const initialOwner = resolveInitialOwner(deployer.address);
+  // This script is intentionally a temporary-signer demo. A configurable
+  // external owner would make the demo writes fail or, worse, look like
+  // custody evidence. Use deploy:sepolia-staging for sponsor-owned contracts.
+  const initialOwner = deployer.address;
   const demoFanAddress = resolveDemoFanAddress(deployer.address);
   const deployerBalance = await ethers.provider.getBalance(deployer.address);
 
@@ -77,9 +92,10 @@ async function main() {
     mode: "sepolia-dev-temporary-signer",
     custodyEvidence: false,
     chainCustodyBlockerClosed: false,
+    demoOwnerIsTemporaryDeployer: true,
     warning:
       "Development deployment only. Do not use this artifact as release or chain custody evidence.",
-    network: network.name,
+    network: connection.networkName,
     chainId: chain.chainId.toString(),
     deployedAt: new Date().toISOString(),
     deployer: deployer.address,
@@ -137,58 +153,19 @@ async function main() {
   console.log(JSON.stringify(redactedSummary, null, 2));
 }
 
-function assertSepoliaDevGate() {
-  if (network.name !== "sepoliaDev") {
-    throw new Error(
-      "Use the sepoliaDev Hardhat network for this script: npm run deploy:sepolia-dev -w packages/contracts",
-    );
-  }
-
-  if (process.env.FANPASS_ALLOW_SEPOLIA_DEV_HOTKEY !== "true") {
-    throw new Error(
-      "Refusing to use a temporary hot key. Set FANPASS_ALLOW_SEPOLIA_DEV_HOTKEY=true only for Sepolia dev-only deployment.",
-    );
-  }
-
-  const rpcUrl = process.env.FANPASS_SEPOLIA_RPC_URL;
-  if (!rpcUrl || !/^https:\/\//.test(rpcUrl)) {
-    throw new Error(
-      "FANPASS_SEPOLIA_RPC_URL must be set to an HTTPS Sepolia RPC URL. Do not commit or save the raw URL in evidence.",
-    );
-  }
-
-  const privateKey = process.env.FANPASS_SEPOLIA_DEV_PRIVATE_KEY;
-  if (!privateKey || !/^(0x)?[a-fA-F0-9]{64}$/.test(privateKey)) {
-    throw new Error(
-      "FANPASS_SEPOLIA_DEV_PRIVATE_KEY must be a temporary Sepolia-only private key. Never paste it into chat or commit it.",
-    );
-  }
-}
-
-function resolveInitialOwner(deployerAddress: string): string {
-  const configuredOwner = process.env.FANPASS_SEPOLIA_DEV_INITIAL_OWNER;
-  if (!configuredOwner) {
-    return deployerAddress;
-  }
-  if (!ethers.isAddress(configuredOwner)) {
-    throw new Error("FANPASS_SEPOLIA_DEV_INITIAL_OWNER is not a valid address.");
-  }
-  return configuredOwner;
-}
-
 function resolveDemoFanAddress(deployerAddress: string): string {
   const configuredDemoFan = process.env.FANPASS_SEPOLIA_DEV_DEMO_FAN;
   if (!configuredDemoFan) {
     return deployerAddress;
   }
-  if (!ethers.isAddress(configuredDemoFan)) {
+  if (!isAddress(configuredDemoFan)) {
     throw new Error("FANPASS_SEPOLIA_DEV_DEMO_FAN is not a valid address.");
   }
   return configuredDemoFan;
 }
 
 function writeLocalArtifact(artifact: unknown): string {
-  const rootDir = path.resolve(__dirname, "..", "..", "..");
+  const rootDir = path.resolve(scriptDir, "..", "..", "..");
   const outputDir = path.join(rootDir, ".fanpass-local", "chain-dev");
   fs.mkdirSync(outputDir, { recursive: true, mode: 0o700 });
   const fileName = `sepolia-dev-deployment-${compactTimestamp()}.json`;

@@ -83,6 +83,96 @@ describeDatabase("on-sale PostgreSQL concurrency invariants", () => {
     );
   });
 
+  it("rejects queue admission and primary reservation while the event is unpublished", async () => {
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: "DRAFT" },
+    });
+
+    await expect(
+      onsales.joinQueue(eventId, fanOneId, "client_instance_unpublished_0001"),
+    ).rejects.toThrow("Event is not available");
+    await expect(
+      createPrimaryOrderWithHold("ord_unpublished", fanOneId),
+    ).rejects.toThrow("Event is not available for checkout");
+    await expect(
+      prisma.queueEntry.count({ where: { onsaleId } }),
+    ).resolves.toBe(0);
+    await expect(
+      prisma.inventoryHold.count({ where: { eventId } }),
+    ).resolves.toBe(0);
+    await expect(prisma.order.count({ where: { eventId } })).resolves.toBe(0);
+  });
+
+  it("requires an existing open Onsale even when the queue is disabled", async () => {
+    await prisma.onsale.delete({ where: { id: onsaleId } });
+    await expect(
+      createPrimaryOrderWithHold("ord_without_onsale", fanOneId),
+    ).rejects.toThrow("Primary sale is not configured");
+
+    await seedOnsaleRecord({
+      id: onsaleId,
+      queueEnabled: false,
+      status: "SCHEDULED",
+      opensAt: new Date(Date.now() + 3_600_000),
+    });
+    await expect(
+      createPrimaryOrderWithHold("ord_preopen", fanOneId),
+    ).rejects.toThrow("This sale is not open");
+    await expect(
+      prisma.inventoryHold.count({ where: { eventId } }),
+    ).resolves.toBe(0);
+    await expect(prisma.order.count({ where: { eventId } })).resolves.toBe(0);
+  });
+
+  it("preserves queue-disabled open checkout while enforcing the purchase limit", async () => {
+    await prisma.onsale.update({
+      where: { id: onsaleId },
+      data: {
+        queueEnabled: false,
+        purchaseLimitPerUser: 1,
+      },
+    });
+
+    await expect(
+      createPrimaryOrderWithHold("ord_direct_open", fanOneId),
+    ).resolves.toMatchObject({ id: "ord_direct_open" });
+    await expect(
+      createPrimaryOrderWithHold("ord_direct_limit", fanOneId),
+    ).rejects.toThrow("Event purchase limit reached");
+  });
+
+  it("revalidates publication before payment authorization and issuance", async () => {
+    await onsales.joinQueue(eventId, fanOneId, "client_instance_recheck_0001");
+    await createPrimaryOrderWithHold("ord_recheck", fanOneId);
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: "CANCELLED" },
+    });
+
+    await expect(
+      inventory.assertOrderPayable(prisma, {
+        id: "ord_recheck",
+        fulfillmentMode: "PRIMARY_ONLY",
+      }),
+    ).rejects.toThrow("Ticket hold expired or is unavailable");
+    await expect(
+      prisma.$transaction((tx) =>
+        inventory.authorizeOrderHold(tx, {
+          orderId: "ord_recheck",
+          paymentMethodFingerprintHash: "recheck_payment_identity_hash",
+        }),
+      ),
+    ).resolves.toMatchObject({
+      hasPrimaryHold: true,
+      authorized: false,
+      reason: "inventory_unavailable",
+    });
+    await expect(
+      inventory.orderHoldForIssuance(prisma, "ord_recheck"),
+    ).rejects.toThrow("Primary sale is no longer available");
+  });
+
   it("serializes the per-account purchase limit across simultaneous orders", async () => {
     await prisma.ticketType.update({
       where: { id: ticketTypeId },
@@ -366,6 +456,41 @@ describeDatabase("on-sale PostgreSQL concurrency invariants", () => {
             key: "public_sale",
             label: "Public sale",
             quantity: supply,
+            publicSale: true,
+          },
+        ],
+      },
+    });
+  }
+
+  async function seedOnsaleRecord(input: {
+    id: string;
+    queueEnabled: boolean;
+    status: "SCHEDULED" | "OPEN" | "PAUSED" | "CLOSED";
+    opensAt: Date;
+  }) {
+    const now = Date.now();
+    await prisma.onsale.create({
+      data: {
+        id: input.id,
+        eventId,
+        status: input.status,
+        queueEnabled: input.queueEnabled,
+        waitingRoomOpensAt: new Date(now - 7_200_000),
+        opensAt: input.opensAt,
+        closesAt: new Date(now + 7_200_000),
+        checkoutWindowSeconds: 600,
+        maxActiveCheckouts: 10,
+        admissionBatchSize: 10,
+        purchaseLimitPerUser: 2,
+        maxAccountsPerPaymentMethod: 1,
+        allocationPolicyVersion: "test-v1",
+        allocationPublishedAt: new Date(now - 7_200_000),
+        allocationBreakdown: [
+          {
+            key: "public_sale",
+            label: "Public sale",
+            quantity: 2,
             publicSale: true,
           },
         ],

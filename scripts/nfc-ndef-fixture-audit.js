@@ -1,11 +1,16 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_NFC_NDEF_FIXTURE_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_NFC_NDEF_FIXTURE_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 const docPath = "docs/NFC_NDEF_TAG_FIXTURE.md";
 const tasksPath = "docs/DEVELOPMENT_TASKS.md";
@@ -13,7 +18,6 @@ const qaPath = "docs/QA_CHECKLIST.md";
 const roadmapPath = "docs/BETA_ROADMAP.md";
 const iosPlanPath = "docs/IOS_DISTRIBUTION_PLAN.md";
 const packagePath = "package.json";
-const verifierPath = "scripts/beta-foundation-verify.sh";
 
 const doc = readRequired(docPath);
 const tasks = readRequired(tasksPath);
@@ -21,7 +25,6 @@ const qa = readRequired(qaPath);
 const roadmap = readRequired(roadmapPath);
 const iosPlan = readRequired(iosPlanPath);
 const packageJson = readRequired(packagePath);
-const verifier = readRequired(verifierPath);
 
 const requiredDocMarkers = [
   "# FanPass NFC NDEF Tag Fixture Format",
@@ -98,7 +101,7 @@ if (!iosPlan.includes(requiredIosPlan)) {
 }
 
 const qaMarkers = [
-  "Keep `npm run security:nfc-ndef-fixture:self-test` and `npm run security:nfc-ndef-fixture` in `npm run beta:foundation:verify`",
+  "Keep `npm run security:nfc-ndef-fixture:self-test` and `npm run security:nfc-ndef-fixture` in `node scripts/beta-foundation-verify.js`",
   "NFC fixture documentation must keep FanPass Ops scope, QR-equivalent backend authority, supported NDEF Text/URI records, no-token/no-nonce/no-raw-payload constraints, debug-only paste fallback, and physical-device evidence requirements explicit.",
 ];
 for (const marker of qaMarkers) {
@@ -108,7 +111,7 @@ for (const marker of qaMarkers) {
 }
 
 const roadmapMarker =
-  "The NFC NDEF fixture format audit must keep passing inside `npm run beta:foundation:verify`";
+  "The NFC NDEF fixture format audit must keep passing inside `node scripts/beta-foundation-verify.js`";
 if (!roadmap.includes(roadmapMarker)) {
   errors.push(
     `${roadmapPath} must include NFC NDEF fixture audit release gate`,
@@ -135,17 +138,11 @@ if (
   errors.push(`${packagePath} must define security:nfc-ndef-fixture:self-test`);
 }
 
-const verifierMarkers = [
-  "NFC NDEF fixture format audit self-test",
-  "npm run security:nfc-ndef-fixture:self-test",
-  "NFC NDEF fixture format audit",
-  "npm run security:nfc-ndef-fixture",
-];
-for (const marker of verifierMarkers) {
-  if (!verifier.includes(marker)) {
-    errors.push(`${verifierPath} must include marker: ${marker}`);
-  }
-}
+assertOrderedNpmScripts(
+  betaGateSteps,
+  ["security:nfc-ndef-fixture:self-test", "security:nfc-ndef-fixture"],
+  errors,
+);
 
 if (errors.length > 0) {
   console.error(errors.map((error) => `- ${error}`).join("\n"));

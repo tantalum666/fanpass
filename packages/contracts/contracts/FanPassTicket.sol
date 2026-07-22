@@ -32,6 +32,7 @@ contract FanPassTicket is ERC721, Ownable {
     mapping(uint256 => TicketState) public states;
     mapping(uint256 => uint256) public transferCounts;
     mapping(uint256 => string) private _tokenUris;
+    mapping(bytes32 => uint256) public tokenIdByTicketIdHash;
 
     event TicketMinted(uint256 indexed tokenId, uint256 indexed eventId, address indexed owner);
     event TicketRedeemed(uint256 indexed tokenId, uint256 indexed eventId);
@@ -81,7 +82,10 @@ contract FanPassTicket is ERC721, Ownable {
     ) external onlyOwner returns (uint256 tokenId) {
         require(ticketIdHash != bytes32(0), "Ticket id hash is required");
         require(policyHash != bytes32(0), "Policy hash is required");
-        return _mintTicket(
+        require(tokenIdByTicketIdHash[ticketIdHash] == 0, "Ticket already minted");
+        uint256 reservedTokenId = _nextTokenId;
+        tokenIdByTicketIdHash[ticketIdHash] = reservedTokenId;
+        tokenId = _mintTicket(
             to,
             eventId,
             TicketProof(ticketIdHash, ticketTypeHash, policyHash, metadataHash),
@@ -90,6 +94,7 @@ contract FanPassTicket is ERC721, Ownable {
             maxTransferCount,
             metadataUri
         );
+        assert(tokenId == reservedTokenId);
     }
 
     function _mintTicket(
@@ -161,6 +166,14 @@ contract FanPassTicket is ERC721, Ownable {
         require(_ownerOf(tokenId) != address(0), "Ticket does not exist");
         require(ticketIdHash != bytes32(0), "Ticket id hash is required");
         require(policyHash != bytes32(0), "Policy hash is required");
+        bytes32 currentTicketIdHash = proofs[tokenId].ticketIdHash;
+        if (currentTicketIdHash == bytes32(0)) {
+            require(tokenIdByTicketIdHash[ticketIdHash] == 0, "Ticket already minted");
+            tokenIdByTicketIdHash[ticketIdHash] = tokenId;
+        } else {
+            require(currentTicketIdHash == ticketIdHash, "Ticket id hash is immutable");
+            require(tokenIdByTicketIdHash[ticketIdHash] == tokenId, "Ticket id hash mapping mismatch");
+        }
         proofs[tokenId] = TicketProof(ticketIdHash, ticketTypeHash, policyHash, metadataHash);
         emit TicketProofUpdated(tokenId, ticketIdHash, ticketTypeHash, policyHash, metadataHash);
     }
@@ -171,12 +184,17 @@ contract FanPassTicket is ERC721, Ownable {
     }
 
     function _update(address to, uint256 tokenId, address auth) internal override returns (address from) {
-        from = super._update(to, tokenId, auth);
-        if (from != address(0) && to != address(0)) {
+        address currentOwner = _ownerOf(tokenId);
+        if (currentOwner != address(0) && to != address(0)) {
+            require(_msgSender() == owner(), "Use FanPass settlement");
             TicketPolicy memory policy = policies[tokenId];
             require(policy.transferable, "Ticket is non-transferable");
             require(states[tokenId] == TicketState.Minted, "Ticket is not transferable");
             require(transferCounts[tokenId] < policy.maxTransferCount, "Transfer count exceeded");
+        }
+
+        from = super._update(to, tokenId, auth);
+        if (from != address(0) && to != address(0)) {
             transferCounts[tokenId] += 1;
         }
     }

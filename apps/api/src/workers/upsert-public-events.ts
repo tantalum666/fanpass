@@ -37,16 +37,12 @@ async function upsertPublicEventsTransaction(
         name: user.name,
         email: user.email,
         role: user.role,
-        privyId: user.privyId,
-        walletAddress: user.walletAddress,
         riskScore: user.riskScore,
       },
       update: {
         name: user.name,
         email: user.email,
         role: user.role,
-        privyId: user.privyId,
-        walletAddress: user.walletAddress,
         riskScore: user.riskScore,
       },
     });

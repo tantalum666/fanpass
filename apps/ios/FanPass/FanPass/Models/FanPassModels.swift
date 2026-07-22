@@ -511,6 +511,15 @@ struct FanPassCryptoConfirmationResponse: Codable, Hashable {
     let payment: FanPassPaymentIntent
     let transactionHash: String?
     let alreadyConfirmed: Bool?
+    let compensationRequired: Bool?
+    let compensationReason: String?
+
+    var isTicketSettlementConfirmed: Bool {
+        ok &&
+            compensationRequired != true &&
+            payment.status == "crypto_confirmed" &&
+            payment.captureStatus == "CAPTURED"
+    }
 }
 
 struct FanTask: Codable, Identifiable, Hashable {

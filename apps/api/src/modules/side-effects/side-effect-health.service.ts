@@ -1,14 +1,47 @@
-import { Injectable, Optional } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { SideEffectOutbox } from "@prisma/client";
-import { PrismaService } from "../../common/prisma.service";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { readIntegerConfig } from "../../config/security-config";
+
+export const SIDE_EFFECT_HEALTH_CONFIG = Symbol("SIDE_EFFECT_HEALTH_CONFIG");
+
+export interface SideEffectHealthRecord {
+  id: string;
+  type: string;
+  status: string;
+  aggregateType: string;
+  aggregateId: string;
+  attempts: number;
+  referenceAt: Date;
+  hasRecordedError: boolean;
+}
+
+export interface SideEffectHealthStatusCount {
+  status: string;
+  count: number;
+}
+
+interface SideEffectHealthConfigReader {
+  get<T = string>(key: string): T | undefined;
+}
+
+export abstract class SideEffectHealthStore {
+  abstract countByStatus(): Promise<SideEffectHealthStatusCount[]>;
+
+  abstract listStaleProcessing(
+    staleBefore: Date,
+    limit: number,
+  ): Promise<SideEffectHealthRecord[]>;
+
+  abstract listStaleRunnable(
+    staleBefore: Date,
+    limit: number,
+  ): Promise<SideEffectHealthRecord[]>;
+
+  abstract listRecentFailures(limit: number): Promise<SideEffectHealthRecord[]>;
+}
 
 interface SideEffectHealthFailure {
   reason:
-    | "stale_processing_lock"
-    | "stale_runnable_job"
-    | "terminal_or_failed_job";
+    "stale_processing_lock" | "stale_runnable_job" | "terminal_or_failed_job";
   id: string;
   type: string;
   status: string;
@@ -16,7 +49,7 @@ interface SideEffectHealthFailure {
   aggregateId: string;
   attempts: number;
   ageSeconds: number;
-  lastError: string | null;
+  hasRecordedError: boolean;
 }
 
 export interface SideEffectHealthResult {
@@ -33,8 +66,10 @@ export interface SideEffectHealthResult {
 @Injectable()
 export class SideEffectHealthService {
   constructor(
-    private readonly prisma: PrismaService,
-    @Optional() private readonly config?: ConfigService,
+    private readonly store: SideEffectHealthStore,
+    @Optional()
+    @Inject(SIDE_EFFECT_HEALTH_CONFIG)
+    private readonly config?: SideEffectHealthConfigReader,
   ) {}
 
   async check(): Promise<SideEffectHealthResult> {
@@ -50,47 +85,14 @@ export class SideEffectHealthService {
 
     const [statusCounts, staleProcessing, staleRunnable, recentFailures] =
       await Promise.all([
-        this.prisma.sideEffectOutbox.groupBy({
-          by: ["status"],
-          _count: {
-            _all: true,
-          },
-        }),
-        this.prisma.sideEffectOutbox.findMany({
-          where: {
-            status: "PROCESSING",
-            lockedAt: {
-              lte: processingStaleBefore,
-            },
-          },
-          orderBy: [{ lockedAt: "asc" }, { createdAt: "asc" }],
-          take: 20,
-        }),
-        this.prisma.sideEffectOutbox.findMany({
-          where: {
-            status: {
-              in: ["PENDING", "RETRYING"],
-            },
-            availableAt: {
-              lte: pendingStaleBefore,
-            },
-          },
-          orderBy: [{ availableAt: "asc" }, { createdAt: "asc" }],
-          take: 20,
-        }),
-        this.prisma.sideEffectOutbox.findMany({
-          where: {
-            status: {
-              in: ["FAILED", "DEAD"],
-            },
-          },
-          orderBy: [{ updatedAt: "desc" }],
-          take: 20,
-        }),
+        this.store.countByStatus(),
+        this.store.listStaleProcessing(processingStaleBefore, 20),
+        this.store.listStaleRunnable(pendingStaleBefore, 20),
+        this.store.listRecentFailures(20),
       ]);
 
     const counts = Object.fromEntries(
-      statusCounts.map((row) => [row.status, row._count._all]),
+      statusCounts.map((row) => [row.status, row.count]),
     );
     const failures = [
       ...staleProcessing.map((job) =>
@@ -117,12 +119,10 @@ export class SideEffectHealthService {
   }
 
   private summarizeJob(
-    job: SideEffectOutbox,
+    job: SideEffectHealthRecord,
     reason: SideEffectHealthFailure["reason"],
     now: Date,
   ): SideEffectHealthFailure {
-    const referenceDate =
-      job.lockedAt ?? job.availableAt ?? job.updatedAt ?? job.createdAt;
     return {
       reason,
       id: job.id,
@@ -133,9 +133,9 @@ export class SideEffectHealthService {
       attempts: job.attempts,
       ageSeconds: Math.max(
         0,
-        Math.floor((now.getTime() - referenceDate.getTime()) / 1000),
+        Math.floor((now.getTime() - job.referenceAt.getTime()) / 1000),
       ),
-      lastError: job.lastError,
+      hasRecordedError: job.hasRecordedError,
     };
   }
 

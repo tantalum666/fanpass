@@ -7,16 +7,32 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma, Payment } from "@prisma/client";
+import { Payment, Prisma, SponsoredCryptoSubmission } from "@prisma/client";
 import { createHmac, randomUUID } from "crypto";
 import Stripe = require("stripe");
 import { PrismaService } from "../../common/prisma.service";
 import { FanPassSession } from "../../common/session";
+import { requireVerifiedWalletBinding } from "../../common/wallet-binding";
 import { isProductionLikeEnvironment } from "../../config/security-config";
 import { AuditService } from "../audit/audit.service";
+import {
+  assertMarketplaceEventPublished,
+  lockMarketplaceEvent,
+} from "../events/event-marketplace-policy";
 import { OnsaleInventoryService } from "../onsales/onsale-inventory.service";
-import { PrivyWalletService } from "../privy/privy-wallet.service";
-import { SideEffectOutboxService } from "../side-effects/side-effect-outbox.service";
+import {
+  classifyPrivyTransactionStatus,
+  PrivyWalletService,
+} from "../privy/privy-wallet.service";
+import {
+  SideEffectDispatchFencedError,
+  SideEffectOutboxService,
+} from "../side-effects/side-effect-outbox.service";
+import {
+  SponsoredCryptoSubmissionStore,
+  SponsoredSubmissionAction,
+  validSponsoredTransactionHash,
+} from "./sponsored-crypto-submission.store";
 
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 
@@ -59,6 +75,10 @@ interface PaymentIntentResult {
   clientSecret: string | null;
   status: string;
   captureStatus: string;
+}
+
+export interface PaymentProviderSubmissionHooks {
+  beforeProviderSubmission?: () => Promise<void>;
 }
 
 interface StripeChargeLike {
@@ -115,12 +135,22 @@ interface RpcReceipt {
 }
 
 type CryptoPaymentWithOrder = Payment & {
+  sponsoredCryptoSubmission?: SponsoredCryptoSubmission | null;
   order: {
     id: string;
+    eventId: string;
     fulfillmentMode: string;
     user: {
       walletAddress: string | null;
       privyWalletId: string | null;
+      privyId: string | null;
+      walletBindingStatus: "UNVERIFIED" | "VERIFIED" | "REVOKED";
+      walletBindingVerifiedAt: Date | null;
+      walletBindingVersion: number;
+      walletBindingFingerprint: string | null;
+    };
+    event: {
+      status: "DRAFT" | "PUBLISHED" | "CANCELLED";
     };
   };
 };
@@ -181,6 +211,11 @@ export class PaymentsService {
       where: {
         id: input.orderId,
       },
+      include: {
+        event: {
+          select: { status: true },
+        },
+      },
     });
     if (!order) {
       throw new BadRequestException(
@@ -198,6 +233,7 @@ export class PaymentsService {
         `Order status ${order.status} cannot be paid`,
       );
     }
+    assertMarketplaceEventPublished(order.event.status);
     if (order.fulfillmentMode === "PRIMARY_ONLY") {
       await this.requireOnsaleInventory().assertOrderPayable(
         this.prisma,
@@ -205,30 +241,27 @@ export class PaymentsService {
       );
     }
 
-    const existing = await this.prisma.payment.findFirst({
-      where: {
-        userId: order.userId,
-        idempotencyKey,
-      },
-    });
-    if (existing) {
-      this.assertPaymentMatchesOrder(
-        existing,
-        order.id,
-        this.amountMinor(order.price),
-      );
-      const repaired = await this.ensureProviderPaymentIntent(
-        existing,
-        {
-          eventId: order.eventId,
-          ticketTypeId: order.ticketTypeId,
+    const amount = this.amountMinor(order.price);
+    const paymentResult = await this.prisma.$transaction(async (tx) => {
+      await this.lockPublishedMarketplaceEvent(tx, order.eventId);
+      const existing = await tx.payment.findFirst({
+        where: {
+          userId: order.userId,
+          idempotencyKey,
         },
-        "PAYMENT_INTENT_REPAIRED",
-      );
-      return this.mapPayment(repaired);
-    }
-
-    const payment = await this.prisma.$transaction(async (tx) => {
+      });
+      if (existing) {
+        this.assertPaymentMatchesOrder(existing, order.id, amount);
+        if (existing.currency !== "hkd") {
+          throw new BadRequestException(
+            "Idempotency key already belongs to a non-card payment request",
+          );
+        }
+        if (this.providerPaymentIntentIncomplete(existing)) {
+          await this.ensurePaymentIntentCreateMarker(tx, existing, order);
+        }
+        return { payment: existing, existing: true };
+      }
       const created = await tx.payment.create({
         data: {
           id: `pay_${randomUUID()}`,
@@ -236,39 +269,39 @@ export class PaymentsService {
           orderId: order.id,
           stripePaymentIntentId: null,
           clientSecret: null,
-          amount: this.amountMinor(order.price),
+          amount,
           currency: "hkd",
           status: "PENDING",
           captureStatus: "NOT_CAPTURED",
           idempotencyKey,
         },
       });
-      await this.outbox.enqueue(tx, {
-        type: "PAYMENT_INTENT_CREATE",
-        idempotencyKey: this.paymentIntentSideEffectKey(created.id),
-        aggregateType: "payment",
-        aggregateId: created.id,
-        payload: {
-          paymentId: created.id,
-          orderId: order.id,
-          eventId: order.eventId,
-          ticketTypeId: order.ticketTypeId,
-          userId: order.userId,
-          amount: created.amount,
-          currency: created.currency,
-        },
-      });
-      return created;
+      await this.ensurePaymentIntentCreateMarker(tx, created, order);
+      return { payment: created, existing: false };
     });
 
-    const updated = await this.ensureProviderPaymentIntent(
-      payment,
-      {
-        eventId: order.eventId,
-        ticketTypeId: order.ticketTypeId,
-      },
-      "PAYMENT_INTENT_CREATED",
-    );
+    await this.assertMarketplaceEventOpenForExternalPayment(order.eventId);
+    let updated: Payment;
+    try {
+      const providerHooks = !this.providerPaymentIntentIncomplete(
+        paymentResult.payment,
+      )
+        ? undefined
+        : await this.directProviderSubmissionHooks();
+      updated = await this.ensureProviderPaymentIntent(
+        paymentResult.payment,
+        {
+          eventId: order.eventId,
+          ticketTypeId: order.ticketTypeId,
+        },
+        paymentResult.existing
+          ? "PAYMENT_INTENT_REPAIRED"
+          : "PAYMENT_INTENT_CREATED",
+        providerHooks,
+      );
+    } catch (error) {
+      this.rethrowDirectProviderDispatchFence(error);
+    }
 
     return this.mapPayment(updated);
   }
@@ -286,7 +319,6 @@ export class PaymentsService {
       throw new BadRequestException("Only USDC crypto checkout is supported");
     }
 
-    const config = await this.cryptoPaymentConfig();
     const idempotencyKey = this.normalizeIdempotencyKey(input.idempotencyKey);
     if (!idempotencyKey) {
       throw new BadRequestException("Idempotency-Key is required for payments");
@@ -294,6 +326,11 @@ export class PaymentsService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: input.orderId },
+      include: {
+        event: {
+          select: { status: true },
+        },
+      },
     });
     if (!order) {
       throw new BadRequestException(
@@ -311,6 +348,7 @@ export class PaymentsService {
         `Order status ${order.status} cannot be paid`,
       );
     }
+    assertMarketplaceEventPublished(order.event.status);
     if (order.fulfillmentMode === "PRIMARY_ONLY") {
       const inventory = this.requireOnsaleInventory();
       await inventory.assertOrderPayable(this.prisma, order);
@@ -321,29 +359,35 @@ export class PaymentsService {
       }
     }
 
+    const config = await this.cryptoPaymentConfig();
+
     const amountMinor = this.amountMinor(order.price);
-    const existing = await this.prisma.payment.findFirst({
-      where: {
-        userId: order.userId,
-        idempotencyKey,
-      },
+    const payment = await this.prisma.$transaction(async (tx) => {
+      await this.lockPublishedMarketplaceEvent(tx, order.eventId);
+      const existing = await tx.payment.findFirst({
+        where: {
+          userId: order.userId,
+          idempotencyKey,
+        },
+      });
+      if (existing) {
+        return existing;
+      }
+      return tx.payment.create({
+        data: {
+          id: `pay_${randomUUID()}`,
+          userId: order.userId,
+          orderId: order.id,
+          stripePaymentIntentId: null,
+          clientSecret: null,
+          amount: amountMinor,
+          currency: "usdc",
+          status: "PENDING",
+          captureStatus: "NOT_CAPTURED",
+          idempotencyKey,
+        },
+      });
     });
-    const payment = existing
-      ? existing
-      : await this.prisma.payment.create({
-          data: {
-            id: `pay_${randomUUID()}`,
-            userId: order.userId,
-            orderId: order.id,
-            stripePaymentIntentId: null,
-            clientSecret: null,
-            amount: amountMinor,
-            currency: "usdc",
-            status: "PENDING",
-            captureStatus: "NOT_CAPTURED",
-            idempotencyKey,
-          },
-        });
 
     this.assertPaymentMatchesOrder(payment, order.id, amountMinor);
     if (payment.currency !== "usdc") {
@@ -375,19 +419,28 @@ export class PaymentsService {
 
     const payment = await this.loadCryptoPayment(input.paymentId);
     this.assertCryptoPaymentAccess(payment, session, "confirm");
-    if (payment.captureStatus === "CAPTURED") {
-      return {
-        ok: true,
-        payment: this.mapRedactedPayment(payment),
-        alreadyConfirmed: true,
-      };
+    const terminal = this.cryptoPaymentTerminalResponse(payment);
+    if (terminal) {
+      return terminal;
+    }
+    const registeredHash = this.registeredCryptoTransactionHash(payment);
+    const submittedHash = input.transactionHash.toLowerCase();
+    if (registeredHash && registeredHash !== submittedHash) {
+      throw new BadRequestException(
+        "USDC transaction is not bound to this payment",
+      );
+    }
+    if (!registeredHash && !this.manualCryptoConfirmationAllowed()) {
+      throw new ServiceUnavailableException(
+        "Manual USDC transaction confirmation is unavailable. Use the FanPass wallet payment flow.",
+      );
     }
 
     const config = await this.cryptoPaymentConfig();
     const quote = this.cryptoQuoteForPayment(payment, config);
     return this.confirmCryptoPaymentRecord(
       payment,
-      input.transactionHash.toLowerCase(),
+      submittedHash,
       quote,
       config,
     );
@@ -409,59 +462,159 @@ export class PaymentsService {
 
     const payment = await this.loadCryptoPayment(input.paymentId);
     this.assertCryptoPaymentAccess(payment, session, "pay");
-    if (payment.captureStatus === "CAPTURED") {
-      return {
-        ok: true,
-        payment: this.mapRedactedPayment(payment),
-        alreadyConfirmed: true,
-      };
+    const terminal = this.cryptoPaymentTerminalResponse(payment);
+    if (terminal) {
+      return terminal;
     }
 
-    const walletId = payment.order.user.privyWalletId?.trim();
-    if (!walletId) {
-      throw new BadRequestException(
-        "Connect your FanPass wallet before paying with USDC",
+    const registeredHash = this.registeredCryptoTransactionHash(payment);
+    if (registeredHash) {
+      const config = await this.cryptoPaymentConfig();
+      const quote = this.cryptoQuoteForPayment(payment, config);
+      return this.confirmCryptoPaymentRecord(
+        payment,
+        registeredHash,
+        quote,
+        config,
       );
     }
-    const payerAddress = this.requireCryptoPayerAddress(payment);
 
+    assertMarketplaceEventPublished(payment.order.event.status);
+    const walletBinding = this.requireCryptoWalletBinding(payment);
+    const privyUserId = payment.order.user.privyId?.trim();
+    if (!privyUserId) {
+      throw new BadRequestException(
+        "Reconnect your FanPass wallet before paying with USDC",
+      );
+    }
     const config = await this.cryptoPaymentConfig();
-    const quote = this.cryptoQuoteForPayment(payment, config);
+    const currentQuote = this.cryptoQuoteForPayment(payment, config);
+    const claim = await this.claimSponsoredCryptoSubmission({
+      payment,
+      idempotencyKey,
+      walletId: walletBinding.walletId,
+      walletAddress: walletBinding.walletAddress,
+      walletBindingVersion: payment.order.user.walletBindingVersion,
+      walletBindingFingerprint:
+        payment.order.user.walletBindingFingerprint ?? "",
+      quote: currentQuote,
+    });
+    if (claim.kind === "AMBIGUOUS") {
+      throw new ServiceUnavailableException(
+        "Wallet payment outcome requires manual reconciliation. No new transfer will be sent.",
+      );
+    }
+    if (claim.kind === "WAIT") {
+      throw new ServiceUnavailableException(
+        "Wallet payment is already processing. Try again shortly.",
+      );
+    }
+    const quote = this.cryptoQuoteFromSubmission(
+      claim.submission,
+      currentQuote,
+    );
+    if (claim.kind === "CONFIRM") {
+      const hash = this.validSponsoredTransactionHash(
+        claim.submission.transactionHash,
+      );
+      if (!hash) {
+        await this.markSponsoredSubmissionAmbiguous(
+          claim.submission.id,
+          "missing_confirmable_transaction_hash",
+        );
+        throw new ServiceUnavailableException(
+          "Wallet payment outcome requires manual reconciliation.",
+        );
+      }
+      return this.confirmCryptoPaymentRecord(payment, hash, quote, config);
+    }
+
+    const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
+    if (claim.kind === "POLL") {
+      return this.pollAndConfirmSponsoredCryptoPayment({
+        sponsor,
+        payment,
+        submission: claim.submission,
+        quote,
+        config,
+      });
+    }
+
     const privyRequestExpiry = this.validatedPrivyAuthorizationExpiry({
       signature: input.privyAuthorizationSignature,
       requestExpiry: input.privyRequestExpiry,
     });
+    await sponsor.resolveUserEmbeddedEthereumWallet({
+      privyUserId,
+      walletId: claim.submission.walletId,
+      walletAddress: claim.submission.walletAddress,
+    });
     await this.assertSufficientUsdcBalance({
       rpcUrl: config.rpcUrl,
       tokenContractAddress: quote.tokenContractAddress,
-      payerAddress,
+      payerAddress: claim.submission.walletAddress,
       amountAtomic: BigInt(quote.amountAtomic),
     });
-    const sponsor = this.privyWallets ?? new PrivyWalletService(this.config);
-    let sponsored: Awaited<
-      ReturnType<PrivyWalletService["sendSponsoredEthereumTransaction"]>
+    let dispatchFence: Awaited<
+      ReturnType<SideEffectOutboxService["captureDirectProviderMutationFence"]>
     >;
     try {
-      sponsored = await sponsor.sendSponsoredEthereumTransaction({
-        walletId,
-        caip2: this.cryptoCaip2(config.chainId),
-        userJwt: input.privyAccessToken,
-        userAuthorizationSignature: input.privyAuthorizationSignature,
-        requestExpiry: privyRequestExpiry,
-        transaction: {
-          to: quote.tokenContractAddress,
-          data: quote.erc20TransferData,
-          value: "0x0",
-        },
-      });
+      dispatchFence = await this.outbox.captureDirectProviderMutationFence();
     } catch (error) {
+      await this.markSponsoredSubmissionRetryable(
+        claim.submission.id,
+        claim.leaseOwner,
+        this.sponsoredCryptoPaymentFailureReason(error),
+      );
       throw this.sponsoredCryptoPaymentUnavailable(error, {
         stage: "privy_send",
         paymentId: payment.id,
         orderId: payment.orderId ?? payment.order.id,
         userId: payment.userId,
-        payerAddress,
-        walletId,
+        payerAddress: claim.submission.walletAddress,
+        walletId: claim.submission.walletId,
+        hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
+        hasPrivyAuthorizationSignature: Boolean(
+          input.privyAuthorizationSignature?.trim(),
+        ),
+      });
+    }
+    await this.assertSponsoredSubmissionMaySend({
+      submissionId: claim.submission.id,
+      leaseOwner: claim.leaseOwner,
+      eventId: payment.order.eventId,
+    });
+    let sponsored: Awaited<
+      ReturnType<PrivyWalletService["sendSponsoredEthereumTransaction"]>
+    >;
+    try {
+      await this.outbox.assertDirectProviderMutationFenceCurrent(dispatchFence);
+      sponsored = await sponsor.sendSponsoredEthereumTransaction({
+        walletId: claim.submission.walletId,
+        caip2: this.cryptoCaip2(claim.submission.chainId),
+        idempotencyKey: claim.submission.providerIdempotencyKey,
+        userJwt: input.privyAccessToken,
+        userAuthorizationSignature: input.privyAuthorizationSignature,
+        requestExpiry: privyRequestExpiry,
+        transaction: {
+          to: claim.submission.tokenContractAddress,
+          data: claim.submission.transactionData,
+          value: "0x0",
+        },
+      });
+    } catch (error) {
+      await this.markSponsoredSubmissionRetryable(
+        claim.submission.id,
+        claim.leaseOwner,
+        this.sponsoredCryptoPaymentFailureReason(error),
+      );
+      throw this.sponsoredCryptoPaymentUnavailable(error, {
+        stage: "privy_send",
+        paymentId: payment.id,
+        orderId: payment.orderId ?? payment.order.id,
+        userId: payment.userId,
+        payerAddress: claim.submission.walletAddress,
+        walletId: claim.submission.walletId,
         hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
         hasPrivyAuthorizationSignature: Boolean(
           input.privyAuthorizationSignature?.trim(),
@@ -469,52 +622,62 @@ export class PaymentsService {
       });
     }
 
-    let transactionHash = sponsored.hash?.toLowerCase() ?? null;
-    if (!transactionHash && sponsored.providerId) {
-      let status: Awaited<
-        ReturnType<PrivyWalletService["waitForTransactionHash"]>
-      >;
-      try {
-        status = await sponsor.waitForTransactionHash({
-          transactionId: sponsored.providerId,
-          timeoutMs: this.configInteger(
-            "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
-            45_000,
-            5_000,
-            180_000,
-          ),
-        });
-      } catch (error) {
-        throw this.sponsoredCryptoPaymentUnavailable(error, {
-          stage: "privy_status",
-          paymentId: payment.id,
-          orderId: payment.orderId ?? payment.order.id,
-          userId: payment.userId,
-          payerAddress,
-          walletId,
-          providerId: sponsored.providerId,
-          rawStatus: sponsored.rawStatus,
-          userOperationHash: sponsored.userOperationHash,
-          hasPrivyAccessToken: Boolean(input.privyAccessToken?.trim()),
-          hasPrivyAuthorizationSignature: Boolean(
-            input.privyAuthorizationSignature?.trim(),
-          ),
-        });
-      }
-      transactionHash = status.hash?.toLowerCase() ?? null;
+    const checkpoint = await this.checkpointSponsoredProviderSubmission({
+      submissionId: claim.submission.id,
+      providerId: sponsored.providerId,
+      transactionHash: sponsored.hash,
+    });
+    const submissionDisposition = sponsored.rawStatus
+      ? classifyPrivyTransactionStatus(sponsored)
+      : null;
+    if (submissionDisposition?.kind === "DEFINITIVE_FAILURE") {
+      const failedPayment = await this.failSponsoredCryptoPayment({
+        payment,
+        submission: checkpoint,
+        reason: submissionDisposition.reason,
+      });
+      return this.requireCryptoPaymentTerminalResponse(failedPayment);
     }
-    if (!transactionHash || !/^0x[0-9a-f]{64}$/.test(transactionHash)) {
-      throw new ServiceUnavailableException(
-        "Wallet payment is still processing. Try again shortly.",
+    if (submissionDisposition?.kind === "AMBIGUOUS") {
+      const ambiguous = await this.sponsoredSubmissionStore().markAmbiguous(
+        checkpoint.id,
+        submissionDisposition.reason,
+      );
+      this.logSponsoredSubmissionAmbiguous(ambiguous);
+      return this.requireCryptoPaymentTerminalResponse({
+        ...payment,
+        sponsoredCryptoSubmission: ambiguous,
+      });
+    }
+    if (checkpoint.transactionHash) {
+      return this.confirmCryptoPaymentRecord(
+        payment,
+        checkpoint.transactionHash,
+        quote,
+        config,
+        checkpoint.walletAddress,
       );
     }
+    if (checkpoint.providerId) {
+      return this.pollAndConfirmSponsoredCryptoPayment({
+        sponsor,
+        payment,
+        submission: checkpoint,
+        quote,
+        config,
+      });
+    }
 
-    return this.confirmCryptoPaymentRecord(
-      payment,
-      transactionHash,
-      quote,
-      config,
+    await this.markSponsoredSubmissionAmbiguous(
+      checkpoint.id,
+      "provider_response_missing_checkpoint",
     );
+    if (!checkpoint.transactionHash) {
+      throw new ServiceUnavailableException(
+        "Wallet payment outcome requires manual reconciliation. No new transfer will be sent.",
+      );
+    }
+    throw new ServiceUnavailableException("Wallet payment is still processing");
   }
 
   private sponsoredCryptoPaymentUnavailable(
@@ -554,6 +717,83 @@ export class PaymentsService {
     return new ServiceUnavailableException(
       "Wallet payment is temporarily unavailable. Try card payment or try again later.",
     );
+  }
+
+  private async directProviderSubmissionHooks(): Promise<PaymentProviderSubmissionHooks> {
+    const fence = await this.outbox.captureDirectProviderMutationFence();
+    return {
+      beforeProviderSubmission: () =>
+        this.outbox.assertDirectProviderMutationFenceCurrent(fence),
+    };
+  }
+
+  private providerPaymentIntentIncomplete(payment: Payment) {
+    return !(
+      payment.stripePaymentIntentId?.trim() && payment.clientSecret?.trim()
+    );
+  }
+
+  private async ensurePaymentIntentCreateMarker(
+    tx: Prisma.TransactionClient,
+    payment: Payment,
+    order: {
+      id: string;
+      eventId: string;
+      ticketTypeId: string;
+      userId: string;
+    },
+  ) {
+    const idempotencyKey = this.paymentIntentSideEffectKey(payment.id);
+    const marker = await this.outbox.enqueue(tx, {
+      type: "PAYMENT_INTENT_CREATE",
+      idempotencyKey,
+      aggregateType: "payment",
+      aggregateId: payment.id,
+      payload: {
+        paymentId: payment.id,
+        orderId: order.id,
+        eventId: order.eventId,
+        ticketTypeId: order.ticketTypeId,
+        userId: order.userId,
+        amount: payment.amount,
+        currency: payment.currency,
+      },
+    });
+    const payload =
+      marker.payloadJson &&
+      typeof marker.payloadJson === "object" &&
+      !Array.isArray(marker.payloadJson)
+        ? (marker.payloadJson as Prisma.JsonObject)
+        : null;
+    if (
+      payment.currency !== "hkd" ||
+      marker.type !== "PAYMENT_INTENT_CREATE" ||
+      marker.idempotencyKey !== idempotencyKey ||
+      marker.aggregateType !== "payment" ||
+      marker.aggregateId !== payment.id ||
+      !["PENDING", "RETRYING"].includes(marker.status) ||
+      payload?.paymentId !== payment.id ||
+      payload.orderId !== order.id ||
+      payload.eventId !== order.eventId ||
+      payload.ticketTypeId !== order.ticketTypeId ||
+      payload.userId !== order.userId ||
+      payload.amount !== payment.amount ||
+      payload.currency !== payment.currency
+    ) {
+      throw new ServiceUnavailableException(
+        "Payment authorization is awaiting a safe retry.",
+      );
+    }
+    return marker;
+  }
+
+  private rethrowDirectProviderDispatchFence(error: unknown): never {
+    if (error instanceof SideEffectDispatchFencedError) {
+      throw new ServiceUnavailableException(
+        "Payment processing is temporarily paused. Try again shortly.",
+      );
+    }
+    throw error;
   }
 
   async requestPaymentOperation(
@@ -636,18 +876,34 @@ export class PaymentsService {
 
   async processCreateIntentJob(
     paymentId: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<Prisma.InputJsonValue> {
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: {
         id: paymentId,
       },
       include: {
-        order: true,
+        order: {
+          include: {
+            event: {
+              select: { status: true },
+            },
+          },
+        },
       },
     });
     if (payment.stripePaymentIntentId && payment.clientSecret?.trim()) {
       return this.paymentJobPayload(payment);
     }
+    if (!payment.order) {
+      throw new BadRequestException(
+        "Payment is not attached to a marketplace order",
+      );
+    }
+    assertMarketplaceEventPublished(payment.order.event.status);
+    await this.assertMarketplaceEventOpenForExternalPayment(
+      payment.order.eventId,
+    );
     const updated = await this.ensureProviderPaymentIntent(
       payment,
       {
@@ -657,6 +913,7 @@ export class PaymentsService {
       payment.stripePaymentIntentId
         ? "PAYMENT_INTENT_REPAIRED"
         : "PAYMENT_INTENT_CREATED",
+      providerHooks,
     );
     return this.paymentJobPayload({
       ...updated,
@@ -667,53 +924,346 @@ export class PaymentsService {
   async processCaptureJob(
     paymentId: string,
     tradeId: string | null,
+    ticketId: string,
     sideEffectIdempotencyKey?: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<Prisma.InputJsonValue> {
-    const payment = await this.prisma.payment.findUniqueOrThrow({
-      where: { id: paymentId },
-      include: { order: true },
-    });
-    if (payment.captureStatus === "CAPTURED") {
-      return this.paymentJobPayload(payment);
+    const providerTimeoutMs = this.configInteger(
+      "FANPASS_STRIPE_CAPTURE_TIMEOUT_MS",
+      10_000,
+      1_000,
+      30_000,
+    );
+    const transactionTimeoutMs = Math.max(
+      providerTimeoutMs + 5_000,
+      this.configInteger(
+        "FANPASS_STRIPE_CAPTURE_TX_TIMEOUT_MS",
+        20_000,
+        5_000,
+        60_000,
+      ),
+    );
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const payment = await tx.payment.findUniqueOrThrow({
+          where: { id: paymentId },
+          include: { order: true },
+        });
+        if (payment.captureStatus === "CAPTURED") {
+          return { kind: "CAPTURED" as const, payment };
+        }
+        if (
+          payment.captureStatus === "CANCELLED" ||
+          payment.captureStatus === "REFUNDED"
+        ) {
+          return {
+            kind: "BLOCKED" as const,
+            payment,
+            reason: "payment_already_compensated",
+          };
+        }
+        if (payment.captureStatus !== "AUTHORIZED") {
+          throw new BadRequestException(
+            `Payment capture requires AUTHORIZED status, got ${payment.captureStatus}`,
+          );
+        }
+        if (!payment.order) {
+          throw new BadRequestException(
+            "Payment is not attached to a marketplace order",
+          );
+        }
+
+        const eventStatus = await lockMarketplaceEvent(
+          tx,
+          payment.order.eventId,
+        );
+        const [ticket, trade] = await Promise.all([
+          tx.ticket.findUnique({ where: { id: ticketId } }),
+          tradeId
+            ? tx.trade.findUnique({
+                where: { id: tradeId },
+                include: { sellOrder: true },
+              })
+            : Promise.resolve(null),
+        ]);
+        const preconditionFailure =
+          eventStatus === "PUBLISHED"
+            ? this.capturePreconditionFailure({
+                order: payment.order,
+                ticket,
+                ticketId,
+                trade,
+                tradeId,
+              })
+            : "event_not_published_before_capture";
+        if (preconditionFailure) {
+          await this.compensateBlockedCapture(tx, {
+            payment,
+            ticket,
+            ticketId,
+            trade,
+            tradeId,
+            reason: preconditionFailure,
+          });
+          return {
+            kind: "BLOCKED" as const,
+            payment,
+            reason: preconditionFailure,
+          };
+        }
+
+        const providerResult = providerHooks
+          ? await this.captureProviderPaymentIntent(
+              payment,
+              sideEffectIdempotencyKey,
+              providerTimeoutMs,
+              providerHooks,
+            )
+          : await this.captureProviderPaymentIntent(
+              payment,
+              sideEffectIdempotencyKey,
+              providerTimeoutMs,
+            );
+        const updated = await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: providerResult.status,
+            captureStatus: providerResult.captureStatus,
+          },
+          include: { order: true },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: updated.userId,
+            action: "PAYMENT_CAPTURED",
+            entityType: "payment",
+            entityId: updated.id,
+            metadataJson: {
+              orderId: updated.orderId,
+              tradeId,
+              ticketId,
+              stripePaymentIntentId: updated.stripePaymentIntentId,
+              captureStatus: updated.captureStatus,
+              sideEffectIdempotencyKey,
+            },
+          },
+        });
+        return { kind: "CAPTURED" as const, payment: updated };
+      },
+      {
+        maxWait: 5_000,
+        timeout: transactionTimeoutMs,
+      },
+    );
+    if (result.kind === "BLOCKED") {
+      return {
+        ...(this.paymentJobPayload(result.payment) as Prisma.JsonObject),
+        captureBlocked: true,
+        compensationRequired: true,
+        compensationReason: result.reason,
+        ticketId,
+        tradeId,
+      };
     }
-    if (payment.captureStatus !== "AUTHORIZED") {
+    return this.paymentJobPayload(result.payment);
+  }
+
+  private capturePreconditionFailure(input: {
+    order: {
+      id: string;
+      userId: string;
+      eventId: string;
+      ticketTypeId: string;
+      ticketId: string | null;
+      side: string;
+      status: string;
+    };
+    ticket: {
+      id: string;
+      tokenId: string | null;
+      eventId: string;
+      ticketTypeId: string;
+      ownerId: string;
+      status: string;
+    } | null;
+    ticketId: string;
+    trade: {
+      id: string;
+      buyOrderId: string;
+      sellOrderId: string;
+      ticketId: string;
+      settlementStatus: string;
+      sellOrder: {
+        id: string;
+        eventId: string;
+        ticketTypeId: string;
+        ticketId: string | null;
+        status: string;
+      };
+    } | null;
+    tradeId: string | null;
+  }) {
+    if (input.order.side !== "BUY" || input.order.status !== "SETTLED") {
+      return "capture_order_not_settled";
+    }
+    if (!input.ticket || input.ticket.id !== input.ticketId) {
+      return "capture_ticket_missing";
+    }
+    if (!input.ticket.tokenId?.trim()) {
+      return "capture_ticket_token_missing";
+    }
+    if (
+      input.ticket.eventId !== input.order.eventId ||
+      input.ticket.ticketTypeId !== input.order.ticketTypeId ||
+      input.ticket.ownerId !== input.order.userId
+    ) {
+      return "capture_ticket_order_mismatch";
+    }
+    if (input.tradeId) {
+      if (
+        !input.trade ||
+        input.trade.id !== input.tradeId ||
+        input.trade.buyOrderId !== input.order.id ||
+        input.trade.ticketId !== input.ticketId ||
+        input.trade.settlementStatus !== "SETTLED" ||
+        input.trade.sellOrder.status !== "SETTLED" ||
+        input.trade.sellOrder.ticketId !== input.ticketId ||
+        input.trade.sellOrder.eventId !== input.order.eventId ||
+        input.trade.sellOrder.ticketTypeId !== input.order.ticketTypeId
+      ) {
+        return "capture_trade_order_mismatch";
+      }
+      return input.ticket.status === "TRANSFERRED"
+        ? null
+        : "capture_resale_ticket_not_active";
+    }
+    if (input.order.ticketId !== input.ticketId) {
+      return "capture_primary_ticket_order_mismatch";
+    }
+    return input.ticket.status === "ACTIVE"
+      ? null
+      : "capture_primary_ticket_not_active";
+  }
+
+  private async compensateBlockedCapture(
+    tx: Prisma.TransactionClient,
+    input: {
+      payment: Payment & {
+        order: {
+          id: string;
+          userId: string;
+          eventId: string;
+          ticketTypeId: string;
+          ticketId: string | null;
+          fulfillmentMode: string;
+        } | null;
+      };
+      ticket: {
+        id: string;
+        status: string;
+      } | null;
+      ticketId: string;
+      trade: {
+        id: string;
+        buyOrderId: string;
+        sellOrderId: string;
+        ticketId: string;
+        sellOrder?: unknown;
+      } | null;
+      tradeId: string | null;
+      reason: string;
+    },
+  ) {
+    const order = input.payment.order;
+    if (!order) {
       throw new BadRequestException(
-        `Payment capture requires AUTHORIZED status, got ${payment.captureStatus}`,
+        "Payment is not attached to a marketplace order",
       );
     }
-
-    const providerResult = await this.captureProviderPaymentIntent(
-      payment,
-      sideEffectIdempotencyKey,
+    const trustedPrimaryLink =
+      !input.tradeId &&
+      order.ticketId === input.ticketId &&
+      input.ticket?.id === input.ticketId;
+    const trustedResaleLink = Boolean(
+      input.tradeId &&
+      input.trade?.id === input.tradeId &&
+      input.trade.buyOrderId === order.id &&
+      input.trade.ticketId === input.ticketId &&
+      input.ticket?.id === input.ticketId,
     );
-    const updated = await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: providerResult.status,
-        captureStatus: providerResult.captureStatus,
+    const relatedOrderIds = trustedResaleLink
+      ? [order.id, input.trade!.sellOrderId]
+      : [order.id];
+    await tx.order.updateMany({
+      where: {
+        id: { in: relatedOrderIds },
+        status: { in: ["OPEN", "MATCHED", "SETTLED"] },
       },
-      include: { order: true },
+      data: { status: "REJECTED", remainingQuantity: 0 },
     });
-    await this.audit.record(
-      updated.userId,
-      "PAYMENT_CAPTURED",
-      "payment",
-      updated.id,
-      {
-        orderId: updated.orderId,
-        tradeId,
-        stripePaymentIntentId: updated.stripePaymentIntentId,
-        captureStatus: updated.captureStatus,
-        sideEffectIdempotencyKey,
+    if (trustedPrimaryLink || trustedResaleLink) {
+      await tx.ticket.updateMany({
+        where: {
+          id: input.ticketId,
+          status: { in: ["CREATED", "ACTIVE", "TRANSFERRED"] },
+        },
+        data: { status: "CANCELLED" },
+      });
+    }
+    if (trustedResaleLink) {
+      await tx.trade.updateMany({
+        where: {
+          id: input.tradeId!,
+          buyOrderId: order.id,
+          ticketId: input.ticketId,
+          settlementStatus: "SETTLED",
+        },
+        data: { settlementStatus: "FAILED" },
+      });
+    }
+    if (!input.tradeId && this.onsaleInventory) {
+      await this.onsaleInventory.releaseOrderHold(
+        tx,
+        order.id,
+        input.reason,
+        true,
+      );
+    }
+    await this.outbox.enqueue(tx, {
+      type: "PAYMENT_CANCEL_AUTHORIZATION",
+      idempotencyKey: `payment-cancel:${input.payment.id}:${input.reason}`,
+      aggregateType: "payment",
+      aggregateId: input.payment.id,
+      payload: {
+        paymentId: input.payment.id,
+        orderId: order.id,
+        ticketId: input.ticketId,
+        tradeId: input.tradeId,
+        reason: input.reason,
       },
-    );
-    return this.paymentJobPayload(updated);
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: input.payment.userId,
+        action: "PAYMENT_CAPTURE_BLOCKED",
+        entityType: "payment",
+        entityId: input.payment.id,
+        metadataJson: {
+          orderId: order.id,
+          ticketId: input.ticketId,
+          tradeId: input.tradeId,
+          reason: input.reason,
+          captureStatus: input.payment.captureStatus,
+        },
+      },
+    });
   }
 
   async processCancelAuthorizationJob(
     paymentId: string,
     reason: string | null,
     sideEffectIdempotencyKey?: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<Prisma.InputJsonValue> {
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { id: paymentId },
@@ -727,13 +1277,20 @@ export class PaymentsService {
         payment.id,
         reason ?? "captured_payment",
         sideEffectIdempotencyKey,
+        providerHooks,
       );
     }
 
-    const providerResult = await this.cancelProviderPaymentIntent(
-      payment,
-      sideEffectIdempotencyKey,
-    );
+    const providerResult = providerHooks
+      ? await this.cancelProviderPaymentIntent(
+          payment,
+          sideEffectIdempotencyKey,
+          providerHooks,
+        )
+      : await this.cancelProviderPaymentIntent(
+          payment,
+          sideEffectIdempotencyKey,
+        );
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -762,6 +1319,7 @@ export class PaymentsService {
     paymentId: string,
     reason: string | null,
     sideEffectIdempotencyKey?: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<Prisma.InputJsonValue> {
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { id: paymentId },
@@ -775,13 +1333,20 @@ export class PaymentsService {
         payment.id,
         reason ?? "refund_requested_before_capture",
         sideEffectIdempotencyKey,
+        providerHooks,
       );
     }
 
-    const providerResult = await this.refundProviderPaymentIntent(
-      payment,
-      sideEffectIdempotencyKey,
-    );
+    const providerResult = providerHooks
+      ? await this.refundProviderPaymentIntent(
+          payment,
+          sideEffectIdempotencyKey,
+          providerHooks,
+        )
+      : await this.refundProviderPaymentIntent(
+          payment,
+          sideEffectIdempotencyKey,
+        );
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -806,12 +1371,17 @@ export class PaymentsService {
     return this.paymentJobPayload(updated);
   }
 
-  async processReconcileJob(paymentId: string): Promise<Prisma.InputJsonValue> {
+  async processReconcileJob(
+    paymentId: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
+  ): Promise<Prisma.InputJsonValue> {
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { id: paymentId },
       include: { order: true },
     });
-    const providerResult = await this.reconcileProviderPaymentIntent(payment);
+    const providerResult = providerHooks
+      ? await this.reconcileProviderPaymentIntent(payment, providerHooks)
+      : await this.reconcileProviderPaymentIntent(payment);
     const updated = await this.prisma.payment.update({
       where: { id: payment.id },
       data: {
@@ -875,6 +1445,9 @@ export class PaymentsService {
         where: {
           stripePaymentIntentId: intent.id,
         },
+        include: {
+          order: true,
+        },
       });
       if (!payment) {
         await tx.paymentWebhookEvent.update({
@@ -909,7 +1482,13 @@ export class PaymentsService {
       let authorizationRejectionReason: string | null = null;
       if (captureStatus === "AUTHORIZED" && nextPayment.orderId) {
         let inventoryAuthorized = true;
-        if (this.onsaleInventory) {
+        const eventStatus = payment.order
+          ? await lockMarketplaceEvent(tx, payment.order.eventId)
+          : null;
+        if (eventStatus !== "PUBLISHED") {
+          inventoryAuthorized = false;
+          authorizationRejectionReason = "event_not_published";
+        } else if (this.onsaleInventory) {
           const authorization = await this.onsaleInventory.authorizeOrderHold(
             tx,
             {
@@ -949,6 +1528,7 @@ export class PaymentsService {
             orderId: nextPayment.orderId,
             userId: nextPayment.userId,
             reason: authorizationRejectionReason ?? "inventory_unavailable",
+            primaryOnly: authorizationRejectionReason !== "event_not_published",
           });
         }
       }
@@ -1054,6 +1634,7 @@ export class PaymentsService {
 
   private async createProviderPaymentIntent(
     payment: Payment,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<PaymentIntentResult> {
     const stripe = this.stripeClient();
     if (!stripe) {
@@ -1077,6 +1658,7 @@ export class PaymentsService {
           payment.orderId!,
         )),
       );
+    await providerHooks?.beforeProviderSubmission?.();
     const intent = await stripe.paymentIntents.create(
       {
         amount: payment.amount,
@@ -1116,14 +1698,19 @@ export class PaymentsService {
       ticketTypeId: string | null;
     },
     auditAction: "PAYMENT_INTENT_CREATED" | "PAYMENT_INTENT_REPAIRED",
+    providerHooks?: PaymentProviderSubmissionHooks,
   ) {
     if (payment.stripePaymentIntentId && payment.clientSecret?.trim()) {
       return payment;
     }
 
     const providerResult = payment.stripePaymentIntentId
-      ? await this.reconcileProviderPaymentIntent(payment)
-      : await this.createProviderPaymentIntent(payment);
+      ? providerHooks
+        ? await this.reconcileProviderPaymentIntent(payment, providerHooks)
+        : await this.reconcileProviderPaymentIntent(payment)
+      : providerHooks
+        ? await this.createProviderPaymentIntent(payment, providerHooks)
+        : await this.createProviderPaymentIntent(payment);
     const updated = await this.prisma.payment.update({
       where: {
         id: payment.id,
@@ -1166,6 +1753,8 @@ export class PaymentsService {
   private async captureProviderPaymentIntent(
     payment: Payment,
     sideEffectIdempotencyKey?: string,
+    timeoutMs?: number,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<PaymentIntentResult> {
     const stripe = this.stripeClient();
     const paymentIntentId = this.requireProviderPaymentIntentId(payment);
@@ -1181,6 +1770,7 @@ export class PaymentsService {
       };
     }
 
+    await providerHooks?.beforeProviderSubmission?.();
     const intent = await stripe.paymentIntents.capture(
       paymentIntentId,
       {},
@@ -1188,6 +1778,7 @@ export class PaymentsService {
         idempotencyKey:
           sideEffectIdempotencyKey ??
           this.paymentCaptureSideEffectKey(payment.id),
+        ...(timeoutMs ? { timeout: timeoutMs } : {}),
       },
     );
     return {
@@ -1201,6 +1792,7 @@ export class PaymentsService {
   private async cancelProviderPaymentIntent(
     payment: Payment,
     sideEffectIdempotencyKey?: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<PaymentIntentResult> {
     const stripe = this.stripeClient();
     const paymentIntentId = this.requireProviderPaymentIntentId(payment);
@@ -1216,6 +1808,7 @@ export class PaymentsService {
       };
     }
 
+    await providerHooks?.beforeProviderSubmission?.();
     const intent = await stripe.paymentIntents.cancel(
       paymentIntentId,
       {},
@@ -1236,6 +1829,7 @@ export class PaymentsService {
   private async refundProviderPaymentIntent(
     payment: Payment,
     sideEffectIdempotencyKey?: string,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<PaymentIntentResult> {
     const stripe = this.stripeClient();
     const paymentIntentId = this.requireProviderPaymentIntentId(payment);
@@ -1251,6 +1845,7 @@ export class PaymentsService {
       };
     }
 
+    await providerHooks?.beforeProviderSubmission?.();
     await stripe.refunds.create(
       {
         payment_intent: paymentIntentId,
@@ -1275,6 +1870,7 @@ export class PaymentsService {
 
   private async reconcileProviderPaymentIntent(
     payment: Payment,
+    providerHooks?: PaymentProviderSubmissionHooks,
   ): Promise<PaymentIntentResult> {
     const stripe = this.stripeClient();
     const paymentIntentId = this.requireProviderPaymentIntentId(payment);
@@ -1290,6 +1886,7 @@ export class PaymentsService {
       };
     }
 
+    await providerHooks?.beforeProviderSubmission?.();
     const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
     return {
       id: intent.id,
@@ -1359,6 +1956,14 @@ export class PaymentsService {
         "USDC checkout is temporarily disabled because USDC/USD is outside the configured peg guard.",
       );
     }
+    if (
+      hkdRate.pegStatus === "not_checked" &&
+      !this.unverifiedUsdcRateAllowed()
+    ) {
+      throw new ServiceUnavailableException(
+        "USDC checkout is temporarily unavailable because peg verification could not be completed.",
+      );
+    }
 
     return {
       rpcUrl,
@@ -1415,9 +2020,13 @@ export class PaymentsService {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
       include: {
+        sponsoredCryptoSubmission: true,
         order: {
           include: {
             user: true,
+            event: {
+              select: { status: true },
+            },
           },
         },
       },
@@ -1429,6 +2038,81 @@ export class PaymentsService {
       throw new BadRequestException("Payment is not a USDC crypto quote");
     }
     return payment as CryptoPaymentWithOrder;
+  }
+
+  private cryptoPaymentTerminalResponse(payment: CryptoPaymentWithOrder) {
+    const submission = payment.sponsoredCryptoSubmission;
+    if (
+      payment.status === "crypto_compensation_required" ||
+      submission?.status === "COMPENSATION_REQUIRED"
+    ) {
+      return {
+        ok: false,
+        payment: this.mapRedactedPayment(payment),
+        alreadyConfirmed: false,
+        compensationRequired: true,
+        compensationReason:
+          submission?.lastErrorCode ?? "operations_reconciliation_required",
+      };
+    }
+    if (submission?.status === "AMBIGUOUS") {
+      return {
+        ok: false,
+        payment: this.mapRedactedPayment(payment),
+        alreadyConfirmed: false,
+        compensationRequired: false,
+        ambiguous: true,
+        ambiguityReason:
+          submission.lastErrorCode ??
+          "provider_outcome_requires_reconciliation",
+      };
+    }
+    if (payment.status === "crypto_failed" || submission?.status === "FAILED") {
+      return {
+        ok: false,
+        payment: this.mapRedactedPayment(payment),
+        alreadyConfirmed: false,
+        compensationRequired: false,
+        failed: true,
+        retryableCheckout: true,
+        failureReason:
+          submission?.lastErrorCode ?? "sponsored_transaction_failed",
+      };
+    }
+    if (
+      payment.captureStatus === "CAPTURED" &&
+      payment.status === "crypto_confirmed"
+    ) {
+      return {
+        ok: true,
+        payment: this.mapRedactedPayment(payment),
+        alreadyConfirmed: true,
+        compensationRequired: false,
+      };
+    }
+    if (payment.captureStatus === "CAPTURED") {
+      return {
+        ok: false,
+        payment: this.mapRedactedPayment(payment),
+        alreadyConfirmed: false,
+        compensationRequired: false,
+        ambiguous: true,
+        ambiguityReason: "captured_crypto_payment_has_unknown_terminal_state",
+      };
+    }
+    return null;
+  }
+
+  private requireCryptoPaymentTerminalResponse(
+    payment: CryptoPaymentWithOrder,
+  ) {
+    const response = this.cryptoPaymentTerminalResponse(payment);
+    if (!response) {
+      throw new ServiceUnavailableException(
+        "Crypto payment terminal state could not be resolved",
+      );
+    }
+    return response;
   }
 
   private assertCryptoPaymentAccess(
@@ -1446,8 +2130,17 @@ export class PaymentsService {
     transactionHash: string,
     quote: CryptoQuote,
     config: Awaited<ReturnType<PaymentsService["cryptoPaymentConfig"]>>,
+    payerAddressOverride?: string,
   ) {
-    const payerAddress = this.requireCryptoPayerAddress(payment);
+    const payerAddress =
+      this.normalizeAddress(payerAddressOverride) ??
+      this.requireCryptoPayerAddress(payment);
+    const registeredHash = this.registeredCryptoTransactionHash(payment);
+    if (registeredHash && registeredHash !== transactionHash) {
+      throw new BadRequestException(
+        "USDC transaction is not bound to this payment",
+      );
+    }
 
     await this.assertConfirmedUsdcTransfer({
       rpcUrl: config.rpcUrl,
@@ -1459,45 +2152,79 @@ export class PaymentsService {
     });
 
     const orderId = payment.orderId ?? payment.order.id;
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (payment.order.fulfillmentMode === "PRIMARY_ONLY") {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const eventStatus = await lockMarketplaceEvent(tx, payment.order.eventId);
+      let settlementAllowed = eventStatus === "PUBLISHED";
+      let compensationReason = settlementAllowed ? null : "event_not_published";
+      if (
+        settlementAllowed &&
+        payment.order.fulfillmentMode === "PRIMARY_ONLY"
+      ) {
         const holdAuthorization =
           await this.requireOnsaleInventory().authorizeOrderHold(tx, {
             orderId,
           });
         if (!holdAuthorization.authorized) {
-          throw new ConflictException(
-            "Primary inventory is no longer available for this payment",
-          );
+          settlementAllowed = false;
+          compensationReason =
+            holdAuthorization.reason ?? "primary_inventory_unavailable";
         }
       }
       const nextPayment = await tx.payment.update({
         where: { id: payment.id },
         data: {
           stripePaymentIntentId: `crypto:${transactionHash}`,
-          status: "crypto_confirmed",
+          status: settlementAllowed
+            ? "crypto_confirmed"
+            : "crypto_compensation_required",
           captureStatus: "CAPTURED",
         },
       });
-      await this.outbox.enqueue(tx, {
-        type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
-        idempotencyKey: this.orderMatchAfterPaymentAuthSideEffectKey(
-          orderId,
-          payment.id,
-        ),
-        aggregateType: "order",
-        aggregateId: orderId,
-        payload: {
-          paymentId: payment.id,
-          orderId,
-          cryptoTransactionHash: transactionHash,
-          captureStatus: "CAPTURED",
+      if (settlementAllowed) {
+        await this.outbox.enqueue(tx, {
+          type: "ORDER_MATCH_AFTER_PAYMENT_AUTH",
+          idempotencyKey: this.orderMatchAfterPaymentAuthSideEffectKey(
+            orderId,
+            payment.id,
+          ),
+          aggregateType: "order",
+          aggregateId: orderId,
+          payload: {
+            paymentId: payment.id,
+            orderId,
+            cryptoTransactionHash: transactionHash,
+            captureStatus: "CAPTURED",
+          },
+        });
+      } else {
+        await tx.order.updateMany({
+          where: {
+            id: orderId,
+            status: { in: ["OPEN", "MATCHED"] },
+          },
+          data: {
+            status: "REJECTED",
+            remainingQuantity: 0,
+          },
+        });
+      }
+      await tx.sponsoredCryptoSubmission.updateMany({
+        where: { paymentId: payment.id },
+        data: {
+          status: settlementAllowed ? "CONFIRMED" : "COMPENSATION_REQUIRED",
+          transactionHash,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          completedAt: new Date(),
+          lastErrorCode: compensationReason,
         },
       });
       await tx.auditLog.create({
         data: {
           actorId: payment.userId,
-          action: "CRYPTO_PAYMENT_CONFIRMED",
+          action: settlementAllowed
+            ? "CRYPTO_PAYMENT_CONFIRMED"
+            : "CRYPTO_PAYMENT_COMPENSATION_REQUIRED",
           entityType: "payment",
           entityId: payment.id,
           metadataJson: {
@@ -1508,43 +2235,408 @@ export class PaymentsService {
             receiverAddress: quote.receiverAddress,
             amountAtomic: quote.amountAtomic,
             transactionHash,
+            compensationReason,
           },
         },
       });
-      return nextPayment;
+      return {
+        payment: nextPayment,
+        compensationRequired: !settlementAllowed,
+        compensationReason,
+      };
     });
 
     await this.audit.record(
-      updated.userId,
+      result.payment.userId,
       "PAYMENT_WEBHOOK_APPLIED",
       "payment",
-      updated.id,
+      result.payment.id,
       {
         provider: "crypto",
-        orderId: updated.orderId,
+        orderId: result.payment.orderId,
         transactionHash,
-        status: updated.status,
-        captureStatus: updated.captureStatus,
+        status: result.payment.status,
+        captureStatus: result.payment.captureStatus,
+        compensationRequired: result.compensationRequired,
+        compensationReason: result.compensationReason,
       },
     );
+    if (result.compensationRequired) {
+      this.logger.error(
+        JSON.stringify({
+          event: "sponsored_usdc_compensation_required",
+          paymentId: this.shortIdentifier(result.payment.id),
+          orderId: this.shortIdentifier(result.payment.orderId),
+          transactionHash: this.shortHash(transactionHash),
+          reason: result.compensationReason,
+        }),
+      );
+    }
 
     return {
-      ok: true,
-      payment: this.mapRedactedPayment(updated),
+      ok: !result.compensationRequired,
+      payment: this.mapRedactedPayment(result.payment),
       transactionHash,
+      compensationRequired: result.compensationRequired,
+      compensationReason: result.compensationReason,
     };
   }
 
-  private requireCryptoPayerAddress(payment: CryptoPaymentWithOrder) {
-    const payerAddress = this.normalizeAddress(
-      payment.order.user.walletAddress,
-    );
-    if (!payerAddress) {
+  private requireCryptoWalletBinding(payment: CryptoPaymentWithOrder) {
+    try {
+      const binding = requireVerifiedWalletBinding(
+        payment.order.user,
+        "USDC payer wallet",
+      );
+      return {
+        walletId: binding.privyWalletId,
+        walletAddress: binding.walletAddress,
+      };
+    } catch {
       throw new BadRequestException(
-        "A verified wallet address is required before USDC payment",
+        "Reconnect and verify your FanPass wallet before paying with USDC",
       );
     }
-    return payerAddress;
+  }
+
+  private requireCryptoPayerAddress(payment: CryptoPaymentWithOrder) {
+    return this.requireCryptoWalletBinding(payment).walletAddress;
+  }
+
+  private registeredCryptoTransactionHash(payment: Payment) {
+    const reference = payment.stripePaymentIntentId?.trim().toLowerCase();
+    if (!reference?.startsWith("crypto:")) {
+      return null;
+    }
+    const transactionHash = reference.slice("crypto:".length);
+    return /^0x[0-9a-f]{64}$/.test(transactionHash) ? transactionHash : null;
+  }
+
+  private manualCryptoConfirmationAllowed() {
+    if (
+      isProductionLikeEnvironment({
+        NODE_ENV: this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV,
+        FANPASS_ENV:
+          this.config.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+      })
+    ) {
+      return false;
+    }
+    return (
+      this.config.get<string>("FANPASS_ALLOW_MANUAL_CRYPTO_CONFIRMATION") ===
+      "true"
+    );
+  }
+
+  private unverifiedUsdcRateAllowed() {
+    if (
+      isProductionLikeEnvironment({
+        NODE_ENV: this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV,
+        FANPASS_ENV:
+          this.config.get<string>("FANPASS_ENV") ?? process.env.FANPASS_ENV,
+      })
+    ) {
+      return false;
+    }
+    return (
+      this.config.get<string>("FANPASS_ALLOW_UNVERIFIED_USDC_RATE") === "true"
+    );
+  }
+
+  private async claimSponsoredCryptoSubmission(input: {
+    payment: CryptoPaymentWithOrder;
+    idempotencyKey: string;
+    walletId: string;
+    walletAddress: string;
+    walletBindingVersion: number;
+    walletBindingFingerprint: string;
+    quote: CryptoQuote;
+  }): Promise<SponsoredSubmissionAction> {
+    return this.sponsoredSubmissionStore().claim({
+      paymentId: input.payment.id,
+      eventId: input.payment.order.eventId,
+      idempotencyKey: input.idempotencyKey,
+      walletId: input.walletId,
+      walletAddress: input.walletAddress,
+      walletBindingVersion: input.walletBindingVersion,
+      walletBindingFingerprint: input.walletBindingFingerprint,
+      chainId: input.quote.chainId,
+      tokenContractAddress: input.quote.tokenContractAddress,
+      receiverAddress: input.quote.receiverAddress,
+      amountAtomic: input.quote.amountAtomic,
+      tokenDecimals: input.quote.decimals,
+      transactionData: input.quote.erc20TransferData,
+    });
+  }
+
+  private async assertSponsoredSubmissionMaySend(input: {
+    submissionId: string;
+    leaseOwner: string;
+    eventId: string;
+  }) {
+    await this.sponsoredSubmissionStore().assertMaySend(input);
+  }
+
+  private async checkpointSponsoredProviderSubmission(input: {
+    submissionId: string;
+    providerId?: string | null;
+    transactionHash?: string | null;
+  }) {
+    return this.sponsoredSubmissionStore().checkpoint({
+      submissionId: input.submissionId,
+      providerId: input.providerId,
+      transactionHash: input.transactionHash,
+    });
+  }
+
+  private async pollAndConfirmSponsoredCryptoPayment(input: {
+    sponsor: PrivyWalletService;
+    payment: CryptoPaymentWithOrder;
+    submission: SponsoredCryptoSubmission;
+    quote: CryptoQuote;
+    config: Awaited<ReturnType<PaymentsService["cryptoPaymentConfig"]>>;
+  }) {
+    const providerId = input.submission.providerId?.trim();
+    if (!providerId) {
+      await this.markSponsoredSubmissionAmbiguous(
+        input.submission.id,
+        "provider_checkpoint_missing",
+      );
+      throw new ServiceUnavailableException(
+        "Wallet payment outcome requires manual reconciliation.",
+      );
+    }
+    let status: Awaited<
+      ReturnType<PrivyWalletService["waitForTransactionHash"]>
+    >;
+    try {
+      status = await input.sponsor.waitForTransactionHash({
+        transactionId: providerId,
+        timeoutMs: this.configInteger(
+          "FANPASS_PRIVY_TRANSACTION_HASH_TIMEOUT_MS",
+          45_000,
+          5_000,
+          180_000,
+        ),
+      });
+    } catch (error) {
+      await this.prisma.sponsoredCryptoSubmission.update({
+        where: { id: input.submission.id },
+        data: {
+          status: "PROVIDER_ACCEPTED",
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          lastErrorCode: this.sponsoredCryptoPaymentFailureReason(error),
+        },
+      });
+      throw this.sponsoredCryptoPaymentUnavailable(error, {
+        stage: "privy_status",
+        paymentId: input.payment.id,
+        orderId: input.payment.orderId ?? input.payment.order.id,
+        userId: input.payment.userId,
+        payerAddress: input.submission.walletAddress,
+        walletId: input.submission.walletId,
+        providerId,
+        rawStatus: null,
+        userOperationHash: null,
+        hasPrivyAccessToken: false,
+        hasPrivyAuthorizationSignature: false,
+      });
+    }
+    const disposition = classifyPrivyTransactionStatus(status);
+    if (disposition.kind === "PENDING") {
+      await this.prisma.sponsoredCryptoSubmission.update({
+        where: { id: input.submission.id },
+        data: {
+          status: "PROVIDER_ACCEPTED",
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          lastErrorCode: "provider_transaction_still_pending",
+        },
+      });
+      throw new ServiceUnavailableException(
+        "Wallet payment is still processing. Try again shortly.",
+      );
+    }
+    if (disposition.kind === "DEFINITIVE_FAILURE") {
+      const failedPayment = await this.failSponsoredCryptoPayment({
+        payment: input.payment,
+        submission: input.submission,
+        reason: disposition.reason,
+      });
+      return this.requireCryptoPaymentTerminalResponse(failedPayment);
+    }
+    if (disposition.kind === "AMBIGUOUS") {
+      const ambiguous = await this.sponsoredSubmissionStore().markAmbiguous(
+        input.submission.id,
+        disposition.reason,
+      );
+      this.logSponsoredSubmissionAmbiguous(ambiguous);
+      return this.requireCryptoPaymentTerminalResponse({
+        ...input.payment,
+        sponsoredCryptoSubmission: ambiguous,
+      });
+    }
+    const transactionHash = disposition.transactionHash;
+    const checkpoint = await this.checkpointSponsoredProviderSubmission({
+      submissionId: input.submission.id,
+      providerId,
+      transactionHash,
+    });
+    return this.confirmCryptoPaymentRecord(
+      input.payment,
+      transactionHash,
+      input.quote,
+      input.config,
+      checkpoint.walletAddress,
+    );
+  }
+
+  private async failSponsoredCryptoPayment(input: {
+    payment: CryptoPaymentWithOrder;
+    submission: SponsoredCryptoSubmission;
+    reason: string;
+  }) {
+    const failed = await this.prisma.$transaction(async (tx) => {
+      await lockMarketplaceEvent(tx, input.payment.order.eventId);
+      const submission = await tx.sponsoredCryptoSubmission.update({
+        where: { id: input.submission.id },
+        data: {
+          status: "FAILED",
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          completedAt: new Date(),
+          lastErrorCode: input.reason,
+        },
+      });
+      const payment = await tx.payment.update({
+        where: { id: input.payment.id },
+        data: {
+          status: "crypto_failed",
+          captureStatus: "CANCELLED",
+        },
+      });
+      await tx.order.updateMany({
+        where: {
+          id: input.payment.order.id,
+          status: { in: ["OPEN", "MATCHED"] },
+        },
+        data: {
+          status: "REJECTED",
+          remainingQuantity: 0,
+        },
+      });
+      if (input.payment.order.fulfillmentMode === "PRIMARY_ONLY") {
+        await this.requireOnsaleInventory().releaseOrderHold(
+          tx,
+          input.payment.order.id,
+          "sponsored_crypto_transaction_failed",
+        );
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId: input.payment.userId,
+          action: "SPONSORED_CRYPTO_PAYMENT_FAILED",
+          entityType: "payment",
+          entityId: input.payment.id,
+          metadataJson: {
+            orderId: input.payment.order.id,
+            providerId: input.submission.providerId,
+            reason: input.reason,
+          },
+        },
+      });
+      return {
+        ...payment,
+        order: input.payment.order,
+        sponsoredCryptoSubmission: submission,
+      } as CryptoPaymentWithOrder;
+    });
+    await this.audit.record(
+      failed.userId,
+      "SPONSORED_CRYPTO_PAYMENT_FAILED",
+      "payment",
+      failed.id,
+      {
+        orderId: failed.order.id,
+        providerId: input.submission.providerId,
+        reason: input.reason,
+      },
+    );
+    return failed;
+  }
+
+  private async markSponsoredSubmissionRetryable(
+    submissionId: string,
+    leaseOwner: string,
+    reason: string,
+  ) {
+    await this.sponsoredSubmissionStore().markRetryable({
+      submissionId,
+      leaseOwner,
+      reason,
+    });
+  }
+
+  private async markSponsoredSubmissionAmbiguous(
+    submissionId: string,
+    reason: string,
+  ) {
+    const submission = await this.sponsoredSubmissionStore().markAmbiguous(
+      submissionId,
+      reason,
+    );
+    this.logSponsoredSubmissionAmbiguous(submission);
+  }
+
+  private logSponsoredSubmissionAmbiguous(
+    submission: SponsoredCryptoSubmission,
+  ) {
+    this.logger.error(
+      JSON.stringify({
+        event: "sponsored_usdc_manual_reconciliation_required",
+        submissionId: this.shortIdentifier(submission.id),
+        paymentId: this.shortIdentifier(submission.paymentId),
+        providerId: this.shortIdentifier(submission.providerId),
+        transactionHash: this.shortHash(submission.transactionHash),
+        reason: submission.lastErrorCode,
+      }),
+    );
+  }
+
+  private cryptoQuoteFromSubmission(
+    submission: SponsoredCryptoSubmission,
+    current: CryptoQuote,
+  ): CryptoQuote {
+    return {
+      ...current,
+      chainId: submission.chainId,
+      tokenContractAddress: submission.tokenContractAddress,
+      receiverAddress: submission.receiverAddress,
+      amountAtomic: submission.amountAtomic,
+      amountDecimal: this.formatUnits(
+        BigInt(submission.amountAtomic),
+        submission.tokenDecimals,
+      ),
+      decimals: submission.tokenDecimals,
+      erc20TransferData: submission.transactionData,
+    };
+  }
+
+  private validSponsoredTransactionHash(value: string | null | undefined) {
+    return validSponsoredTransactionHash(value);
+  }
+
+  private sponsoredSubmissionStore() {
+    return new SponsoredCryptoSubmissionStore(this.prisma, {
+      requestHashSecret: this.onsaleQueueSecret(),
+      leaseSeconds: this.configInteger(
+        "FANPASS_SPONSORED_PAYMENT_LEASE_SECONDS",
+        120,
+        30,
+        600,
+      ),
+    });
   }
 
   private async assertSufficientUsdcBalance(input: {
@@ -1728,6 +2820,21 @@ export class PaymentsService {
       );
     }
     return this.onsaleInventory;
+  }
+
+  private async lockPublishedMarketplaceEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+  ) {
+    const status = await lockMarketplaceEvent(tx, eventId);
+    assertMarketplaceEventPublished(status);
+    return status;
+  }
+
+  private async assertMarketplaceEventOpenForExternalPayment(eventId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockPublishedMarketplaceEvent(tx, eventId);
+    });
   }
 
   private onsaleQueueSecret() {
@@ -2216,34 +3323,47 @@ export class PaymentsService {
       orderId: string;
       userId: string;
       reason: string;
+      primaryOnly?: boolean;
     },
   ) {
     await tx.order.updateMany({
       where: {
         id: input.orderId,
         status: { in: ["OPEN", "MATCHED"] },
-        fulfillmentMode: "PRIMARY_ONLY",
+        ...(input.primaryOnly === false
+          ? {}
+          : { fulfillmentMode: "PRIMARY_ONLY" }),
       },
       data: {
         status: "REJECTED",
         remainingQuantity: 0,
       },
     });
+    if (input.reason === "event_not_published" && this.onsaleInventory) {
+      await this.onsaleInventory.releaseOrderHold(
+        tx,
+        input.orderId,
+        "event_not_published",
+      );
+    }
     await this.outbox.enqueue(tx, {
       type: "PAYMENT_CANCEL_AUTHORIZATION",
-      idempotencyKey: `payment-cancel:${input.paymentId}:onsale-${input.reason}`,
+      idempotencyKey: `payment-cancel:${input.paymentId}:${input.reason}`,
       aggregateType: "payment",
       aggregateId: input.paymentId,
       payload: {
         paymentId: input.paymentId,
         orderId: input.orderId,
-        reason: `onsale_${input.reason}`,
+        reason: input.reason,
       },
     });
     await tx.auditLog.create({
       data: {
         actorId: input.userId,
-        action: "ONSALE_PAYMENT_AUTHORIZATION_REJECTED",
+        action:
+          input.reason === "event_not_published"
+            ? "PAYMENT_AUTHORIZATION_REJECTED_EVENT_CLOSED"
+            : "ONSALE_PAYMENT_AUTHORIZATION_REJECTED",
         entityType: "payment",
         entityId: input.paymentId,
         metadataJson: {

@@ -1,4 +1,5 @@
 export type UserRole = "FAN" | "ORGANIZER" | "GATE_STAFF" | "ADMIN";
+export type WalletBindingStatus = "UNVERIFIED" | "VERIFIED" | "REVOKED";
 export type TicketStatus =
   | "CREATED"
   | "ACTIVE"
@@ -12,11 +13,15 @@ export type TicketStatus =
 export type OrderSide = "BUY" | "SELL";
 export type OrderFulfillmentMode = "ANY" | "PRIMARY_ONLY" | "RESALE_ONLY";
 export type OrderStatus =
-  | "OPEN"
-  | "MATCHED"
-  | "SETTLED"
-  | "CANCELLED"
-  | "REJECTED";
+  "OPEN" | "MATCHED" | "SETTLED" | "CANCELLED" | "REJECTED";
+
+export const FANPASS_TICKET_CONTRACT_VERSION = "fanpass-ticket-v1" as const;
+
+export interface OwnershipContractRoute extends Record<string, string> {
+  contractAddress: string;
+  chainId: string;
+  contractVersion: typeof FANPASS_TICKET_CONTRACT_VERSION;
+}
 
 export interface UserRecord {
   id: string;
@@ -26,6 +31,10 @@ export interface UserRecord {
   privyId?: string | null;
   privyWalletId?: string | null;
   walletAddress: string | null;
+  walletBindingStatus?: WalletBindingStatus;
+  walletBindingVerifiedAt?: string | null;
+  walletBindingVersion?: number;
+  walletBindingFingerprint?: string | null;
   riskScore: number;
 }
 
@@ -73,6 +82,9 @@ export interface TicketTypeRecord {
 export interface TicketRecord {
   id: string;
   tokenId: string | null;
+  ownershipContractAddress?: string | null;
+  ownershipChainId?: string | null;
+  ownershipContractVersion?: string | null;
   eventId: string;
   ticketTypeId: string;
   ownerId: string;

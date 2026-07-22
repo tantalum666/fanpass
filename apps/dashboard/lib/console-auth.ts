@@ -15,8 +15,6 @@ const CONSOLE_HANDOFF_MAX_AGE_SECONDS = 5 * 60;
 const CONSOLE_HANDOFF_STATE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 export type ConsoleAuthRecoveryMode = "refresh" | "reauth";
 
-const configuredAccessToken: string | null =
-  process.env.FANPASS_CONSOLE_ACCESS_TOKEN ?? null;
 let cachedDemoAccessToken: string | null = null;
 
 export class ConsoleAuthRequiredError extends Error {
@@ -85,10 +83,6 @@ export async function apiPost<T, Body extends Record<string, unknown>>(
 }
 
 export async function consoleAccessToken(source: CookieAccessTokenSource) {
-  if (configuredAccessToken) {
-    return configuredAccessToken;
-  }
-
   const cookieAccessToken = consoleCookieAccessToken(source.cookieHeader);
   if (cookieAccessToken) {
     return cookieAccessToken;
@@ -277,10 +271,7 @@ export function clearConsoleSessionCookie() {
   return attributes.join("; ");
 }
 
-function handoffCookieAttributes(
-  value: string,
-  options: { maxAge: number },
-) {
+function handoffCookieAttributes(value: string, options: { maxAge: number }) {
   const productionLike = isProductionLikeConsole();
   const attributes = [
     `${consoleHandoffCookieName()}=${value}`,

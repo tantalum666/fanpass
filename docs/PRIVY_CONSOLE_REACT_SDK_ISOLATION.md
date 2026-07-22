@@ -90,23 +90,23 @@ Evidence must not include:
       },
       {
         "file": "apps/dashboard/package.json",
-        "sha256": "63adf381290668936fac3d989e0755e56742348a01485d9cb59fbdac831bb2cc"
+        "sha256": "<current sha256>"
       },
       {
         "file": "package.json",
-        "sha256": "e54de3073519981b7b648b1b03ad5e5fdcb81f5ffcded2aa61b69bb6cdcc53a6"
+        "sha256": "<current sha256>"
       },
       {
         "file": "package-lock.json",
-        "sha256": "11162ede648d0e117bb20e1172797e972f84cb6646e629d447b5711a428f8fc7"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/console-route-contract-audit.js",
-        "sha256": "150945ff985e1f8cd3a149df0a28a8aa2847c2c634e35813f9ed8b66a13da226"
+        "sha256": "<current sha256>"
       },
       {
         "file": "scripts/provider-boundary-audit.js",
-        "sha256": "6eec3d873a45677f575ae79a3ee39ead0c8808abaa20e552de7a2750858d83ce"
+        "sha256": "<current sha256>"
       }
     ]
   },
@@ -119,9 +119,7 @@ Evidence must not include:
     "mode": "isolated-auth-workspace",
     "fanPassConsoleProductionDependency": false,
     "isolatedRuntimeBoundary": true,
-    "sdkImportsLimitedTo": [
-      "apps/console-auth/src/PrivyConsoleLogin.tsx"
-    ],
+    "sdkImportsLimitedTo": ["apps/console-auth/src/PrivyConsoleLogin.tsx"],
     "sessionBridgeRoute": "/api/console/privy-session",
     "serverRouteStoresHttpOnlyCookie": true,
     "fanPassCodeStoresAccessTokensInBrowserStorage": false,
@@ -180,6 +178,6 @@ Evidence must not include:
 
 ## Release Rule
 
-`Integrate Privy React SDK into FanPass Console` is complete for the current staging-isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. On 2026-07-14 the Auth runtime moved from Next to Vite plus a Node built-in static/config server, kept official `@privy-io/react-auth@3.35.0`, restricted login to email, validated redirect and bridge URLs at both server and client boundaries, enforced a Privy-compatible CSP, and pinned patched `ws@8.21.0`. Removing Next/PostCSS reduced its isolated production audit from 12 to 10 moderate with zero high/critical findings. On 2026-07-15 the browser-SDK bridge first changed from a cross-origin credentialed fetch to a first-party top-level form. Owner-browser evidence then showed that a real form submission could still expose an unavailable/opaque Origin and be rejected by the exact-Origin-only guard. The current boundary therefore starts on the Console origin and binds the form to a short-lived HttpOnly state Cookie while retaining strict Origin checks for JSON/Privy-cookie clients. A later owner screenshot exposed a different failure class: the authenticated browser held a stale Privy token and automatically resubmitted it forever. Code release `108f4e65fc8c1ecb584aa2e6a29f8f2478bb0307` adds bounded recovery: one delayed access-token refresh, then stale-session logout and explicit re-authentication, then a hard stop. The permanent HTTP integration test now proves missing-state rejection, opaque-Origin success only with the matching state pair, state consumption, exact-origin JSON compatibility, state rotation across recovery, no session from rejected tokens, and no sensitive output. The refreshed isolation snapshot covers 21 files, including that integration test. Both staging services are live on `108f4e6`; Auth `/health` reports the exact release and live HTTP proved the deployed `refresh -> reauth -> stop` contract. The prior `e8e47dd` release completed authenticated Chrome E2E into `Overview`; the current owner-visible click remains pending because Chrome extension tab claiming timed out without interacting with the page. The saved evidence remains `staging-only`; a real-user production release is blocked until the stricter production evidence mode proves the dedicated app, stable verified domain, Privy HttpOnly cookie mode, exact origins, administrator allowlist, MFA/passkey policy, residual-risk review, and live production E2E. Regenerate saved evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, deployment contract, integration test, or boundary-audit policy change.
+`Integrate Privy React SDK into FanPass Console` is complete for the current staging-isolated runtime shape after `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json` passed this validator. On 2026-07-14 the Auth runtime moved from Next to Vite plus a Node built-in static/config server, kept official `@privy-io/react-auth@3.35.0`, restricted login to email, validated redirect and bridge URLs at both server and client boundaries, enforced a Privy-compatible CSP, and pinned patched `ws@8.21.0`. Removing Next/PostCSS reduced its isolated production audit from 12 to 10 moderate with zero high/critical findings. On 2026-07-15 the browser-SDK bridge first changed from a cross-origin credentialed fetch to a first-party top-level form. Owner-browser evidence then showed that a real form submission could still expose an unavailable/opaque Origin and be rejected by the exact-Origin-only guard. The current boundary therefore starts on the Console origin and binds the form to a short-lived HttpOnly state Cookie while retaining strict Origin checks for JSON/Privy-cookie clients. A later owner screenshot exposed a different failure class: the authenticated browser held a stale Privy token and automatically resubmitted it forever. Code release `108f4e65fc8c1ecb584aa2e6a29f8f2478bb0307` adds bounded recovery: one delayed access-token refresh, then stale-session logout and explicit re-authentication, then a hard stop. The permanent HTTP integration test now proves missing-state rejection, opaque-Origin success only with the matching state pair, state consumption, exact-origin JSON compatibility, state rotation across recovery, no session from rejected tokens, and no sensitive output. The refreshed isolation snapshot covers 21 files, including that integration test. Both staging services are live on `108f4e6`; Auth `/health` reports the exact release and live HTTP proved the deployed `refresh -> reauth -> stop` contract. The owner-visible current-release login was subsequently completed and opened the protected workspace; the amendment below records its token-free accepted-session evidence. The saved evidence remains `staging-only`; a real-user production release is blocked until the stricter production evidence mode proves the dedicated app, stable verified domain, Privy HttpOnly cookie mode, exact origins, administrator allowlist, MFA/passkey policy, residual-risk review, and live production E2E. Regenerate saved evidence after any Console auth runtime, session bridge, login UI, server API helper, dependency manifest, lockfile, deployment contract, integration test, or boundary-audit policy change.
 
 Current 2026-07-16 amendment: live aggregates proved all four organizer/admin identities were already Privy-linked, the API/Auth app ids matched, and the configured P-256 key matched Privy's current JWKS. The remaining pre-audit `auth=failed` path was the shared Render egress exhausting one low IP-only bucket across recovery requests and unrelated organizers. Release `ce5b4f29d3ff319a53816ff378fb673a2938c4c9` separates dedicated Privy routes from the general auth bucket, keys the 12-per-minute sync limiter by a non-plaintext credential fingerprint, retains a higher 300-per-minute origin flood ceiling, maps 429 to `auth=rate`, and emits only token-free structured status diagnostics. API deploy `dep-d9cdicc2m8qs73f0r3i0` and Console deploy `dep-d9cdicc2m8qs73f0r3c0` are live; the integration regression now also proves safe 429 classification and no token output. The owner subsequently completed the real staging login and confirmed the protected workspace opened. At `2026-07-16 13:30:38 UTC`, the live Console recorded an accepted session exchange with upstream HTTP `201` and `recoveryMode=initial`, closing the staging owner-visible E2E for this release without logging an access token, state value, raw identity, or session Cookie.

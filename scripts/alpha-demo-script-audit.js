@@ -18,7 +18,7 @@ const requiredMarkers = [
   "FanPass` - fan event discovery",
   "FanPass Ops` - gate staff",
   "FanPass Console` - organizer/admin",
-  "npm run beta:foundation:verify",
+  "node scripts/beta-foundation-verify.js",
   "npm run beta:local:start",
   "npm run beta:local:verify",
   "npm run beta:local:stop",

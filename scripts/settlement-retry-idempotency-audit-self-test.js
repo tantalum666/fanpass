@@ -2,6 +2,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const {
+  renderBetaFoundationGateFixture,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = path.resolve(__dirname, "..");
 const auditScript = path.join(
@@ -77,8 +80,10 @@ const cases = [
     mutate: (fixtureRoot) =>
       writeFixtureFile(
         fixtureRoot,
-        "scripts/beta-foundation-verify.sh",
-        "npm run security:settlement-retry-idempotency:self-test\n",
+        "scripts/beta-foundation-verify.js",
+        renderBetaFoundationGateFixture([
+          "security:settlement-retry-idempotency:self-test",
+        ]),
       ),
   },
 ];
@@ -146,11 +151,11 @@ function writePassingFixture(fixtureRoot) {
   writeFixtureFile(fixtureRoot, "package.json", JSON.stringify(packageJson()));
   writeFixtureFile(
     fixtureRoot,
-    "scripts/beta-foundation-verify.sh",
-    [
-      "npm run security:settlement-retry-idempotency:self-test",
-      "npm run security:settlement-retry-idempotency",
-    ].join("\n"),
+    "scripts/beta-foundation-verify.js",
+    renderBetaFoundationGateFixture([
+      "security:settlement-retry-idempotency:self-test",
+      "security:settlement-retry-idempotency",
+    ]),
   );
   writeFixtureFile(
     fixtureRoot,

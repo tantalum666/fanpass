@@ -1,5 +1,5 @@
 import { createHmac } from "crypto";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DemoStore } from "../src/common/demo-store";
 import { AuditService } from "../src/modules/audit/audit.service";
@@ -65,7 +65,10 @@ describe("VerificationService", () => {
     expect(resultCounts()).toEqual({ ACCEPTED: 1, DUPLICATE: 1 });
 
     await expect(
-      verification.checkinSummary("evt_weekend_demo", "A1"),
+      verification.checkinSummary("evt_weekend_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
     ).resolves.toMatchObject({
       eventId: "evt_weekend_demo",
       gate: "A1",
@@ -91,6 +94,13 @@ describe("VerificationService", () => {
         role: "GATE_STAFF",
       }),
     ).rejects.toThrow(BadRequestException);
+    store.recordCheckin({
+      ticketId: "tkt_demo_001",
+      scannerUserId: "usr_admin_demo",
+      gate: "A2",
+      nonce: "nonce_unassigned_gate",
+      result: "ACCEPTED",
+    });
 
     const history = await verification.recentCheckins({
       userId: "usr_gate_demo",
@@ -112,6 +122,7 @@ describe("VerificationService", () => {
     expect(history.items[0]).not.toHaveProperty("nonce");
     expect(history.items[0]).not.toHaveProperty("payload");
     expect(history.items[0]).not.toHaveProperty("signature");
+    expect(history.items.every((item) => item.gate === "A1")).toBe(true);
   });
 
   it("accepts only one concurrent redemption attempt for the same QR payload", async () => {
@@ -201,7 +212,10 @@ describe("VerificationService", () => {
       ticketOwnership,
     );
     const basePayload = await verification.createPayload("tkt_demo_001");
-    const firstPayload = buildLegacySignedPayload(basePayload, "nonce_legacy_a");
+    const firstPayload = buildLegacySignedPayload(
+      basePayload,
+      "nonce_legacy_a",
+    );
     const secondPayload = buildLegacySignedPayload(
       basePayload,
       "nonce_legacy_b",
@@ -269,6 +283,13 @@ describe("VerificationService", () => {
       privyId: "did:privy:ops-gate-demo",
       walletAddress: null,
       riskScore: 0,
+    });
+    store.gateAssignments.push({
+      id: "ga_ops_demo",
+      eventId: "evt_weekend_demo",
+      gate: "OPS",
+      staffUserId: "usr_ops_gate_demo",
+      active: true,
     });
 
     const basePayload = await verification.createPayload("tkt_demo_001");
@@ -385,7 +406,7 @@ describe("VerificationService", () => {
     expect(store.checkins).toEqual([]);
   });
 
-  it("allows gate staff to redeem valid QR payloads at any gate", async () => {
+  it("rejects gate staff redemption outside an active event and gate assignment", async () => {
     const payload = await verification.createPayload("tkt_demo_001");
 
     await expect(
@@ -393,25 +414,36 @@ describe("VerificationService", () => {
         userId: "usr_gate_demo",
         role: "GATE_STAFF",
       }),
-    ).resolves.toMatchObject({
-      eventId: "evt_weekend_demo",
-      result: "ACCEPTED",
-      ticketId: "tkt_demo_001",
-    });
-    expect(store.checkins).toMatchObject([{ gate: "A2", result: "ACCEPTED" }]);
+    ).rejects.toThrow(ForbiddenException);
+    expect(store.getTicket("tkt_demo_001").status).toBe("ACTIVE");
+    expect(store.checkins).toEqual([]);
   });
 
-  it("allows gate staff to view summaries for any gate", async () => {
+  it("rejects gate staff summary access outside an active gate assignment", async () => {
     await expect(
       verification.checkinSummary("evt_weekend_demo", "A2", {
         userId: "usr_gate_demo",
         role: "GATE_STAFF",
       }),
-    ).resolves.toMatchObject({
-      eventId: "evt_weekend_demo",
-      gate: "A2",
-      total: 0,
-    });
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it("rejects gate staff after their assignment is deactivated", async () => {
+    const assignment = store.gateAssignments.find(
+      (candidate) => candidate.id === "ga_demo_a1",
+    );
+    expect(assignment).toBeDefined();
+    assignment!.active = false;
+    const payload = await verification.createPayload("tkt_demo_001");
+
+    await expect(
+      verification.redeem(payload, "usr_gate_demo", "A1", {
+        userId: "usr_gate_demo",
+        role: "GATE_STAFF",
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(store.getTicket("tkt_demo_001").status).toBe("ACTIVE");
+    expect(store.checkins).toEqual([]);
   });
 
   it("blocks entry code generation for listed tickets", async () => {
@@ -607,7 +639,9 @@ function signPayload(payload: Record<string, string | number | undefined>) {
     .digest("base64url");
 }
 
-function canonicalPayload(payload: Record<string, string | number | undefined>) {
+function canonicalPayload(
+  payload: Record<string, string | number | undefined>,
+) {
   return JSON.stringify(
     Object.keys(payload)
       .filter((key) => payload[key] !== undefined)

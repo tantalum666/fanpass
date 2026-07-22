@@ -5,8 +5,9 @@ import { upsertPublicEvents } from "../src/workers/upsert-public-events";
 describe("upsertPublicEvents", () => {
   it("upserts every campaign before its tasks inside one transaction", async () => {
     const operations: string[] = [];
+    const userUpserts: Array<Record<string, unknown>> = [];
     const seed = createDemoSeed();
-    const transaction = createTransactionMock(operations, seed);
+    const transaction = createTransactionMock(operations, seed, userUpserts);
     const prisma = {
       $transaction: jest.fn(
         async (
@@ -30,12 +31,33 @@ describe("upsertPublicEvents", () => {
       onsales: 1,
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(userUpserts).toHaveLength(seed.users.length);
+    for (const args of userUpserts) {
+      expect(args.create).not.toEqual(
+        expect.objectContaining({
+          privyId: expect.anything(),
+          walletAddress: expect.anything(),
+        }),
+      );
+      expect(args.update).not.toEqual(
+        expect.objectContaining({
+          privyId: expect.anything(),
+          privyWalletId: expect.anything(),
+          walletAddress: expect.anything(),
+          walletBindingStatus: expect.anything(),
+          walletBindingVerifiedAt: expect.anything(),
+          walletBindingVersion: expect.anything(),
+          walletBindingFingerprint: expect.anything(),
+        }),
+      );
+    }
   });
 });
 
 function createTransactionMock(
   operations: string[],
   seed: ReturnType<typeof createDemoSeed>,
+  userUpserts: Array<Record<string, unknown>>,
 ) {
   const upsert = (name: string) =>
     jest.fn(async () => {
@@ -45,7 +67,13 @@ function createTransactionMock(
   const count = (value: number) => jest.fn(async () => value);
 
   return {
-    user: { upsert: upsert("user") },
+    user: {
+      upsert: jest.fn(async (args: Record<string, unknown>) => {
+        operations.push("user.upsert");
+        userUpserts.push(args);
+        return {};
+      }),
+    },
     organizer: { upsert: upsert("organizer") },
     venue: { upsert: upsert("venue") },
     event: {

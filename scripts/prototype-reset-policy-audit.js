@@ -1,12 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 const ts = require("typescript");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_PROTOTYPE_RESET_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_PROTOTYPE_RESET_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 auditResetController();
 auditRouteRoleMatrix();
@@ -126,10 +131,14 @@ function auditPrototypeScripts() {
       errors.push(`${relativePath} must obtain a local demo bearer token.`);
     }
     if (!contents.includes("usr_organizer_demo")) {
-      errors.push(`${relativePath} must reset with the seeded organizer actor.`);
+      errors.push(
+        `${relativePath} must reset with the seeded organizer actor.`,
+      );
     }
     if (!contents.includes("/prototype/reset")) {
-      errors.push(`${relativePath} must call POST /prototype/reset explicitly.`);
+      errors.push(
+        `${relativePath} must call POST /prototype/reset explicitly.`,
+      );
     }
     if (!contents.includes("Authorization") || !contents.includes("Bearer")) {
       errors.push(`${relativePath} must send an Authorization bearer header.`);
@@ -138,26 +147,25 @@ function auditPrototypeScripts() {
 }
 
 function auditCompositeVerifier() {
-  const contents = readFile("scripts/beta-foundation-verify.sh");
-  const selfTest = "security:prototype-reset-policy:self-test";
-  const audit = "security:prototype-reset-policy";
-  if (!contents.includes(selfTest) || !contents.includes(audit)) {
-    errors.push(
-      "beta-foundation-verify.sh must run prototype reset policy self-test and audit.",
-    );
-    return;
-  }
-  if (contents.indexOf(selfTest) > contents.indexOf(audit)) {
-    errors.push(
-      "beta-foundation-verify.sh must run prototype reset policy self-test before the real audit.",
-    );
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    [
+      "security:prototype-reset-policy:self-test",
+      "security:prototype-reset-policy",
+    ],
+    errors,
+  );
 }
 
 function readTypeScript(relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
   const contents = fs.readFileSync(absolutePath, "utf8");
-  return ts.createSourceFile(absolutePath, contents, ts.ScriptTarget.Latest, true);
+  return ts.createSourceFile(
+    absolutePath,
+    contents,
+    ts.ScriptTarget.Latest,
+    true,
+  );
 }
 
 function readFile(relativePath) {
@@ -182,9 +190,11 @@ function findMethod(source, methodName) {
 }
 
 function getDecoratorTexts(node, source) {
-  return ts
-    .getDecorators(node)
-    ?.map((decorator) => decorator.expression.getText(source)) ?? [];
+  return (
+    ts
+      .getDecorators(node)
+      ?.map((decorator) => decorator.expression.getText(source)) ?? []
+  );
 }
 
 function extractSection(contents, id) {

@@ -1,11 +1,16 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  assertOrderedNpmScripts,
+  loadBetaFoundationGateSteps,
+} = require("./lib/beta-foundation-gate-audit");
 
 const rootDir = process.env.FANPASS_SECURITY_HEADER_AUDIT_ROOT
   ? path.resolve(process.env.FANPASS_SECURITY_HEADER_AUDIT_ROOT)
   : path.resolve(__dirname, "..");
 
 const errors = [];
+const betaGateSteps = loadBetaFoundationGateSteps(rootDir, errors);
 
 auditApiBootstrap();
 auditApiSecurityConfig();
@@ -24,7 +29,8 @@ console.log(
     {
       ok: true,
       api: "Helmet headers, powered-by disabled, body limits, and route rate limits configured",
-      console: "Vite/Node BFF headers, CSP, permissions policy, and powered-by disabled",
+      console:
+        "Vite/Node BFF headers, CSP, permissions policy, and powered-by disabled",
       runtimeEvidence:
         "local/staging runtime and staging evidence checks remain wired",
     },
@@ -194,20 +200,11 @@ function auditRuntimeCheckers() {
 }
 
 function auditCompositeVerifier() {
-  const contents = readFile("scripts/beta-foundation-verify.sh");
-  const selfTest = "security:headers-policy:self-test";
-  const audit = "security:headers-policy";
-  if (!contents.includes(selfTest) || !contents.includes(audit)) {
-    errors.push(
-      "scripts/beta-foundation-verify.sh must run security header policy self-test and audit.",
-    );
-    return;
-  }
-  if (contents.indexOf(selfTest) > contents.indexOf(audit)) {
-    errors.push(
-      "scripts/beta-foundation-verify.sh must run security header policy self-test before the real audit.",
-    );
-  }
+  assertOrderedNpmScripts(
+    betaGateSteps,
+    ["security:headers-policy:self-test", "security:headers-policy"],
+    errors,
+  );
 }
 
 function auditDocs() {
