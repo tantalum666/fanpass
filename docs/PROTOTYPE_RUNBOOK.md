@@ -1,6 +1,8 @@
 # FanPass Prototype Runbook
 
-Use this file to run and verify the Technical Prototype from a clean local state.
+Status: historical local Technical Prototype runbook. It is not the current security RC, release workflow, or release evidence.
+
+Use this file only to run and verify the Technical Prototype from a clean local state.
 
 ## Start Services
 
@@ -69,7 +71,7 @@ FanPass
 Bundle id:
 
 ```text
-com.fanpass.app
+fun.fanpass.app
 ```
 
 Expected prototype behavior:

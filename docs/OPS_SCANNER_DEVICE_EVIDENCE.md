@@ -1,6 +1,6 @@
 # FanPass Ops Device Scanner Evidence
 
-FanPass Ops QR and NFC scanner flows are implemented locally, but physical-device validation remains a Beta blocker. Do not close that blocker with simulator screenshots, paste fallback output, localhost API runs, or saved bearer tokens.
+FanPass Ops Release/TestFlight is QR-first. Historical physical-iPhone QR validation is complete; the remaining gate is a fresh redacted evidence record bound to the next reviewed scanner/API/auth candidate. Native Core NFC stays DEBUG-only with no release entitlement; do not claim NFC release evidence in this contract. Do not close the current-candidate refresh with simulator screenshots, paste fallback output, localhost API runs, or saved bearer tokens.
 
 Run future saved evidence through:
 
@@ -8,13 +8,13 @@ Run future saved evidence through:
 npm run security:ops-scanner:device-evidence -- <saved-json-output>
 ```
 
-Seed a non-passing draft with the current QR/NFC scanner/API SHA-256 snapshot before collecting real physical-device proof:
+Seed a non-passing draft with the current QR-first scanner/API SHA-256 snapshot before collecting real physical-device proof:
 
 ```bash
 npm run release:evidence:draft -- ops-scanner --out outputs/ops-scanner/<draft-file>.json
 ```
 
-The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real physical iPhone, camera QR, NFC NDEF tag, replay rejection, and backend-authority facts replace every placeholder and the saved file passes the validator above.
+The draft intentionally uses `ok: false` and placeholders. It cannot close this blocker until real physical iPhone, camera QR, replay rejection, and backend-authority facts replace every placeholder and the saved file passes the validator above. NFC NDEF evidence is a separate future gate after native NFC is intentionally restored to Release/TestFlight.
 
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, QR signing secrets, private keys, Stripe secrets, Stripe publishable keys, Privy secrets, provider secrets, deployment/cloud credentials, database URLs, raw signed payloads, raw nonces, real ticket holder data, or device identifiers.
 
@@ -55,12 +55,12 @@ Known gaps:
 
 - A compatible NFC tag is not currently available. EP8280/iPhone Wallet reaction proves the reader can see some NFC field/card activity, but not a FanPass NFC tag payload. The current validated ticket path is QR over TTL/Wiegand plus backend redemption through the bridge.
 - The bench setup is powered from Arduino/breadboard rails and may brown out under scanner/servo load until a separate regulated 5V supply is added.
-- Enclosure CAD/STL exists under `archive/school-project/hardware/fanpass_turnstile/enclosure/outputs/`, with the current preferred local print candidate being the computer-use/Blender-native V2 front-panel fit check and shell. No physical enclosure has been printed or fit-tested yet. No two-servo lane or production turnstile controller is embedded in the Arduino prototype. Backend API redemption is available only while the separate host bridge is running with the Render-configured turnstile key or a real staff/admin bearer token; the bridge defaults to Python `pyserial` mode for UNO R4 stability and expects `pyserial` to be installed in the active Python environment. The duplicate QR guard in the sketch is still local RAM only and resets when the Arduino reboots, but it is now a secondary guard after backend acceptance rather than the entry authority.
+- Enclosure CAD/STL exists under `archive/school-project/hardware/fanpass_turnstile/enclosure/outputs/`, with the current preferred local print candidate being the computer-use/Blender-native V5 front-panel fit check and shell. No physical enclosure has been printed or fit-tested yet. No two-servo lane or production turnstile controller is embedded in the Arduino prototype. Backend API redemption is available only while the separate host bridge is running with the Render-configured turnstile key or a real staff/admin bearer token; the bridge defaults to Python `pyserial` mode for UNO R4 stability and expects `pyserial` to be installed in the active Python environment. The duplicate QR guard in the sketch is still local RAM only and resets when the Arduino reboots, but it is now a secondary guard after backend acceptance rather than the entry authority.
 
 Evidence boundary:
 
 - This bench prototype is useful for local hardware learning and future fixture ideas only.
-- It does not satisfy `ops-scanner` physical-device evidence because the release gate still requires FanPass Ops on a real iPhone, HTTPS API configuration, camera QR scan, physical NFC NDEF tag read, duplicate replay rejection, backend gate assignment enforcement, scanner identity from verified auth, and validator-passing redacted evidence.
+- It does not satisfy current `ops-scanner` physical-device evidence because that release gate requires FanPass Ops on a real iPhone, HTTPS API configuration, camera QR scan, duplicate replay rejection, backend gate assignment enforcement, scanner identity from verified auth, and validator-passing redacted evidence. It also cannot be reused as future native NFC evidence.
 - Do not use Arduino serial logs, LCD/servo behavior, or EP8280 Pin7 decode-success as substitutes for FanPass API signature verification, nonce replay rejection, TestFlight evidence, Apple Wallet evidence, or chain custody evidence.
 
 Backend authority rule:
@@ -77,11 +77,12 @@ Required JSON shape:
   "ok": true,
   "checkedAt": "2026-05-30T00:00:00.000Z",
   "surface": "fanpass-ops",
+  "capabilityModel": "qr-first-release-v1",
   "localSimulator": false,
   "realUserDataUsed": false,
   "productionCredentialsUsed": false,
   "implementationSnapshot": {
-    "source": "ops-scanner-physical-device-boundaries",
+    "source": "ops-scanner-qr-first-device-boundaries",
     "files": [
       {
         "file": "apps/ios/FanPass/project.yml",
@@ -149,18 +150,17 @@ Required JSON shape:
     "debugPasteFallbackUsed": false,
     "deploymentCredentialsAvailable": false
   },
+  "releaseCapabilities": {
+    "cameraQrEnabled": true,
+    "releaseNfcEntitlementPresent": false,
+    "nativeNfcDebugOnly": true,
+    "nfcEvidenceClaimed": false
+  },
   "qrTransport": {
     "cameraScanVerified": true,
     "acceptedScanVerified": true,
     "duplicateReplayRejected": true,
     "expiredOrInvalidPayloadRejected": true
-  },
-  "nfcTransport": {
-    "physicalTagReadVerified": true,
-    "ndefPayloadNormalized": true,
-    "acceptedScanVerified": true,
-    "duplicateReplayRejected": true,
-    "unsupportedDeviceFallbackVerified": true
   },
   "backendAuthority": {
     "fanPassApiSignatureVerified": true,
@@ -189,14 +189,15 @@ Release rule:
 
 - `realDeviceTested` must be `true`; simulator-only evidence cannot close this gate.
 - `apiBaseUrl` must be HTTPS; localhost or plain HTTP evidence does not represent external Beta readiness.
-- `debugPasteFallbackUsed` must be `false`; external scanner validation must use camera QR and physical NFC transport, not the debug paste shortcut.
-- `implementationSnapshot.source` must be `ops-scanner-physical-device-boundaries`, and `implementationSnapshot.files` must match the current SHA-256 snapshot for the Ops scanner UI, QR/NFC transport adapters, API redemption/auth boundaries, NFC fixture contract, and iOS release-boundary audits. Regenerate scanner evidence after any of those files changes.
+- `debugPasteFallbackUsed` must be `false`; external scanner validation must use camera QR, not the debug paste shortcut.
+- `capabilityModel` must be `qr-first-release-v1`; the four `releaseCapabilities` facts must prove QR is enabled, the release NFC entitlement is absent, native NFC is DEBUG-only, and no NFC evidence is claimed. A legacy `nfcTransport` block is rejected rather than silently treated as current release proof.
+- `implementationSnapshot.source` must be `ops-scanner-qr-first-device-boundaries`, and `implementationSnapshot.files` must match the current SHA-256 snapshot for the Ops scanner UI, QR transport, DEBUG-only NFC boundary, API redemption/auth boundaries, NFC future-fixture contract, and iOS release-boundary audits. Regenerate scanner evidence after any of those files changes.
 - `runtime.deploymentCredentialsAvailable` must be `false`, and `redaction.deploymentCredentialsRedacted` must be `true`; saved scanner evidence must not contain deployment/cloud credential assignments or JSON fields such as AWS keys, Vercel tokens, GitHub tokens, Netlify tokens, or Cloudflare API credentials.
-- QR and NFC both need accepted-scan and duplicate-replay proof through the FanPass API.
+- QR needs accepted-scan, invalid/expired rejection, and duplicate-replay proof through the FanPass API. Future NFC enablement needs a new explicit capability contract and its own physical NDEF proof; it cannot be inferred from this gate.
 - Backend authority must remain server-side: signature checks, nonce replay rejection, gate assignment enforcement, and scanner identity must be derived from verified auth rather than client-supplied scanner ids.
 
 ## 2026-06-16 Implementation Note
 
 - `GET /verification/checkins/recent` was added for Ops scan history. It is role-guarded for `GATE_STAFF` and `ADMIN` and returns safe check-in summary fields only.
 - FanPassOps now renders Scan history from that endpoint instead of static sample rows. The Account page keeps only Scan history and Help & support, and the login page no longer exposes the local `Continue as test gate staff` shortcut.
-- This note is implementation evidence only. It does not close the device-evidence gate because physical accepted/rejected QR and NFC captures still need to be saved and validated under the release rule above.
+- This note is implementation evidence only. It does not close the device-evidence gate because current physical accepted/rejected QR captures still need to be saved and validated under the release rule above; it does not claim release NFC support.

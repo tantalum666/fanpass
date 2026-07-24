@@ -26,6 +26,9 @@ const implementationSnapshotFiles = [
   "apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift",
   "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
   "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
   "scripts/ios-distribution-boundary-audit.js",
 ];
 const tempDir = fs.mkdtempSync(
@@ -147,10 +150,12 @@ try {
         createEvidence({
           apps: [
             {
-              cameraPermissionPresent: true,
+              scannerSourceIncluded: true,
               staffControlsPresent: true,
             },
             {
+              releaseNfcEntitlementPresent: true,
+              nativeNfcDebugOnly: false,
               stripePaymentSheetPresent: true,
               marketplacePresent: true,
             },
@@ -159,10 +164,33 @@ try {
       ),
     ),
     [
-      "FanPass cameraPermissionPresent must be false",
+      "FanPass scannerSourceIncluded must be false",
       "FanPass staffControlsPresent must be false",
+      "FanPass Ops releaseNfcEntitlementPresent must be false",
+      "FanPass Ops nativeNfcDebugOnly must be true",
       "FanPass Ops marketplacePresent must be false",
       "FanPass Ops stripePaymentSheetPresent must be false",
+    ],
+  );
+
+  expectFail(
+    "rejects legacy ambiguous camera and NFC capability fields",
+    writeEvidence(
+      "legacy-capability-fields.txt",
+      withProgressText(
+        createEvidence({
+          apps: [
+            { cameraPermissionPresent: true, nfcEntitlementPresent: false },
+            { cameraPermissionPresent: true, nfcEntitlementPresent: true },
+          ],
+        }),
+      ),
+    ),
+    [
+      "FanPass cameraPermissionPresent is a legacy ambiguous field",
+      "FanPass nfcEntitlementPresent is a legacy ambiguous field",
+      "FanPass Ops cameraPermissionPresent is a legacy ambiguous field",
+      "FanPass Ops nfcEntitlementPresent is a legacy ambiguous field",
     ],
   );
 
@@ -354,6 +382,7 @@ function createEvidence(overrides = {}) {
       ok: true,
       checkedAt: "2026-05-30T00:00:00.000Z",
       provider: "ios-staging-build",
+      capabilityModel: "qr-first-release-v1",
       localDryRun: false,
       realUserDataUsed: false,
       productionCredentialsUsed: false,
@@ -408,8 +437,9 @@ function fanPassApp() {
     debugCompilationDisabled: true,
     debugPayloadHelpersUnavailable: true,
     secretsInBundle: false,
-    cameraPermissionPresent: false,
-    nfcEntitlementPresent: false,
+    cameraUsageDescriptionPresent: true,
+    scannerSourceIncluded: false,
+    releaseNfcEntitlementPresent: false,
     staffControlsPresent: false,
     paymentReturnUrlSchemePresent: true,
   };
@@ -428,8 +458,11 @@ function fanPassOpsApp() {
     debugCompilationDisabled: true,
     debugPayloadHelpersUnavailable: true,
     secretsInBundle: false,
-    cameraPermissionPresent: true,
-    nfcEntitlementPresent: true,
+    cameraUsageDescriptionPresent: true,
+    qrScannerSourceIncluded: true,
+    nfcUsageDescriptionPresent: true,
+    releaseNfcEntitlementPresent: false,
+    nativeNfcDebugOnly: true,
     consumerWalletPresent: false,
     marketplacePresent: false,
     stripePaymentSheetPresent: false,

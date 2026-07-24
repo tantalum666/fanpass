@@ -30,7 +30,7 @@ const packageJson = readRequired(packagePath);
 
 const requiredDocMarkers = [
   "# FanPass iOS Physical-Device QA Checklist",
-  "Status: checklist gate ready; physical-device execution remains open",
+  "Status: historical physical-iPhone QR execution completed; the checklist is ready for version-bound refresh on the next reviewed `qr-first-release-v1` candidate",
   "signed `FanPass` and `FanPass Ops` builds on real iPhones",
   "does not replace saved iOS staging/TestFlight build evidence",
   "Do not use real personal data",

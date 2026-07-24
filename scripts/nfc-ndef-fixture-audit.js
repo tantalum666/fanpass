@@ -50,7 +50,8 @@ const requiredDocMarkers = [
   "duplicate replay coverage",
   "unsupported tag or unsupported device behavior check",
   "debug paste fallback remains debug-only",
-  "Physical-device evidence must pass `npm run security:ops-scanner:device-evidence -- <saved-json-output>`",
+  "A dedicated future NFC evidence validator must pass before physical NFC validation is closed",
+  "The current `npm run security:ops-scanner:device-evidence` contract is QR-first and rejects NFC evidence claims",
   "This fixture contract only defines what the NFC test tag may contain",
   "Redaction Requirements",
 ];

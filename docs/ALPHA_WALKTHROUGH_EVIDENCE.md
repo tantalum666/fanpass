@@ -78,18 +78,25 @@ This repository-level scan covers walkthrough, staging runtime, CI, provider, iO
 - Do not claim the recording proves production tenant/staff staging policy, signed Wallet passes, TestFlight, physical QR/NFC validation, chain custody, public dependency readiness, or public Beta readiness.
 - Do not reintroduce a Beta recording requirement unless a real artifact set exists under `outputs/alpha-walkthrough/` and this evidence contract is updated intentionally.
 
-## Closed for current closed-beta foundation
+## Historical pre-RC closed-beta evidence
+
+These checks were completed against earlier deployed/local revisions. They do not attest commit `a25185d2747520303eac0fd2681017b5c35ac62b` and cannot close the current Hosted CI, Staging, provider, signed-device, physical-entry, or chain gates.
 
 - Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime. Signed-device OTP remains a separate blocker.
 - Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, authorization cancellation, refund, reconciliation, duplicate webhook replay, and residual outbox-health evidence passed against Render staging.
 - Deployed HTTPS staging runtime evidence passed for the current Render API and Vercel Console surfaces.
 - Production tenant/staff staging evidence passed against Render/Vercel staging with verified Privy sessions and organizer isolation.
-- Current unresolved Next/PostCSS production dependency risk has owner-approved `closed-beta-only` acceptance evidence expiring on 2026-07-04.
+- The earlier Next/PostCSS `closed-beta-only` acceptance expired on 2026-07-04 and must not be reused for this RC. The root audit is now clean after the Console migration; current external evidence still has to bind the immutable RC.
 
 ## Remaining blockers
 
+- Exact-SHA Hosted CI and current-RC Staging/provider evidence
 - Signed iOS/TestFlight staging evidence
-- Public/real-user dependency clean audit or Console migration
+- Isolated Console Auth residual-risk/production-cookie review
 - Signed Apple Wallet `.pkpass`
 - Physical QR/NFC device validation
+
+## Resolved historical compatibility marker
+
+`Public/real-user dependency clean audit or Console migration` is retained as the legacy machine-audit marker. The Console migration and clean root production audit resolved that historical item; the marker is not current-RC Hosted, Staging, provider, signed-device, physical-entry, or chain evidence.
 - Chain custody evidence

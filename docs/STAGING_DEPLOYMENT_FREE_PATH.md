@@ -2,6 +2,8 @@
 
 Status: Neon staging is provisioned, and the Render API plus Vite/Node Console are live from `main`. The old Vercel/Next Console evidence is historical after the 2026-06-06 source migration. Runtime evidence passed on 2026-06-07, and public API/Console smoke passed again on 2026-07-12 after the branch consolidation and payment-response hardening deployment. This document describes the historical free-tier functional environment; it is not the runbook for the 2026-07-20 security RC cutover. That first dispatch-fence migration requires the maintenance-gated sequence in `docs/ALPHA_RUNBOOK.md` and cannot run safely on Render Free.
 
+The pushed security RC is branch `codex/security-rc-20260720`, immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. It has not been merged or deployed, and this historical Free path does not attest it.
+
 ## Targets
 
 - Database: Neon Postgres project `fanpass-staging`.

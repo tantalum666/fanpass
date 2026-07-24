@@ -7,7 +7,7 @@ This folder currently contains the SwiftUI source layout and a project manifest.
 ## Intended Targets
 
 - FanPass: event discovery, ticket wallet, fan access, and marketplace.
-- FanPass Ops: dynamic QR verification for current TestFlight/internal testing.
+- FanPass Ops: QR-first verification target. Historical TestFlight and physical-iPhone QR validation are complete; the next reviewed candidate still needs a fresh version-bound signed/TestFlight/real-device evidence capture.
 
 Native Core NFC remains DEBUG-only for now. The first App Store Connect upload
 attempt rejected the release archive's NDEF entitlement, so release/TestFlight

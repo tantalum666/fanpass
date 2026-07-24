@@ -53,8 +53,10 @@ struct OpsShellView: View {
             switch sheet {
             case .qrCamera:
                 scannerCover(startsWithCamera: true, startsWithNFC: false)
+            #if DEBUG
             case .nfcReader:
                 scannerCover(startsWithCamera: false, startsWithNFC: true)
+            #endif
             }
         }
         .onChange(of: scanSheet) { _, sheet in
@@ -120,6 +122,7 @@ struct OpsShellView: View {
                         scanSheet = .qrCamera
                     }
 
+                    #if DEBUG
                     Button {
                         scanSheet = .nfcReader
                     } label: {
@@ -135,6 +138,7 @@ struct OpsShellView: View {
                             }
                     }
                     .buttonStyle(.plain)
+                    #endif
                 }
 
             }
@@ -487,7 +491,9 @@ private enum OpsTab: Hashable {
 
 private enum OpsScanSheet: String, Identifiable {
     case qrCamera
+    #if DEBUG
     case nfcReader
+    #endif
 
     var id: String { rawValue }
 }

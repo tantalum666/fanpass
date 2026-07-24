@@ -17,7 +17,7 @@ Result:
 - The root-workspace full dev/tooling audit now reports `0 advisories`, including `0 high` and `0 critical`; the root production-only audit also reports zero. The independently installed `apps/console-auth` runtime is outside the root npm workspaces and is not included in either zero count.
 - The Hardhat/contract-toolchain moved from Hardhat 2 plus the broad `hardhat-toolbox` dependency surface to Hardhat 3 with only the Ethers, Ethers Chai matcher, and Mocha plugins that FanPass uses.
 - Root overrides pin patched transitive releases for the upstream ranges that had not yet moved to their patched dependency versions. This includes Hardhat's `adm-zip` edge and Mocha's `diff` and `serialize-javascript` edges; the overrides were retained only after install-tree validation, clean audits, compile, contract tests, and deployment-script verification.
-- All 9 contract tests passed after the dedicated migration with contract tests, including the direct-transfer settlement boundary tests. The local deployment path completed successfully under Node 22.
+- The 2026-07-18 dedicated migration passed its then-current 9 contract tests, including the direct-transfer settlement boundary tests. At immutable RC `a25185d2747520303eac0fd2681017b5c35ac62b`, all 30 contract tests pass under the authoritative Node 22 gate.
 - The previous contained high packages (`lodash`, `serialize-javascript`, `tmp`, and `undici`) are no longer present as high findings. No dependency risk acceptance is used for this closeout.
 
 Decision:

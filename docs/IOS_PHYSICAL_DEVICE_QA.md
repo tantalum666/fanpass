@@ -1,10 +1,10 @@
 # FanPass iOS Physical-Device QA Checklist
 
-Status: checklist gate ready; physical-device execution remains open.
+Status: historical physical-iPhone QR execution completed; the checklist is ready for version-bound refresh on the next reviewed `qr-first-release-v1` candidate.
 
 ## Scope
 
-This checklist is the pre-external-testing runbook for signed `FanPass` and `FanPass Ops` builds on real iPhones. It does not replace saved iOS staging/TestFlight build evidence, physical QR/NFC scanner evidence, Apple Wallet signed-pass evidence, deployed staging runtime evidence, Stripe test-mode evidence, Privy dashboard evidence, or staff tenant staging evidence.
+This checklist is the pre-external-testing runbook for signed `FanPass` and `FanPass Ops` builds on real iPhones. It does not replace saved iOS staging/TestFlight build evidence, current QR-first physical scanner evidence, future NFC evidence, Apple Wallet signed-pass evidence, deployed staging runtime evidence, Stripe test-mode evidence, Privy dashboard evidence, or staff tenant staging evidence.
 
 Do not use real personal data, production credentials, production Stripe or Privy secrets, Apple signing material, provisioning profiles, device identifiers, bearer tokens, raw invite tokens, QR signing secrets, raw nonces, raw signed payloads, private keys, or database URLs in saved QA notes, screenshots, logs, or JSON evidence.
 

@@ -1,9 +1,9 @@
 # FanPass Brand Assets
 
-Status: Clean V4 is the single source of truth.
+Status: Clean V4 remains the shipped UI/token/component source of truth. The owner-selected V5 Inter logo route is pre-production exploration and must not replace shipped assets until its QA and migration are complete.
 Date: 2026-06-05
 
-Use the V4 assets in `FanPass_VI_Redesign_V4/` for all future UI/UX implementation. Earlier assets in this folder are historical drafts and must not be used as the visual source for new work.
+Use the V4 assets in `FanPass_VI_Redesign_V4/` for current UI/UX implementation. Earlier assets in this folder are historical drafts; the selected V5 logo route may be evaluated separately but is not yet an implemented production asset source.
 
 ## V4 Assets To Use
 

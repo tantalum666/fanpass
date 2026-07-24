@@ -33,7 +33,7 @@ const errors = [];
 
 try {
   expectPass(
-    "accepts physical FanPass Ops QR and NFC evidence without secrets",
+    "accepts physical FanPass Ops QR-first evidence without secrets",
     writeEvidence("valid.txt", withProgressText(createEvidence())),
   );
 
@@ -116,22 +116,39 @@ try {
   );
 
   expectFail(
-    "rejects missing NFC physical tag proof",
+    "rejects release NFC capability claims in QR-first evidence",
     writeEvidence(
-      "missing-nfc.txt",
+      "release-nfc-claim.txt",
       withProgressText(
         createEvidence({
-          nfcTransport: {
-            physicalTagReadVerified: false,
-            ndefPayloadNormalized: false,
+          releaseCapabilities: {
+            releaseNfcEntitlementPresent: true,
+            nativeNfcDebugOnly: false,
+            nfcEvidenceClaimed: true,
           },
         }),
       ),
     ),
     [
-      "nfcTransport.physicalTagReadVerified must be true",
-      "nfcTransport.ndefPayloadNormalized must be true",
+      "releaseCapabilities.releaseNfcEntitlementPresent must be false",
+      "releaseCapabilities.nativeNfcDebugOnly must be true",
+      "releaseCapabilities.nfcEvidenceClaimed must be false",
     ],
+  );
+
+  expectFail(
+    "rejects legacy NFC transport evidence in the QR-first contract",
+    writeEvidence(
+      "legacy-nfc-transport.txt",
+      withProgressText(
+        createEvidence({
+          nfcTransport: {
+            physicalTagReadVerified: true,
+          },
+        }),
+      ),
+    ),
+    ["nfcTransport is not accepted by the QR-first release evidence contract"],
   );
 
   expectFail(
@@ -157,7 +174,7 @@ try {
       ),
     ),
     [
-      "implementationSnapshot.source must be ops-scanner-physical-device-boundaries",
+      "implementationSnapshot.source must be ops-scanner-qr-first-device-boundaries",
       "implementationSnapshot.files must include the current FanPass Ops scanner implementation boundary files",
       "implementationSnapshot.files contains unexpected file unexpected/scanner-boundary.swift",
       "implementationSnapshot.files apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift sha256 must match the current FanPass Ops scanner implementation",
@@ -257,6 +274,7 @@ function createEvidence(overrides = {}) {
       ok: true,
       checkedAt: "2026-05-30T00:00:00.000Z",
       surface: "fanpass-ops",
+      capabilityModel: "qr-first-release-v1",
       localSimulator: false,
       realUserDataUsed: false,
       productionCredentialsUsed: false,
@@ -269,18 +287,17 @@ function createEvidence(overrides = {}) {
         debugPasteFallbackUsed: false,
         deploymentCredentialsAvailable: false,
       },
+      releaseCapabilities: {
+        cameraQrEnabled: true,
+        releaseNfcEntitlementPresent: false,
+        nativeNfcDebugOnly: true,
+        nfcEvidenceClaimed: false,
+      },
       qrTransport: {
         cameraScanVerified: true,
         acceptedScanVerified: true,
         duplicateReplayRejected: true,
         expiredOrInvalidPayloadRejected: true,
-      },
-      nfcTransport: {
-        physicalTagReadVerified: true,
-        ndefPayloadNormalized: true,
-        acceptedScanVerified: true,
-        duplicateReplayRejected: true,
-        unsupportedDeviceFallbackVerified: true,
       },
       backendAuthority: {
         fanPassApiSignatureVerified: true,
@@ -309,14 +326,14 @@ function createEvidence(overrides = {}) {
 
 function withProgressText(evidence) {
   return [
-    "Checking FanPass Ops physical QR/NFC scanner evidence...",
+    "Checking FanPass Ops physical QR-first scanner evidence...",
     JSON.stringify(evidence, null, 2),
   ].join("\n");
 }
 
 function createImplementationSnapshot() {
   return {
-    source: "ops-scanner-physical-device-boundaries",
+    source: "ops-scanner-qr-first-device-boundaries",
     files: implementationSnapshotFiles.map((file) => ({
       file,
       sha256: crypto

@@ -1,13 +1,13 @@
 # FanPass High-Demand On-Sale Design V4
 
-Status: implemented staging foundation; production edge admission still required
+Status: implemented code/RC foundation; immutable RC is not deployed, and Staging validation plus production edge admission remain required
 Date: 2026-07-12
 
 ## Decision Summary
 
 FanPass uses a transparent, account-bound queue in front of atomic PostgreSQL inventory holds. The product should show enough aggregate data for a buyer to understand where inventory went without exposing seat-level inventory, identities, payment signals, or risk rules that attackers could exploit.
 
-The staging implementation provides:
+The reviewed source/RC implementation provides:
 
 - a public allocation and inventory ledger;
 - a private exact queue position for the signed-in account;
@@ -186,7 +186,7 @@ flowchart LR
     D --> U
 ```
 
-Current Render/Neon staging is suitable for functional and moderate concurrency testing. It is not the origin architecture to expose directly to hundreds of thousands of clients polling every five seconds.
+The existing Render/Neon topology may support functional and moderate concurrency testing only after immutable RC `a25185d2747520303eac0fd2681017b5c35ac62b` is rolled out through the maintenance gate and validated. The currently live older revision does not prove the RC's queue, dispatch-fence, or migration behavior. This topology is not the origin architecture to expose directly to hundreds of thousands of clients polling every five seconds.
 
 For a major launch:
 

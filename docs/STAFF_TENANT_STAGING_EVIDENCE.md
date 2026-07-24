@@ -1,6 +1,6 @@
 # Staff Tenant Staging Evidence
 
-FanPass has local staff invitation/linking policy checks, and production tenant/staff staging evidence passed on 2026-06-04. After the 2026-06-06 Console migration from Next to Vite/Node BFF, regenerate this evidence before relying on it for any new external release decision. Do not close or refresh this blocker with seeded local demo sessions, localhost evidence, raw invite tokens, raw Privy access tokens, or real personal data.
+Historical tenant/staff Staging evidence passed on 2026-06-04 for its then-current revision; it does not attest security RC `a25185d2747520303eac0fd2681017b5c35ac62b`. After the 2026-06-06 Console migration from Next to Vite/Node BFF and the current RC boundary changes, regenerate this evidence before relying on it for any new external release decision. Do not close or refresh this blocker with seeded local demo sessions, localhost evidence, raw invite tokens, raw Privy access tokens, or real personal data.
 
 Run future saved evidence through:
 

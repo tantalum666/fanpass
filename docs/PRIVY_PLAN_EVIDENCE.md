@@ -2,6 +2,8 @@
 
 This contract defines the saved evidence required before FanPass can mark Privy dashboard plan validation complete. It must not contain real personal data, access tokens, private keys, `PRIVY_APP_SECRET`, `PRIVY_VERIFICATION_KEY`, bearer tokens, provider secrets, deployment/cloud credentials, CI secret masking command literals, Stripe publishable keys, database URLs, or production credentials.
 
+Current RC note (2026-07-23): prior dashboard/plan receipts do not attest undeployed commit `a25185d2747520303eac0fd2681017b5c35ac62b`. Current-RC Privy/provider E2E remains open and must be regenerated after the approved Staging cutover.
+
 Run the validator on saved evidence:
 
 ```bash

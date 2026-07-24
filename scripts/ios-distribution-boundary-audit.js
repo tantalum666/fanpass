@@ -27,6 +27,8 @@ const files = {
   ticketWallet:
     "apps/ios/FanPass/FanPass/Features/Tickets/TicketWalletView.swift",
   scanner: "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+  nfcScanner:
+    "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
   opsShell: "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
   distributionPlan: "docs/IOS_DISTRIBUTION_PLAN.md",
   tasks: "docs/DEVELOPMENT_TASKS.md",
@@ -457,6 +459,7 @@ function validateWalletPrototypeBoundary() {
 function validateDebugPayloadBoundary() {
   const wallet = read(files.ticketWallet);
   const scanner = read(files.scanner);
+  const nfcScanner = read(files.nfcScanner);
   const opsShell = read(files.opsShell);
 
   for (const marker of [
@@ -486,10 +489,42 @@ function validateDebugPayloadBoundary() {
     }
   }
 
-  if (!scanner.includes("Waiting for QR or NFC")) {
+  if (!isMarkerOutsideDebugBlock(scanner, 'qrWaitingHint = "Waiting for QR"')) {
     errors.push(
-      "FanPass Ops scanner must keep a non-debug QR/NFC-only waiting hint.",
+      "FanPass Ops scanner must keep a release-visible QR-only waiting hint.",
     );
+  }
+
+  for (const marker of [
+    'Label(nfcScanner.isReading ? "Reading NFC" : "Scan NFC"',
+    'return "Waiting for QR or NFC"',
+    "private func beginNFCScan()",
+  ]) {
+    if (!isMarkerInsideDebugBlock(scanner, marker)) {
+      errors.push(
+        `FanPass Ops native NFC scanner control must stay inside #if DEBUG: ${marker}`,
+      );
+    }
+  }
+
+  for (const marker of [
+    "case .nfcReader:",
+    'Label("NFC quick scan"',
+    "scannerCover(startsWithCamera: false, startsWithNFC: true)",
+  ]) {
+    if (!isMarkerInsideDebugBlock(opsShell, marker)) {
+      errors.push(
+        `FanPass Ops native NFC entry must stay inside #if DEBUG: ${marker}`,
+      );
+    }
+  }
+
+  for (const marker of ["import CoreNFC", "NFCNDEFReaderSession"]) {
+    if (!isMarkerInsideDebugBlock(nfcScanner, marker)) {
+      errors.push(
+        `FanPass Ops Core NFC implementation must stay inside #if DEBUG: ${marker}`,
+      );
+    }
   }
 
   if (
@@ -572,6 +607,27 @@ function isMarkerInsideDebugBlock(contents, marker) {
     }
     if (line.includes(marker)) {
       return debugDepth > 0;
+    }
+  }
+  return false;
+}
+
+function isMarkerOutsideDebugBlock(contents, marker) {
+  const lines = contents.split(/\r?\n/);
+  let debugDepth = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("#if DEBUG")) {
+      debugDepth += 1;
+    } else if (trimmed.startsWith("#if ")) {
+      if (debugDepth > 0) {
+        debugDepth += 1;
+      }
+    } else if (trimmed.startsWith("#endif") && debugDepth > 0) {
+      debugDepth -= 1;
+    }
+    if (line.includes(marker)) {
+      return debugDepth === 0;
     }
   }
   return false;

@@ -1,6 +1,7 @@
 # FanPass Deployment Environments
 
-Date: 2026-05-29
+Originally dated: 2026-05-29
+Last updated: 2026-07-23
 
 This document defines the minimum environment separation before FanPass is exposed outside local development.
 
@@ -14,6 +15,13 @@ Capacity, cost, global regional placement, paid-plan upgrades, and AWS/GCP migra
 | Staging    | Closed internal test of production-like runtime | No real public users | Stripe test mode only            | Forbidden |
 | Production | Future pilot/MVP                                | Yes                  | Requires legal/payment readiness | Forbidden |
 
+## Current Security RC
+
+- Branch `codex/security-rc-20260720`, immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`, is pushed but not merged or deployed.
+- The authoritative local gate passed 97/97; API 32 suites/386 tests; contracts 30/30; independent final review 0 P0/P1.
+- The current credential receives 403 from GitHub Actions/Checks/Status reads, so no exact-SHA Hosted result is claimed.
+- The live Staging services remain on older revisions. Current-RC Staging, Privy, Stripe, Sepolia, signed-device, and physical-entry evidence remains open; no Staging mutation occurred during RC closeout.
+
 ## Required Staging Properties
 
 - All public origins must use HTTPS.
@@ -26,7 +34,7 @@ Capacity, cost, global regional placement, paid-plan upgrades, and AWS/GCP migra
 - API and Console must not expose `x-powered-by`.
 - API and Console must return baseline security headers.
 - The Socket.IO `/orderbook` feed must accept only the configured Console/app origins and must not expose private payment, QR, scanner, Privy, or user email fields.
-- Payments remain disabled for real-money use until all non-Stripe Beta blockers are closed and a deliberate release decision is made. Stripe test-mode PaymentIntents, signed webhooks, capture, refund, cancellation, reconciliation, replay/idempotency, and worker-drained outbox evidence were validated against Render staging on 2026-06-03.
+- Payments remain disabled for real-money use until all non-Stripe Beta blockers are closed and a deliberate release decision is made. Stripe test-mode PaymentIntents, signed webhooks, capture, refund, cancellation, reconciliation, replay/idempotency, and worker-drained outbox evidence were validated against the then-live Render revision on 2026-06-03; that historical receipt does not attest the current RC.
 - Privy webhooks remain optional until plan support is verified.
 
 ## Environment Templates
@@ -85,16 +93,16 @@ The saved JSON evidence must include:
 The current implementation snapshot files and SHA-256 hashes are:
 
 - `apps/api/src/main.ts`: `1ecf58b9fbb0e87338b19b5418300e5f24d60b9a229ee111834ceb4da70a1068`
-- `apps/api/src/config/security-config.ts`: `2c47d6f5a36da5fb1dd1ec1d58f4148a3a36351a87daa01a6f5e851c53171980`
+- `apps/api/src/config/security-config.ts`: `be978ee16199269f3b19bc8cbab699845d1f2a9fdc59b804b4f3bcbd6f9728d2`
 - `apps/api/.env.staging.example`: `42c50bfc9504f5398f21a749f76cbbdddb9e2877726d37fe5efa0eb57cf006c0`
 - `apps/api/src/common/fanpass-socket-io.adapter.ts`: `0e06e35dd6da2c663b57f2ffaac9118a7b118109135f9029426a4a1588336d67`
 - `apps/api/src/modules/alpha/alpha.controller.ts`: `79e13f9aef0ac0ca55f3a07a292fee56bc3c3df76361aa8a153a45b2c7109645`
-- `apps/api/src/modules/side-effects/side-effect-health.service.ts`: `0804138b2db924583c48869ad998a70b38dfdb077d3e0ac00c33d56235a20dfe`
+- `apps/api/src/modules/side-effects/side-effect-health.service.ts`: `7abd0504c33e7397dd0c72ae046b4603da65cdc03f089cac4555307780a6d253`
 - `apps/dashboard/server/console-bff.ts`: `ce609977c01dd0997bea354d70118fdd7cf764a57c72722ad15e88d4a7113464`
 - `scripts/security-runtime-staging-check.sh`: `fc02f4f68c56d58f11a5b4b84fbb6f4bd371f443ccfbfd92643ca13e4fbf05b3`
 - `scripts/staging-runtime-evidence-audit.js`: `cf68b3b97b4cc99c247fefd11ce50de4634279969163fd0ee5c90b72b46e17f9`
 - `scripts/security-runtime-staging-local-dry-run.sh`: `a77c4900a9ec90e56a38c498d70b60dd36447af4d085dd6573651ec089be238e`
-- `scripts/security-header-policy-audit.js`: `5cf6eab1d1256b44679866733ff78dbd9b614a0d7a1b69daf411295b0285e20e`
+- `scripts/security-header-policy-audit.js`: `3148139970bbd64ea5362dc14b2fe161e186531d56c1707c6dbd9d01bab038ef`
 
 Validate the saved evidence before treating the staging gate as closed:
 

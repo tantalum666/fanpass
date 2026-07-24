@@ -23,6 +23,7 @@ struct ScannerView: View {
     @State private var redeemedLocalCredentialIds: Set<String> = []
     @StateObject private var nfcScanner = NFCPayloadScanner()
     private let isoFormatter = ISO8601DateFormatter()
+    private let qrWaitingHint = "Waiting for QR"
 
     init(
         apiClient: FanPassAPIClient,
@@ -119,6 +120,7 @@ struct ScannerView: View {
                         .buttonStyle(.plain)
                         .disabled(isRedeeming)
 
+                        #if DEBUG
                         Button {
                             beginNFCScan()
                         } label: {
@@ -131,6 +133,7 @@ struct ScannerView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(isRedeeming || nfcScanner.isReading)
+                        #endif
                     }
                     .padding(.horizontal, FPSpacing.lg)
                 }
@@ -181,10 +184,18 @@ struct ScannerView: View {
                 StatusPill(text: "Gate \(gate)", color: FanPassTheme.accent)
             }
 
-            Text("Scan QR or NFC, redeem, then reset for the next attendee.")
+            Text(scannerInstruction)
                 .font(.subheadline)
                 .foregroundStyle(FanPassTheme.slate)
         }
+    }
+
+    private var scannerInstruction: String {
+        #if DEBUG
+        "Scan QR or NFC, redeem, then reset for the next attendee."
+        #else
+        "Scan QR, redeem, then reset for the next attendee."
+        #endif
     }
 
     private var statusPanel: some View {
@@ -225,7 +236,9 @@ struct ScannerView: View {
                     }
                     Spacer()
                     StatusPill(text: "QR", color: FanPassTheme.accent)
+                    #if DEBUG
                     StatusPill(text: nfcScanner.isAvailable ? "NFC ready" : "QR available", color: nfcScanner.isAvailable ? FanPassTheme.mint : FanPassTheme.amber)
+                    #endif
                 }
 
                 #if DEBUG
@@ -243,14 +256,16 @@ struct ScannerView: View {
                     }
                     .buttonStyle(.bordered)
 
+                    #if DEBUG
                     Button {
                         beginNFCScan()
                     } label: {
                         Label(nfcScanner.isReading ? "Reading" : "NFC", systemImage: "wave.3.right.circle")
                             .frame(maxWidth: .infinity)
                     }
-                        .buttonStyle(.bordered)
-                        .disabled(nfcScanner.isReading)
+                    .buttonStyle(.bordered)
+                    .disabled(nfcScanner.isReading)
+                    #endif
 
                     #if DEBUG
                     Button {
@@ -310,17 +325,19 @@ struct ScannerView: View {
     }
 
     private var payloadHint: String {
+        #if DEBUG
         if nfcScanner.isReading {
             return "Hold the device near a supported FanPass NFC tag"
         }
         if let error = nfcScanner.lastError {
             return error
         }
+        #endif
         if qrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             #if DEBUG
             return "Waiting for QR or NFC"
             #else
-            return "Waiting for QR or NFC"
+            return qrWaitingHint
             #endif
         }
         return "Entry code ready"
@@ -329,9 +346,11 @@ struct ScannerView: View {
     private func startInitialCaptureIfNeeded() {
         guard !didStartInitialCapture else { return }
         didStartInitialCapture = true
+        #if DEBUG
         if startsWithNFC {
             beginNFCScan()
         }
+        #endif
     }
 
     private func handleScanStateChange(_ state: ScanState) {
@@ -356,6 +375,7 @@ struct ScannerView: View {
         scanState = .captured
     }
 
+    #if DEBUG
     private func beginNFCScan() {
         guard nfcScanner.isAvailable else {
             scanState = .nfcUnavailable
@@ -369,6 +389,7 @@ struct ScannerView: View {
             scanState = .captured
         }
     }
+    #endif
 
     #if DEBUG
     private func pasteFromClipboard() {
@@ -606,7 +627,7 @@ private enum ScanState: Equatable {
         #if DEBUG
         return "Open QR or NFC to verify the attendee."
         #else
-        return "Open QR or NFC to verify the attendee."
+        return "Open QR to verify the attendee."
         #endif
     }
 

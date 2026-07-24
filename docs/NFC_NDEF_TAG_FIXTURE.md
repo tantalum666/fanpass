@@ -10,7 +10,7 @@ entitlement/profile path is available.
 
 ## Scope
 
-This document defines the supported NFC test-tag payload format for `FanPass Ops` only. It does not add NFC capability to the consumer `FanPass` app, and it does not close physical-device validation until saved scanner evidence passes the real-device evidence gate.
+This document defines the supported NFC test-tag payload format for `FanPass Ops` only. It does not add NFC capability to the consumer `FanPass` app, and it does not close physical-device validation. Current QR-first scanner evidence deliberately rejects NFC claims; a separate future NFC release-evidence contract is required after the capability, entitlement, and profile are restored.
 
 NFC is a transport for a FanPass signed entry payload. Backend authority remains FanPass API signature verification, nonce replay rejection, authenticated scanner identity, and gate assignment enforcement. NFC payloads must enter the same redemption path as QR scans.
 
@@ -73,6 +73,8 @@ The tag can carry only the scanner payload that FanPass API already signs for en
 
 ## Physical QA Runbook
 
+Do not execute this runbook as current Release/TestFlight proof. It becomes actionable only after native NFC is deliberately restored to a reviewed release/evidence build with the supported Apple entitlement and profile.
+
 Physical NFC QA must use:
 
 - a signed `FanPass Ops` build installed on a real iPhone;
@@ -85,7 +87,7 @@ Physical NFC QA must use:
 
 The debug paste fallback remains debug-only. External TestFlight or physical-device evidence must not use paste fallback as the NFC proof.
 
-Physical-device evidence must pass `npm run security:ops-scanner:device-evidence -- <saved-json-output>` before physical QR/NFC validation is closed. This fixture contract only defines what the NFC test tag may contain.
+A dedicated future NFC evidence validator must pass before physical NFC validation is closed. The current `npm run security:ops-scanner:device-evidence` contract is QR-first and rejects NFC evidence claims. This fixture contract only defines what the NFC test tag may contain; it is not release evidence.
 
 ## Redaction Requirements
 

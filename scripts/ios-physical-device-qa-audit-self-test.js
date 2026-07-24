@@ -19,6 +19,21 @@ const cases = [
     mutate: () => {},
   },
   {
+    label:
+      "rejects regression that erases completed historical physical QR testing",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "docs/IOS_PHYSICAL_DEVICE_QA.md",
+        fixtureDoc().replace(
+          "Status: historical physical-iPhone QR execution completed; the checklist is ready for version-bound refresh on the next reviewed `qr-first-release-v1` candidate.",
+          "Status: checklist gate ready; physical-device execution remains open.",
+        ),
+      ),
+    messages: ["historical physical-iPhone QR execution completed"],
+  },
+  {
     label: "rejects missing real-device and signed-build scope",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -235,7 +250,7 @@ function packageJson() {
 function fixtureDoc() {
   return `# FanPass iOS Physical-Device QA Checklist
 
-Status: checklist gate ready; physical-device execution remains open.
+Status: historical physical-iPhone QR execution completed; the checklist is ready for version-bound refresh on the next reviewed \`qr-first-release-v1\` candidate.
 
 This checklist is for signed \`FanPass\` and \`FanPass Ops\` builds on real iPhones. It does not replace saved iOS staging/TestFlight build evidence.
 

@@ -38,6 +38,9 @@ const snapshotFiles = {
     "apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift",
     "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
     "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+    "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+    "apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift",
+    "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
     "scripts/ios-distribution-boundary-audit.js",
   ],
   "apple-wallet": [
@@ -211,6 +214,7 @@ function buildDraft(draftKind, checkedAtIso) {
       draftStatus: "requires-signed-physical-device-or-testflight-proof",
       checkedAt: checkedAtIso,
       provider: "ios-staging-build",
+      capabilityModel: "qr-first-release-v1",
       localDryRun: false,
       realUserDataUsed: false,
       productionCredentialsUsed: false,
@@ -230,14 +234,18 @@ function buildDraft(draftKind, checkedAtIso) {
       },
       apps: [
         iosBuildAppDraft("FanPass", "FanPass", "fun.fanpass.app", {
-          cameraPermissionPresent: false,
-          nfcEntitlementPresent: false,
+          cameraUsageDescriptionPresent: true,
+          scannerSourceIncluded: false,
+          releaseNfcEntitlementPresent: false,
           staffControlsPresent: false,
           paymentReturnUrlSchemePresent: "<verify-in-built-app>",
         }),
         iosBuildAppDraft("FanPass Ops", "FanPassOps", "com.fanpass.ops", {
-          cameraPermissionPresent: "<verify-in-built-app>",
-          nfcEntitlementPresent: "<verify-in-built-app>",
+          cameraUsageDescriptionPresent: "<verify-in-built-app>",
+          qrScannerSourceIncluded: "<verify-in-built-app>",
+          nfcUsageDescriptionPresent: "<verify-in-built-app>",
+          releaseNfcEntitlementPresent: false,
+          nativeNfcDebugOnly: "<run-ios-distribution-boundary-audit>",
           consumerWalletPresent: false,
           marketplacePresent: false,
           stripePaymentSheetPresent: false,
@@ -343,14 +351,15 @@ function buildDraft(draftKind, checkedAtIso) {
     return {
       ok: false,
       draft: true,
-      draftStatus: "requires-physical-qr-nfc-device-proof",
+      draftStatus: "requires-physical-qr-first-device-proof",
       checkedAt: checkedAtIso,
       surface: "fanpass-ops",
+      capabilityModel: "qr-first-release-v1",
       localSimulator: false,
       realUserDataUsed: false,
       productionCredentialsUsed: false,
       implementationSnapshot: snapshotBlock(
-        "ops-scanner-physical-device-boundaries",
+        "ops-scanner-qr-first-device-boundaries",
         draftKind,
       ),
       runtime: {
@@ -361,18 +370,17 @@ function buildDraft(draftKind, checkedAtIso) {
         debugPasteFallbackUsed: false,
         deploymentCredentialsAvailable: false,
       },
+      releaseCapabilities: {
+        cameraQrEnabled: true,
+        releaseNfcEntitlementPresent: false,
+        nativeNfcDebugOnly: true,
+        nfcEvidenceClaimed: false,
+      },
       qrTransport: allPlaceholders([
         "cameraScanVerified",
         "acceptedScanVerified",
         "duplicateReplayRejected",
         "expiredOrInvalidPayloadRejected",
-      ]),
-      nfcTransport: allPlaceholders([
-        "physicalTagReadVerified",
-        "ndefPayloadNormalized",
-        "acceptedScanVerified",
-        "duplicateReplayRejected",
-        "unsupportedDeviceFallbackVerified",
       ]),
       backendAuthority: allPlaceholders([
         "fanPassApiSignatureVerified",

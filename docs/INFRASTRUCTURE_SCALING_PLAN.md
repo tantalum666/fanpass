@@ -19,6 +19,8 @@ Prices are USD list-price snapshots reviewed on 2026-07-17, before tax, domains,
 
 ## Current Runtime Boundary
 
+Last verified for release planning on 2026-07-23: live Staging remains on the older deployed revisions. Security RC `a25185d2747520303eac0fd2681017b5c35ac62b` is pushed but not merged or deployed. No paid-plan, provider, database, or chain migration was performed as part of the RC closeout.
+
 | Surface            | Current location                               | Role                                                                                      | Planning decision                                                    |
 | ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | FanPass API        | Render Free web service, Oregon                | NestJS, Prisma, Socket.IO, payments, inventory, auth and in-process side-effect scheduler | First service to become paid and always-on; later split worker       |
@@ -33,7 +35,7 @@ Prices are USD list-price snapshots reviewed on 2026-07-17, before tax, domains,
 Current structural constraints:
 
 - The live API, Console, and Console Auth services currently remain on Free compute in Oregon. The desired `render.yaml` Blueprint sets only the API to Starter, pending explicit owner approval for the paid change; Console and Console Auth remain Free.
-- Staging still runs schema synchronization during build, but the 2026-07-17 deploy path first takes a database advisory lock, rejects duplicate-sensitive changes instead of accepting data loss, and atomically syncs public catalog/Fan Access data before the build can pass. Production must use reviewed migrations and `prisma migrate deploy`, not schema push during an application build.
+- The old live Staging revision still uses its historical schema synchronization during build. Its 2026-07-17 deploy path first took a database advisory lock, rejected duplicate-sensitive changes instead of accepting data loss, and atomically synced public catalog/Fan Access data before the build could pass. The security RC dispatch-fence and routing schema is not installed on Staging. Production must use reviewed migrations and `prisma migrate deploy`, not schema push during an application build.
 - API rate limits are process-local and are not authoritative across multiple instances.
 - Socket.IO has no shared adapter, so broadcasts are single-instance.
 - The side-effect scheduler runs inside the API. Multiple API instances would create competing schedulers even though the database outbox has recovery controls.

@@ -2,6 +2,8 @@
 
 FanPass has a static iOS distribution boundary audit, but real-device and TestFlight decisions also need saved evidence that signed app builds actually used the intended staging or beta configuration. Do not close iOS staging/beta API URL blockers with simulator screenshots, local Debug builds, placeholder `.invalid` URLs, unsigned archives, logs containing signing material, or evidence from builds that still expose debug payload copy/paste helpers.
 
+Status (2026-07-24): the validator, draft generator, self-test, release UI, and this contract now use `capabilityModel: "qr-first-release-v1"`. This fixes the prior Camera/NFC contradiction but does not create signed-build evidence; real Apple signing, TestFlight/physical-device installation, real HTTPS configuration, and current-RC runtime proof remain open.
+
 Run future saved evidence through:
 
 ```bash
@@ -33,6 +35,7 @@ Required JSON shape:
   "ok": true,
   "checkedAt": "2026-05-30T00:00:00.000Z",
   "provider": "ios-staging-build",
+  "capabilityModel": "qr-first-release-v1",
   "localDryRun": false,
   "realUserDataUsed": false,
   "productionCredentialsUsed": false,
@@ -104,6 +107,18 @@ Required JSON shape:
         "sha256": "<current sha256>"
       },
       {
+        "file": "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+        "sha256": "<current sha256>"
+      },
+      {
+        "file": "apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift",
+        "sha256": "<current sha256>"
+      },
+      {
+        "file": "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
+        "sha256": "<current sha256>"
+      },
+      {
         "file": "scripts/ios-distribution-boundary-audit.js",
         "sha256": "<current sha256>"
       }
@@ -132,8 +147,9 @@ Required JSON shape:
       "debugCompilationDisabled": true,
       "debugPayloadHelpersUnavailable": true,
       "secretsInBundle": false,
-      "cameraPermissionPresent": false,
-      "nfcEntitlementPresent": false,
+      "cameraUsageDescriptionPresent": true,
+      "scannerSourceIncluded": false,
+      "releaseNfcEntitlementPresent": false,
       "staffControlsPresent": false,
       "paymentReturnUrlSchemePresent": true
     },
@@ -149,8 +165,11 @@ Required JSON shape:
       "debugCompilationDisabled": true,
       "debugPayloadHelpersUnavailable": true,
       "secretsInBundle": false,
-      "cameraPermissionPresent": true,
-      "nfcEntitlementPresent": true,
+      "cameraUsageDescriptionPresent": true,
+      "qrScannerSourceIncluded": true,
+      "nfcUsageDescriptionPresent": true,
+      "releaseNfcEntitlementPresent": false,
+      "nativeNfcDebugOnly": true,
       "consumerWalletPresent": false,
       "marketplacePresent": false,
       "stripePaymentSheetPresent": false
@@ -185,10 +204,10 @@ Release rule:
 - `localDryRun` must be `false`; simulator or Debug build output cannot close this gate.
 - `environment.apiBaseUrl` must be a real HTTPS staging or beta API URL, not localhost, `.invalid`, `replace-me`, or example-host evidence.
 - `environment.deploymentCredentialsAvailable` must be `false`, `redaction.deploymentCredentialsRedacted` must be `true`, and `redaction.ciSecretMaskingCommandsRedacted` must be `true`; saved build evidence must not contain deployment/cloud credential assignments or JSON fields such as AWS keys, Vercel tokens, GitHub tokens, Netlify tokens, Cloudflare API credentials, or CI masking commands with literal values.
-- Evidence must include `implementationSnapshot.source: "ios-staging-build-distribution-boundaries"` with SHA-256 hashes for the current iOS project, release configs, generated plist/entitlement files, environment guard, app entry, wallet/debug-helper, payment, Privy auth, API client, Ops shell, and iOS distribution audit files so stale evidence cannot be reused after iOS build/config boundary changes.
+- Evidence must include `capabilityModel: "qr-first-release-v1"` and `implementationSnapshot.source: "ios-staging-build-distribution-boundaries"` with SHA-256 hashes for the current iOS project, release configs, generated plist/entitlement files, environment guard, app entry, wallet/debug-helper, payment, Privy auth, API client, Ops shell, QR/NFC scanner boundary, and iOS distribution audit files so stale evidence cannot be reused after iOS build/config boundary changes.
 - The evidence must cover both `FanPass` and `FanPass Ops` signed builds.
-- `FanPass` must remain free of Camera/NFC permissions and staff controls.
-- `FanPass Ops` must own Camera/NFC capability and must not include consumer wallet, marketplace, or Stripe PaymentSheet surfaces.
+- `FanPass` must report the present Camera usage-description string separately from actual target capabilities: scanner source, release NFC entitlement, and staff controls remain absent.
+- `FanPass Ops` must report Camera/QR source presence, the development-only NFC usage-description string, no release NFC entitlement, and native Core NFC confined to `#if DEBUG`; consumer wallet, marketplace, and Stripe PaymentSheet surfaces remain absent. Legacy `cameraPermissionPresent` and `nfcEntitlementPresent` fields are rejected because they collapse distinct build facts.
 - Debug compilation and debug payload helpers must be unavailable in the saved build evidence.
 - For `environment.name = "beta"`, each app must use a TestFlight distribution channel.
-- This validator supports, but does not replace, deployed staging runtime evidence, Privy SDK login validation, Stripe test-mode validation, signed Apple Wallet `.pkpass` evidence, or physical QR/NFC scanner evidence.
+- This validator supports, but does not replace, deployed staging runtime evidence, Privy SDK login validation, Stripe test-mode validation, signed Apple Wallet `.pkpass` evidence, or current QR-first physical scanner evidence. NFC NDEF becomes a separate future evidence gate only after release capability is deliberately re-enabled.

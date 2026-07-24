@@ -1,8 +1,8 @@
 # FanPass UI Guardrails
 
-Status: strict implementation rules for all future FanPass UI work.
+Status: strict implementation rules for the currently shipped V4 UI/token/component system. The owner-selected V5 logo route remains pre-production and does not supersede these rules until an approved migration is implemented and verified.
 Date: 2026-06-05
-Source of truth: Clean V4 assets in `FanPass_VI_Redesign_V4/`
+Source of truth for implemented UI: Clean V4 assets in `FanPass_VI_Redesign_V4/`
 
 These rules are intentionally strict. If a visual idea conflicts with this document, remove the visual idea.
 
@@ -17,7 +17,7 @@ These rules are intentionally strict. If a visual idea conflicts with this docum
 7. Charts must not cross over numeric values, axis labels, legends, price captions, or call-to-action controls.
 8. Glassmorphism must be subtle and must not reduce contrast.
 9. Text contrast must remain readable in dark mode.
-10. Future UI work must follow V4. Earlier logo/icon/ticket experiments are historical references only.
+10. Current implementation work must follow V4. The selected V5 logo may enter only through an explicit, QA-backed brand migration; earlier experiments remain historical references.
 
 ## Decorative Line Policy
 
@@ -140,4 +140,4 @@ Before any UI handoff, verify:
 - Charts do not cover prices.
 - NFC graphics do not block content.
 - Glass surfaces preserve contrast.
-- All future UI work follows V4.
+- Current shipped UI work follows V4 until an explicit V5 brand migration is approved and verified.

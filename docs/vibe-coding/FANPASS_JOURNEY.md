@@ -1,6 +1,6 @@
 # FanPass Ongoing Build Journey
 
-Last reconstructed: 2026-07-17 (Asia/Shanghai).
+Last updated: 2026-07-23 (Asia/Shanghai).
 
 ## 1. 记录范围
 
@@ -9,7 +9,7 @@ Last reconstructed: 2026-07-17 (Asia/Shanghai).
 本次回填依据：
 
 - `archive/school-project/docs/FANPASS_REPORT.md` 保存的早期构想和商业分析；
-- 2026-05-30 至 2026-07-16 的全部 138 个 Git 提交；
+- 2026-05-30 至 2026-07-23 的全部 144 个 Git 提交；
 - 当前产品、架构、安全、QA、部署、成本和证据文档；
 - 已写入 Handoff 的模拟器、实体设备、浏览器和 Staging 验证；
 - Owner 在开发过程中报告的真实故障、截图和产品判断。
@@ -468,3 +468,23 @@ Hosted CI 证据则改成在线证明：验证器从 Git remote 得到唯一仓�
 最终 97 步组合门禁还发现四个夹具与生产合同漂移：tokenized demo ticket 没有不可变合约路由，合成 ownership job 没有保存同一路由，验证器引用了不存在的 worker 入口，PROCESSING health fixture 没有当前 dispatch revision。处理方式是修正种子、快照、真实入口和事务化测试前置条件，而不是放松数据库约束或 Worker fence；修复后本地 97 步门禁、API 32/386、合约 30/30、Render 55/55、Workflow 43/43 和 Hosted 验证器 29/29 全部通过。它仍只是本地候选证据：仓库没有 `CODEOWNERS`，分支保护查询返回 `403`，最终不可变 commit 的 Hosted attestation、Staging/provider/链上/实体设备证据仍待完成。
 
 可复制经验：任何 release gate 都是安全边界，也需要攻击性测试、成熟解析器、不可伪造的数据来源和 fail-closed 行为。自报 JSON、字符串 contains、命令退出码、截图或绿色 UI 都不能单独证明发布事实；证明必须绑定不可变 commit 和权威系统。与此同时，Local/Mock 可以用于夹具和回归，但必须清楚标注，不能替代真实 Staging、Hosted CI、Provider、TestFlight 或实体设备证据。
+
+## 23. 2026-07-22 至 2026-07-23：安全 RC 冻结并推送
+
+安全收口最终固定在分支 `codex/security-rc-20260720`、不可变提交 `a25185d2747520303eac0fd2681017b5c35ac62b`，并推送到远端；没有创建 PR、合并、部署、付费升级、Blueprint 同步、数据库迁移或链上写入。最终本地权威门禁通过 97/97，包含 API 32 个 suite/386 个测试、合约 30/30、Console Auth 16/16 和专用 PostgreSQL 门禁；根工作区 production/full audit 都为零。独立的最终安全复核与 secret/scope 复核没有留下 P0/P1。隔离的 Console Auth 仍有 10 个 moderate、0 high/critical，只允许进入受控 Staging，不能称为 Production GA 零漏洞。
+
+推送并不等于 Hosted 证明。当前 GitHub 凭证访问 Actions、Checks 和 Status API 会收到 403，因此还不能确认这次 exact-SHA run 是否成功，也没有伪造或手填一个“通过”结果。仓库仍没有 `CODEOWNERS`，分支保护状态同样没有得到可验证读权限。下一阶段是取得只读权限后封存 Hosted attestation，再在 Owner 批准的维护窗口内执行两阶段 Staging 切换，补真实 Stripe/Privy/Sepolia、Worker 崩溃、多实例、TestFlight、实体设备与 App Attest 证据，最后只做一次 `Changes / Review changes` 验证。
+
+这次收口还把“证明系统本身”加入了可复制路径：先验证 workflow 是否真的会在目标分支/提交触发，再验证外部 API 是否能读取唯一 run 和真实 step，而不是先相信绿色截图。另一个文档全审计发现是 iOS 证据合同本身已经漂移：FanPass 当前含 Camera purpose string，Ops 的 Release/TestFlight 路径却是 QR-first 且没有 NFC entitlement，而旧 signed-build/physical-scanner 合同仍要求相反事实。在 validator、draft、self-test 与文档统一之前，不能接受对应 saved evidence。这不是把项目定义为失败，而是把尚未闭合的发布边界准确留下来。
+
+可复制经验：冻结提交只关闭“这份代码是什么”，不会自动关闭“它是否在 Hosted、Staging、Provider、链和实体设备上成立”。商业项目的交接文档必须同时记录完成的代码边界、未完成的外部证据，以及下一步唯一安全顺序。
+
+## 24. 2026-07-24：让 QR-first 产品能力、正式界面和发布证据说同一种话
+
+文档全审计留下的 iOS 漂移不是措辞问题：Consumer 已有 Camera purpose string，但旧 signed-build validator 要求“没有 Camera”；FanPass Ops 的 Release/TestFlight 已移除 NFC entitlement，正式界面却仍显示 NFC 入口，旧 device validator 还强迫填写物理 NFC 已验证。继续沿用会同时伤害现场员工体验和证据可信度。
+
+本次把当前能力固定为 `qr-first-release-v1`。FanPass 的 Camera usage description 与 scanner source 被拆成独立事实；Ops 的 QR source、NFC usage description、Release entitlement 和 DEBUG-only CoreNFC 也分别证明。Beta/Release UI 只显示 QR，NFC 控件与 CoreNFC import/session 留在 `#if DEBUG`。Device evidence 保留真实 iPhone、HTTPS、QR 接受/过期/重放拒绝、后端签名与闸机权限、认证身份和脱敏要求，同时拒绝旧 `nfcTransport` 或任何 Release NFC claim。NDEF fixture 只保留为未来能力规范，未来重新启用时必须建立单独 validator，不能拿现在的 QR gate 冒充 NFC 证明。
+
+局部 validator/self-test、iOS distribution/NDEF audits、FanPass Ops Beta/Debug 与 FanPass Beta 本地构建已通过；Beta 二进制没有链接 CoreNFC，Debug dylib 仍保留 CoreNFC。随后完整的 Node 22 Beta foundation 本地权威组合门禁以退出码 `0` 完成，终行是 `Beta foundation local gates passed.`；其中 API 回归为 32 个 suite/386 个测试通过，默认单测步骤按设计跳过三个 suite 中 13 个受保护的 PostgreSQL 测试，并由对应的专用组合步骤覆盖适用的真实数据库门禁。
+
+Owner 在 2026-07-24 纠正了状态表达：历史 TestFlight 安装和实体 iPhone QR 验证已经做过，仓库也保留两个 bundle id 的 TestFlight 上传历史以及带 provisioning profile 的有效签名 iPhoneOS 构建。旧 `outputs` JSON 仍是 draft，说明当时没有把操作结果封装成当前 validator 可接受的证据，而不是测试从未发生。正确的未完成项是把已经跑通的路径在下一份 `qr-first-release-v1` 候选上重跑并绑定版本，不是重新证明 FanPass 能否上 TestFlight 或 iPhone 能否扫 QR。Owner 同时授权后续改动通过门禁后自动推进 Hosted、受控 Staging 与 Internal TestFlight；只有缺失 API/key 或不可逆的付费/公开生产决策才暂停询问。

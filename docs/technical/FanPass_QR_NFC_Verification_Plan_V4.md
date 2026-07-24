@@ -204,7 +204,7 @@ Remaining evidence:
 - Run the fan app against HTTPS staging with a valid FanPass API session.
 - Open an active ticket, display the dynamic QR, and scan it with `FanPassOps` on a physical iPhone.
 - Confirm accepted, duplicate, expired, wrong-event, and network failure states.
-- Save and validate physical QR/NFC evidence before claiming the scanner blocker is closed.
+- Save and validate current physical QR-first evidence before claiming the scanner blocker is closed. NFC needs a separate future validator after native NFC is restored to Release/TestFlight.
 
 ## 2026-06-12 Fan iOS QR Lifetime Display Update
 
@@ -300,7 +300,7 @@ Status: API and iOS implementation verified; release scanner evidence still open
 - The API endpoint is guarded for `GATE_STAFF` and `ADMIN` and returns the latest 25 check-ins from Prisma or the memory store.
 - History rows expose only safe display fields. Raw QR payloads, nonces, signatures, and bearer/session tokens are not returned to the client.
 - Ops Home and Account were reduced to the current production-like scanner surface: no online/status chip, no online service card, no gate assignment/device checks/shift summary pages, and no `Continue as test gate staff` login shortcut.
-- Verification passed focused API tests and both simulator/device Ops builds. This does not replace physical accepted/rejected QR and NFC evidence.
+- Verification passed focused API tests and both simulator/device Ops builds. This does not replace current physical accepted/rejected QR evidence; future NFC evidence remains separate.
 
 Remaining evidence:
 

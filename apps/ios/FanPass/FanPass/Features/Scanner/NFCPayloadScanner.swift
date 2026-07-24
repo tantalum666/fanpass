@@ -1,6 +1,6 @@
 import Foundation
 
-#if canImport(CoreNFC)
+#if DEBUG && canImport(CoreNFC)
 import CoreNFC
 #endif
 
@@ -55,7 +55,7 @@ final class NFCPayloadScanner: NSObject, ObservableObject {
     }
 }
 
-#if canImport(CoreNFC)
+#if DEBUG && canImport(CoreNFC)
 extension NFCPayloadScanner: NFCNDEFReaderSessionDelegate {
     func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {
         let nsError = error as NSError

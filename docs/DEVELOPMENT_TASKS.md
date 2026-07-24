@@ -18,9 +18,10 @@
 - [x] Close the cross-review regressions that could report compensated crypto as successful, capture after an event closed, leave DEAD ownership jobs uncompensated, or poll definitive Privy failure forever.
 - [x] Preserve the prior remediation baseline: API 30 suites/308 tests, disposable PostgreSQL concurrency 12/12, iOS Debug 6/6, contracts 13/13, API/Console typechecks and production builds, Console process integration, provider/chain/route gates, schema/config validation, and zero root production dependency advisories.
 - [x] Disable Auto-Deploy for all three Render services, verify `autoDeployTrigger: off` in `render.yaml`, verify workspace Overlapping Deploy Policy `Wait`, and confirm the setting changes caused no deployment.
-- [x] Freeze the final RC on branch `codex/security-rc-20260720` after the identity-bound dispatch-control and per-ticket routing review; record its immutable commit SHA before any deploy. Final Node 22 API/contract/Console/Auth, disposable PostgreSQL, migration, concurrency, audit, iOS unsigned Beta, and diff evidence passed on the stable tree.
+- [x] Freeze and push the final RC on branch `codex/security-rc-20260720` at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. No PR, merge, or deploy occurred. The authoritative local gate passed 97/97, including API 32 suites/386 tests and contracts 30/30; independent final security and secret/scope review reported 0 remaining P0/P1.
 - [x] Replace the Render release-gate line parser with a pinned YAML AST parser and an exact Blueprint allowlist; run its self-test and audit as independent hosted steps so nested decoys, extra services, executable hooks, comments, and dead shell branches cannot create a false pass.
-- [x] Replace self-asserted hosted-CI JSON trust with GitHub API attestation bound to the clean current RC commit, repository, run, workflow content, unique job, required successful steps, and timestamps. Validation fails closed without private-repository `Actions: read` and `Contents: read`; real hosted-run evidence remains required after the RC is pushed.
+- [x] Replace self-asserted hosted-CI JSON trust with GitHub API attestation bound to the clean current RC commit, repository, run, workflow content, unique job, required successful steps, and timestamps. Validation fails closed without private-repository `Actions: read` and `Contents: read`.
+- [ ] Capture and validate a fresh hosted run for exact commit `a25185d2747520303eac0fd2681017b5c35ac62b`. The RC is pushed, but the current credential receives 403 from Actions/Checks/Status reads, so no hosted result is claimed.
 - [x] Make outbox claim CAS timestamp comparison timezone-stable and keep local saga verification behind an explicit local revision CAS with guaranteed return to the paused dispatch state.
 - [x] Make the post-saga local outbox health gate hermetic: bypass npm/Nest/legacy Prisma imports, isolate HOME and the process environment, allow only an explicitly credentialed literal-loopback `fanpass` database with no connection overrides, and run the dedicated `pg` store in a repeatable-read read-only transaction with redacted results. Protect the wrapper/import graph with 33 positive/attack cases, the package/composite wiring with 14 cases, and a real non-UTC PostgreSQL stale/failure/write-rejection integration.
 - [x] Complete independent review and final real-PostgreSQL verification of the default-paused dispatch-revision fence, exact-one controlled probe, target-database identity binding, unknown-job fail-closed behavior, orphan-card-payment census, and read-only Staging database preflight. The final PostgreSQL 16 replay rejected wrong target/digest mutations before table creation, required canonical `public` schema and strict TLS identity, and the offline gate passed 22/22.
@@ -45,14 +46,14 @@ Source: `MAIN_APP_PRODUCT_AUDIT.md` and a fresh V4 runtime/source/Staging review
 - [ ] P1: distinguish persisted Account settings from local-only UI state and prioritize real support, notifications, region/currency, and payout services for the launch scope.
 - [ ] P2: complete global currency/localization/content QA, 44-point touch targets, VoiceOver/Dynamic Type/focus testing, privacy-safe journey analytics, domain-scoped refresh, and feature-file decomposition.
 - [x] Close Gate A with deployed Staging API positive/negative checks, Beta-configured runtime evidence, an atomic fail-closed schema/catalog deploy, and the deployed runtime security suite.
-- [ ] Close Gate B/C with TestFlight/physical-device and real user-path evidence; local builds and mocks remain supporting tools only.
+- [ ] Close Gate B/C by refreshing the historically completed TestFlight/physical-iPhone QR path against the next reviewed candidate and completing the remaining real user-path evidence; local builds and mocks remain supporting tools only.
 
 ## Main App Productization - 2026-07-11 Audit
 
 Source: consolidated from the 2026-07-11 main-app audit; the full historical review remains in Git history.
 
 - [x] Resolve the six high production dependency advisories, pass the fail-closed advisory gate, run backend regressions, and deploy the verified update to staging.
-- [ ] Expand `FanPassTests` into critical auth/payment/ticket/resale/redemption lifecycle coverage. Six mapper/crypto settlement tests execute 6/6 in Debug; the unsigned Beta generic-device build is configuration evidence only, and signed TestFlight/physical-device plus broader lifecycle/UI coverage remain open.
+- [ ] Expand `FanPassTests` into critical auth/payment/ticket/resale/redemption lifecycle coverage. Six mapper/crypto settlement tests execute 6/6 in Debug; historical signed TestFlight/physical-iPhone QR testing is complete, but the current unsigned Beta generic-device build is configuration evidence only and still needs candidate-bound signed refresh plus broader lifecycle/UI coverage.
 - [x] Remove mock success-only transactions from the explicitly wired Beta/Release journeys. The 2026-07-17 audit reopened the remaining compiled default mock dependencies and localhost fallback as a separate P0 runtime-injection task above.
 - [x] Make Market Sell load the signed-in user's eligible backend tickets and let the seller choose the exact seat.
 - [x] Remove the fake limit-order/review confirmations and connect lowest-ask resale purchase to real backend order/payment state.
@@ -83,7 +84,7 @@ Source: consolidated from the 2026-07-11 main-app audit; the full historical rev
 
 ## Commercial Vibe Coding System - 2026-07-17
 
-- [x] Initialize the ongoing FanPass journey from the archived product report, all 138 Git commits, current contracts, and recorded runtime/user evidence.
+- [x] Initialize the ongoing FanPass journey from the archived product report and the then-existing 138 Git commits; the living Journey now tracks all 144 commits through `a25185d2747520303eac0fd2681017b5c35ac62b`.
 - [x] Separate raw evidence, milestone-level project learning, and cross-project reusable guidance so the Handoff does not become an append-only diary.
 - [x] Define a reusable commercial-project path from opportunity and product contract through vertical slice, honest Alpha, secure Beta, paid Pilot, and measured Scale.
 - [x] Add copyable templates for project start, authority mapping, AI task briefs, decisions, incidents, release evidence, product audits, content rights, capacity/cost reviews, weekly reviews, and context recovery.
@@ -218,7 +219,7 @@ Archive note on 2026-07-11: the completed Arduino UNO R4 WiFi + EP8280 school tu
 
 TestFlight upload note on 2026-06-16: the current internal TestFlight path is QR-first. App Store Connect rejected the `FanPassOps` release archive when it carried the Core NFC NDEF entitlement, so native NFC is DEBUG-only until a supported entitlement/profile path is reintroduced. Later upload failures were fixed by adding all four required `UISupportedInterfaceOrientations` values, adding `CFBundleIconName: AppIcon`, and adding a shared asset-catalog `AppIcon` to both iOS app targets. The Ops build then appeared in TestFlight with `Missing Export Compliance`; for the current app behavior, answer `None of the above` in App Store Connect, and fresh archives now carry `ITSAppUsesNonExemptEncryption: false` for both iOS targets. The first main `FanPass` upload was rejected by email with `ITMS-90683` because `FanPass.app` lacked `NSCameraUsageDescription`; the main app now declares a camera purpose string and should be re-uploaded as version `1.0` build `2`. Old archives still need to be discarded and recreated for plist/asset fixes.
 
-The historical TestFlight/App Store Connect activity does not constitute evidence for the current security RC; a fresh signed archive and current TestFlight/physical-device validation remain required.
+The owner confirms historical TestFlight installation and physical-iPhone QR validation were completed. They do not attest the current security/post-RC source bytes; a fresh signed archive and candidate-bound TestFlight/QR re-attestation remain required.
 
 - [x] Build a local Arduino/EP8280 mock turnstile bench that reads real QR text over TTL, displays LCD status, moves one servo gate, and uses ultrasonic pass-through detection.
 - [x] Update the iOS FanPass ticket detail `On-chain status` card to distinguish a current ticket with no Sepolia transaction from dev contract activity, and add Sepolia Etherscan links for ticket tx, contract, and latest observed tx where available.
@@ -237,6 +238,7 @@ The historical TestFlight/App Store Connect activity does not constitute evidenc
 
 - [x] Repair the iOS distribution boundary audit so removing the FanPass Ops paste fallback metric is accepted while any reintroduced metric remains `#if DEBUG`-gated.
 - [x] Keep FanPass Ops scanner paste-fallback wording out of release UI states and verify the audit plus FanPass/FanPassOps simulator builds.
+- [x] Reconcile the iOS signed-build and Ops-scanner evidence contracts around `qr-first-release-v1`: keep the consumer Camera purpose string distinct from scanner capability, remove NFC from Release/TestFlight UI and CoreNFC compilation, reject legacy NFC evidence claims, and preserve NFC NDEF as a future capability gate.
 - [x] Restore FanPass Ops release staff invite linking through Privy email code login plus one-time invite acceptance and rerun the staff policy gate.
 - [ ] Complete signed iOS/TestFlight evidence and physical QR evidence with real HTTPS API/provider config and real-device captures; keep NFC NDEF evidence as a separate future blocker until native NFC is re-enabled for release/evidence builds.
 - [x] Freeze Alpha demo script for the local walkthrough.
@@ -316,7 +318,7 @@ The historical TestFlight/App Store Connect activity does not constitute evidenc
 - [x] Add repeatable Beta local Prisma start/stop/verify scripts for API, Console, and side-effect worker.
 - [x] Add self-test coverage for Beta local start secret-scrubbing and local provider flag semantics.
 - [x] Add self-test coverage for Beta local verification async settlement, payment capture, admin health, and redaction semantics.
-- [ ] Fix Alpha security blockers before any public or real-user Beta.
+- [ ] Close remaining external security and release-evidence blockers before any public or real-user Beta. Code-scoped RC review is 0 P0/P1; Hosted, Staging, provider/chain, signed-device, App Attest, and physical evidence remain open.
 - [x] Add local signed API sessions for Alpha security hardening.
 - [x] Add first-pass NestJS role/ownership guards for fan, organizer, gate staff, and admin endpoints.
 - [x] Add self-test coverage for API route role matrix audit acceptance and rejection semantics.
@@ -440,7 +442,7 @@ The historical TestFlight/App Store Connect activity does not constitute evidenc
   - [x] Align hosted CI evidence validator with the current API unit test-count proof.
   - [x] Bind hosted CI evidence to the current Beta foundation workflow path and SHA-256 proof.
   - [x] Bind hosted CI evidence to the current Beta verifier, Node/npm policy, package lockfile, and CI evidence contract SHA-256 snapshot.
-  - [x] Save successful hosted GitHub Actions evidence for the Node 22 Beta foundation workflow and validate it with the hosted CI evidence gate.
+  - [x] Save and validate a historical successful hosted GitHub Actions run for its then-current commit. It does not attest immutable RC `a25185d2747520303eac0fd2681017b5c35ac62b`; the open current-RC task is tracked above.
   - [x] Add developer-shell npm `engine-strict` enforcement for the Node 22 runtime policy.
   - [x] Add dependency risk acceptance evidence validator and self-test before any unresolved-advisory external testing decision.
   - [x] Add Stripe publishable-key leakage coverage to the dependency risk evidence validator.
@@ -491,7 +493,7 @@ The historical TestFlight/App Store Connect activity does not constitute evidenc
   - [x] Add provider lockfile-placement guard that rejects Stripe and Socket.IO workspace package-lock drift.
   - [x] Integrate Privy React SDK into FanPass Console after dependency audit risk is resolved or isolated.
   - Console React SDK login now lives in the isolated `apps/console-auth` runtime, posts only to `/api/console/privy-session`, and is covered by `outputs/privy-console-sdk/privy-console-react-sdk-20260603.json`. Browser-SDK staging uses a top-level form POST so the Console origin owns the Set-Cookie response and redirects with 303; the token is not placed in URLs, logs, React state, or app-managed browser storage. The main `apps/dashboard` Console has since migrated off Next to Vite React plus `apps/dashboard/server/console-bff.ts`, so the root production audit is clean; the isolated SDK runtime still has its own advisory surface and must stay outside root workspaces.
-  - Completed staging staff evidence exists at `outputs/staff-tenant/20260604T135635Z-staging-evidence.json` and passed `npm run security:staff-tenant:staging-evidence` plus repository evidence redaction. It proves verified staff invite acceptance, invite replay rejection, superseded invite rejection, linked-staff invite rotation rejection, deactivation revocation, inactive-assignment rotation rejection, assigned/unassigned Ops gate scoping, assigned-gate QR redemption, duplicate QR rejection, client-supplied scanner identity rejection, scoped check-in summary, deployed demo-session rejection, deployed Console unauthenticated mutation rejection, HttpOnly/Secure/SameSite Console session cookie creation, Console proxy one-time invite create/rotate redaction, verified fan-role Console rejection, second-organizer isolation, cross-organizer Console read rejection, cross-organizer staff assignment rejection, and cross-organizer invite rotation rejection. This closes the production tenant/staff staging evidence blocker for current Beta foundation.
+  - Historical staging staff evidence exists at `outputs/staff-tenant/20260604T135635Z-staging-evidence.json` and passed its then-current validator plus repository evidence redaction. It proved invite, assignment, redemption, session, and cross-organizer isolation boundaries for the 2026-06-04 revision only. After the Console migration and current RC boundary changes, fresh staff-tenant Staging evidence is required; the historical receipt does not close `a25185d2747520303eac0fd2681017b5c35ac62b`.
   - Deployed Console mutations accept the staging auth origin `https://fanpass-console-staging.vercel.app`; the dashboard origin `https://fanpass-dashboard.vercel.app` is not itself in the mutation-origin allowlist. Keep Vercel `FANPASS_CONSOLE_ORIGINS` aligned with the auth bridge origin before collecting future Console session evidence.
   - [x] Resolve Privy webhook sync for the current Beta foundation plan: keep webhooks optional/absent because production webhooks are plan-gated, and keep backend access-token sync as the supported product boundary.
   - Privy production webhooks remain intentionally unimplemented for the current low-cost Beta foundation path. `npm run security:privy-webhooks:optional` enforces the decision by rejecting webhook routes or `PRIVY_*WEBHOOK*` secret requirements before selected-plan support is verified.
@@ -527,16 +529,16 @@ The historical TestFlight/App Store Connect activity does not constitute evidenc
     - [x] Add iOS crypto checkout state UI that creates quotes and calls the backend sponsored-send boundary instead of sending raw client-side wallet transactions.
     - USDC/HKD quotes currently use configured staging rate `FANPASS_USDC_HKD_RATE` with fallback `7.8355`; this is close to the HKD/USD peg but is not live FX/oracle pricing until a quote provider is deliberately integrated.
     - The sponsored USDC path remains dev/staging payment plumbing, not release-grade custody, real-money compliance, or audited FX evidence.
-  - Status note on 2026-06-03: dashboard webhook setup, native iOS PaymentSheet authorization, capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state have been validated against Render staging. The saved redacted evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json` and passes `npm run security:stripe-testmode:evidence`.
+  - Historical status on 2026-06-03: dashboard webhook setup, native iOS PaymentSheet authorization, capture, authorization cancel, refund, reconciliation, duplicate replay/idempotency, and healthy residual outbox state were validated against that Render revision. The saved redacted evidence is `outputs/stripe-testmode/20260603T060959Z-stripe-testmode-release-evidence.json`; it does not attest the current undeployed RC.
 - [x] Add WebSocket orderbook updates.
   - [x] Wire FanPass Console market panel to the realtime orderbook feed.
   - [x] Wire FanPass iOS market screen to the realtime orderbook feed.
   - [x] Add V4 iOS API provider/service-protocol foundation so events, wallet tickets, and signed QR refresh can swap from mock services to backend-backed services without rewriting SwiftUI views.
 - [x] Add Core NFC scanner prototype.
-  - [x] Add physical FanPass Ops QR/NFC scanner evidence validator and self-test with `npm run security:ops-scanner:device-evidence`.
+  - [x] Add physical FanPass Ops scanner evidence validator and self-test with `npm run security:ops-scanner:device-evidence`; its current contract is QR-first and rejects release NFC claims.
   - [x] Add provider-secret, Stripe publishable-key, and database URL leakage coverage to the physical FanPass Ops scanner evidence validator.
   - [x] Add deployment/cloud credential leakage coverage to the physical FanPass Ops scanner evidence validator.
-  - [x] Bind physical FanPass Ops scanner evidence to the current QR/NFC scanner, API redemption, auth, and fixture implementation SHA-256 snapshot.
+  - [x] Bind physical FanPass Ops scanner evidence to the current QR-first UI, DEBUG-only NFC boundary, API redemption, auth, and fixture implementation SHA-256 snapshot.
   - [x] Add NFC NDEF tag fixture format document and audit for supported physical-tag payloads.
   - [x] Add staff-only `/verification/nfc/validate` endpoint that normalizes NDEF Text/URI payloads and reuses signed-entry redemption checks.
   - [x] Route FanPass Ops NFC captures through the NFC validation endpoint instead of treating NFC as local proof.

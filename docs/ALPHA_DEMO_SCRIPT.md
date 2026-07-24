@@ -2,7 +2,7 @@
 
 Date frozen: 2026-05-29
 
-Status: frozen for local Alpha walkthrough preparation. This is not a public Beta script and must not be used with real personal data, production credentials, Stripe secrets, Privy secrets, wallet private keys, or real event inventory.
+Status: frozen historical local Alpha walkthrough preparation. This is not a public Beta script, security RC workflow, or current release evidence. Use `docs/CODEX_HANDOFF.md` for current state. It must not be used with real personal data, production credentials, Stripe secrets, Privy secrets, wallet private keys, or real event inventory.
 
 ## Purpose
 
@@ -157,13 +157,13 @@ Proven locally:
 - Role-scoped API and Console paths have automated checks.
 - Side-effect workers can recover and complete local ownership/payment jobs.
 
-Closed for current closed-beta foundation:
+Historical pre-RC closed-beta snapshot (the expired 2026-07-04 dependency acceptance must not be reused):
 
 - Privy SDK login is implemented across FanPass, FanPass Ops, and the isolated FanPass Console auth runtime.
 - Stripe test-mode PaymentIntent, signed webhook, native iOS PaymentSheet authorization, capture, refund, cancellation, reconciliation, replay, and outbox-health evidence passed against Render staging.
-- Deployed HTTPS staging runtime evidence exists for the current API and Console.
-- Current unresolved Next/PostCSS dependency risk is accepted only for closed external Beta until 2026-07-04.
-- Production tenant/staff staging evidence passed against Render/Vercel staging with verified Privy sessions and organizer isolation.
+- Deployed HTTPS staging runtime evidence existed for the then-current API and Console; it does not attest the undeployed security RC.
+- The historical Next/PostCSS dependency acceptance expired on 2026-07-04 and must not be reused. The root audit is now clean after the Console migration.
+- Production tenant/staff staging evidence passed for an earlier Render/Vercel revision and must be regenerated for the current RC boundary.
 
 Not proven for public or real-user Beta:
 

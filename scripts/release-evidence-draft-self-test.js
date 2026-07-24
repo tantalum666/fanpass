@@ -18,7 +18,7 @@ const cases = [
     label: "creates signed iOS/TestFlight draft",
     provider: "ios-staging-build",
     snapshotSource: "ios-staging-build-distribution-boundaries",
-    fileCount: 17,
+    fileCount: 20,
     nextValidator: "npm run security:ios-staging-build:evidence",
   },
   {
@@ -31,9 +31,9 @@ const cases = [
   },
   {
     kind: "ops-scanner",
-    label: "creates physical QR/NFC scanner draft",
+    label: "creates physical QR-first scanner draft",
     surface: "fanpass-ops",
-    snapshotSource: "ops-scanner-physical-device-boundaries",
+    snapshotSource: "ops-scanner-qr-first-device-boundaries",
     fileCount: 14,
     nextValidator: "npm run security:ops-scanner:device-evidence",
   },

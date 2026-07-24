@@ -1,6 +1,7 @@
 # FanPass Main App Product Audit
 
-Last reviewed: 2026-07-17 (Asia/Shanghai).
+Product/runtime evidence last reviewed: 2026-07-17 (Asia/Shanghai).
+Security RC status updated: 2026-07-23.
 
 ## Purpose
 
@@ -27,12 +28,20 @@ The app is still not ready for external users. The next product phase is Gate B 
 
 ## 2026-07-17 Gate A Closeout
 
+This section preserves the exact Gate A deployment and test facts observed on 2026-07-17; it is not the current RC test total.
+
 - API deploy `dep-d9ckdqsvikkc73d29km0` is live from commit `8f845a1`. `/health` returned 200; `/events` returned 11 records and every status was `PUBLISHED`; a previously exposed DRAFT id returned 404 while `evt_aurora` returned 200.
 - The schema deploy is fail-closed: it refuses duplicate `(user_id, task_id)` pairs instead of using `--accept-data-loss`. Public catalog, Fan Access campaigns, and tasks are upserted atomically before the build can pass; application startup no longer mutates catalog data or swallows seed failures.
 - The API has 22 passing suites and 132 passing tests, with 6 opt-in PostgreSQL concurrency tests skipped by default. The production dependency audit reports 0 vulnerabilities.
 - The deployed runtime security check passed API/Console security headers, disabled demo sessions, unauthenticated admin/Console rejection, and allowed/disallowed WebSocket Origin behavior. The privileged outbox-health check was not repeated because no admin bearer was supplied.
 - A `Beta` simulator build launched from the deployed HTTPS API with no localhost fallback. Runtime evidence showed `OCT 12` and `NOV 15`, `No asks`, `No verified sales`, and conditional Fan Access; Skyline Jazz rendered without Fan Access.
-- `FanPassTests` now exists and four mapper tests compile. Xcode 26.5's simulator test host repeatedly exited before establishing the XCTest session, so zero tests executed in that run. Broader session/payment/ticket/resale/QR/redemption UI coverage remains an external-Beta blocker rather than an assumed pass.
+- At that Gate A run, `FanPassTests` had four mapper tests but the simulator host exited before execution. A later current-source Debug run superseded the zero-execution observation with 6/6 mapper/crypto-settlement tests. Coverage remains narrow: session, payment, ticket, resale, QR, redemption, recovery, and physical-device paths are still external-Beta blockers.
+
+## 2026-07-23 Security RC Addendum
+
+- Branch `codex/security-rc-20260720` is frozen and pushed at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`; it has not been PR'd, merged, or deployed.
+- The authoritative local gate passed 97/97, including API 32 suites/386 tests, contracts 30/30, and independent final review with 0 remaining P0/P1.
+- Hosted attestation remains open because the current credential receives 403 from Actions/Checks/Status reads. Current-RC Staging, Stripe/Privy/Sepolia, TestFlight, and physical-device evidence remains open.
 
 ## Release Severity
 
@@ -85,7 +94,7 @@ Required boundary:
 
 #### 5. Core iOS lifecycle automation - Partially addressed
 
-The Xcode project now has a shared `FanPassTests` target with focused mapper fixtures, and the target compiles. The current iOS 26.5 simulator failed to establish the XCTest host session, so the four tests did not execute in this environment. Critical session restore, payment settlement, ticket issuance, list/cancel, QR suppression, remote redemption, and multi-device reconciliation still need executable unit/UI coverage and physical-device evidence.
+The Xcode project now has a shared `FanPassTests` target. A later current-source Debug run executed 6/6 mapper and sponsored-crypto settlement tests, superseding the earlier zero-execution host failure. Critical session restore, payment settlement, ticket issuance, list/cancel, QR suppression, remote redemption, and multi-device reconciliation still need broader executable unit/UI coverage and physical-device evidence.
 
 Required boundary before external Beta:
 
@@ -216,7 +225,7 @@ This pass inspected the simulator accessibility overlay and source-level target 
 4. [x] Hide Fan Access unless the API reports an open campaign.
 5. [x] Remove silent mock/local defaults from active runtime construction.
 
-Exit evidence: deployed API contract checks, compiled iOS mapper tests, a Beta-configured Staging runtime, public endpoint positive/negative checks, and visual/runtime evidence showing correct future dates plus consistent no-market-data states. The XCTest execution limitation remains in Gate C.
+Exit evidence: deployed API contract checks, current-source iOS tests executing 6/6, a Beta-configured Staging runtime, public endpoint positive/negative checks, and visual/runtime evidence showing correct future dates plus consistent no-market-data states. The narrow lifecycle-test scope remains in Gate C.
 
 ### Gate B - Real Discovery And Core Conversion
 

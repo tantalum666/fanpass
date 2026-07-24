@@ -63,11 +63,11 @@ const cases = [
         fixtureRoot,
         "docs/NFC_NDEF_TAG_FIXTURE.md",
         fixtureDoc().replace(
-          "Physical-device evidence must pass `npm run security:ops-scanner:device-evidence -- <saved-json-output>`",
+          "A dedicated future NFC evidence validator must pass before physical NFC validation is closed",
           "A simulator screenshot is enough",
         ),
       ),
-    messages: ["Physical-device evidence must pass"],
+    messages: ["A dedicated future NFC evidence validator must pass"],
   },
   {
     label: "rejects missing debug-only paste fallback boundary",
@@ -234,8 +234,9 @@ Do not put device identifiers on NFC tags.
 
 Physical QA requires a real HTTPS staging or beta API URL, a physical NDEF tag, duplicate replay coverage, and an unsupported tag or unsupported device behavior check. The debug paste fallback remains debug-only.
 
-Physical-device evidence must pass \`npm run security:ops-scanner:device-evidence -- <saved-json-output>\`.
-This fixture contract only defines what the NFC test tag may contain.
+A dedicated future NFC evidence validator must pass before physical NFC validation is closed.
+The current \`npm run security:ops-scanner:device-evidence\` contract is QR-first and rejects NFC evidence claims.
+This fixture contract only defines what the NFC test tag may contain; it is not release evidence.
 
 ## Redaction Requirements
 Redact tokens, identifiers, secrets, and personal data.

@@ -1,5 +1,7 @@
 # FanPass Alpha Plan
 
+Status: historical Alpha planning baseline. It is retained for product/domain rationale and is not the current release or deployment state. For the active security RC, immutable commit, verification results, and open external evidence, use `docs/CODEX_HANDOFF.md`.
+
 ## Alpha Objective
 
 Alpha is the first realistic product build after the Technical Prototype. It should feel like a coherent ticketing infrastructure product, not a collection of demo screens.
@@ -283,4 +285,3 @@ Alpha is complete only when all gates pass:
 - support local mock adapter and testnet adapter through config;
 - keep local demo reproducible without testnet dependency;
 - update runbook and capture demo screenshots.
-

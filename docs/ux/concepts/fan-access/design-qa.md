@@ -24,4 +24,4 @@
 - `View eligible tickets` routes to Tickets.
 - No mock completion or client-owned score mutation remains in the active flow.
 
-final result: passed
+Final result: passed for this simulator visual/interaction QA only. It is not current-RC Staging, provider, TestFlight, or physical-device evidence.

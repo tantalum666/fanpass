@@ -14,6 +14,10 @@ FanPass is a native iOS ticketing product for verified primary sales, controlled
 
 The staging API is backend-authoritative for orders, payments, ownership, resale, QR credentials, and redemption. UI previews may use fixtures, but active Beta/Release flows must not report a local-only transaction as successful.
 
+Current security RC: branch `codex/security-rc-20260720` is frozen and pushed at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. The authoritative local V4 gate passed 97/97, including API 32 suites/386 tests and contracts 30/30; independent final review reported 0 remaining P0/P1. This commit has not been merged, deployed, or released. Hosted CI attestation is still open because the current GitHub credential receives 403 from the Actions/Checks/Status APIs. Historical TestFlight distribution/install and physical-iPhone QR validation were completed before this RC; what remains is fresh version-bound evidence for the next reviewed candidate, plus current Staging, provider, chain, and App Attest proof.
+
+The current uncommitted working tree also contains a focused post-RC `qr-first-release-v1` iOS capability/evidence repair. It is not part of the immutable RC, so the historical TestFlight/iPhone QR result must be refreshed against a new reviewed build rather than treated as evidence for these exact bytes. Future NFC evidence remains separate.
+
 ## Engineering Rules
 
 1. Read `docs/CODEX_HANDOFF.md` first before normal work.
@@ -24,7 +28,8 @@ The staging API is backend-authoritative for orders, payments, ownership, resale
 6. Update the relevant Markdown and especially `docs/CODEX_HANDOFF.md` after meaningful work.
 7. Active consumer/runtime paths must use explicit deployed Staging or Production services. Mock data belongs only to Preview, isolated tests, deterministic fault injection, or clearly labelled internal demos.
 8. Local builds and simulators are supporting compile/debug/regression evidence, not proof of availability, authentication, payment, data integrity, or release readiness. Close those claims with deployed HTTPS, TestFlight/physical-device, and real user-path evidence as appropriate.
-9. When changing a user journey, inspect adjacent entry, loading, empty, failure, recovery, authenticated, and cross-device states proactively instead of waiting for the owner to report each regression.
+9. After a material change passes the required gates, continue automatically through reviewed candidate creation, hosted checks, controlled Staging deployment, and internal TestFlight preparation when the configured credentials and safety boundaries allow it. Ask the owner for a missing API/key or an irreversible paid/public-release decision instead of stopping at local success.
+10. When changing a user journey, inspect adjacent entry, loading, empty, failure, recovery, authenticated, and cross-device states proactively instead of waiting for the owner to report each regression.
 
 ## Product Surfaces
 

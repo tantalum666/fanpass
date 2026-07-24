@@ -22,6 +22,9 @@ const implementationSnapshotFiles = [
   "apps/ios/FanPass/FanPass/Services/PrivyAuthProvider.swift",
   "apps/ios/FanPass/FanPass/Services/FanPassAPIClient.swift",
   "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/QRCodeScannerView.swift",
+  "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
   "scripts/ios-distribution-boundary-audit.js",
 ];
 const expectedImplementationSnapshot = implementationSnapshotFiles.map(
@@ -196,6 +199,9 @@ function validateTopLevel(relativePath, evidence) {
   }
   if (evidence.provider !== "ios-staging-build") {
     errors.push(`${relativePath}: provider must be ios-staging-build`);
+  }
+  if (evidence.capabilityModel !== "qr-first-release-v1") {
+    errors.push(`${relativePath}: capabilityModel must be qr-first-release-v1`);
   }
   if (evidence.localDryRun !== false) {
     errors.push(`${relativePath}: localDryRun must be false`);
@@ -377,9 +383,13 @@ function validateFanPass(relativePath, app) {
   if (app.scheme !== "FanPass") {
     errors.push(`${prefix} scheme must be FanPass`);
   }
+  rejectLegacyCapabilityFields(prefix, app);
+  if (app.cameraUsageDescriptionPresent !== true) {
+    errors.push(`${prefix} cameraUsageDescriptionPresent must be true`);
+  }
   for (const key of [
-    "cameraPermissionPresent",
-    "nfcEntitlementPresent",
+    "scannerSourceIncluded",
+    "releaseNfcEntitlementPresent",
     "staffControlsPresent",
   ]) {
     if (app[key] !== false) {
@@ -396,11 +406,19 @@ function validateFanPassOps(relativePath, app) {
   if (app.scheme !== "FanPassOps") {
     errors.push(`${prefix} scheme must be FanPassOps`);
   }
-  if (app.cameraPermissionPresent !== true) {
-    errors.push(`${prefix} cameraPermissionPresent must be true`);
+  rejectLegacyCapabilityFields(prefix, app);
+  for (const key of [
+    "cameraUsageDescriptionPresent",
+    "qrScannerSourceIncluded",
+    "nfcUsageDescriptionPresent",
+    "nativeNfcDebugOnly",
+  ]) {
+    if (app[key] !== true) {
+      errors.push(`${prefix} ${key} must be true`);
+    }
   }
-  if (app.nfcEntitlementPresent !== true) {
-    errors.push(`${prefix} nfcEntitlementPresent must be true`);
+  if (app.releaseNfcEntitlementPresent !== false) {
+    errors.push(`${prefix} releaseNfcEntitlementPresent must be false`);
   }
   for (const key of [
     "consumerWalletPresent",
@@ -409,6 +427,14 @@ function validateFanPassOps(relativePath, app) {
   ]) {
     if (app[key] !== false) {
       errors.push(`${prefix} ${key} must be false`);
+    }
+  }
+}
+
+function rejectLegacyCapabilityFields(prefix, app) {
+  for (const key of ["cameraPermissionPresent", "nfcEntitlementPresent"]) {
+    if (Object.hasOwn(app, key)) {
+      errors.push(`${prefix} ${key} is a legacy ambiguous field`);
     }
   }
 }

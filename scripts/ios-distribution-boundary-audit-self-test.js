@@ -199,6 +199,26 @@ const cases = [
       ),
   },
   {
+    label: "rejects Ops NFC scanner controls outside DEBUG",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
+        scannerView({ nfcDebugWrap: false }),
+      ),
+  },
+  {
+    label: "rejects Core NFC implementation outside DEBUG",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
+        nfcScanner({ debugWrap: false }),
+      ),
+  },
+  {
     label: "rejects Ops shell paste fallback metric outside DEBUG",
     expected: "fail",
     mutate: (fixtureRoot) =>
@@ -206,6 +226,16 @@ const cases = [
         fixtureRoot,
         "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
         opsShell({ debugWrap: false }),
+      ),
+  },
+  {
+    label: "rejects Ops shell NFC entry outside DEBUG",
+    expected: "fail",
+    mutate: (fixtureRoot) =>
+      writeFixtureFile(
+        fixtureRoot,
+        "apps/ios/FanPass/FanPassOps/OpsShellView.swift",
+        opsShell({ nfcDebugWrap: false }),
       ),
   },
   {
@@ -372,6 +402,11 @@ function writePassingFixture(fixtureRoot) {
     fixtureRoot,
     "apps/ios/FanPass/FanPass/Features/Scanner/ScannerView.swift",
     scannerView(),
+  );
+  writeFixtureFile(
+    fixtureRoot,
+    "apps/ios/FanPass/FanPass/Features/Scanner/NFCPayloadScanner.swift",
+    nfcScanner(),
   );
   writeFixtureFile(
     fixtureRoot,
@@ -596,7 +631,9 @@ private func copyPayload() {
 
 function scannerView(options = {}) {
   const debugWrap = options.debugWrap !== false;
+  const nfcDebugWrap = options.nfcDebugWrap !== false;
   return `
+let qrWaitingHint = "Waiting for QR"
 ${debug(
   debugWrap,
   `
@@ -611,17 +648,50 @@ private func pasteFromClipboard() {
 }
 `,
 )}
+return qrWaitingHint
+${debug(
+  nfcDebugWrap,
+  `
+Button {
+  beginNFCScan()
+} label: {
+  Label(nfcScanner.isReading ? "Reading NFC" : "Scan NFC", systemImage: "wave.3.right.circle")
+}
 return "Waiting for QR or NFC"
+private func beginNFCScan() {}
+`,
+)}
 `;
+}
+
+function nfcScanner(options = {}) {
+  return debug(
+    options.debugWrap !== false,
+    `
+import CoreNFC
+let nativeSession = NFCNDEFReaderSession.self
+`,
+  );
 }
 
 function opsShell(options = {}) {
   const debugWrap = options.debugWrap !== false;
+  const nfcDebugWrap = options.nfcDebugWrap !== false;
   const includeFallbackMetric = options.includeFallbackMetric !== false;
   return `
 OpsMetric(title: "Mode", value: "QR")
 ${includeFallbackMetric ? debug(debugWrap, 'OpsMetric(title: "Fallback", value: "Paste")') : ""}
-OpsMetric(title: "NFC", value: "Beta")
+${debug(
+  nfcDebugWrap,
+  `
+case .nfcReader:
+  scannerCover(startsWithCamera: false, startsWithNFC: true)
+Button {
+} label: {
+  Label("NFC quick scan", systemImage: "wave.3.right.circle")
+}
+`,
+)}
 `;
 }
 

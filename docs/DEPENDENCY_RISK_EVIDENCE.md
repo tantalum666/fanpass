@@ -2,6 +2,8 @@
 
 FanPass already has an automated dependency advisory state check for the current production audit posture. This evidence contract is separate: it validates the saved closeout or explicit closed-beta risk-acceptance packet that must exist before any external tester build proceeds with unresolved production advisories.
 
+Current status (2026-07-23): this file preserves the legacy Next/PostCSS risk-acceptance contract and fixture shape. The root production/full audits are now zero after the Console migration; the isolated Console Auth runtime is reviewed separately at 10 moderate and zero high/critical. The historical two-moderate JSON example below does not represent the current RC or Production GA dependency state.
+
 Run future saved evidence through:
 
 ```bash
@@ -10,7 +12,7 @@ npm run security:dependency-risk:evidence -- <saved-json-output>
 
 The validator accepts progress-log text around the JSON object, but the saved file must not include bearer tokens, Stripe secrets, Stripe publishable keys, Privy secrets, provider secrets, provider API keys, deployment/cloud credentials, CI secret masking command literals, private keys, staging admin tokens, database URL assignments, raw `postgres://` or `postgresql://` URLs, production credentials, or real personal data.
 
-Required JSON shape for the current unresolved Next/PostCSS advisory state:
+Historical required JSON shape for the former unresolved Next/PostCSS advisory state:
 
 ```json
 {

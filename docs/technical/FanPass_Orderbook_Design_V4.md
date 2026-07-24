@@ -9,7 +9,7 @@ FanPass orderbook exists to make resale transparent and fair for normal fans. It
 
 ## Off-Chain Orderbook Model
 
-The orderbook is off-chain and stored in PostgreSQL, with Redis used for fast reservation, websocket fan-out, and short-lived market snapshots.
+The authoritative orderbook and settlement state is off-chain in PostgreSQL. Current WebSocket admission, leases, revision replay, and fan-out are single-process in-memory state. Redis/Valkey is the required shared-state/fan-out design before horizontal API scaling; it is not implemented in the active path today.
 
 Core entities:
 

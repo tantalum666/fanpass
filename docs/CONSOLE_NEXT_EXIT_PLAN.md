@@ -3,7 +3,7 @@
 Date: 2026-06-04
 Updated: 2026-06-06
 
-This plan exists because the current production dependency blocker is the known `next -> postcss <8.5.10` advisory chain. FanPass must not rely on an indefinite upstream fix before public or real-user Beta. Closed Beta can use a short owner risk acceptance, but public or real-user release must have a clean production audit or a completed Console path that removes Next from the production dependency surface.
+This plan records the historical `next -> postcss <8.5.10` production dependency blocker and the completed migration used to close it. FanPass did not rely on an indefinite upstream fix before public or real-user Beta.
 
 ## Current status
 
@@ -12,6 +12,7 @@ This plan exists because the current production dependency blocker is the known 
 - `npm run security:dependency-advisories` now reports `releaseBlocker: null` and production audit total `0`.
 - The old Next/PostCSS advisory is now historical for both Web runtimes: the isolated `apps/console-auth` runtime also migrated to Vite React plus a Node built-in static/config server on 2026-07-14. It remains outside root workspaces because the official Privy SDK still contributes 10 moderate wallet/provider transitive advisories, but Next and PostCSS are no longer present in that runtime.
 - The latest Next metadata was still checked on 2026-06-06 and still declares `postcss: 8.4.31`, so the project closed this blocker by migration rather than by waiting for a safe Next patch path.
+- Current RC note (2026-07-23): root production/full audits are zero. The isolated Console Auth runtime still has 10 moderate and zero high/critical Privy/x402/wagmi/`uuid` transitive records, so FanPass cannot describe Production GA as universally zero-advisory even though the historical Next/PostCSS blocker is closed.
 
 ## Historical blocker
 

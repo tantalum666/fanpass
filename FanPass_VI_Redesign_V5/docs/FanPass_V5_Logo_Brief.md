@@ -1,6 +1,6 @@
 # FanPass V5 Logo Brief
 
-Status: Round 06 Inter 700 logo lockup after owner selected option 3.
+Status: owner-selected Round 06 Inter 700 pre-production logo route. It is not the shipped brand source until small-size, app-icon, licensing/trademark, implementation, and migration QA are complete.
 Date: 2026-06-29.
 Design source: `docs/design.md`.
 
@@ -53,9 +53,9 @@ Generated typography is directional only. Final production will require determin
 
 Round 02 shifted the logo work from mark-first to typography-first. Round 03 custom drawing was rejected as too cartoon-like. Round 04 compared OFL commercial-use fonts. The owner selected option 3 from that board: `Inter 700`. Round 06 now pairs Inter 700 with a restrained no-letter pass-notch mark.
 
-### Current Typography Routes
+### Historical Round 02 Typography Routes
 
-1. `Humanist Premium`: modern humanist sans, `FanPass`, current owner-preferred and recommended baseline.
+1. `Humanist Premium`: modern humanist sans, `FanPass`, Round 02 historical preferred baseline.
 2. `Lowercase Culture`: younger `fanpass`, useful for energy but may lose authority.
 3. `Editorial Pass`: high-end serif, distinctive but can drift too fashion/magazine.
 4. `Venue Ticket`: uppercase venue/ticket voice, strong but can become mechanical.
@@ -100,9 +100,9 @@ Round 04 read:
 - `Inter 700` is safe and clean; because it is a common UI font, the pass-notch mark should carry more FanPass-specific identity.
 - `Geist 700` is clean but can feel too software/SaaS.
 
-### Active Round 06 Inter Logo Lockup
+### Owner-Selected, Pre-Production Round 06 Inter Logo Lockup
 
-Current active assets:
+Selected pre-production assets:
 
 - `FanPass_VI_Redesign_V5/assets/fanpass-wordmark-v5-inter-700.svg`
 - `FanPass_VI_Redesign_V5/assets/fanpass-mark-v5-inter-pass-notch-minimal.svg`

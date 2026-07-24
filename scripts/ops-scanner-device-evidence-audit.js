@@ -33,7 +33,7 @@ if (evidenceFiles.length === 0) {
   console.error(
     [
       "Usage: npm run security:ops-scanner:device-evidence -- <evidence-file...>",
-      "Validate saved FanPass Ops real-device QR/NFC scanner evidence before closing scanner Beta gates.",
+      "Validate saved FanPass Ops real-device QR-first scanner evidence before closing scanner Beta gates.",
     ].join("\n"),
   );
   process.exit(1);
@@ -79,9 +79,14 @@ function validateEvidenceFile(filePath) {
 
   validateTopLevel(relativePath, evidence);
   validateRuntime(relativePath, evidence.runtime);
+  validateReleaseCapabilities(relativePath, evidence.releaseCapabilities);
   validateImplementationSnapshot(relativePath, evidence.implementationSnapshot);
   validateQrTransport(relativePath, evidence.qrTransport);
-  validateNfcTransport(relativePath, evidence.nfcTransport);
+  if (Object.hasOwn(evidence, "nfcTransport")) {
+    errors.push(
+      `${relativePath}: nfcTransport is not accepted by the QR-first release evidence contract`,
+    );
+  }
   validateBackendAuthority(relativePath, evidence.backendAuthority);
   validateRedaction(relativePath, evidence.redaction);
 
@@ -91,10 +96,11 @@ function validateEvidenceFile(filePath) {
     surface: evidence.surface ?? null,
     apiBaseUrl: evidence.runtime?.apiBaseUrl ?? null,
     buildChannel: evidence.runtime?.buildChannel ?? null,
+    capabilityModel: evidence.capabilityModel ?? null,
     implementationSnapshotFiles:
       evidence.implementationSnapshot?.files?.length ?? null,
     qrTransport: evidence.qrTransport ?? null,
-    nfcTransport: evidence.nfcTransport ?? null,
+    releaseCapabilities: evidence.releaseCapabilities ?? null,
   };
 }
 
@@ -190,6 +196,9 @@ function validateTopLevel(relativePath, evidence) {
   if (evidence.surface !== "fanpass-ops") {
     errors.push(`${relativePath}: surface must be fanpass-ops`);
   }
+  if (evidence.capabilityModel !== "qr-first-release-v1") {
+    errors.push(`${relativePath}: capabilityModel must be qr-first-release-v1`);
+  }
   if (evidence.localSimulator !== false) {
     errors.push(`${relativePath}: localSimulator must be false`);
   }
@@ -228,10 +237,33 @@ function validateRuntime(relativePath, runtime = {}) {
   }
 }
 
-function validateImplementationSnapshot(relativePath, snapshot = {}) {
-  if (snapshot.source !== "ops-scanner-physical-device-boundaries") {
+function validateReleaseCapabilities(relativePath, capabilities = {}) {
+  if (capabilities.cameraQrEnabled !== true) {
     errors.push(
-      `${relativePath}: implementationSnapshot.source must be ops-scanner-physical-device-boundaries`,
+      `${relativePath}: releaseCapabilities.cameraQrEnabled must be true`,
+    );
+  }
+  if (capabilities.releaseNfcEntitlementPresent !== false) {
+    errors.push(
+      `${relativePath}: releaseCapabilities.releaseNfcEntitlementPresent must be false`,
+    );
+  }
+  if (capabilities.nativeNfcDebugOnly !== true) {
+    errors.push(
+      `${relativePath}: releaseCapabilities.nativeNfcDebugOnly must be true`,
+    );
+  }
+  if (capabilities.nfcEvidenceClaimed !== false) {
+    errors.push(
+      `${relativePath}: releaseCapabilities.nfcEvidenceClaimed must be false`,
+    );
+  }
+}
+
+function validateImplementationSnapshot(relativePath, snapshot = {}) {
+  if (snapshot.source !== "ops-scanner-qr-first-device-boundaries") {
+    errors.push(
+      `${relativePath}: implementationSnapshot.source must be ops-scanner-qr-first-device-boundaries`,
     );
   }
 
@@ -286,20 +318,6 @@ function validateQrTransport(relativePath, qrTransport = {}) {
   ]) {
     if (qrTransport[key] !== true) {
       errors.push(`${relativePath}: qrTransport.${key} must be true`);
-    }
-  }
-}
-
-function validateNfcTransport(relativePath, nfcTransport = {}) {
-  for (const key of [
-    "physicalTagReadVerified",
-    "ndefPayloadNormalized",
-    "acceptedScanVerified",
-    "duplicateReplayRejected",
-    "unsupportedDeviceFallbackVerified",
-  ]) {
-    if (nfcTransport[key] !== true) {
-      errors.push(`${relativePath}: nfcTransport.${key} must be true`);
     }
   }
 }
