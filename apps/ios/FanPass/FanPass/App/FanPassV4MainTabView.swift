@@ -8,14 +8,14 @@ struct FanPassV4MainTabView: View {
     var body: some View {
         TabView(selection: $viewModel.selectedTabID) {
             NavigationStack {
-                FanPassV4HomeView()
+                FanPassV5HomeView()
                     .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem { Label(FanPassV4Tab.home.title, systemImage: FanPassV4Tab.home.systemImage) }
             .tag(FanPassV4Tab.home.id)
 
             NavigationStack {
-                FanPassV4ExploreView()
+                FanPassV5ExploreView()
                     .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem { Label(FanPassV4Tab.explore.title, systemImage: FanPassV4Tab.explore.systemImage) }
@@ -46,7 +46,10 @@ struct FanPassV4MainTabView: View {
             .tabItem { Label(FanPassV4Tab.profile.title, systemImage: FanPassV4Tab.profile.systemImage) }
             .tag(FanPassV4Tab.profile.id)
         }
-        .tint(FPColors.pulseCyan)
-        .background(FPColors.backgroundNight.ignoresSafeArea())
+        .tint(FPV5Colors.signalRed)
+        .toolbarBackground(FPV5Colors.ink.opacity(0.98), for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarColorScheme(.dark, for: .tabBar)
+        .background(FPV5Colors.ink.ignoresSafeArea())
     }
 }

@@ -11,7 +11,7 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 ## Standing Rules
 
-- V4 is the active app design. V5 is unfinished exploration only.
+- V5 is an owner-approved staged migration on Home, Explore, and Event Detail. Unmigrated screens stay V4 until their own implementation and QA; do not globally recolor them or claim full-baseline completion.
 - Do not build spaghetti code or fake transactional success.
 - Security is release-blocking.
 - Never expose provider secrets, bearer tokens, private keys, database URLs, raw QR payloads, or real personal data.
@@ -23,12 +23,14 @@ Work in `/Users/tantalum/Documents/system and iot`.
 
 - `main` remains the canonical deployed source line. `codex/security-rc-20260720` is the reviewed and pushed security release-candidate branch, frozen at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. It has not been merged or deployed and must not be Blueprint-synced before the owner-approved maintenance window.
 - `codex/security-rc-20260724-qr-first` is the active pushed follow-up candidate. It contains the committed QR-first release repair plus the Markdown reconciliation on top of the immutable RC. Initial candidate commit `ec3ab855a40f22670e41a4e727025b6ec6b80e97` passed Hosted run `#93`; any later documentation-only reconciliation commit still needs its own exact-HEAD run before release.
-- Consumer app source is V4 SwiftUI under `apps/ios/FanPass/FanPass`; V5 has no Swift implementation.
+- Consumer app source is under `apps/ios/FanPass/FanPass`; the stable V4 shell mounts V5 Home/Explore/Event Detail with isolated `FPV5*` tokens/components, while remaining screens retain V4.
 - Render API and Console remain live on source `8f845a19e32bd072b4e6b4df6e61ce11a7548214`; isolated Console Auth remains live on `108f4e65fc8c1ecb584aa2e6a29f8f2478bb0307`. Auth `/health`, the deployed Console asset, and the recovery handoff contract prove only those older deployed releases, not the security RC. A later `[skip render]` documentation follow-up may be the `main` head.
 - School Web, Arduino/EP8280 hardware, bridge, and enclosure source are archived under `archive/school-project`.
-- All 69 non-ignored project Markdown files were read to EOF and reconciled on 2026-07-23; use `docs/README.md` instead of recreating deleted V4 planning logs.
+- Every workspace Markdown file outside `.git` was read successfully before the 2026-07-25 V5 slice (4,247 files; manifest recorded in the Handoff); use `docs/README.md` instead of recreating deleted V4 planning logs.
 
 ## Latest Verification
+
+The 2026-07-25 V5 slice makes Home search/city/account behavior real, adds event/category/city discovery continuity, and moves Event Detail ticket/auth/checkout action into the first viewport while preserving backend inventory and on-sale gates. Same-state V4/V5 comparisons were reviewed at 368x800. Beta build/run passed, Debug tests passed 6/6, and both iOS role/distribution boundary audits passed. The app icon uses the selected Round 06 source with opaque renditions and iOS-owned corner masking. Render was untouched because no backend or deployment configuration changed.
 
 V4 event covers lost by API mapping and the five Account destinations removed by `a8ff8ed` are restored. Re-exposed pages use live orders or honest unavailable states, not mock listings or fake support/settings success.
 
@@ -50,9 +52,9 @@ The security RC's authoritative local Node 22 gate passes 97/97, including 32 AP
 
 ## Next Action
 
-1. Push any final documentation reconciliation on `codex/security-rc-20260724-qr-first`, wait for its exact-HEAD Hosted workflow, and save only validator-passing redacted evidence. Runs `#92` and `#93` are successful UI proof for their recorded SHAs only.
+1. After any V5 follow-up commit on `codex/security-rc-20260724-qr-first`, wait for its exact-HEAD Hosted workflow and save only validator-passing redacted evidence. Runs `#92`, `#93`, and `#94` are successful UI proof for their recorded SHAs only.
 2. Establish protected review/CODEOWNERS or record the verified equivalent control; the current repository has no `CODEOWNERS`, and branch-protection reads returned 403.
-3. Owner standing direction from 2026-07-24 is to continue beyond local proof: after a clean reviewed candidate and required gates, automatically advance hosted checks, the maintenance-gated Staging Phase A/Phase B runbook, and internal TestFlight preparation using configured credentials. Ask only for missing API/key access or an irreversible paid/public-production decision; never deploy unrelated dirty-tree changes or bypass the traffic/database/provider fences.
+3. Owner standing direction is to continue beyond local proof. Render must stay Free for now with Auto-Deploy Off; every future Render release is manually triggered by approved plugin/CLI and verified. Do not start the maintenance-gated Staging RC cutover until the owner approves the paid traffic boundary.
 4. Capture current-candidate Staging, Stripe/Privy/Sepolia, crash-boundary, multi-instance, App Attest, and refreshed TestFlight/physical-iPhone QR evidence. Historical TestFlight installation and physical QR testing are complete; repeat them only to bind evidence to the next reviewed `qr-first-release-v1` bytes.
-5. The account holder must review the updated Apple Developer Program License Agreement and EU trader-status requirement before App Store submission; automation must not accept either legal decision silently.
+5. Apple agreement and DSA are intentionally paused. Computer Use reached the final agreement action and the DSA legal-fact choices without submitting either. Provisioning profiles are also absent locally; do not claim the next signed/TestFlight candidate until these blockers are cleared.
 6. After real Staging evidence, run one final `Changes / Review changes` validation against the sealed baseline. Do not start another Deep Scan unless the architecture or trust boundary changes materially.

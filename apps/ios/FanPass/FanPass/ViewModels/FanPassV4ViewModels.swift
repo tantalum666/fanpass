@@ -65,6 +65,9 @@ final class FanPassRootViewModel {
     var selectedTab: FanPassV4Tab = .home
     var accountSection: FanPassAccountSection = .overview
     var focusedMarketEvent: FanPassV4.Event?
+    var discoveryQuery = ""
+    var discoveryCity: String?
+    var shouldFocusDiscoverySearch = false
     var selectedTabID: String = FanPassV4Tab.home.id {
         didSet {
             selectedTab = FanPassV4Tab(rawValue: selectedTabID) ?? .home
@@ -102,6 +105,26 @@ final class FanPassRootViewModel {
         stage = .main
         selectedTab = .tickets
         selectedTabID = FanPassV4Tab.tickets.id
+    }
+
+    func openExplore(query: String? = nil, city: String? = nil, focusSearch: Bool = false) {
+        if let query {
+            discoveryQuery = query
+        }
+        if let city {
+            discoveryCity = city
+        }
+        shouldFocusDiscoverySearch = focusSearch
+        stage = .main
+        selectedTab = .explore
+        selectedTabID = FanPassV4Tab.explore.id
+    }
+
+    func openAccount() {
+        stage = .main
+        accountSection = .overview
+        selectedTab = .profile
+        selectedTabID = FanPassV4Tab.profile.id
     }
 
     func openMarket(for event: FanPassV4.Event) {

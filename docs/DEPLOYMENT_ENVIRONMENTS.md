@@ -1,7 +1,7 @@
 # FanPass Deployment Environments
 
 Originally dated: 2026-05-29
-Last updated: 2026-07-23
+Last updated: 2026-07-25
 
 This document defines the minimum environment separation before FanPass is exposed outside local development.
 
@@ -17,10 +17,11 @@ Capacity, cost, global regional placement, paid-plan upgrades, and AWS/GCP migra
 
 ## Current Security RC
 
-- Branch `codex/security-rc-20260720`, immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`, is pushed but not merged or deployed.
+- Branch `codex/security-rc-20260724-qr-first`, current documentation head `7d77584e1dac520dc90562eea09edd6b01d5f793`, is pushed but not merged or deployed.
 - The authoritative local gate passed 97/97; API 32 suites/386 tests; contracts 30/30; independent final review 0 P0/P1.
-- The current credential receives 403 from GitHub Actions/Checks/Status reads, so no exact-SHA Hosted result is claimed.
+- Authenticated GitHub UI verification confirms exact-SHA Hosted runs `#93` for code candidate `ec3ab855a40f22670e41a4e727025b6ec6b80e97` and `#94` for documentation head `7d77584e1dac520dc90562eea09edd6b01d5f793` completed successfully. The local credential still receives 403 from private-repository Actions/Checks/Status API reads, so no validator-passing JSON attestation is claimed.
 - The live Staging services remain on older revisions. Current-RC Staging, Privy, Stripe, Sepolia, signed-device, and physical-entry evidence remains open; no Staging mutation occurred during RC closeout.
+- Render Auto-Deploy remains Off and every release must be triggered manually through the approved plugin or CLI. On 2026-07-25 an attempted instance-type change created deploy `dep-d9hp9vfavr4c739ikcsg` for `main` commit `b7cbc46668fa24d10afabb89fca58d023164845e`; it was canceled during checkout/cache download before the build or database command. The API was rechecked as Free with Save Changes disabled, and its last successful deploy remains `dep-d9ckdqsvikkc73d29km0` for `8f845a19e32bd072b4e6b4df6e61ce11a7548214`. The owner requires Free for now, so the maintenance-gated RC cutover must not start.
 
 ## Required Staging Properties
 

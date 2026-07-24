@@ -8,7 +8,7 @@ This directory contains current product contracts and machine-checked evidence. 
 2. `DEVELOPMENT_TASKS.md` - open and completed engineering work.
 3. `BETA_ROADMAP.md` - product boundaries and release direction.
 4. `QA_CHECKLIST.md` - required verification and security gates.
-5. `design.md` - active V4 UI contract.
+5. `design.md` - staged V5/V4 UI contract.
 
 `NEW_CHAT_PROMPT.md` is a concise resume prompt generated from the Handoff. It is not the primary source of truth.
 
@@ -18,7 +18,7 @@ This directory contains current product contracts and machine-checked evidence. 
 | --------------------------------------------------- | -------------------------------------------------------------------------- |
 | `ARCHITECTURE.md`                                   | Product surfaces and system ownership boundaries.                          |
 | `FAN_ACCESS_V1.md`                                  | Fan Access campaign, score, wallet, anti-abuse, Console, and iOS contract. |
-| `MAIN_APP_PRODUCT_AUDIT.md`                         | Living V4 consumer release audit, severity backlog, evidence, and gates.   |
+| `MAIN_APP_PRODUCT_AUDIT.md`                         | Living consumer release audit, severity backlog, evidence, and gates.      |
 | `DEPLOYMENT_ENVIRONMENTS.md`                        | Local, staging, and production-like environment rules.                     |
 | `INFRASTRUCTURE_SCALING_PLAN.md`                    | Global regions, cost stages, upgrade triggers, and AWS/GCP migration plan. |
 | `PROVIDER_COST_FEASIBILITY.md`                      | Stripe, Privy, and provider constraints.                                   |
@@ -48,9 +48,10 @@ These files are evidence contracts, not claims that production readiness is comp
 
 ## Design Status
 
-- Active app baseline: `docs/design.md` and `FanPass_VI_Redesign_V4/`.
-- V5 exploration: `FanPass_VI_Redesign_V5/`.
-- V5 has no Swift implementation and no production approval.
+- Active mixed baseline: `docs/design.md`.
+- V5 Home, Explore, and Event Detail: `FanPass_VI_Redesign_V5/` plus the isolated `FPV5*` Swift tokens/components.
+- V4 remains active on unmigrated Market, Tickets, Account, Checkout, Fan Access, and Ops screens.
+- The owner approved staged V5 implementation on 2026-07-25; full production-baseline replacement and public submission are not yet approved.
 
 ## Archived Coursework
 

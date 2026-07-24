@@ -1,9 +1,9 @@
-# FanPass V4 iOS Design Guide
+# FanPass iOS Design Guide
 
-Status: active production design baseline.
-Last updated: 2026-07-12.
+Status: staged V5 migration on Home, Explore, and Event Detail; V4 remains active on unmigrated screens.
+Last updated: 2026-07-25.
 
-V5 is an unfinished brand exploration under `FanPass_VI_Redesign_V5/`. It must not be shipped or used as the iOS implementation baseline until the owner explicitly approves it.
+The owner approved continuing V5 on 2026-07-25. The active consumer app now uses the V5 Backstage Pass contract for Home, Explore, and Event Detail. Market, Tickets, Ticket Detail, Checkout, Account, Fan Access, and FanPass Ops remain on V4 until each screen receives its own implementation and visual/accessibility/runtime QA. Do not apply a global theme substitution across this mixed baseline.
 
 ## Intent
 
@@ -20,6 +20,8 @@ FanPass should feel like a premium ticket app, not a dashboard. The default surf
 7. Backend state is authoritative for payments, ownership, resale, and redemption. UI must not report local-only success.
 
 ## Visual Rules
+
+The rules below remain binding for V4 screens. Migrated V5 screens use the palette, typography, geometry, and screen contracts in `FanPass_VI_Redesign_V5/docs/FanPass_V5_Design_Draft.md` while preserving the same product-truth rules.
 
 - Keep the dark app chrome, but reduce stacked dark rectangles. Prefer transparent sections, hairline dividers, and single-level surfaces.
 - Use heavy cards only for tickets, QR/entry panels, checkout summaries, modals, and destructive/security flows.
@@ -49,10 +51,12 @@ FanPass should feel like a premium ticket app, not a dashboard. The default surf
 
 ## Active Assets
 
-- Approved V4 package: `FanPass_VI_Redesign_V4/`.
+- V5 staged implementation contract: `FanPass_VI_Redesign_V5/docs/FanPass_V5_Design_Draft.md`.
+- V5 tokens/components: `apps/ios/FanPass/FanPass/DesignSystem/FPV5Tokens.swift` and `apps/ios/FanPass/FanPass/Views/Components/FanPassV5Components.swift`.
+- V5 brand resources: selected Round 06 mark plus opaque iOS app-icon renditions.
+- V4 package for unmigrated screens: `FanPass_VI_Redesign_V4/`.
 - Bundled iOS event covers: `apps/ios/FanPass/FanPass/Assets/event-cover-*.png`.
 - SwiftUI design system: `apps/ios/FanPass/FanPass/DesignSystem/`.
-- V5 draft only: `FanPass_VI_Redesign_V5/`.
 
 ## Quality Gate
 
@@ -61,6 +65,6 @@ Before handing off iOS UI work:
 1. Scan changed screens for card stacking and repeated heavy surfaces.
 2. Remove redundant title/subtitle/value/footer combinations.
 3. Check Home first; it must not look less complete than Account.
-4. Run the simulator and inspect Home, Account, Tickets, and any changed flow for empty space, clipped text, overlap, missing media, and incorrect signed-in state.
+4. Run the simulator and inspect Home, Explore, Event Detail, Account, Tickets, and any changed flow for empty space, clipped text, overlap, missing media, and incorrect signed-in state. Compare changed screens against the same-state baseline at the same viewport.
 5. Verify backend-backed entities retain their V4 presentation metadata and never fall back to mock transactional state.
 6. Keep competitor insight abstract; do not copy proprietary art, exact layouts, or brand language.

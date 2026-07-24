@@ -1,16 +1,24 @@
-# FanPass V4 Assets
+# FanPass iOS Assets
 
-This folder contains a project-local copy of the Clean V4 assets from:
+This folder contains V4 resources used by unmigrated screens plus derived V5 resources for the staged migration.
+
+The V4 resources came from:
 
 `FanPass_VI_Redesign_V4/assets/`
 
 Rules:
 
-- Do not redesign the logo or app icon.
-- Use these assets only as Clean V4 references and app resources.
+- Preserve V4 resources while any active screen still references them.
+- Derive V5 brand resources only from the selected sources under `FanPass_VI_Redesign_V5/assets/`; do not redraw or approximate them in SwiftUI.
 - Do not add decorative strokes across text, QR, buttons, charts, prices, or ticket cards.
 - QR placeholders must keep a clear white quiet zone.
 - NFC graphics must remain small and contained.
+
+## V5 Brand Resources
+
+- `fanpass-mark-v5.png` is the Paper-backed, tightly cropped header rendition of the selected Round 06 no-letter pass-notch geometry. Canonical vectors remain under `FanPass_VI_Redesign_V5/assets/`.
+- `Assets.xcassets/AppIcon.appiconset/` contains opaque RGB renditions generated from `FanPass_VI_Redesign_V5/assets/fanpass-app-icon-v5-inter-pass-notch-minimal.svg` at every declared iPhone, iPad, and marketing size.
+- The canonical app-icon SVG uses a full square Paper background. iOS owns final corner masking; do not add a second rounded outer mask.
 
 ## Social Login Assets
 

@@ -40,9 +40,11 @@ Source: `MAIN_APP_PRODUCT_AUDIT.md` and a fresh V4 runtime/source/Staging review
 - [x] P0: make market floor/recent sale nullable and sourced only from live asks/settled trades; Beta runtime shows consistent `No asks` and no verified sales across Home, Event Detail, and Market.
 - [x] P0: remove active production initializers that default to mock services/data, make Staging/Beta/Release API configuration fail closed, and require an ignored explicit override for localhost.
 - [ ] P0: expand `FanPassTests` beyond the current six mapper/crypto settlement tests. Debug executes 6/6; the Beta generic-device app builds with release-style optimization/configuration but is unsigned because no Apple Team, signing identity, or provisioning profile was provided. It does not close TestFlight, physical-device, or broader session/ticket/resale/QR/redemption/recovery UI evidence.
-- [ ] P1: replace Home concept search, notifications, favorite, location, popularity, and announcement claims with real services or honest release copy.
-- [ ] P1: rebuild Explore in stages around real event search/filter, artist entities/follows, and rights-cleared editorial content; collapse empty Fan Access.
-- [ ] P1: align Event Detail and Market to one truthful market contract, preserve selected event/category context, hide closed Fan Access, and make the purchase action state-aware.
+- [x] P1: replace Home concept search, notifications, favorite, location, popularity, and announcement claims with real catalog-city/search/account behavior or honest release copy.
+- [x] P1: complete Explore stage one with real event/venue/city/category search, category/city filters, Home intent continuity, readable 368-point rows, and compact campaign-backed Fan Access.
+- [ ] P1: add real artist entities/follows and rights-cleared editorial discovery; do not simulate these systems before their data/content contracts exist.
+- [x] P1: reorder Event Detail around event identity, ticket availability/rules, and auth-gated checkout while preserving backend on-sale/inventory authority and secondary truthful resale context.
+- [ ] P1: make Market actions liquidity-aware and preserve the selected event/category through every Market transition.
 - [ ] P1: distinguish persisted Account settings from local-only UI state and prioritize real support, notifications, region/currency, and payout services for the launch scope.
 - [ ] P2: complete global currency/localization/content QA, 44-point touch targets, VoiceOver/Dynamic Type/focus testing, privacy-safe journey analytics, domain-scoped refresh, and feature-file decomposition.
 - [x] Close Gate A with deployed Staging API positive/negative checks, Beta-configured runtime evidence, an atomic fail-closed schema/catalog deploy, and the deployed runtime security suite.

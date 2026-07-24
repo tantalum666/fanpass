@@ -1,26 +1,26 @@
 # FanPass Main App Product Audit
 
-Product/runtime evidence last reviewed: 2026-07-17 (Asia/Shanghai).
-Security RC status updated: 2026-07-23.
+Product/runtime evidence last reviewed: 2026-07-25 (Asia/Shanghai).
+Security RC status updated: 2026-07-25.
 
 ## Purpose
 
-This is the living release audit for the V4 consumer iOS app. It reviews the product as a real global ticketing service, not as a local prototype or a collection of individually working screens.
+This is the living release audit for the consumer iOS app. It reviews the product as a real global ticketing service, not as a local prototype or a collection of individually working screens. Home, Explore, and Event Detail now form a staged V5 slice; unmigrated screens remain V4.
 
 The audit uses four evidence layers:
 
 1. the currently installed `fun.fanpass.app` runtime on `FanPass-iPhone-17`;
 2. its embedded Staging configuration and the public Staging API;
-3. the active V4 Swift and API source;
+3. the active staged V5/V4 Swift and API source;
 4. existing release, security, payment, ticket, and infrastructure contracts.
 
 The current simulator evidence uses the `Beta` configuration pointed at `https://fanpass-api-staging.onrender.com`, with Debug-only concrete mocks excluded. It is useful runtime evidence, but it is not TestFlight, physical-device, production-capacity, or real-user launch proof.
 
 ## Overall Verdict
 
-The V4 visual system is coherent and the product already has credible ticketing, controlled resale, payment, ownership, and entry foundations. Gate A's catalog, timestamp, market-fact, conditional Fan Access, and runtime-injection blockers are now fixed and verified against deployed Staging.
+The product has credible ticketing, controlled resale, payment, ownership, and entry foundations. Gate A's catalog, timestamp, market-fact, conditional Fan Access, and runtime-injection blockers are fixed and verified against deployed Staging. The first V5 Gate B slice now makes Home search/city/account behavior truthful, adds real event/category/city discovery, and moves Event Detail ticket choice and auth-gated purchase into the initial viewport.
 
-The app is still not ready for external users. The next product phase is Gate B and Gate C rather than another broad visual redesign:
+The app is still not ready for external users. Gate B continues on Market and Account while Gate C must protect the full path:
 
 - concept-only interactions must either become real or leave the release surface;
 - Home, Explore, Event Detail, Market, and Account must form one honest discovery-to-purchase journey;
@@ -42,6 +42,14 @@ This section preserves the exact Gate A deployment and test facts observed on 20
 - Branch `codex/security-rc-20260720` is frozen and pushed at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`; it has not been PR'd, merged, or deployed.
 - The authoritative local gate passed 97/97, including API 32 suites/386 tests, contracts 30/30, and independent final review with 0 remaining P0/P1.
 - Hosted attestation remains open because the current credential receives 403 from Actions/Checks/Status reads. Current-RC Staging, Stripe/Privy/Sepolia, TestFlight, and physical-device evidence remains open.
+
+## 2026-07-25 V5 Gate B Slice
+
+- The owner approved continuing V5 as a staged migration. New semantic tokens and shared components are isolated from V4 so Market, Tickets, Account, Checkout, Fan Access, and Ops do not inherit an unreviewed global recolor.
+- Home removed fake notification, favorite, concept-search, and inferred-location behavior. Its search opens the real Explore field, city choices derive from the loaded public catalog, Account opens the actual account tab, and saved-catalog recovery remains explicit.
+- Explore now preserves Home search/city intent, searches only the fields it names, filters by real event category and catalog city, labels the result set as `Events` rather than `Recommended`, and collapses campaign-backed Fan Access to one contextual shortcut.
+- Event Detail removes the repeated page title/hero and first-viewport market metrics, puts ticket categories and auth-gated checkout immediately after event context, hides the tab bar during the focused journey, and keeps resale context secondary.
+- Same-state V4/V5 screenshots were compared at 368x800 for all three screens. Beta simulator builds passed, current Debug tests passed 6/6, and both iOS role/distribution boundary audits passed. This is local/runtime evidence only: it does not replace Hosted exact-HEAD, TestFlight, physical-device, accessibility, or deployed guest-to-checkout evidence.
 
 ## Release Severity
 
@@ -116,6 +124,8 @@ Required boundary before external Beta:
 
 Decision: keep Home small and truthful. Until recommendation, saved-artist, notification, favorite, and location systems exist, use transparent modules such as “Upcoming events”, “Newly published”, and an explicit region selector.
 
+2026-07-25 status: implemented for the active Home. Real catalog city selection, real Explore routing, and real Account routing replace the listed concept claims. Recommendation/saved-artist/notification systems remain absent rather than simulated.
+
 #### Explore
 
 - Search covers only event title, venue, city, and category; the placeholder and Home copy imply broader artist discovery.
@@ -124,6 +134,8 @@ Decision: keep Home small and truthful. Until recommendation, saved-artist, noti
 - There is no artist entity, editorial story, genre/topic navigation, follow graph, content-rights state, or source attribution model in the active experience.
 
 Decision: evolve Explore into a discovery hub in stages: real event search/filter first, then artist pages/follows, then rights-cleared editorial content. Empty Fan Access should collapse into a small contextual module instead of dominating the page.
+
+2026-07-25 status: the first stage is implemented. Artist entities/follows and rights-cleared editorial content remain future product work.
 
 #### Market
 
@@ -158,12 +170,14 @@ Decision: keep only settings that are either real, read-only and accurately labe
 
 Decision: move event time/place/status and the first valid ticket action into the initial viewport, show Fan Access only for an open campaign, and keep market data truthful and secondary.
 
+2026-07-25 status: implemented in the active Event Detail while preserving backend inventory, on-sale, role, authentication, and checkout gates.
+
 ### P2 - Quality, Globalization, And Maintainability
 
 - The global catalog still prices published events in Singapore, London, Berlin, Tokyo, Los Angeles, and Amsterdam in HKD. Currency and price must be organizer/event-owned, with localized display separated from settlement currency.
 - Two public seeded tickets are HKD 5 and HKD 6. Public demo content needs editorial/data QA before it can represent the product.
-- Home icon controls, carousel controls, dots, and some `See all` targets are smaller than the expected 44-point touch area.
-- The accessibility overlay exposed stale Home elements while Event Detail was visible. This needs VoiceOver/Accessibility Inspector verification for modal/navigation focus containment.
+- V5 Home search/account/carousel controls now use practical 44-point targets. Remaining screens still need a complete touch-target audit.
+- The earlier V4 accessibility overlay exposed stale Home elements while Event Detail was visible. V5 hides the tab bar inside Event Detail, but VoiceOver/Accessibility Inspector verification is still required for navigation and sheet focus containment.
 - Market, Profile, Tickets, and shared component files remain oversized and should be split after lifecycle tests exist.
 - The broad shared refresh revision and fragmented 401 behavior can cause unrelated reloads and inconsistent long-session recovery.
 - English strings, Hong Kong defaults, fixed date/currency assumptions, and right-to-left/dynamic-type behavior are not yet a global localization system.
@@ -175,15 +189,15 @@ Decision: move event time/place/status and the first valid ticket action into th
 
 The installed Beta-configured build points to real Staging, public catalog isolation is server-owned, and runtime configuration fails closed. TestFlight, physical-device, production-capacity, and real-user provenance remain incomplete.
 
-### 2. Home - Visually Strong, Semantically Weak
+### 2. Home - V5 Truthful Discovery Front Door
 
-The brand, hierarchy, and featured-event presentation are credible. The page currently overstates personalization, location awareness, search, notifications, and saved behavior.
+The active V5 Home is poster-led and uses real catalog-city context, Explore search routing, Account routing, saved-catalog recovery, event navigation, and owned-ticket data. It no longer claims personalization, notifications, favorites, or device location that do not exist.
 
-Evidence: `outputs/product-audit/2026-07-17-main-app/01-home.png`.
+Historical V4 evidence: `outputs/product-audit/2026-07-17-main-app/01-home.png`. Current evidence is the 2026-07-25 same-viewport simulator comparison captured during the V5 pass; it is not release evidence.
 
-### 3. Explore - Incomplete Discovery Product
+### 3. Explore - Real Event Discovery, Broader Content Pending
 
-The screen is usable as a small event list but does not yet support the global event/artist/editorial discovery promise. Empty Fan Access is over-weighted and “Recommended” has no recommendation contract.
+The active V5 screen has truthful catalog search, city/category filters, result recovery, compact campaign-backed Fan Access, and readable 368-point event rows. It does not yet support artist entities/follows or rights-cleared editorial discovery.
 
 Evidence: `outputs/product-audit/2026-07-17-main-app/02-explore.png`.
 
@@ -205,9 +219,9 @@ The information architecture is understandable. The product should not confuse a
 
 Evidence: `outputs/product-audit/2026-07-17-main-app/05-account.png`.
 
-### 7. Event Detail - Truth Contradiction Resolved, Conversion Hierarchy Pending
+### 7. Event Detail - V5 Conversion Hierarchy Implemented
 
-The page now shows the real date and an honest no-ask state. Purchase intent and real ticket availability still need to lead the screen, and the persistent tab bar still competes with the focused journey.
+The active V5 page shows event identity once, then ticket price/inventory/rules and the real auth/checkout action. Sale transparency follows the ticket choice, resale context is secondary, and the tab bar is hidden inside the focused path. Full guest-to-checkout deployment analytics and recovery evidence remain open.
 
 Evidence: `outputs/product-audit/2026-07-17-main-app/06-event-detail.png`.
 
@@ -229,11 +243,11 @@ Exit evidence: deployed API contract checks, current-source iOS tests executing 
 
 ### Gate B - Real Discovery And Core Conversion
 
-1. Replace Home concept search/notifications/favorite/location claims with real behavior or honest labels.
-2. Implement event-first search, filters, and contextual continuity.
-3. Reorder Event Detail around time/place/ticket availability/purchase.
-4. Make Market actions reflect actual liquidity.
-5. Remove or mark non-persistent Account controls.
+1. [x] Replace Home concept search/notifications/favorite/location claims with real behavior or honest labels.
+2. [x] Implement event-first search, filters, and contextual continuity.
+3. [x] Reorder Event Detail around time/place/ticket availability/purchase.
+4. [ ] Make Market actions reflect actual liquidity.
+5. [ ] Remove or mark non-persistent Account controls.
 
 Exit evidence: deployed guest-to-event-to-auth-gate-to-checkout path with analytics and failure recovery.
 

@@ -2,8 +2,8 @@
 version: alpha
 name: FanPass V5 Backstage Pass
 description: Young live-culture ticketing with premium pass-level trust. V5 is a from-scratch brand and app redesign, not a V4 visual extension.
-status: unfinished_exploration_not_approved
-last_updated: 2026-07-12
+status: staged_implementation_owner_approved
+last_updated: 2026-07-25
 scope:
   - FanPass brand identity
   - FanPass iOS
@@ -98,9 +98,9 @@ components:
 
 # FanPass DESIGN.md
 
-This is an unfinished V5 exploration draft, not an active design contract. It records a possible from-scratch direction for logo, app icon, color, typography, imagery, component rhythm, and app screens. Nothing in this file may replace the production app without explicit owner approval.
+This is the active V5 direction for an owner-approved staged migration. It records the visual and product contract for logo, app icon, color, typography, imagery, component rhythm, and app screens.
 
-V4 remains the active production baseline. This draft may intentionally explore a different visual language, but it must not be used as implementation guidance until V5 is completed and approved.
+As of 2026-07-25, Home, Explore, and Event Detail implement this contract as one discovery-to-purchase slice. Unmigrated consumer and Ops screens retain their V4 presentation until they receive screen-specific design, accessibility, and runtime QA. This staged approval is not permission to declare V5 a complete production-baseline replacement or public-release candidate.
 
 ## Overview
 
@@ -775,22 +775,20 @@ Before handoff:
 9. Are components responsive and accessible? If no, fix.
 10. Did simulator/browser QA pass for changed screens? If no, do not hand off.
 
-## Next Logo Step
+## Logo Implementation Status And Next Step
 
-Current logo task:
+Round 06 remains the selected direction:
 
-1. Continue from `FanPass_VI_Redesign_V5/assets/fanpass-wordmark-v5-inter-700.svg` and `FanPass_VI_Redesign_V5/assets/fanpass-mark-v5-inter-pass-notch-minimal.svg`.
-2. Tune tracking and icon geometry without making the mark cartoon-like.
-3. Test black-on-white, white-on-black, header scale, app launch scale, ticket/pass surface scale, and 24px small size.
-4. If the mark stripes blur at 24px, simplify to silhouette plus red entry bar.
+- `assets/fanpass-wordmark-v5-inter-700.svg` for the Inter 700 wordmark;
+- `assets/fanpass-mark-v5-inter-pass-notch-minimal.svg` for the no-letter pass-notch mark;
+- `assets/fanpass-app-icon-v5-inter-pass-notch-minimal.svg` for the app icon.
 
-The next board should show shortlisted wordmarks in:
+The mark was checked at 24px and at the 30pt app-header slot. Its silhouette and red entry bar remain recognizable, so the stripe geometry was not simplified. The app-icon SVG outer background is now a full square, leaving corner masking to iOS instead of baking in a second rounded mask; all declared iPhone/iPad/marketing PNGs are opaque RGB files.
 
-- black on white;
-- white on black;
-- navigation/header scale;
-- app launch scale;
-- ticket/pass surface scale;
-- paired with a very simple mark placeholder.
+Next:
+
+1. Check the icon and header mark on a physical iPhone through the next candidate-bound TestFlight build.
+2. Check one-color reproduction on dark and light ticket/pass surfaces as those screens migrate.
+3. Run trademark/conflict review before public submission.
 
 Do not treat generated logo boards as final trademark-cleared vector assets.

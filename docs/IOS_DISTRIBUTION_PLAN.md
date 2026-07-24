@@ -1,7 +1,7 @@
 # FanPass iOS Distribution Plan
 
 Originally dated: 2026-05-29
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
 ## Scope
 
@@ -141,7 +141,8 @@ Shared:
 ## Beta Blockers
 
 - Apple Developer account access is available as of 2026-06-10. Authenticated App Store Connect review on 2026-07-24 confirms the historical builds remain available: FanPass `1.0 (2)` shows 3 installs and 108 app sessions; FanPass Ops `1.0 (1)` shows 2 installs and 24 app sessions; neither build shows a recorded crash. This live distribution data and the owner's confirmation establish that TestFlight installation plus physical-iPhone QR validation were completed. A fresh signed archive and version-bound TestFlight/iPhone QR re-attestation for the next reviewed `qr-first-release-v1` candidate remain open.
-- App Store Connect currently reports an updated Apple Developer Program License Agreement that the account holder must review and accept before existing apps can be updated or new apps submitted. It also reports that EU trader status is required for continued EU distribution. These are owner/legal release actions; automation must not accept or self-attest either decision.
+- App Store Connect currently reports an updated Apple Developer Program License Agreement that the account holder must accept before existing apps can be updated or new apps submitted. On 2026-07-25 Computer Use reached the final `Agree` button and stopped for the required action-time confirmation. The DSA flow was also opened and presents two legal-fact choices: `trader` or `not a trader / no EU distribution`; neither was selected. These decisions must come from the owner and must not be inferred from the account's individual enrollment type.
+- Signing preflight on 2026-07-25 found Xcode 26.5, XcodeGen, and one valid code-signing identity, but zero provisioning profiles in the standard local profile directory. After the agreement is accepted, Xcode/App Store Connect must restore or download explicit profiles for both bundle IDs before `ios:archive:beta` can produce new signed archives.
 - Environment-specific iOS API configuration exists through build settings/xcconfig injection, but signed TestFlight evidence with real HTTPS beta/staging values is still open.
 - `FanPass Ops` release/TestFlight path is QR-first for now. NFC NDEF evidence remains open and should not block initial internal TestFlight QR testing.
 - Apple Wallet `.pkpass` signing is not implemented.

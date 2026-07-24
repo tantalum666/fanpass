@@ -1,6 +1,6 @@
 # FanPass Ongoing Build Journey
 
-Last updated: 2026-07-23 (Asia/Shanghai).
+Last updated: 2026-07-25 (Asia/Shanghai).
 
 ## 1. 记录范围
 
@@ -490,3 +490,11 @@ Hosted CI 证据则改成在线证明：验证器从 Git remote 得到唯一仓�
 Owner 在 2026-07-24 纠正了状态表达：历史 TestFlight 安装和实体 iPhone QR 验证已经做过，仓库也保留两个 bundle id 的 TestFlight 上传历史以及带 provisioning profile 的有效签名 iPhoneOS 构建。旧 `outputs` JSON 仍是 draft，说明当时没有把操作结果封装成当前 validator 可接受的证据，而不是测试从未发生。正确的未完成项是把已经跑通的路径在下一份 `qr-first-release-v1` 候选上重跑并绑定版本，不是重新证明 FanPass 能否上 TestFlight 或 iPhone 能否扫 QR。Owner 同时授权后续改动通过门禁后自动推进 Hosted、受控 Staging 与 Internal TestFlight；只有缺失 API/key 或不可逆的付费/公开生产决策才暂停询问。
 
 这份修复随后以 `ec3ab855a40f22670e41a4e727025b6ec6b80e97` 提交到 `codex/security-rc-20260724-qr-first`，并通过 GitHub Hosted `FanPass Beta Foundation` run `#93`。App Store Connect 的实时数据同时确认 FanPass `1.0 (2)` 有 3 次安装/108 次使用，FanPass Ops `1.0 (1)` 有 2 次安装/24 次使用，二者无已记录崩溃；这进一步证明旧 TestFlight 路径确实跑过，但不替代新候选复测。Render 仍在旧 `main` revision 与 Free API 上，最低 Starter 维护边界为 `$7/月`；因为它会产生持续费用，尚未在没有 Owner 明确确认的情况下应用，也没有自动接受 Apple 更新后的开发者协议或 EU trader 法律状态。
+
+随后文档 head `7d77584e1dac520dc90562eea09edd6b01d5f793` 通过 exact-HEAD Hosted run `#94`。Owner 在 2026-07-25 明确要求 Render 暂时保持 Free，并把长期发布策略定为 Auto-Deploy Off、每次由插件或 CLI 手动触发和验证。一次误选 Starter 产生了针对当时 `main` head `b7cbc46668fa24d10afabb89fca58d023164845e` 的 Render deploy `dep-d9hp9vfavr4c739ikcsg`；发现 source drift 后在 checkout/cache 阶段立即取消，未进入 build 或数据库命令，复核套餐仍为 Free，最后成功部署仍是 `8f845a19e32bd072b4e6b4df6e61ce11a7548214`。这也暴露了一个真实运维陷阱：实例类型变化会以当前 linked branch head 触发部署，不能假设它会自动复用旧 live SHA。
+
+同一轮 Computer Use 已到达新版 Apple Developer Program License Agreement 的最终 `Agree` 按钮，并打开 DSA 的 `trader` / `not a trader or no EU distribution` 二选一；按照法律动作确认边界，两者都停在提交前等待 Owner 明确选择。签名预检发现 Xcode 26.5、XcodeGen 和一个有效签名身份，但标准目录中没有 provisioning profile，因此协议通过后仍需恢复两个 bundle id 的分发 profile，才能生成下一份候选绑定的 signed archive。
+
+Owner 随后决定暂时搁置 DSA，继续 V5 视觉升级。这次没有把它处理成一次全局换肤：先复核 V4 在 368x800 的 Home、Explore、Event Detail，再用已有 Round 06 标志、Backstage Pass 色彩和排版，把最关键的发现到购买路径做成一个独立可维护的竖切。Home 删除了没有真实服务的通知、收藏、概念搜索和伪定位，改为真实目录城市、Explore 搜索交接和 Account 路由；Explore 增加真实事件/场馆/城市/分类搜索以及城市/分类过滤，不再把完整列表叫作 `Recommended`，并把真实活动期 Fan Access 收成一个上下文入口；Event Detail 去掉重复标题和首屏行情卡，把票种、库存、规则与登录/结账动作提前，并在购买路径隐藏 tab bar。
+
+工程上新增独立 V5 semantic tokens 与共享组件层，未迁移的 Market、Tickets、Account、Checkout、Fan Access 和 Ops 仍使用 V4，避免一次半成品主题替换污染交易页面。选定标志通过 24px/header 检查；App Icon 的外层背景修为完整方形、由 iOS 负责圆角遮罩，并重新生成全部不带 alpha 的 iPhone/iPad/marketing 尺寸。三张同状态 V4/V5 对比图经过目视检查后又修正了窄屏密度、首屏 CTA、占位 hero 和小尺寸品牌标志。最终 Beta 模拟器构建启动通过，Debug 单测 6/6 通过，两项 iOS 分发/角色边界审计通过。因为这轮只有 iOS 源码与资产变化，没有 API、Render 配置或数据库改动，Render Free 与 Auto-Deploy Off 保持不变，也没有为了“自动部署”制造一次无意义的后端发布。下一步是先完成 Market 的无流动性动作和 Account 持久化边界，再把候选绑定到新的 Hosted、签名/TestFlight 与实体 iPhone 复测证据。

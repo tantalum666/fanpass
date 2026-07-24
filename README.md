@@ -4,8 +4,8 @@ FanPass is a native iOS ticketing product for verified primary sales, controlled
 
 ## Current Baseline
 
-- Shipping UI baseline: **V4**.
-- V5 status: unfinished brand exploration only; it is not implemented in SwiftUI and must not be shipped.
+- UI baseline: staged V5 on consumer Home, Explore, and Event Detail; V4 on unmigrated screens.
+- V5 status: owner-approved staged implementation as of 2026-07-25. This is not yet approval to declare a full production-baseline replacement or public release.
 - Consumer app: `apps/ios/FanPass/FanPass` (`fun.fanpass.app`).
 - Staff app: `apps/ios/FanPass/FanPassOps` (`com.fanpass.ops`).
 - API: NestJS + Prisma/PostgreSQL under `apps/api`.
@@ -14,9 +14,9 @@ FanPass is a native iOS ticketing product for verified primary sales, controlled
 
 The staging API is backend-authoritative for orders, payments, ownership, resale, QR credentials, and redemption. UI previews may use fixtures, but active Beta/Release flows must not report a local-only transaction as successful.
 
-Current security RC: branch `codex/security-rc-20260720` is frozen and pushed at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. The authoritative local V4 gate passed 97/97, including API 32 suites/386 tests and contracts 30/30; independent final review reported 0 remaining P0/P1. This commit has not been merged, deployed, or released. Hosted CI attestation is still open because the current GitHub credential receives 403 from the Actions/Checks/Status APIs. Historical TestFlight distribution/install and physical-iPhone QR validation were completed before this RC; what remains is fresh version-bound evidence for the next reviewed candidate, plus current Staging, provider, chain, and App Attest proof.
+Current security RC: branch `codex/security-rc-20260720` is frozen and pushed at immutable commit `a25185d2747520303eac0fd2681017b5c35ac62b`. The authoritative local V4 gate passed 97/97, including API 32 suites/386 tests and contracts 30/30; independent final review reported 0 remaining P0/P1. This commit has not been merged, deployed, or released. Authenticated GitHub UI verification confirmed its Hosted run `#92`; the local credential still cannot produce validator-bound Actions JSON because the private-repository APIs return 403. Historical TestFlight distribution/install and physical-iPhone QR validation were completed before this RC; what remains is fresh version-bound evidence for the next reviewed candidate, plus current Staging, provider, chain, and App Attest proof.
 
-The current uncommitted working tree also contains a focused post-RC `qr-first-release-v1` iOS capability/evidence repair. It is not part of the immutable RC, so the historical TestFlight/iPhone QR result must be refreshed against a new reviewed build rather than treated as evidence for these exact bytes. Future NFC evidence remains separate.
+Active branch `codex/security-rc-20260724-qr-first` contains the focused post-RC `qr-first-release-v1` capability/evidence repair plus the staged V5 discovery/conversion slice. Earlier exact heads passed Hosted runs `#93` and `#94`; every later commit still needs its own Hosted result. Historical TestFlight/iPhone QR results must be refreshed against the next reviewed build rather than treated as evidence for these exact bytes. Future NFC evidence remains separate.
 
 ## Engineering Rules
 
@@ -28,7 +28,7 @@ The current uncommitted working tree also contains a focused post-RC `qr-first-r
 6. Update the relevant Markdown and especially `docs/CODEX_HANDOFF.md` after meaningful work.
 7. Active consumer/runtime paths must use explicit deployed Staging or Production services. Mock data belongs only to Preview, isolated tests, deterministic fault injection, or clearly labelled internal demos.
 8. Local builds and simulators are supporting compile/debug/regression evidence, not proof of availability, authentication, payment, data integrity, or release readiness. Close those claims with deployed HTTPS, TestFlight/physical-device, and real user-path evidence as appropriate.
-9. After a material change passes the required gates, continue automatically through reviewed candidate creation, hosted checks, controlled Staging deployment, and internal TestFlight preparation when the configured credentials and safety boundaries allow it. Ask the owner for a missing API/key or an irreversible paid/public-release decision instead of stopping at local success.
+9. After a material change passes the required gates, continue automatically through reviewed candidate creation, hosted checks, controlled Staging deployment, and internal TestFlight preparation when the configured credentials and safety boundaries allow it. Render stays Free for now with Auto-Deploy Off; every Render release must be triggered manually through the approved plugin or CLI and verified. Ask the owner for a missing API/key or an irreversible paid/public-release decision instead of stopping at local success.
 10. When changing a user journey, inspect adjacent entry, loading, empty, failure, recovery, authenticated, and cross-device states proactively instead of waiting for the owner to report each regression.
 
 ## Product Surfaces
@@ -49,8 +49,8 @@ apps/web/                         Optional consumer Web fallback
 packages/contracts/               Solidity contracts and chain tooling
 packages/shared/                  Shared TypeScript contracts
 docs/                             Current product, security, QA, and evidence docs
-FanPass_VI_Redesign_V4/           Approved V4 brand package
-FanPass_VI_Redesign_V5/           Unfinished V5 exploration only
+FanPass_VI_Redesign_V4/           V4 package for unmigrated screens
+FanPass_VI_Redesign_V5/           Active staged V5 design/brand contract
 archive/school-project/           Completed coursework Web/hardware source archive
 ```
 
